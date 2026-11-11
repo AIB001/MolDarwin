@@ -59,6 +59,38 @@ class Evidence(StrEnum):
     INFERRED = "inferred"
 
 
+#: Run-to-run spread, in kcal/mol, above which one execution is not a measurement of anything.
+#: RT*ln(10) at 310 K, the free energy of one log unit of affinity: above it, two molecules a
+#: factor of ten apart can swap places between runs. Evidence: ``convention`` for the choice of one
+#: log unit as the boundary; the arithmetic itself is exact.
+ONE_RUN_THRESHOLD_KCAL_MOL = 1.42
+
+#: Replicas an ensemble method needs before its output is a measurement.
+#:
+#: Named as a constant because ``active/`` now reads it as the default source of a protocol's
+#: declared draw count, and a number that prices a campaign and clears a fault must not be a
+#: literal typed at the call site.
+ENSEMBLE_REPLICAS = 5
+
+#: Where :data:`ENSEMBLE_REPLICAS` comes from. The count is published; **applying** it as a
+#: constant is this project's convention, and the two are different claims kept apart here on
+#: purpose -- see :meth:`Stage.replicas_for_a_measurement`. Never ``MEASURED_HERE``: nothing in
+#: this project has measured the N at which N+1 changes nothing.
+ENSEMBLE_REPLICAS_EVIDENCE = Evidence.LITERATURE
+
+ENSEMBLE_REPLICAS_SOURCE = (
+    "Five is the replica count the ESMACS and TIES protocols settle on (Wan S, Bhati AP, Zasada "
+    "SJ, Coveney PV and related ensemble work; see also Ensembles Are Required to Handle Aleatoric "
+    "and Parametric Uncertainty in Molecular Dynamics Simulation, 2021), cited in "
+    "F_SINGLE_REPLICA_ESTIMATE's own source. The number is literature; applying it as a constant "
+    "is a convention, because the literature is explicit that no theoretical means exists to "
+    "establish it -- the criterion is to find the N at which N+1 changes nothing, which is a "
+    "measurement per system rather than a constant. That fault's remedy also fixes the shape of "
+    "the summary: report the ensemble's median with a quantile interval rather than a mean with a "
+    "standard deviation, because the distribution is skewed and heavy-tailed."
+)
+
+
 class Answers(StrEnum):
     """What question a stage actually answers, which decides where it can sit."""
 
@@ -244,7 +276,8 @@ class Stage:
         a spread above it means two molecules a factor of ten apart can swap places between runs.
         """
 
-        return self.run_to_run_kcal_mol is None or self.run_to_run_kcal_mol <= 1.42
+        return (self.run_to_run_kcal_mol is None
+                or self.run_to_run_kcal_mol <= ONE_RUN_THRESHOLD_KCAL_MOL)
 
     def cost_for(self, molecules: int, *, replicas: int = 1) -> float:
         """GPU-hours to run this stage on a population, at a given replica count."""
@@ -260,10 +293,11 @@ class Stage:
         ESMACS protocols settle on. Stated as a convention rather than a derivation, because the
         literature is explicit that no theoretical means exists to establish the number: the
         criterion is to find N such that N+1 changes nothing, which is a measurement per system
-        rather than a constant.
+        rather than a constant. :data:`ENSEMBLE_REPLICAS_SOURCE` carries the citation, and
+        ``active/aggregation.py`` reads it as the provenance of a protocol's declared draw count.
         """
 
-        return 1 if self.reproducible_from_one_run else 5
+        return 1 if self.reproducible_from_one_run else ENSEMBLE_REPLICAS
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -524,6 +558,10 @@ def needs_an_ensemble() -> tuple[Stage, ...]:
 
 __all__ = [
     "BY_ID",
+    "ENSEMBLE_REPLICAS",
+    "ENSEMBLE_REPLICAS_EVIDENCE",
+    "ENSEMBLE_REPLICAS_SOURCE",
+    "ONE_RUN_THRESHOLD_KCAL_MOL",
     "STAGES",
     "Answers",
     "Evidence",

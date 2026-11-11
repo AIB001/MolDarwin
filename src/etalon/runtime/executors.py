@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 from contextlib import contextmanager
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -30,13 +31,87 @@ def _endpoint(value: dict, protocol: str, fixed: dict[str, Any]) -> Endpoint:
 
 def _recipe(configuration: dict) -> CascadeRecipe:
     return CascadeRecipe.freeze(configuration["cascade"], Readout(**configuration["readout"]),
-                                files=tuple(configuration["files"]))
+                                files=tuple(configuration["files"]),
+                                aggregation=configuration.get("aggregation"))
+
+
+def _declared_aggregation(configuration: dict) -> dict:
+    """``{"aggregation": ...}`` where a policy is declared, and ``{}`` where none is.
+
+    Folded into the protocol digest by the caller, so that changing how draws are aggregated is a
+    new protocol id refused under the old one rather than a reinterpretation of its records. Absent
+    where undeclared, because digesting an explicit default would move every protocol id that
+    already exists -- see ``CascadeRecipe.protocol_id`` for the same decision and its reason.
+    """
+    from etalon.active.aggregation import AggregationPolicy
+
+    policy = AggregationPolicy.declare(configuration.get("aggregation"))
+    return {} if policy.is_default else {"aggregation": policy.as_dict()}
+
+
+def aggregation_provenance(record: dict, endpoint: Endpoint, *, candidate_id: str,
+                           actions: list[dict], observations: list[dict]) -> dict:
+    """The stage-1 coverage block, to travel beside the value it is about.
+
+    Declared draws, authorised draws, combiner, and the dispersion figure or ``not_taken``, for
+    this one candidate at this one endpoint. Nothing is refused by this block and no ``Ruling``
+    moves; what it establishes is that the declaration and the authorised count are separately
+    visible in the record, so a one-draw value and a several-draw consensus stop reading alike.
+
+    The action being dispatched is itself an authorised draw, so a running action counts here --
+    unlike a post-hoc read, where only a completed action has produced one.
+    """
+    from etalon.active.aggregation import AggregationPolicy, authorised_draws, coverage
+
+    configuration = record.get("configuration") or {}
+    policy = AggregationPolicy.declare(configuration.get("aggregation"))
+    seeds = configuration.get("seeds")
+    distinct = (seeds if isinstance(seeds, list) and len(set(seeds)) == len(seeds) else None)
+    counted = authorised_draws(actions, candidate_id=candidate_id, endpoint_id=endpoint.id,
+                               seeds=distinct, counted_statuses=("completed", "running"))
+    values = [float(row["result"]["value"]) for row in observations
+              if row.get("admitted") and isinstance(row.get("result"), dict)
+              and row["result"].get("endpoint_id") == endpoint.id
+              and row["result"].get("candidate_id") == candidate_id
+              and isinstance(row["result"].get("value"), (int, float))
+              and not isinstance(row["result"].get("value"), bool)]
+    return coverage(policy, counted, values=values)
+
+
+def _aggregation_block(record: dict, endpoint: Endpoint, candidate_id: str) -> Evaluation | None:
+    """Refuse to dispatch an action whose protocol declares draws this endpoint cannot authorise.
+
+    The general form of the refusal below for ``prism_mmpbsa_replicated``, keyed on the declared
+    aggregation policy rather than on an executor kind. That refusal was correct and it was one
+    executor's special case: every other kind reaches a branch that runs a single trajectory, so a
+    protocol declaring five independent draws would quietly run one and report the result under a
+    protocol id claiming five. Both shipped dispatchable kinds have ``max_replicates = 1``.
+
+    Returns a blocked :class:`Evaluation` at zero cost, exactly as the executor preflight refusal
+    does -- nothing is started, so nothing is charged. ``None`` means there is nothing to refuse,
+    which is the case for every protocol that declares no policy.
+    """
+    from etalon.active.aggregation import AggregationPolicy, dispatch_refusal
+
+    configuration = record.get("configuration") or {}
+    policy = AggregationPolicy.declare(configuration.get("aggregation"))
+    seeds = configuration.get("seeds")
+    refusal = dispatch_refusal(
+        policy, max_replicates=endpoint.max_replicates,
+        declared_seeds=None if not isinstance(seeds, list) else len(set(seeds)))
+    if refusal is None:
+        return None
+    return Evaluation(candidate_id, endpoint.id, None, endpoint.units, 0.0, status="blocked",
+        provenance={"phase": "executor_dispatch", "executor_id": record.get("executor_id"),
+                    "error": "UNSUPPORTED: " + refusal,
+                    "declared_aggregation": policy.as_dict(),
+                    "cost_basis": "not dispatched"})
 
 
 def prepare_executor(kind: str, configuration: dict, endpoint: dict) -> dict:
     """Validate a registered implementation and freeze its scientific inputs, without dispatch."""
     if kind == "molcascade":
-        fields(configuration, {"cascade", "readout"}, {"files"})
+        fields(configuration, {"cascade", "readout"}, {"files", "aggregation"})
         fields(configuration["readout"], {"stage_id", "contract_id", "value_column"}, {"filters"})
         for key in ("stage_id", "contract_id", "value_column"):
             text(configuration["readout"][key], key)
@@ -47,17 +122,23 @@ def prepare_executor(kind: str, configuration: dict, endpoint: dict) -> dict:
             raise ValueError("executor files must be a list of absolute paths")
         paths = [str(absolute(path)) for path in files]
         recipe = CascadeRecipe.freeze(configuration["cascade"], Readout(**configuration["readout"]),
-                                      files=tuple(paths))
+                                      files=tuple(paths),
+                                      aggregation=configuration.get("aggregation"))
         normalized = {"cascade": json.loads(recipe.configuration),
                       "readout": json.loads(recipe.readout_json),
                       "files": [path for path, _ in recipe.input_files]}
+        # Omitted where undeclared, so an executor registered before the policy existed keeps its
+        # exact identity; the recipe's own digest treats an undeclared policy the same way.
+        if recipe.aggregation_json:
+            normalized["aggregation"] = json.loads(recipe.aggregation_json)
         inputs = dict(recipe.input_files)
         contract = _endpoint(endpoint, recipe.protocol_id,
                              {"requires_handoff": False, "queryable": True, "max_replicates": 1})
     elif kind == "prism":
         from etalon.boundary.infra import load
 
-        fields(configuration, {"receptor_path", "python", "production_ns"}, {"timeout_per_molecule"})
+        fields(configuration, {"receptor_path", "python", "production_ns"},
+               {"timeout_per_molecule", "aggregation"})
         receptor, interpreter = absolute(configuration["receptor_path"]), absolute(configuration["python"])
         duration, timeout = configuration["production_ns"], configuration.get("timeout_per_molecule", 86_400)
         for name, value in (("production_ns", duration), ("timeout_per_molecule", timeout)):
@@ -65,7 +146,8 @@ def prepare_executor(kind: str, configuration: dict, endpoint: dict) -> dict:
             if value <= 0:
                 raise ValueError(f"{name} must be positive")
         normalized = {"receptor_path": str(receptor), "python": str(interpreter),
-                      "production_ns": float(duration), "timeout_per_molecule": float(timeout)}
+                      "production_ns": float(duration), "timeout_per_molecule": float(timeout),
+                      **_declared_aggregation(configuration)}
         inputs = {str(path): _file_hash(path) for path in sorted({receptor, interpreter})}
         infra = load("prism")
         protocol = "prism-mmpbsa/1:" + digest({"configuration": normalized, "inputs": inputs,
@@ -119,7 +201,7 @@ def _replicated_mmpbsa_configuration(configuration: dict) -> tuple[dict, dict, s
     """
 
     fields(configuration, {"receptor_path", "python", "production_ns", "seeds"},
-           {"timeout_per_molecule", "mmpbsa_command", "mmpbsa_subdir"})
+           {"timeout_per_molecule", "mmpbsa_command", "mmpbsa_subdir", "aggregation"})
     receptor, interpreter = absolute(configuration["receptor_path"]), absolute(configuration["python"])
     duration = configuration["production_ns"]
     timeout = configuration.get("timeout_per_molecule", 86_400)
@@ -153,7 +235,8 @@ def _replicated_mmpbsa_configuration(configuration: dict) -> tuple[dict, dict, s
     normalized = {"receptor_path": str(receptor), "python": str(interpreter),
                   "production_ns": float(duration), "timeout_per_molecule": float(timeout),
                   "seeds": list(seeds), "mmpbsa_subdir": subdir,
-                  "mmpbsa_command": list(command) if command is not None else None}
+                  "mmpbsa_command": list(command) if command is not None else None,
+                  **_declared_aggregation(configuration)}
     inputs = {str(path): _file_hash(path) for path in sorted({receptor, interpreter})}
     if command is not None:
         inputs[str(absolute(command[0]))] = _file_hash(absolute(command[0]))
@@ -174,7 +257,19 @@ def _bridge_configuration(configuration: dict) -> tuple[dict, dict]:
     from etalon.boundary.prism_v1 import CLITransport, validate_request
 
     fields(configuration, {"request_template", "transport", "job_root", "receptor_path", "seeds"},
-           {"poll_seconds", "wait_seconds"})
+           {"poll_seconds", "wait_seconds", "aggregation"})
+    if configuration.get("aggregation") is not None:
+        # Refused rather than accepted and ignored. This kind takes its ``protocol_id`` from the
+        # request template validated in ``boundary/prism_v1``, so a policy declared here would not
+        # be part of the protocol's identity: it could be changed under an existing id, which is
+        # the one property folding the policy into the digest exists to provide. A declaration that
+        # the identity does not carry is worse than no declaration, because it moves the claim from
+        # the number to the declaration.
+        raise ValueError(
+            "prism_bridge_v1 takes its protocol identity from the request template, so an "
+            "aggregation policy declared on the executor would not be part of it; declare it on "
+            "the template's protocol instead"
+        )
     fields(configuration["transport"], {"python", "cwd", "request_root"}, {"host", "timeout"})
     transport = CLITransport(**configuration["transport"])
     validate_request(configuration["request_template"])
@@ -361,6 +456,12 @@ def build_executor(database: str | Path, workspace: str | Path,
             return Evaluation(candidate.id, endpoint.id, None, endpoint.units, 0.0, status="blocked",
                 provenance={"phase": "executor_preflight", "executor_id": record["executor_id"],
                             "error": str(error), "cost_basis": "not dispatched"})
+        # Before any kind branch, so that no kind can reach a single-run path while its protocol id
+        # claims an aggregation over independent draws. One draw and a ten-draw consensus are
+        # indistinguishable in a record that stores neither the policy nor the spread.
+        blocked = _aggregation_block(record, endpoint, candidate.id)
+        if blocked is not None:
+            return blocked
         if record["kind"] == "molcascade":
             result = cascade(action, candidate, endpoint, grant)
         elif record["kind"] == "prism_bridge_v1":
@@ -413,14 +514,18 @@ def build_executor(database: str | Path, workspace: str | Path,
                     production_ns=config["production_ns"], timeout_per_molecule=config["timeout_per_molecule"])
 
             result = StageExecutor({endpoint.id: factory})(action, candidate, endpoint, grant)
-        return result
+        # Stage 1 of STOCHASTIC_MEASUREMENT.md: the policy and its coverage beside the value, so a
+        # reader of the record can tell a declared draw count from an authorised one. Reporting
+        # only -- the refusal happened above, before anything ran.
+        return replace(result, provenance={**result.provenance, "aggregation":
+            aggregation_provenance(record, endpoint, candidate_id=candidate.id,
+                                   actions=store.actions(), observations=store.observations())})
 
     return dispatch, receptor_path
 
 
 def recover_bridge_action(database: str | Path, action) -> Evaluation | None:
     """Reconcile an acknowledged bridge action without spending or resubmitting anything."""
-    from dataclasses import replace
     from etalon.faults.preflight import check_record
 
     store = _store(database)

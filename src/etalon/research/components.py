@@ -167,8 +167,23 @@ def _freeze_bytes(path, pin, directory):
     return str(target)
 
 
-def record_json(journal, payload, directory, *, source_kind, bindings=None):
-    """Immutable ordinary Artifact; complete bytes retained, no custom DB table."""
+def record_json(journal, payload, directory, *, source_kind, bindings=None, capability=None,
+                capability_basis="declared", capability_version=None):
+    """Immutable ordinary Artifact; complete bytes retained, no custom DB table.
+
+    `capability` names what produced this record -- an MCP tool name, a skill slug or a
+    registered executor id -- and lands in `bindings["produced_by"]`. A caller that does
+    not say gets `not_recorded`, never a guess (`research/capability_attribution.py` has
+    the reasons, including why `source_kind` does not answer this and must not be
+    repurposed). Attribution is `used`-class information about the record's making: it
+    carries no admission and says nothing about whether the capability was appropriate.
+    """
+    from .capability_attribution import with_attribution
+    # `with_attribution` reads the executing verb when no name is given, so this seam holds no
+    # branch of its own: one definition of "who produced this", applied wherever bindings are
+    # assembled rather than re-implemented per write site.
+    bindings = with_attribution(bindings, capability, basis=capability_basis,
+                                version=capability_version)
     from etalon.data.artifacts import write_json
     from .schema import Artifact
     content = json.loads(canonical(payload))

@@ -98,6 +98,30 @@ def register(mcp: Any) -> None:
 
     @mcp.tool()
     @tool(Cost.FREE)
+    def etalon_method_criterion(contract: dict | None = None, contract_ref: dict | None = None,
+                                workspace: str | None = None, entry: str | dict | None = None,
+                                read_context: dict | None = None) -> str:
+        """FREE. Read the acceptance criterion before working: rules, never a verdict.
+
+        Supply contract xor exact contract_ref, and for a ref one workspace/entry/read_context.
+        Returns each judged quantity with its measure, operator, threshold, the provenance
+        of that threshold, and what the metric punishes -- including that a set-similarity
+        bar punishes an extra feature as well as a missing one. Also the status vocabulary
+        and that the worst status wins, so a passing cost metric never erases a failing
+        quality metric. Read this before the first iteration and recompute each metric
+        yourself as you work. Only the contract's own ref is resolved: no input bytes, no
+        recorded result and no verdict. Use etalon_method_evaluate for a replay against
+        verified originals.
+        """
+        from etalon.mcp.evidence import _entry_argument
+        from etalon.research.contract_spec import specification
+        return ok(**specification(
+            contract, contract_ref=contract_ref,
+            workspace=absolute_path(workspace, label="workspace") if workspace is not None else None,
+            entry=_entry_argument(entry), read_context=read_context))
+
+    @mcp.tool()
+    @tool(Cost.FREE)
     def etalon_method_evaluate(contract: dict | None = None, contract_ref: dict | None = None,
                                workspace: str | None = None, entry: str | dict | None = None,
                                read_context: dict | None = None) -> str:

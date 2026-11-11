@@ -37,7 +37,11 @@ def benchmark(workspace: str | Path, *, seeds: Sequence[int] = (0, 1, 2, 3, 4),
         if policy in {"mf_kg", "decision_aware"} and size > spec.max_kg_candidates:
             raise ValueError("comparison pool exceeds max_kg_candidates for an exact-KG arm")
     names = ("model", "policy", "decision", "knowledge", "reliability", "recommendation",
-             "runner", "schema", "store", "budget", "replay", "benchmark", "protocols", "proposer")
+             "runner", "schema", "store", "budget", "replay", "benchmark", "protocols", "proposer",
+             # Both decide what a record says rather than what it computes: the reason a round
+             # records for stopping, and the aggregation policy a protocol declares. A comparison
+             # across two versions that disagree on either is not comparing the same records.
+             "rounds", "aggregation")
     implementation = {"modules": {
         name: hashlib.sha256(Path(__file__).with_name(name + ".py").read_bytes()).hexdigest()
         for name in names}, "environment": {name: version(name) for name in ("numpy", "scipy")},

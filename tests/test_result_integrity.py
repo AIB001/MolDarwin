@@ -106,6 +106,7 @@ def test_integrity_unknown_flows_into_existing_evaluation_contract(case):
         protocol_ref=ref,initial_conditions_ref=ref,inputs=[{'name':'integrity','ref':ref,'kind':'result'}],
         metrics=[{'name':'error','family':'regression','measure':{'operation':'value',
             'left':{'input':'integrity','pointer':'/error'},'right':None},'operator':'le','threshold':0,
+            'threshold_evidence':'convention',
             'unit':'count','denominator':'one synthetic result','denominator_selector':{'input':'integrity','pointer':'/count'},
             'missing_policy':'insufficient'}],required_checks=integrity_required_checks(),
         comparability=[{'check_id':'protocol','selector':{'input':'integrity','pointer':'/protocol'},'expected':'fixture'}],

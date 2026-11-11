@@ -6,13 +6,22 @@ MethodUse still attributes task/request/action/result; nodes refer to that use.
 from __future__ import annotations
 
 import json
+import warnings
 
 from etalon.active.schema import canonical
+from .decision_rule import RULE_FIELDS, build_decision_rule, plan_rules, validate_plan_metric_rule
 from .evidence_refs import EvidenceError, validate_ref
 
 WORKFLOW = "etalon-research-workflow/1"
 TARGETS = {"method", "branch_selection", "workflow", "workflow_composition"}
 NODE_STATES = {"planned", "completed", "reused", "skipped", "failed", "waiting", "partial"}
+
+#: `assessment_role` is required. This sentinel is how the old call -- which
+#: entered the weak regime by omission -- is still accepted while being recorded
+#: as an omission rather than as a choice. A regime you can enter by forgetting is
+#: not a regime; a regime you can still enter by forgetting but that says so on
+#: the record is a migration.
+_ROLE_NOT_DECLARED = object()
 
 
 def validate_workflow(payload):
@@ -99,13 +108,18 @@ def validate_step_extension(payload):
         _refs(detail["use_refs"])
         names = set()
         for metric in _list(detail["metrics"], nonempty=True):
-            _fields(metric, ("name", "family", "unit", "denominator", "missing_policy"))
+            # operator/threshold/threshold_evidence are optional so every plan
+            # already recorded stays valid, and all-or-none so half a rule is
+            # never read as a rule. See research/decision_rule.py.
+            _fields(metric, ("name", "family", "unit", "denominator", "missing_policy"),
+                    RULE_FIELDS)
             _text(metric["name"])
             if metric["name"] in names or metric["family"] not in {"regression", "retention", "funnel", "cost"}:
                 raise EvidenceError("distinct metrics with separate regression/retention/funnel/cost families required")
             names.add(metric["name"])
             for key in ("unit", "denominator", "missing_policy"):
                 _text(metric[key])
+            validate_plan_metric_rule(metric)
         if payload["output_refs"]:
             raise EvidenceError("evaluation plan does not contain measured results")
     elif payload["operation"] == "evaluation":
@@ -242,16 +256,45 @@ def node_step(*, task_id, question, branch_id, node_id, capability_id=None, work
 
 
 def record_evaluation(journal, plan_ref, *, directory, source_id, source_kind, result_refs=(),
-                      accounting_refs=(), assessment_role="diagnostic", conclusion, scope,
-                      use_refs=(), node_refs=(), external_workspace=None):
+                      accounting_refs=(), assessment_role=_ROLE_NOT_DECLARED, conclusion, scope,
+                      claim=None, observed=None, use_refs=(), node_refs=(),
+                      external_workspace=None):
     """Reuse MethodEvaluation's existing diagnostic/independent validation checks.
 
     No auto-promotion or optimizer is called. A failed step append leaves the
     immutable evaluation available for idempotent retry.
+
+    `assessment_role` is required. It used to default to `"diagnostic"`, so the
+    freely-explorable regime -- no predeclaration, reuse of already-seen bytes,
+    cheap proxies, no comparator pairing -- was entered by omission rather than by
+    choice, and `journal.py::_validate_method_evaluation` returns before its whole
+    chronology gate on exactly that value. Omitting it still works and now
+    records what happened: a `DeprecationWarning` here, and
+    `assessment_role_basis="defaulted_deprecated"` on the record, which
+    `learn/admission_view.py` reads as a regime that cannot carry reliance. No
+    existing record is touched and no admission is backfilled (`CLAUDE.md`
+    constraint 4); records that predate this argument are regime-unknown, which
+    declines reliance rather than revoking it.
+
+    `claim` and `observed` carry the decision rule. When the bound plan declares
+    `operator`/`threshold` metrics, both are required and the rule is replayed
+    against `observed` here; a `claim` of `"supported"` against a replayed
+    `criteria_failed`, `insufficient` or `not_declared` is refused. See
+    research/decision_rule.py for why the refusal runs in one direction only.
     """
     from .continuation import record_content, validate_content
     from .method_revision import journal_ref
     from .schema import Artifact, MethodEvaluation
+    if assessment_role is _ROLE_NOT_DECLARED:
+        warnings.warn(
+            "record_evaluation requires an explicit assessment_role; omitting it enters the "
+            "diagnostic regime by default and is recorded as "
+            "assessment_role_basis='defaulted_deprecated'. A diagnostic premise is 'used' and "
+            "never 'relied_on', so admission does not propagate through this evaluation.",
+            DeprecationWarning, stacklevel=2)
+        assessment_role, role_basis = "diagnostic", "defaulted_deprecated"
+    else:
+        role_basis = "explicitly_declared"
     if plan_ref["source_id"] != source_id:
         raise EvidenceError("evaluation plan must be local")
     record = journal.get(plan_ref["record_id"])
@@ -265,10 +308,18 @@ def record_evaluation(journal, plan_ref, *, directory, source_id, source_kind, r
     for ref in (*d["subjects"], *d["comparators"], d["protocol_ref"], d["task_split_ref"], d["initial_conditions_ref"]):
         if ref["source_id"] != source_id or digest(journal.get(ref["record_id"])) != ref["record_digest"]:
             raise EvidenceError("evaluation bindings must be exact local records")
+    rules = plan_rules(d)
+    if rules and (claim is None or observed is None):
+        raise EvidenceError(
+            "the bound evaluation plan declares a decision rule; record_evaluation requires "
+            "an explicit claim and the observed value of every ruled metric")
+    decision = build_decision_rule(rules, [] if observed is None else list(observed),
+                                   "not_claimed" if claim is None else claim)
     value = MethodEvaluation(tuple(r["record_id"] for r in d["subjects"]),
         tuple(r["record_id"] for r in d["comparators"]), d["protocol_ref"]["record_id"],
         d["task_split_ref"]["record_id"], d["initial_conditions_ref"]["record_id"], tuple(result_refs),
-        tuple(accounting_refs), assessment_role, conclusion, scope)
+        tuple(accounting_refs), assessment_role, conclusion, scope,
+        assessment_role_basis=role_basis, decision_rule=decision)
     rid = journal.record(value)
     ref = journal_ref(journal, rid, source_id=source_id)
     step = {**plan, "operation": "evaluation", "reason": conclusion, "input_refs": [plan_ref],
@@ -279,4 +330,10 @@ def record_evaluation(journal, plan_ref, *, directory, source_id, source_kind, r
     step_id = record_content(journal, step, directory, source_id=source_id, source_kind=source_kind,
                              external_workspace=external_workspace)
     return {"evaluation_ref": ref, "step_ref": journal_ref(journal, step_id, source_id=source_id),
-            "promotion": "not_performed", "optimization": "not_triggered"}
+            "promotion": "not_performed", "optimization": "not_triggered",
+            "assessment_role": assessment_role, "assessment_role_basis": role_basis,
+            "premise_eligibility": ("relied_on_eligible" if role_basis == "explicitly_declared"
+                                    and assessment_role == "independent_validation"
+                                    else "used_only"),
+            "decision_rule": {"replayed_status": decision["replayed_status"],
+                              "claim": decision["claim"], "basis": decision["basis"]}}

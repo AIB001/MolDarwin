@@ -241,6 +241,20 @@ def _project_node(ref, row, *, task_id, home_overrides):
     if schema == "etalon-method-evaluation/1":
         node["evaluation"] = {key: content[key] for key in (
             "subjects", "comparators", "assessment_role", "conclusion", "scope")}
+        # The regime and how the record came by it. Absent on records written
+        # before assessment_role became a required argument, which is the fact
+        # learn/admission_view.py reads as regime-unknown. Projected, never
+        # inferred: a missing basis stays missing.
+        if "assessment_role_basis" in content:
+            node["evaluation"]["assessment_role_basis"] = content["assessment_role_basis"]
+        rule = content.get("decision_rule")
+        if isinstance(rule, dict):
+            # A bounded summary, not the whole block: the graph has byte bounds
+            # and a reader needs the verdict, the claim and whether a rule existed.
+            node["evaluation"]["decision_rule"] = {
+                "replayed_status": rule.get("replayed_status"), "claim": rule.get("claim"),
+                "rule_count": len(rule["rules"]) if isinstance(rule.get("rules"), list) else None,
+                "basis": rule.get("basis")}
     if operation == "node":
         node["usage"] = {key: detail[key] for key in ("use_refs", "receipt_refs", "workflow_ref", "capability_id")}
         node["usage"]["input_refs"] = content["input_refs"]

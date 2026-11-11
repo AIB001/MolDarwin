@@ -13,9 +13,10 @@ from pathlib import Path
 from time import perf_counter
 from typing import Any, Protocol
 
-from etalon.active.budget import cost_quote, fits_budget
+from etalon.active.budget import confirmation_guard, cost_quote, fits_budget
 from etalon.active.model import MultiEndpointGP
 from etalon.active.policy import Choice, choose
+from etalon.active.rounds import is_ready, partition_reason
 from etalon.active.schema import Action, Candidate, Endpoint, Evaluation
 from etalon.active.store import BudgetExhausted, CampaignStore, StateError
 from etalon.authority.grant import SpendAuthorization, authorize, require
@@ -30,6 +31,21 @@ class Executor(Protocol):
 
 class ExecutionPending(RuntimeError):
     """External outcome is unresolved. Preserve the action and its reservation for reconciliation."""
+
+
+def _objective_attempts(actions: list[dict[str, Any]], objective: str | None) -> dict[str, int]:
+    """Actions already taken at the objective endpoint, per candidate.
+
+    The ``eligible`` input to the confirmation guard, counted from the action rows so that the
+    reserve reported beside a round's reason is the quantity the reservation transaction enforces
+    rather than a second definition of it.
+    """
+    counts: dict[str, int] = {}
+    for row in actions:
+        if row.get("endpoint_id") == objective:
+            key = row.get("candidate_id")
+            counts[key] = counts.get(key, 0) + 1
+    return counts
 
 
 class ActiveCampaign:
@@ -115,11 +131,26 @@ class ActiveCampaign:
                          endpoint_limits=state["endpoint_limits"],
                          endpoint_candidates=state["endpoint_candidates"])
 
+    @staticmethod
+    def _reserve_quote(state: dict[str, Any]) -> dict[str, Any]:
+        """Recompute the campaign's own confirmation guard from one committed state."""
+        return confirmation_guard(
+            state["spec"], state["endpoints"], state["candidates"].values(),
+            _objective_attempts(state["actions"], getattr(state["spec"], "objective", None)),
+            state["observations"])
+
     def inspect(self) -> dict[str, Any]:
         """Plan and recommend using one committed state and one model fit, without writes."""
         state = self.store.snapshot()
         model, choices, reason = self._plan_snapshot(state)
-        return {"stop_reason": reason, "model": model.snapshot() if model else None,
+        # The same partition the round record gets, from the one snapshot this method is allowed
+        # to take: at planning time the slots that will be used are the ones the policy offered.
+        reason, accounting = partition_reason(
+            reason, slots_granted=state["spec"].batch_size, slots_used=len(choices),
+            slots_planned=len(choices), reserve=self._reserve_quote(state),
+            counted_at="planning")
+        return {"stop_reason": reason, "slot_accounting": accounting,
+                "model": model.snapshot() if model else None,
                 "event_cutoff": state["event_cutoff"],
                 "recommendation": self._recommend_snapshot(state, model),
                 "choices": [{"candidate_id": choice.candidate_id, "endpoint_id": choice.endpoint_id,
@@ -132,7 +163,13 @@ class ActiveCampaign:
         model, choices, reason = self.plan()
         planning_seconds = perf_counter() - started
         if not choices:
-            return {"stop_reason": reason, "actions": [], "balance": self.store.balance()}
+            # No round is started, so nothing is recorded here; the partition is reported for the
+            # caller's benefit and these reasons already explain themselves.
+            unplanned, accounting = partition_reason(
+                reason, slots_granted=self.store.configuration()[0].batch_size, slots_used=0,
+                slots_planned=0, reserve=None)
+            return {"stop_reason": unplanned, "slot_accounting": accounting, "actions": [],
+                    "balance": self.store.balance()}
         assert model is not None
         if self.executor is None:
             raise ValueError("execution requires an explicit executor; plan() is read-only")
@@ -140,7 +177,7 @@ class ActiveCampaign:
         if len(cutoffs) != 1 or type(next(iter(cutoffs))) is not int:
             raise StateError("execution requires choices from one coherent journal snapshot")
         cutoff = next(iter(cutoffs))
-        _, endpoints = self.store.configuration()
+        spec, endpoints = self.store.configuration()
         candidates = self.store.candidates()
         round_id = self.store.start_round({"model": model.snapshot(),
                                           "training_actions": model.training_action_ids,
@@ -171,8 +208,20 @@ class ActiveCampaign:
                 break
             self._execute_reserved(action, candidates[action.candidate_id], endpoints[action.endpoint_id])
             executed.append(action.id)
+        observations = self.store.observations()
+        # A round that used every granted slot and one that used two of eight recorded the same
+        # "ready". The reserve is the campaign's own confirmation guard, recomputed from the
+        # records this round leaves behind, so that a deliberate reserve and an allowance nobody
+        # attempted to use are different recorded facts rather than the same one.
+        reserve = confirmation_guard(spec, endpoints, candidates.values(),
+                                     _objective_attempts(self.store.actions(), spec.objective),
+                                     observations)
+        reason, accounting = partition_reason(reason, slots_granted=spec.batch_size,
+                                              slots_used=len(executed), slots_planned=len(choices),
+                                              reserve=reserve)
         summary = {"actions": executed, "balance": self.store.balance(), "stop_reason": reason,
-                   "admitted_total": len(self.store.observations(admitted_only=True))}
+                   "slot_accounting": accounting,
+                   "admitted_total": len([o for o in observations if o["admitted"]])}
         if reservation_error is not None:
             summary["reservation_error"] = reservation_error
         self.store.finish_round(round_id, summary)
@@ -255,7 +304,10 @@ class ActiveCampaign:
             outcome = self.run_round()
             if outcome["actions"]:
                 rounds.append(outcome)
-            if outcome["stop_reason"] != "ready":
+            # Every ``ready_*`` reason means the round completed; a short round continues exactly
+            # as it did before this partition existed. Naming the slack must not change when a
+            # campaign stops, in either direction.
+            if not is_ready(outcome["stop_reason"]):
                 reason = outcome["stop_reason"]
                 break
         return {"stop_reason": reason, "rounds": rounds, "state": self.store.status()}

@@ -97,16 +97,28 @@ class CascadeRecipe:
     readout_json: str
     infrastructure_commit: str
     input_files: tuple[tuple[str, str], ...] = ()
+    #: The declared aggregation policy, canonical JSON, or empty where none is declared. Empty
+    #: means the stage-1 default -- one draw, combined as a mean, no dispersion declared -- which
+    #: is what every recipe frozen before the policy existed already meant.
+    aggregation_json: str = ""
 
     @classmethod
     def freeze(cls, config: Mapping[str, Any], readout: Readout, *,
-               files: tuple[str | Path, ...] = ()) -> CascadeRecipe:
+               files: tuple[str | Path, ...] = (),
+               aggregation: Mapping[str, Any] | Any | None = None) -> CascadeRecipe:
         """Pin config, explicit readout, infrastructure and declared external file contents.
 
         Absolute *_path/path entries are pinned automatically. Additional weights or other
         scientific resources not named this way must be supplied in ``files``. A changed file
         requires a newly frozen recipe and a NEW endpoint id, not relabelling old scores.
+
+        ``aggregation`` declares how many draws the readout is, how they combine and what
+        dispersion is claimed over them. It is folded into ``protocol_id``, so changing it is a new
+        protocol rather than a silent reinterpretation of records taken under the old one.
         """
+        from etalon.active.aggregation import AggregationPolicy
+
+        policy = AggregationPolicy.declare(aggregation)
         infra = load("molcascade")
         from molcascade.cascade.models import CascadeConfig
 
@@ -117,11 +129,30 @@ class CascadeRecipe:
             raise ValueError("readout stage, contract and value column must be explicit")
         paths = {_absolute_input_path(path) for path in files} | _configuration_input_paths(validated)
         pinned = tuple((str(path), _file_hash(path)) for path in sorted(paths))
-        return cls(canonical(validated), canonical(asdict(readout)), infra.source_commit, pinned)
+        return cls(canonical(validated), canonical(asdict(readout)), infra.source_commit, pinned,
+                   "" if policy.is_default else canonical(policy.as_dict()))
+
+    def aggregation(self) -> Any:
+        """The declared policy, or the default an undeclared protocol already means."""
+        from etalon.active.aggregation import AggregationPolicy
+
+        if not self.aggregation_json:
+            return AggregationPolicy.declare(None)
+        return AggregationPolicy.declare(json.loads(self.aggregation_json))
 
     @property
     def protocol_id(self) -> str:
-        return "molcascade-recipe/1:" + digest(asdict(self))
+        body = asdict(self)
+        if not body.get("aggregation_json"):
+            # An undeclared policy is omitted rather than digested as the default it means. Hard
+            # constraint 4: nothing backfills. Digesting an explicit default would change every
+            # protocol id already registered, which is a migration of existing records and not a
+            # clarification of new ones -- and ``runtime/executors._verify`` would then read every
+            # registered executor as having changed since preparation. A *declared* policy is in
+            # the digest, which is the property this field exists for: an aggregation change is a
+            # new protocol, refused under the old id by ``active/store.py``.
+            body.pop("aggregation_json", None)
+        return "molcascade-recipe/1:" + digest(body)
 
     def endpoint(self, identifier: str, *, target: str, quantity: str, units: str,
                  cost: float, direction: str = "minimize", noise: float = 0.1) -> Endpoint:
@@ -169,6 +200,15 @@ class CascadeExecutor:
             raise ValueError("cascade endpoint protocol/authorization mismatch")
         if endpoint.max_replicates != 1:
             raise ValueError("fixed-seed cascades are not independent replicas; provide a replica-aware executor")
+        from etalon.active.aggregation import dispatch_refusal
+
+        refusal = dispatch_refusal(recipe.aggregation(), max_replicates=endpoint.max_replicates)
+        if refusal is not None:
+            # A fixed-seed cascade cannot produce an independent draw at all, so a policy claiming
+            # several would be satisfied by running one and recording it under a protocol id that
+            # claims the policy. Refused here as well as at the registered dispatcher, because this
+            # executor is reachable directly through ``CascadeExecutor.from_journal``.
+            raise ValueError("declared aggregation policy cannot be satisfied here: " + refusal)
         if load("molcascade").source_commit != recipe.infrastructure_commit:
             raise ValueError("MolCascade infrastructure changed after recipe registration")
         identity = {"mode": "live_molcascade", "protocol_id": recipe.protocol_id,

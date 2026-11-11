@@ -20,7 +20,8 @@ def selector(pointer, name="observed"):
 
 def metric(name="error", family="regression", pointer="/max_error", threshold=0.01):
     return dict(name=name, family=family, measure=dict(operation="value", left=selector(pointer), right=None),
-                operator="le", threshold=threshold, unit="angstrom", denominator="all attempted pairs, including failures",
+                operator="le", threshold=threshold, threshold_evidence="convention",
+                unit="angstrom", denominator="all attempted pairs, including failures",
                 denominator_selector=selector("/attempted"), missing_policy="insufficient")
 
 

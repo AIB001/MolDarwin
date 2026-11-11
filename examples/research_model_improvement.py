@@ -269,7 +269,10 @@ def run(root, receipt_path, audit_path, *, stop_after=None):
         required_checks=[dict(check_id=k, selector=select("/"+k), expected=True) for k in (
             "complete", "required_physical_checks_covered", "qualified_results_unchanged", "unknown_not_promoted", "original_files_unchanged")],
         metrics=[dict(name="additional_physical_availability", family="retention", measure={"operation": "value", "left": select("/availability_gain"), "right": None},
-            operator="gt", threshold=0, unit="pose_slot", denominator="All 30 archived slots including unknown reference endpoints",
+            # `convention`: a bar of zero chosen for a replay rule the provenance note below
+            # says was "declared after inspecting outcomes". Nothing measured it.
+            operator="gt", threshold=0, threshold_evidence="convention",
+            unit="pose_slot", denominator="All 30 archived slots including unknown reference endpoints",
             denominator_selector=select("/slots"), missing_policy="insufficient")],
         provenance=dict(mode="retrospective", note="Fixed replay rules declared after inspecting outcomes, not prospective validation", basis_refs=[protocol_ref]))
     contract_ref = artifact(contract, schema=contract["schema"])

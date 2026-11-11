@@ -265,7 +265,15 @@ def register(mcp: Any) -> None:
 
     @mcp.tool()
     @tool(Cost.FREE)
-    def etalon_rule_admissible(measurements_json: str, waived: str = "") -> str:
+    def etalon_rule_admissible(
+        measurements_json: str,
+        waived: str = "",
+        records_json: str = "",
+        receptor_path: str = "",
+        toolchain_seeded: bool = False,
+        coverage_policy: str = "report",
+        audit_json: str = "",
+    ) -> str:
         """FREE. Decide which measurements may update the screen, and which may not.
 
         This is the gate the published CADD loops do not have. They put machine learning inside the
@@ -283,6 +291,16 @@ def register(mcp: Any) -> None:
         systematically the molecules whose geometry was easy -- which are not the ones a screen is
         getting wrong.
 
+        **Read ``coverage`` beside it, and read it first.** This tool used to take the entire
+        observation list as JSON from the caller, with ``fired`` defaulting to false and
+        ``evaluable`` to true. ``observations: []`` therefore produced an empty ``blocking`` set,
+        which is ADMITTED, and the admission rate counted it. Ten preflight causes unexamined read
+        as a clean ruling. ``etalon_authorize_spend`` had never had that weakness on the spend path
+        -- it refuses to take a verdict and calls the preflight itself -- and ``coverage`` is that
+        construction applied here. Supply ``records_json`` and ETALON computes the per-record
+        preflight observations rather than accepting them; what you supply beside them is reported
+        as host-asserted, and what nobody supplied is reported as absent rather than as clean.
+
         Args:
             measurements_json: JSON array of ``{parent_id, cheap_value, expensive_value,
                 observations: [{code, fired, evaluable, detail}]}``.
@@ -291,36 +309,157 @@ def register(mcp: Any) -> None:
                 A waiver here admits a measurement whose cause would otherwise withhold it from
                 teaching the screen, which is a larger decision than letting one molecule be
                 simulated: the label it releases is fitted against every later molecule.
+            records_json: JSON array of the ``md_system_input/v1`` rows these measurements were
+                produced from, joined by ``parent_id`` -- the same argument etalon_authorize_spend
+                takes. Supplying it is the difference between a ruling over observations ETALON
+                computed and a ruling over observations you reported. A row supplied here always
+                wins over a non-firing assertion for the same code; a *firing* assertion is kept
+                either way, because moving a check to fired is the one direction a party that did
+                not make the comparison may move it, and an etalon_council_adjudicate finding
+                arrives exactly that way.
+            receptor_path: Absolute path to the receptor, which turns the receptor-identity check
+                from unevaluable into a digest comparison. Only read when ``records_json`` is given.
+            toolchain_seeded: Whether the seed shim was active. Only read when ``records_json`` is
+                given, and it follows the sibling tools' convention: an unsaid shim is reported as
+                absent, which fires an UNVERIFIABLE cause -- it qualifies the claim and never
+                withholds the measurement.
+            coverage_policy: ``report`` (the default) reports the gap and moves no verdict.
+                ``unchecked_when_absent`` synthesises an unevaluable observation for every preflight
+                cause nothing covers, so the ruling records "clean only as far as anyone looked".
+                ``unchecked_unless_minted`` additionally records a non-firing assertion for a cause
+                ETALON did not compute as unevaluable. The latter two change recorded verdicts and
+                refuse without ``audit_json``.
+            audit_json: An ``etalon-recomputability-audit/1`` object taken for the live catalogue,
+                required by the two stricter policies. Filling ``unchecked`` moves nodes to
+                ``not_recorded`` in the derived admission view, which the reward counts as a loss,
+                so the decision is taken with four counts and a name on them rather than by
+                default. The audit is echoed in the response for the reason a waiver is: a parser
+                cannot check whether a count is true and an operator can.
         """
 
         from etalon.faults.attribution import Observation
         from etalon.learn.admissible import Measurement, admissible
+        from etalon.mcp import coverage as coverage_module
+
+        if coverage_policy not in coverage_module.POLICIES:
+            raise ValueError(
+                f"coverage_policy must be one of {coverage_module.POLICIES}; got "
+                f"{coverage_policy!r}. The order is the rollout order: each later policy changes "
+                "recorded verdicts that the one before it only reported."
+            )
+        audit = None
+        if coverage_policy != "report":
+            if not audit_json.strip():
+                raise ValueError(
+                    f"coverage_policy={coverage_policy!r} requires audit_json, because it fills "
+                    "`unchecked` and an unchecked exact WRONG_SUBJECT code becomes `not_recorded` "
+                    "in the derived admission view, which the reward counts as a loss. Run the "
+                    "etalon-recomputability-audit skill, publish its four counts each with its "
+                    "denominator, and pass the result here. Use coverage_policy='report' until "
+                    "then: it reports the same gap and moves no verdict."
+                )
+            audit = coverage_module.require_audit(
+                json.loads(audit_json), policy=coverage_policy
+            )
+        elif audit_json.strip():
+            raise ValueError(
+                "audit_json was supplied with coverage_policy='report', which changes no verdict "
+                "and therefore has nothing for an audit to authorise. Passing both would record an "
+                "audit against a decision nobody took."
+            )
 
         entries = json.loads(measurements_json)
-        measurements = [
-            Measurement(
-                parent_id=str(entry["parent_id"]),
-                cheap_value=entry.get("cheap_value"),
-                expensive_value=entry.get("expensive_value"),
-                observations=tuple(
-                    Observation(
-                        # Preserve supplied types so Observation's external-input
-                        # contract runs before any truthiness/text coercion. In
-                        # particular evaluable=0 must not become an unchecked pass.
-                        code=item["code"],
-                        fired=item.get("fired", False),
-                        detail=item.get("detail", ""),
-                        evaluable=item.get("evaluable", True),
-                    )
-                    for item in entry.get("observations", ())
-                ),
+        minted: dict[str, Any] = {}
+        if records_json.strip():
+            rows = json.loads(records_json)
+            if not isinstance(rows, list):
+                raise ValueError("records_json must be a JSON array of md_system_input/v1 rows")
+            minted = coverage_module.mint_from_records(
+                rows,
+                receptor_path=absolute_path(receptor_path, label="receptor_path")
+                if receptor_path
+                else None,
+                toolchain_active=toolchain_seeded,
             )
-            for entry in entries
-        ]
+
+        measurements = []
+        coverage = []
+        for entry in entries:
+            parent = str(entry["parent_id"])
+            asserted = tuple(
+                Observation(
+                    # Preserve supplied types so Observation's external-input
+                    # contract runs before any truthiness/text coercion. In
+                    # particular evaluable=0 must not become an unchecked pass.
+                    code=item["code"],
+                    fired=item.get("fired", False),
+                    detail=item.get("detail", ""),
+                    evaluable=item.get("evaluable", True),
+                )
+                for item in entry.get("observations", ())
+            )
+            observations, provenance = coverage_module.merge(minted.get(parent, ()), asserted)
+            downgraded: list[str] = []
+            if coverage_policy == "unchecked_unless_minted":
+                observations, downgraded = coverage_module.downgrade_unminted_assertions(
+                    observations, minted=provenance["minted"]
+                )
+            synthesised: list[str] = []
+            if coverage_policy != "report":
+                extra = coverage_module.synthesised_unchecked(
+                    present.code for present in observations
+                )
+                synthesised = [item.code for item in extra]
+                observations = tuple(observations) + extra
+            measurements.append(
+                Measurement(
+                    parent_id=parent,
+                    cheap_value=entry.get("cheap_value"),
+                    expensive_value=entry.get("expensive_value"),
+                    observations=tuple(observations),
+                )
+            )
+            coverage.append(
+                coverage_module.coverage_block(
+                    parent,
+                    provenance=provenance,
+                    observations=observations,
+                    synthesised=synthesised,
+                    downgraded=downgraded,
+                )
+            )
+
         waivers = _waivers(waived)
         report = admissible(measurements, waivers)
+        catalogue, catalogue_basis = coverage_module.catalogue_digest_or_not_taken()
+        uncovered = sum(block["codes_with_no_observation"] for block in coverage)
         return ok(
             report=report.as_dict(),
+            coverage=coverage,
+            coverage_policy=coverage_policy,
+            coverage_summary={
+                "measurements": len(coverage),
+                "codes_with_no_observation": uncovered,
+                "rulings_whose_blocking_set_is_empty": sum(
+                    1 for ruling in report.rulings if not ruling.blocking
+                ),
+                "rulings_whose_blocking_set_is_empty_and_covered_nothing": sum(
+                    1
+                    for ruling, block in zip(report.rulings, coverage)
+                    if not ruling.blocking and not block["codes_with_an_observation"]
+                ),
+                "mintable_codes": list(coverage_module.mintable_codes()),
+                "records_supplied": len(minted),
+                "catalogue_digest": catalogue,
+                "catalogue_digest_basis": catalogue_basis,
+                "evidence": "measured_here",
+                "reading": (
+                    "An empty blocking set over nothing checked is not a clean ruling; it is a "
+                    "ruling nobody took. The rightmost count is the one to watch -- it is the "
+                    "mechanism quantity for this change, and an admission-rate delta is not."
+                ),
+            },
+            recomputability_audit=audit,
             waivers_in_force=[waiver.as_dict() for waiver in waivers.active()],
             waivers_expired=[waiver.as_dict() for waiver in waivers.expired()],
             next_step=(
@@ -329,6 +468,13 @@ def register(mcp: Any) -> None:
                 if report.rate < 2 / 3
                 else "These measurements may update the screen. Any change they support must still "
                 "beat the panel's resolution -- see etalon_tune_screen for what that is."
+            )
+            + (
+                f" First read coverage: {uncovered} catalogue code(s) across these measurements "
+                "have no observation at all, which is neither clean nor dirty. Supply "
+                "records_json to have the preflight causes computed here rather than reported."
+                if uncovered
+                else ""
             ),
         )
 
@@ -407,12 +553,13 @@ def register(mcp: Any) -> None:
 
         The larger case was this server, when it had nine tools and none of them spent: every
         refusal ``etalon_check_handoff`` produced was advice offered beside an action it had no
-        relationship with. The server now has 57 tools and five that spend, so the sentence is
-        history rather than description -- but the half that matters here has not changed. No tool
-        on this surface accepts a spend token, and none of the five that spend is the expensive
-        stage. So the governance of a GPU-hour still rests on you choosing to be governed nine
-        rounds into a campaign, and the token below is still the only thing that makes it
-        structural.
+        relationship with. The server now has 87 tools and seven that spend -- counted from the
+        registration index rather than remembered, because this sentence reasons from the number and
+        had been stale by thirty tools -- so it is history rather than description. But the half
+        that matters here has not changed. No tool on this surface accepts a spend token, and none
+        of the seven that spend is the expensive stage. So the governance of a GPU-hour still rests
+        on you choosing to be governed nine rounds into a campaign, and the token below is still the
+        only thing that makes it structural.
 
         A token is minted only for a record that survives the preflight, and it is bound to a
         SHA-256 of that exact row. ``PrismStage`` and anything else implementing the campaign's

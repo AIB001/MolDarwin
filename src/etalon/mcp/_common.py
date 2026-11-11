@@ -328,8 +328,21 @@ def tool(cost: Cost) -> Callable[[Callable[..., str]], Callable[..., str]]:
     def decorate(function: Callable[..., str]) -> Callable[..., str]:
         @wraps(function)
         def wrapper(*args: Any, **kwargs: Any) -> str:
+            # Name the running verb for any record written inside the call. This is the one
+            # place that knows it without being told, which is why attribution lands here and
+            # not in 89 tool bodies -- enumerating the subjects is the debt pattern; reading a
+            # property they already have is not. Measured on the real journals
+            # (2xpro6000:/home/zx/etalon/runs/*/research.sqlite, read-only, 2026-11-10): no MCP
+            # tool name appears anywhere in 2001 events, so a result's provenance does not say
+            # which capability produced it and the tool-surface question cannot be answered from
+            # existing records. Evidence: measured_here.
+            #
+            # Imported here rather than at module scope: this module is loaded by the server's
+            # own startup path and must not pull the research layer to register a tool.
+            from etalon.research.capability_attribution import running_capability
+
             try:
-                with StdoutToStderr():
+                with running_capability(function.__name__), StdoutToStderr():
                     return function(*args, **kwargs)
             except StateError as error:
                 logger.warning("%s refused: %s", function.__name__, error)

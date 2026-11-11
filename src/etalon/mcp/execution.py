@@ -110,7 +110,8 @@ def register(mcp: Any) -> None:
     def etalon_screen_submit(config_path: str, workspace: str, run_id: str, plan_id: str,
                              library_path: str = "", workers: int = 1,
                              devices: list[str] | None = None, allow_copyleft: bool = False,
-                             delivery: dict | None = None) -> str:
+                             delivery: dict | None = None, gate_json: str = "",
+                             gate_reference_library: str = "") -> str:
         """SPENDS. Submit the reviewed plan once to a detached local worker and return a job ID.
 
         Launches REAL screening, potentially including docking. Use only within the user's
@@ -119,14 +120,45 @@ def register(mcp: Any) -> None:
         MD, PMF, FEP, active-learning budget debit or cost cap is implied by this tool.
         Pass the same delivery options used for planning. Delivery failures remain
         separate from scientific outcomes and never trigger recomputation.
+
+        **A cascade that compiles to a threshold stage is refused without a gate authorization.**
+        This tool used to take no authorization object at all while its sibling
+        etalon_sweep_emit required one, which is the class docs/adr/0006 named: plan_id is
+        change detection, not permission, and a host could reach this tool having read a refusal
+        from etalon_authorize_gates or never having called it. The refusal happens before a
+        worker is launched, and a funnel with no threshold in it is not asked for a token.
+
+        Args:
+            gate_json: The ``gate`` object from etalon_authorize_gates, verbatim. Required when
+                the compiled cascade declares a gate stage; a cascade with none needs no panel and
+                is not asked for one.
+            gate_reference_library: The calibration panel's library. A compiled revision covers the
+                library as well as the funnel, so this batch's own revision can never equal the one
+                the panel minted a token for; the token is compared against the config compiled
+                against this fixed library, which is the same quantity etalon_screen_plan returns
+                as ``gate_revision_id``. Excluded from the plan request, so it does not move
+                plan_id.
         """
+        from etalon.mcp import screen_gate
         from etalon.screening import submit_screen
 
-        return ok(job=submit_screen(absolute_path(config_path, label="config_path"),
-                  absolute_path(library_path, label="library_path") if library_path else None,
-                  absolute_path(workspace, label="workspace"), run_id=run_id,
+        config = absolute_path(config_path, label="config_path")
+        library = absolute_path(library_path, label="library_path") if library_path else None
+        root = absolute_path(workspace, label="workspace")
+        # Before the worker, and deliberately not inside submit_screen: the refusal belongs on the
+        # surface the model drives, and the compile it needs is the one etalon_screen_plan is
+        # classified CHEAP for.
+        gate_check = screen_gate.require(
+            config_path=config, workspace=root, library_path=library,
+            allow_copyleft=allow_copyleft, gate_json=gate_json,
+            gate_reference_library=absolute_path(
+                gate_reference_library, label="gate_reference_library")
+            if gate_reference_library else None)
+
+        return ok(job=submit_screen(config, library, root, run_id=run_id,
                   expected_plan_id=plan_id, workers=workers, devices=devices if devices is not None else (),
-                  allow_copyleft=allow_copyleft, delivery=delivery))
+                  allow_copyleft=allow_copyleft, delivery=delivery),
+                  gate_check=gate_check)
 
     @mcp.tool()
     @tool(Cost.FREE)

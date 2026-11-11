@@ -200,7 +200,11 @@ def archive(science):
     selector=lambda name:{'input':'summary','pointer':'/'+name}
     contract=build_evaluation_contract(task_id=TASK,scope=SCOPE,conditions=conditions,protocol_ref=protocol,initial_conditions_ref=initial,
         subjects=[candidate],comparators=[base],plan_ref=plan,inputs=[{'name':'summary','ref':summary_ref,'kind':'result'}],
-        metrics=[{'name':n,'family':f,'measure':{'operation':'value','left':selector(n),'right':None},'operator':op,'threshold':threshold,'unit':unit,
+        # `convention` for every bar here: `design['adopt_requirements']` is a frozen design
+        # document's chosen acceptance requirements, transcribed retrospectively (see the
+        # plan's own `reason` below). No measurement establishes them, so CLAUDE.md
+        # constraint 5 forbids presenting them as measured.
+        metrics=[{'name':n,'family':f,'measure':{'operation':'value','left':selector(n),'right':None},'operator':op,'threshold':threshold,'unit':unit,'threshold_evidence':'convention',
             'denominator':'24 requested structure/scaffold units; counts include failures; paired p uses discordant cases internally',
             'denominator_selector':selector('denominator'),'missing_policy':'insufficient'} for n,f,op,threshold,unit in rules],
         comparability=[{'check_id':'exact_protocol','selector':selector('protocol_sha256'),'expected':scientific['freeze']['sha256']},

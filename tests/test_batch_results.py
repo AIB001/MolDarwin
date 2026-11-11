@@ -240,7 +240,8 @@ def test_archived_block_connects_existing_checkpoint_publication_evaluation_and_
         required_checks=[{"check_id": "coverage", "selector": select("/coverage"), "expected": "complete"},
                          {"check_id": "counters", "selector": select("/missing_required_counterevidence"), "expected": 0}],
         metrics=[{"name": "failures", "family": "regression", "measure": {"operation": "value", "left": select("/status_counts/failed"), "right": None},
-            "operator": "eq", "threshold": 0, "unit": "attempt", "denominator": "Every expected fixture attempt",
+            "operator": "eq", "threshold": 0, "threshold_evidence": "convention",
+            "unit": "attempt", "denominator": "Every expected fixture attempt",
             "denominator_selector": select("/expected"), "missing_policy": "insufficient"}],
         provenance={"mode": "retrospective", "note": "Fixture rule replay", "basis_refs": []})
     report = evaluate_contract(entry=published_entry, contract=contract)

@@ -44,14 +44,25 @@ def read(path):
 def frozen_rules(protocol):
     gate = protocol["prespecified_candidate_gate"]
     return [
+        # `threshold_evidence` is `convention` for all four, and the tag is the honest one
+        # rather than a formality: these are the bars the prespecified gate chose (3, 0, 0,
+        # 2.0). Nothing measured them, no paper states them, and the protocol records no
+        # basis for them -- so under `CLAUDE.md` constraint 5 they may not be presented as
+        # measurements. Where a bar's origin is unstated, the conservative tag is the one
+        # that claims least, because an inconsistency must never resolve toward making a
+        # record look better founded than it is.
         {"name": "recovered_failures", "family": "retention", "operator": "ge",
-         "threshold": gate["minimum_rescues_among_historical_17"], "unit": "case"},
+         "threshold": gate["minimum_rescues_among_historical_17"], "unit": "case",
+         "threshold_evidence": "convention"},
         {"name": "control_regressions", "family": "regression", "operator": "eq",
-         "threshold": gate["maximum_regressions_among_previously_passing_unique_controls"], "unit": "case"},
+         "threshold": gate["maximum_regressions_among_previously_passing_unique_controls"], "unit": "case",
+         "threshold_evidence": "convention"},
         {"name": "hard_invariant_failures", "family": "regression", "operator": "eq",
-         "threshold": gate["maximum_new_hard_violations"], "unit": "case"},
+         "threshold": gate["maximum_new_hard_violations"], "unit": "case",
+         "threshold_evidence": "convention"},
         {"name": "candidate_cpu_ratio", "family": "cost", "operator": "le",
-         "threshold": gate["maximum_solver_cpu_ratio_wide_on_over_narrow_on"], "unit": "ratio"},
+         "threshold": gate["maximum_solver_cpu_ratio_wide_on_over_narrow_on"], "unit": "ratio",
+         "threshold_evidence": "convention"},
     ]
 
 

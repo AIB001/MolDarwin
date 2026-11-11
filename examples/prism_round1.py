@@ -17,6 +17,7 @@ import tempfile
 
 from etalon.active import ActiveCampaign, CampaignSpec, CampaignStore, Candidate, Endpoint
 from etalon.active.prism import PrismV1Executor
+from etalon.active.rounds import is_ready
 from etalon.active.runner import ExecutionPending
 from etalon.active.schema import Action, Evaluation, canonical, digest
 from etalon.authority.grant import authorize, require
@@ -110,7 +111,9 @@ def run(config: dict, workspace: Path, *, resume: bool = False) -> dict:
     while len(store.actions()) < 2:
         outcome = campaign.run_round()
         write_json(workspace / f"after-{len(store.actions())}.json", inspect(campaign))
-        if not outcome["actions"] or outcome["stop_reason"] != "ready":
+        # ``is_ready`` rather than a comparison with "ready": a completed round now records
+        # whether it used every granted slot or stopped short, so the reason is one of a family.
+        if not outcome["actions"] or not is_ready(outcome["stop_reason"]):
             break
     after = inspect(campaign)
     state = store.snapshot()

@@ -18,7 +18,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from etalon.active.budget import cost_quote, fits_budget
+from etalon.active.budget import confirmation_guard, cost_quote, fits_budget
 from etalon.active.schema import (
     Action,
     CampaignSpec,
@@ -476,14 +476,14 @@ class CampaignStore:
                     and endpoints[spec.objective].queryable and endpoint_id != spec.objective):
                 # Enforce the guard in the same transaction as the reservation. A stale plan
                 # or a concurrent historical import must not consume the final quoted assay.
-                high = endpoints[spec.objective]
                 counts = dict(db.execute("SELECT candidate_id,COUNT(*) FROM actions WHERE endpoint_id=? "
                                          "GROUP BY candidate_id", (spec.objective,)).fetchall())
-                eligible = 0
-                for candidate in self._candidates(db).values():
-                    eligible += int(counts.get(candidate.id, 0) < high.max_replicates
-                                    and (not high.requires_handoff or bool(candidate.handoff)))
-                guard = min(spec.confirmation_reserve, eligible) * cost_quote(high, history)
+                # One definition of the guard, shared with the reserve reported beside a round's
+                # stop reason. A report that recomputed this arithmetic its own way would be a
+                # heuristic wearing a mechanism's clothes.
+                reserve = confirmation_guard(spec, endpoints, self._candidates(db).values(),
+                                             counts, history)
+                eligible, guard = reserve["eligible_candidates"], reserve["quote"]
                 if not eligible or not fits_budget(quote + guard, remaining):
                     raise BudgetExhausted("proxy action would consume the objective confirmation budget")
             action = Action(uuid.uuid4().hex, round_id, candidate_id, endpoint_id,

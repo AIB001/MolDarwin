@@ -302,7 +302,10 @@ def mutate_recipe(base: CascadeRecipe, edits: Sequence[dict[str, Any]],
     # Re-check immediately before freezing; freezing itself re-hashes declared files.
     _verify_base(base)
     result = CascadeRecipe.freeze(config, Readout(**json.loads(base.readout_json)),
-                                  files=tuple(name for name, _ in base.input_files))
+                                  files=tuple(name for name, _ in base.input_files),
+                                  aggregation=base.aggregation())
+    if result.aggregation_json != base.aggregation_json:
+        raise ValueError("a mutation must not change how draws are aggregated; that is a new protocol")
     if result.input_files != base.input_files or result.infrastructure_commit != base.infrastructure_commit:
         raise ValueError("protocol resources changed while constructing the mutation")
     if result.protocol_id == base.protocol_id:

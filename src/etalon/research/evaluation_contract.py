@@ -23,6 +23,22 @@ FAMILIES = ("regression", "retention", "funnel", "cost")
 STATUSES = {"criteria_passed", "criteria_failed", "insufficient", "incomparable"}
 _OPS = {"le": operator.le, "lt": operator.lt, "ge": operator.ge,
         "gt": operator.gt, "eq": operator.eq}
+
+#: Evidence provenance for a declared number: exactly `CLAUDE.md` hard constraint 5's
+#: vocabulary, and the one definition the research layer shares. `research/decision_rule.py`
+#: imports it from here rather than keeping a second copy, because a vocabulary maintained
+#: in two places goes stale -- `hooks/budget_floor.py::EXPLAINED_STOPS` is this repository's
+#: live example, already behind the `ready_*` stop reasons it is meant to explain.
+PROVENANCE = ("measured_here", "measured_in_an_asset", "literature", "convention")
+
+#: What a threshold nobody recorded an origin for reads as. Deliberately **not** a member of
+#: `PROVENANCE`, for the same reason `_aggregate`'s `not_declared` is deliberately not in
+#: `STATUSES`: an unrecorded origin is an absence, not a fifth kind of evidence, and reading
+#: it as one would let "nobody said" sit in the same column as "somebody measured it". A
+#: validated contract can never carry it, because the field below is required; it exists for
+#: the publishing path in `research/contract_spec.py`, which may be handed an unvalidated
+#: contract and must still tell a host what it is looking at.
+THRESHOLD_EVIDENCE_NOT_RECORDED = "not_recorded"
 _REF_FIELDS = ("protocol_ref", "initial_conditions_ref", "method_contract_ref", "plan_ref", "evaluation_ref")
 MAX_INPUT_BYTES = 1024 * 1024
 MAX_TOTAL_BYTES = 8 * 1024 * 1024
@@ -78,10 +94,14 @@ def build_evaluation_contract(*, task_id, scope, conditions, protocol_ref,
     Inputs: {name, ref, kind=result|accounting|context}. Checks:
     {check_id, selector: {input, pointer}, expected}. Every result/accounting
     input must have an explicit required check (e.g. execution completeness).
-    Metrics: {name, family, measure, operator, threshold, unit, denominator,
-    denominator_selector, missing_policy='insufficient'}. A denominator selector
-    is required and must resolve to a positive finite count/exposure. It records
-    the cohort/exposure; it does not silently divide the metric.
+    Metrics: {name, family, measure, operator, threshold, threshold_evidence,
+    unit, denominator, denominator_selector, missing_policy='insufficient'}. A
+    denominator selector is required and must resolve to a positive finite
+    count/exposure. It records the cohort/exposure; it does not silently divide
+    the metric. `threshold_evidence` is one of `PROVENANCE` and is required: a
+    threshold is a new number, and `convention` may not be presented as a
+    measurement. It is part of the rules digest, so relabelling a threshold's
+    origin is a new rule identity, not a quiet edit to an existing one.
     """
     return validate_evaluation_contract(dict(schema=CONTRACT, task_id=task_id,
         scope=scope, conditions=conditions, protocol_ref=protocol_ref,
@@ -143,8 +163,25 @@ def validate_evaluation_contract(payload):
         raise EvidenceError("each result/accounting input needs an explicit required check")
     metric_names = set()
     for metric in _list(payload["metrics"], nonempty=True):
-        _fields(metric, ("name", "family", "measure", "operator", "threshold", "unit",
-                         "denominator", "denominator_selector", "missing_policy"))
+        expected = ("name", "family", "measure", "operator", "threshold", "unit",
+                    "denominator", "denominator_selector", "missing_policy",
+                    "threshold_evidence")
+        # Name the field before the generic check fires. `_fields` is shared and says only
+        # that a field set mismatched, which is the right message for a caller who already
+        # knows the schema and the wrong one for a caller meeting a newly required field --
+        # as the author of this very requirement discovered while tracing one such refusal
+        # back through four example files. A refusal a caller cannot act on is a wall, which
+        # is the standard `research/reserved_bindings.py` is held to.
+        if isinstance(metric, dict):
+            absent = [key for key in expected if key not in metric]
+            if absent == ["threshold_evidence"]:
+                raise EvidenceError(
+                    "metric declares no threshold_evidence. A threshold is a new number and "
+                    "CLAUDE.md constraint 5 requires its provenance: one of "
+                    + ", ".join(PROVENANCE) + ". Use 'convention' where a bar was chosen "
+                    "rather than measured -- that is the honest tag, not a formality, and "
+                    "it may never be presented as a measurement.")
+        _fields(metric, expected)
         for key in ("name", "unit", "denominator"):
             _text(metric[key])
         if metric["name"] in metric_names or metric["family"] not in FAMILIES:
@@ -152,6 +189,17 @@ def validate_evaluation_contract(payload):
         metric_names.add(metric["name"])
         if metric["operator"] not in _OPS or not _number(metric["threshold"]):
             raise EvidenceError("finite numeric threshold and fixed comparator required")
+        # Hard constraint 5 applied to the number that decides the verdict. The
+        # `evaluation_plan` step has required this tag since `research/decision_rule.py`
+        # landed, while this schema -- the one `evaluate_contract` actually computes
+        # `criteria_passed` from -- did not. An inconsistency must not resolve toward making
+        # a record look better founded than it is, so it resolves toward the stricter side,
+        # and the looser side was the executing one. Measured on the real journals
+        # (`2xpro6000:/home/zx/etalon/runs/*/research.sqlite`, read-only, 2026-11-10):
+        # **zero** stored records carry a `metrics` block, so requiring the field outright
+        # breaks no existing contract. Evidence: `measured_here`.
+        if metric["threshold_evidence"] not in PROVENANCE:
+            raise EvidenceError("threshold evidence must be one of " + ", ".join(PROVENANCE))
         if metric["missing_policy"] != "insufficient":
             raise EvidenceError("missing values cannot be dropped, imputed or passed")
         _measure(metric["measure"], names)
@@ -171,6 +219,13 @@ def _aggregate(statuses):
 
 def evaluation_rules_digest(contract):
     # Future panels can retain the exact rules while naming new observations.
+    #
+    # `metrics` enters whole, so a metric's `threshold_evidence` is part of the rule's
+    # identity. That is deliberate and is the stricter of the two available readings: if
+    # provenance sat outside the digest, a threshold could be relabelled from `convention`
+    # to `literature` while keeping one rule identity, and no later reader could tell the
+    # relabelled rule from one whose number was always literature-backed. Held by
+    # `tests/test_contract_spec.py::test_relabelling_a_threshold_s_provenance_is_a_new_rule_identity`.
     value = {k: v for k, v in contract.items() if k not in {
         "inputs", "provenance", "evaluation_ref", "method_contract_ref", "plan_ref"}}
     value["inputs"] = [{"name": i["name"], "kind": i["kind"]} for i in contract["inputs"]]
@@ -278,9 +333,24 @@ def evaluate_contract(workspace=None, contract=None, *, contract_ref=None, entry
                 for field in ("subjects", "comparators", "protocol_ref", "initial_conditions_ref"):
                     if plan[field] != contract[field]:
                         raise EvidenceError("evaluation plan differs: " + field)
-                expected_metrics = [{k: m[k] for k in ("name", "family", "unit", "denominator", "missing_policy")} for m in contract["metrics"]]
-                if plan["metrics"] != expected_metrics:
+                shared = ("name", "family", "unit", "denominator", "missing_policy")
+                expected_metrics = [{k: m[k] for k in shared} for m in contract["metrics"]]
+                if [{k: m[k] for k in shared} for m in plan["metrics"]] != expected_metrics:
                     raise EvidenceError("evaluation plan metric declarations differ")
+                # A plan may now carry the decision rule itself (research/decision_rule.py).
+                # Where it does, the rule must be the contract's rule: two declared
+                # thresholds that disagree are two different criteria, not one.
+                by_name = {m["name"]: m for m in contract["metrics"]}
+                for metric in plan["metrics"]:
+                    declared = by_name[metric["name"]]
+                    # `threshold_evidence` is checked with the pair it travels with. A plan
+                    # claiming `literature` against a contract's `convention` is not a
+                    # formatting difference: it is the plan asserting the bar is better
+                    # founded than the contract says, which is exactly the direction an
+                    # inconsistency must never resolve in.
+                    if any(key in metric and metric[key] != declared[key]
+                           for key in ("operator", "threshold", "threshold_evidence")):
+                        raise EvidenceError("evaluation plan decision rule differs from the contract")
             elif key == "evaluation_ref":
                 record = read(ref)["record"]
                 if record.get("schema") != "etalon-method-evaluation/1":

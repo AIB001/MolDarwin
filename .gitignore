@@ -24,3 +24,4 @@ __pycache__/
 
 # Stray generation logs written beside the repository by campaign scripts.
 /gen_*.log
+.DS_Store

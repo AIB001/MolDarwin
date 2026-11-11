@@ -46,6 +46,11 @@ class Artifact(Record):
             raise ValueError('explicit artifact source required')
         if self.role not in {'diagnostic', 'independent_validation', 'sealed_holdout'}:
             raise ValueError('explicit evidence role required')
+        # `bindings` is free-form and is also where ETALON's own annotations live, so the
+        # names it has claimed are not a caller's to spend. See research/reserved_bindings.py
+        # for why this is a refusal here rather than a line in a document.
+        from .reserved_bindings import validate_bindings
+        validate_bindings(self.bindings, record='artifact')
         canonical(self.as_dict())
 
 
@@ -103,6 +108,8 @@ class Experiment(Record):
             raise ValueError('explicit inputs and distinct readouts required')
         if not set(self.coupling.shared_artifacts) <= set(self.inputs):
             raise ValueError('shared artifacts must be bound inputs')
+        from .reserved_bindings import validate_bindings
+        validate_bindings(self.bindings, record='experiment')
         if self.kind == 'intervention' and not self.changes:
             raise ValueError('an intervention requires concrete changes')
         if self.kind in {'recovery', 'reanalysis'} and self.changes:
@@ -285,6 +292,16 @@ class MethodEvaluation(Record):
     assessment_role: str
     conclusion: str
     scope: str
+    # How the record came by its role. None means the record cannot say, which is
+    # the state of every record written before `composition.record_evaluation`
+    # required the argument. Such a record is regime-unknown to the admission
+    # view: usable as an input, never relied on as a premise. Nothing is written
+    # back to it (CLAUDE.md constraint 4); reliance is declined, not revoked.
+    assessment_role_basis: str | None = None
+    # The declared decision rule and its replay against the recorded observations.
+    # Validated and recomputed by research/decision_rule.py, which refuses a
+    # conclusion claiming support against a verdict its own rule does not reach.
+    decision_rule: dict | None = None
     schema: str = field(default='etalon-method-evaluation/1', init=False)
 
     def __post_init__(self):
@@ -294,8 +311,16 @@ class MethodEvaluation(Record):
             raise ValueError('evaluation requires explicit subjects and comparators')
         for name in ('protocol_ref', 'task_split_ref', 'initial_conditions_ref', 'conclusion', 'scope'):
             nonempty(getattr(self, name))
-        if self.assessment_role not in {'diagnostic', 'independent_validation'}:
+        from .assessment_regime import ROLE_BASES, ROLES
+        if self.assessment_role not in set(ROLES):
             raise ValueError('unknown method assessment role')
+        if self.assessment_role_basis is not None and self.assessment_role_basis not in set(ROLE_BASES):
+            raise ValueError('unknown assessment role basis')
+        if self.assessment_role_basis == 'defaulted_deprecated' and self.assessment_role != 'diagnostic':
+            raise ValueError('only the diagnostic role can be reached by omission')
+        if self.decision_rule is not None:
+            from .decision_rule import validate_decision_rule
+            validate_decision_rule(self.decision_rule)
         canonical(self.as_dict())
 
 
