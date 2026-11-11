@@ -8,6 +8,8 @@ ETALON 是宿主 agent 的科学能力扩展。宿主拥有问题选择、下一
 
 ## 阅读入口
 
+2026-11-11 认识论层升级的设计记录,按主题各自唯一负责:[RSI_ARCHITECTURE](RSI_ARCHITECTURE.md) 自我改进的边界与分级仪器;[HARDENING_CRITERION](HARDENING_CRITERION.md) 何处该在代码里硬化;[ASSESSMENT_REGIMES](ASSESSMENT_REGIMES.md) 两段式 regime 与宽松内置 benchmark 的归处(§7);[ADMISSION_PROPAGATION](ADMISSION_PROPAGATION.md) 传播与 v4 的「lesson 不是评估」;[STOCHASTIC_MEASUREMENT](STOCHASTIC_MEASUREMENT.md) 聚合声明与被否决的复制下限;[FIXED_TERMINOLOGY_STATUS](FIXED_TERMINOLOGY_STATUS.md) 固定术语的实现状态与撤回;[HARD_CONSTRAINT_ENFORCEMENT](HARD_CONSTRAINT_ENFORCEMENT.md) 七条硬约束逐条的执行状态,附「如何区分真失败与环境失败」。推导过程见 [ARCHITECTURE_REVIEW](ARCHITECTURE_REVIEW.md)。这些是增量设计记录,不是已通过的验收报告。
+
 2026-10-24 可选范围读取：[SCOPED_GRAPH_READS](SCOPED_GRAPH_READS.md) 通过已有 graph/context 接口选择精确节点或分支，分别报告范围内引用、反证关系和摘要覆盖。保持原有上限、原件校验与暂停状态；范围内完成不代表全图完备。
 
 2026-10-24 可选研究决策增量：[RESEARCH_DECISION](RESEARCH_DECISION.md) 将问题结构、可区分预测、选择与结果更新绑定到已有研究节点；[EVIDENCE_WINDOW](EVIDENCE_WINDOW.md) 区分回顾声明与 API 控制的交付/决策/结果发布顺序；[CAPABILITY_PROFILE](CAPABILITY_PROFILE.md) 只汇总明确引用的评价及其适用范围。三者复用同一 journal、Artifact、checkpoint 和入口，不构成强制 Probe 或新调度器。`research-decision` skill 为按需入口；API 时序不证明宿主从未见过答案。
@@ -21,6 +23,8 @@ ETALON 是宿主 agent 的科学能力扩展。宿主拥有问题选择、下一
 | [METHOD_CONTRACT.md](METHOD_CONTRACT.md) | 方法版本、使用记录、评价及 S／φ／G 改进 |
 | [WORKSTREAMS.md](WORKSTREAMS.md) | 文件唯一归属、接口依赖、交付物、可复制的新 chat 任务说明 |
 | [ACCEPTANCE.md](ACCEPTANCE.md) | 有区分力的验收用例和证据要求 |
+| [RSI_ARCHITECTURE.md](RSI_ARCHITECTURE.md) | 自我改进的边界:什么可自调、什么固定、每一级的验证仪器 |
+| [ARCHITECTURE_REVIEW.md](ARCHITECTURE_REVIEW.md) | 实测失败模式的审查,以及 2026-11 各项负责人决定的推导 |
 
 新 chat 的本机交接入口为 [integration/ETALON_THIN_HARNESS_HANDOFF.md](../../../integration/ETALON_THIN_HARNESS_HANDOFF.md)。本目录是可进入产品版本控制的契约文档；本机路径、chat 启动与交接上下文留在 integration。不要把这组长文档全文注入每轮运行时提示词。
 
