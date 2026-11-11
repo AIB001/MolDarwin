@@ -1,0 +1,312 @@
+"""The two callables a real campaign injects into the supervisor.
+
+:class:`~etalon.campaign.supervisor.Supervisor` takes generation and screening as callables so that
+the loop can be exercised without a GPU. These are the ones that use the real thing, and they are
+small on purpose: each compiles, runs, and returns what happened, and neither decides anything.
+
+The screen driver carries one fact worth stating where it is used. MolCascade compiles to a revision
+id *before* running, and the supervisor already knows which revision its batches were carved under.
+So this driver compiles and then refuses if the compiled revision is not the expected one -- catching
+a cascade file edited mid-campaign at the moment it would first produce an incomparable batch, rather
+than at harvest time when 56 batches carry two revisions and nothing says which.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, replace
+from pathlib import Path
+from typing import Any
+
+from etalon.boundary.screen import Screen, ScreenResult
+
+
+class RevisionChanged(RuntimeError):
+    """The compiled cascade is not the one this campaign's batches belong to."""
+
+
+def _require_terminal(batch_id: str, result: ScreenResult, detail: str = "") -> ScreenResult:
+    """Refuse a run record that is not finished, rather than returning it as a result.
+
+    A driver returns when its screen is over, and both drivers established that by asking whether a
+    run record *exists*. Existence is the wrong question: MolCascade writes the record when the run
+    starts, so a subprocess killed by the OOM killer, cut off by this driver's own ``timeout``, or
+    stopped with its host leaves a record sitting in ``RUNNING`` -- and the driver read it as the
+    batch's result.
+
+    What follows from returning it is worse than the wrong status, because of how the supervisor
+    is wired. ``_reap`` sees a job that finished without raising, drops it and frees the device.
+    The batch is still claimed, so ``Sweep.recover`` finds it outstanding, asks the run record,
+    gets a non-terminal status and reports ``running`` -- which is the one recovery action
+    ``TickReport.quiet`` deliberately does not count, having been added because 27 consecutive
+    ticks each printed the same 1,200-character line listing 16 batches as running. So the batch
+    sits claimed for the rest of the campaign and no tick ever prints anything about it.
+
+    Raising instead puts it on the channel that exists for this. ``_Call`` carries the exception to
+    the poller, ``_reap`` turns it into a note, and ``notes`` makes the pass non-quiet.
+    """
+
+    if result.terminal:
+        return result
+    raise RuntimeError(
+        f"{batch_id}: its run record is {result.status}, which is not a terminal state, so this "
+        f"screen did not finish.{detail} Returning it would report an unfinished batch as a result "
+        "and leave the batch claimed with nothing running against it. Check the run's log, then "
+        "either let the next pass resume it or name it to Sweep.recover(abandoned=...)."
+    )
+
+
+@dataclass
+class MolCascadeScreening:
+    """Screen one batch on one device, with the compiled revision checked before it runs.
+
+    Args:
+        screen: The adapter. Its workspace is where artifacts and run records land.
+        config_path: The cascade. Compiled on every call, which is what makes the revision check
+            meaningful -- a cached plan would compile the file as it was at launch.
+        revision_id: What the campaign expects. Refuses otherwise.
+        target: MolCascade's ``TargetConfig`` mapping -- receptor, box, reference ligand. Absolute
+            paths only; a relative workspace makes MolCascade derive a relative receptor path that
+            its own validation then rejects.
+        workers: Shards run at once *within* one batch. Ten by default rather than the machine's
+            width: with several batches and several generation loops in flight, a wider default
+            oversubscribes the host, and screening is the side of that trade with spare capacity.
+
+            This number is live, and that is the thing to know about it. It is handed to
+            ``Screen.run``, which builds ``StageResources(workers=workers, devices=(device,))``
+            directly and so never passes through MolCascade's ``plan_lanes`` -- the function whose
+            whole job is to refuse more processes than there are cards. So ten workers against the
+            one card named here is ten shards on one card, and each Uni-Dock shard allocates on the
+            order of 25 GB. Measured on ALK2, twelve shards against one 96 GB card gave
+            ``cudaErrorMemoryAllocation`` at ``monte_carlo.cu:2490``, and the pose-strain stage then
+            failed downstream with "shard N was given no files for side input 'poses'" -- a
+            consequence, not a second fault. Keep ``workers * 25 GB`` inside one card's memory.
+
+            It is also the *only* one of the two drivers where this number does anything; see
+            :class:`MolCascadeProcessScreening`, where it is inert.
+    """
+
+    screen: Screen
+    config_path: Path
+    revision_id: str
+    target: dict[str, Any] | None = None
+    workers: int = 10
+    #: The library the campaign's ``revision_id`` was computed against -- normally the calibration
+    #: panel's. Required, because a compiled revision covers the library as well as the funnel.
+    #:
+    #: MolCascade will not compile a cascade with no library bound, and binding a different one
+    #: yields a different revision: measured, five batches of one campaign compiled to five
+    #: revisions from one unchanged config file. So comparing each batch's own revision against the
+    #: campaign's cannot ever succeed -- the check refused every batch, which is how a campaign
+    #: generated 470,651 molecules and screened none of them. Compiling the *same* reference library
+    #: every time isolates the question the check is actually asking: is the funnel still the one
+    #: the gate certified?
+    reference_library: Path | None = None
+
+    def __call__(self, batch_id: str, library: Path, device: str) -> ScreenResult:
+        identity = self.screen.plan(
+            self.config_path, self.reference_library or library, target=self.target
+        )
+        if identity.revision_id != self.revision_id:
+            raise RevisionChanged(
+                f"{self.config_path} now compiles to {identity.revision_id[:12]}, but this "
+                f"campaign's batches were carved under {self.revision_id[:12]}. Screening "
+                f"{batch_id} would produce a result not comparable with the others. Start a new "
+                "campaign, or restore the configuration."
+            )
+        plan = (
+            identity
+            if self.reference_library is None
+            else self.screen.plan(self.config_path, library, target=self.target)
+        )
+        # Resume only a batch that has a run record. MolCascade raises ``run does not exist`` when
+        # asked to resume one that never started, so an unconditional ``resume=True`` fails every
+        # batch on its first attempt -- which is every batch of a fresh campaign. Measured on ALK2:
+        # 23 batches carved, five claimed, none screened, and the supervisor swallowed the error in
+        # its worker thread, so the campaign generated 470,651 molecules over fourteen hours into a
+        # pool nothing ever read. The condition is what makes the second attempt reuse committed
+        # stages, which is what resume was for.
+        resume = self.screen.state(batch_id) is not None
+        result = self.screen.run(
+            plan,
+            run_id=batch_id,
+            resume=resume,
+            workers=self.workers,
+            devices=(device,),
+        )
+        _require_terminal(batch_id, result)
+        if self.reference_library is None or result.revision_id == self.revision_id:
+            return result
+        # Report the funnel the batch went through, not the funnel-and-this-library digest. The
+        # sweep asks two questions of a recorded revision -- does it match what the batch was carved
+        # under, and do all recorded batches share one -- and both are about the funnel. Under the
+        # per-library digest the first refuses every batch and the second makes ``comparable`` false
+        # for any campaign with more than one batch, which is every campaign. The per-library digest
+        # is not lost: it stays in the run record, where provenance belongs.
+        return replace(result, revision_id=self.revision_id)
+
+
+@dataclass
+class MolCascadeProcessScreening:
+    """Screen one batch in its own process, so concurrent batches do not share one GIL.
+
+    :class:`MolCascadeScreening` runs the cascade in the caller's process and the supervisor runs
+    each screen on a thread. ``_Call`` justifies the thread by saying "the work is already in a
+    subprocess -- PRISM and MolCascade are external programs". That is true of PRISM, which is
+    driven as ``prism generate``, and **false of MolCascade**, which the ``Screen`` adapter imports
+    and runs in-process.
+
+    Measured on ALK2: five batches concurrent, all five threads inside RDKit's Python API in the
+    ``standardize`` stage, **105% CPU total on a 96-core machine**, and the artifact store growing
+    by zero bytes in a minute. A cascade's cheap tiers are a Python loop over molecules, so
+    concurrency there buys nothing at all; only the docking engines, which are separate binaries,
+    overlap. Five batches therefore cost five times one batch's wall clock through every tier above
+    the docking one.
+
+    This driver hands each batch to the ``molcascade`` CLI instead, which is how the first SND1
+    campaign ran them -- by hand, from bash, one process per batch -- and why that campaign never
+    saw this.
+
+    Args:
+        screen: Used to read the run record when the subprocess finishes, and for nothing else.
+        target_args: The CLI flags naming the receptor and the binding site, e.g.
+            ``("--receptor", "...pdb", "--reference-ligand", "...mol2")``. Exactly one site
+            definition; MolCascade refuses two that could disagree.
+        reference_library: The library the campaign's ``revision_id`` was computed against. The
+            identity check compiles it with ``--dry-run``, which is the same code path the run
+            takes rather than a reimplementation of it.
+        executable: argv prefix for the CLI. A list so a wrapper that activates an environment can
+            be put in front of it.
+        env: Extra environment for the child. ``CUDA_VISIBLE_DEVICES`` is deliberately **removed**
+            from it rather than set: the card is named to MolCascade as ``--device cuda:N``, which
+            is an absolute physical index, and MolCascade pins each shard with that index. Setting
+            ``CUDA_VISIBLE_DEVICES`` as well makes the child renumber the one card it can see to
+            ``cuda:0`` and pin every shard to physical card zero. The comment at the removal
+            records the measurement: eight batches, eight distinct masks, every Uni-Dock child on
+            card 0 while seven cards sat idle.
+        workers: Shards run at once *within* one batch -- **and inert here**, which is the opposite
+            of what this entry used to claim.
+
+            The CLI routes it through ``plan_lanes``, which plans one lane per card and then says
+            of ``workers``: "it never raises it above the number of lanes, because there is nothing
+            for the extra processes to be pinned to" -- the clamp is ``workers < len(lanes)``, a
+            lower bound only. The supervisor gives each batch exactly one card, so ``--device
+            cuda:N`` yields ``lanes = ("cuda:N",)`` and ``plan.workers == 1``. The resulting
+            ``StageResources`` is run-wide and no stage recomputes it, so the cheap CPU tiers
+            inherit that single lane too: nothing in a pinned run is made wider by this number.
+
+            Left at ten so that an unpinned invocation (``device=""``, hence ``--device`` absent and
+            one lane per detected card) is not silently narrowed, and so the two drivers take the
+            same argument. The per-card memory arithmetic that used to be documented here belongs to
+            :class:`MolCascadeScreening`, where ``workers`` bypasses ``plan_lanes`` and is live.
+    """
+
+    screen: Screen
+    config_path: Path
+    workspace: Path
+    revision_id: str
+    target_args: tuple[str, ...]
+    reference_library: Path
+    executable: tuple[str, ...] = ("molcascade",)
+    workers: int = 10
+    env: dict[str, str] | None = None
+    timeout: float | None = None
+
+    def _argv(
+        self, library: Path, run_id: str, *, dry_run: bool, device: str = ""
+    ) -> list[str]:
+        argv = [
+            *self.executable,
+            "screen",
+            "--config",
+            str(self.config_path),
+            "--library",
+            str(library),
+            "--workspace",
+            str(self.workspace),
+            "--run-id",
+            run_id,
+            *self.target_args,
+        ]
+        if dry_run:
+            argv += ["--dry-run", "--json"]
+        else:
+            argv += ["--workers", str(self.workers)]
+            if device:
+                argv += ["--device", device]
+            # Only resume a run that exists: MolCascade raises RUN_NOT_FOUND otherwise, which is
+            # every batch's first attempt. The in-process driver had the same fault and it is the
+            # same one line -- worth saying twice, because "resume is always safe" is true of the
+            # committed-stage cache and false of the run record it is keyed on.
+            if self.screen.state(run_id) is not None:
+                argv += ["--resume"]
+        return argv
+
+    def __call__(self, batch_id: str, library: Path, device: str) -> ScreenResult:
+        import json
+        import os
+        import subprocess
+
+        environment = dict(os.environ)
+        environment.update(self.env or {})
+        # Deliberately NOT setting CUDA_VISIBLE_DEVICES: the device goes to MolCascade as --device,
+        # because CUDA_VISIBLE_DEVICES does not compose and setting it here defeats the isolation it
+        # looks like it provides.
+        #
+        # MolCascade pins each shard with ``os.environ["CUDA_VISIBLE_DEVICES"] = device[5:]``
+        # (parallel/shards.py), and that value is absolute -- it indexes the machine's devices, not
+        # the subset its own process can see. So a child launched under CUDA_VISIBLE_DEVICES=3 sees
+        # one card, names it cuda:0, and pins its shards to "0" -- physical card zero.
+        #
+        # Measured on ALK2: eight batches, eight distinct CUDA_VISIBLE_DEVICES values in the eight
+        # screen processes, and every one of their Uni-Dock children on the same physical GPU --
+        # six engines and 63 GB on card 0 while seven cards sat at 0%. It also re-explains an
+        # earlier out-of-memory failure that looked like too many shards per card: with twelve
+        # workers per batch, all of them were on card zero.
+        environment.pop("CUDA_VISIBLE_DEVICES", None)
+
+        probe = subprocess.run(  # noqa: S603 -- argv built from validated campaign configuration
+            self._argv(self.reference_library, f"{batch_id}__identity", dry_run=True),
+            capture_output=True,
+            text=True,
+            env=environment,
+            timeout=self.timeout,
+        )
+        if probe.returncode != 0:
+            raise RevisionChanged(
+                f"the cascade would not compile for {batch_id}: {probe.stderr.strip()[-400:]}"
+            )
+        compiled = str(json.loads(probe.stdout).get("revision_id", ""))
+        if compiled != self.revision_id:
+            raise RevisionChanged(
+                f"{self.config_path} now compiles to {compiled[:12]}, but this campaign's batches "
+                f"were carved under {self.revision_id[:12]}. Screening {batch_id} would produce a "
+                "result not comparable with the others. Start a new campaign, or restore the "
+                "configuration."
+            )
+
+        done = subprocess.run(  # noqa: S603 -- same argv, with the batch's own library
+            self._argv(library, batch_id, dry_run=False, device=device),
+            capture_output=True,
+            text=True,
+            env=environment,
+            timeout=self.timeout,
+        )
+        result = self.screen.state(batch_id)
+        if result is None:
+            raise RuntimeError(
+                f"{batch_id}: molcascade exited {done.returncode} and left no run record. "
+                f"stderr: {done.stderr.strip()[-600:]}"
+            )
+        # The run record is the authority on the outcome, not the exit code: a batch whose every
+        # molecule was gated out exits non-zero and is a measurement, not a failure. But the record
+        # has to *be* an outcome: existing is not the same as being finished, and this driver reads
+        # the record after a subprocess that may have been killed rather than having returned.
+        _require_terminal(
+            batch_id,
+            result,
+            f" The process exited {done.returncode}; stderr: {done.stderr.strip()[-400:]}",
+        )
+        return replace(result, revision_id=self.revision_id)
+
+
+__all__ = ["MolCascadeProcessScreening", "MolCascadeScreening", "RevisionChanged"]

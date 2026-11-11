@@ -1,0 +1,792 @@
+"""Keep a sweep fed and drained, for days, without a person in the loop.
+
+One campaign was supervised by a person reading a status script every five minutes for 44 hours:
+roughly 500 readings, of which **fewer than ten needed a decision**. The other 490 were mechanical --
+ingest a finished chunk, carve a batch when the watermark is reached, hand a batch to a free device,
+record a terminal run, resolve a claim a crash left behind. That work is a loop, and a loop is not a
+thing to ask a language model to be.
+
+So the division here is:
+
+**The supervisor decides nothing scientific.** It moves molecules from chunks into the pool, batches
+out of the pool, batches onto devices, and outcomes into the ledger. Every judgement it could make is
+one an operator or a model already made: the gate token was minted before it started, the batch size
+is fixed, and which generators run is its configuration.
+
+**The model decides what the numbers mean.** Whether a generator has exhausted its space, whether the
+enrichment justifies continuing, whether a threshold should move -- and each of those requires reading
+a measurement the supervisor has recorded, not watching for it.
+
+:meth:`Supervisor.tick` does one pass and returns. It never blocks on a subprocess, so a caller can
+run it on any cadence, and it reconstructs everything from the pool, the ledger and the filesystem at
+every call -- which is what makes it restartable. Kill the process mid-campaign and the next
+:meth:`tick` recovers: chunks are discovered by their manifests, batches by their reservations, runs
+by their run records.
+
+What it deliberately does not do:
+
+- **Guess liveness from the process table.** A batch's fate comes from its run record. ``pgrep`` on a
+  run id matched the supervisor's own shell, and a worker whose shell had died kept committing stages
+  for an hour; the run record was right both times.
+- **Retry an exhausted batch.** Zero survivors is a measurement, and every score it computed is
+  committed.
+- **Start work it cannot account for.** A chunk or a screen is launched only after the record that
+  will explain it exists.
+"""
+
+from __future__ import annotations
+
+import subprocess
+import time
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass, field, replace
+from pathlib import Path
+from typing import Any
+
+from etalon.boundary.screen import ScreenResult
+from etalon.campaign.generation import BARREN_LIMIT, ChunkResult, Generator, Ingest
+from etalon.campaign.sweep import Sweep, library_rows
+
+#: Run one chunk for one generator and report what it produced.
+GenerationDriver = Callable[[Generator, int], ChunkResult]
+
+#: Screen one batch's library on one device. Returns when the screen is finished; the supervisor runs
+#: it in a worker process, so this may block.
+ScreenDriver = Callable[[str, Path, str], ScreenResult]
+
+
+@dataclass(frozen=True, slots=True)
+class TickReport:
+    """What one pass did. Every field is a count of something that happened, not a status."""
+
+    ingested_chunks: int = 0
+    admitted: int = 0
+    duplicates: int = 0
+    emitted: tuple[str, ...] = ()
+    screens_started: tuple[str, ...] = ()
+    recorded: tuple[str, ...] = ()
+    recovered: tuple[dict[str, str], ...] = ()
+    generation_started: tuple[str, ...] = ()
+    generation_finished: tuple[dict[str, Any], ...] = ()
+    retired: tuple[str, ...] = ()
+    #: Devices that joined the screening pool this pass because their generators stopped.
+    migrated: tuple[str, ...] = ()
+    notes: tuple[str, ...] = ()
+
+    @property
+    def quiet(self) -> bool:
+        """Whether this pass changed nothing. Most passes are quiet, and saying so is the point.
+
+        Two things this got wrong, and they compound, because `quiet` is what decides whether a pass
+        is printed at all.
+
+        **A note is never quiet.** Notes are where a screen that raised ends up -- `tick()` puts
+        `_reap`'s failures there first, with the comment that a failure only a counter records reads
+        as nothing happening. But `notes` was not in this list, so a pass whose one product was a
+        failure reported itself as quiet and a printer that skips quiet passes never showed it. That
+        is the same shape as the defect those notes were added to fix.
+
+        **A `running` recovery is quiet.** `Sweep.recover` returns one entry per outstanding batch
+        and `running` is its documented no-op -- "left alone", the only branch of the four that
+        mutates nothing. Counting it meant a campaign with batches in flight had no quiet passes at
+        all: measured on ALK2, 27 consecutive ticks each printing the same 1,200-character line
+        listing 16 batches as running, which is the channel a failure note would have arrived on.
+        """
+
+        moved = [r for r in self.recovered if r.get("action") != "running"]
+        return not any(
+            (
+                self.notes,
+                self.ingested_chunks,
+                self.emitted,
+                self.screens_started,
+                self.recorded,
+                moved,
+                self.generation_started,
+                self.generation_finished,
+                self.retired,
+                self.migrated,
+            )
+        )
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "quiet": self.quiet,
+            "ingested_chunks": self.ingested_chunks,
+            "admitted": self.admitted,
+            "duplicates": self.duplicates,
+            "emitted": list(self.emitted),
+            "screens_started": list(self.screens_started),
+            "recorded": list(self.recorded),
+            "recovered": [dict(row) for row in self.recovered],
+            "generation_started": list(self.generation_started),
+            "generation_finished": [dict(row) for row in self.generation_finished],
+            "retired": list(self.retired),
+            "migrated": list(self.migrated),
+            "notes": list(self.notes),
+        }
+
+
+@dataclass
+class _Job:
+    """A subprocess the supervisor is waiting on, and what it is for."""
+
+    kind: str
+    name: str
+    device: str
+    process: subprocess.Popen[bytes] | Any
+    started: float = field(default_factory=time.monotonic)
+
+
+class Supervisor:
+    """The mechanical half of a campaign, as a restartable pass.
+
+    Args:
+        sweep: The pool, batches and ledger. Its gate authorization is what permits emission, so a
+            supervisor cannot screen a configuration nobody calibrated.
+        revision_id: The compiled funnel. Batches are carved under it and outcomes are refused if they
+            disagree, which is the provenance a hand-run campaign did not have.
+        workspace: Where batch libraries are written.
+        generators: The loops filling the pool. Empty is legitimate -- a campaign screening a library
+            it already has needs no generation.
+        screen_devices: Devices available for screening. Grows when ``migrate_retired_devices`` is
+            set and a generator's card falls idle.
+        batches_per_device: Batches allowed on one device at once. One by default, which is right
+            when the screen is GPU-bound. Raise it when it is not: measured on ALK2, the docking
+            tier's wall clock went to PoseBusters in Python rather than to the engine, so eight
+            batches on eight cards held 1.3 cores each of a 96-core machine and 25 GB of each
+            96 GB card, and the one-per-device limit was rationing the resource that was spare.
+            Bound it by memory: ``batches_per_device * <engine's footprint>`` must fit a card,
+            and Uni-Dock's footprint measured 22-26 GB.
+        generation: Runs one chunk. Injected; see :data:`GenerationDriver`.
+        screen: Screens one batch. Injected; see :data:`ScreenDriver`.
+        retire: Given a generator's tag, whether to stop it. Injected because the decision is
+            scientific -- :mod:`etalon.generate.productivity` computes it, and an operator may
+            override. Default never retires.
+        migrate_retired_devices: Whether a device whose every generator has stopped joins
+            ``screen_devices``. Off by default, and the default is about the machine rather than the
+            science: on a shared host an operator who gave five GPUs to generation may intend them
+            returned when generation ends, and a supervisor that silently keeps them competes with
+            whoever was waiting for one. When off, the first pass that finds such a device says so in
+            ``notes`` once, because an idle GPU nobody mentions is the failure this exists to stop.
+    """
+
+    def __init__(
+        self,
+        sweep: Sweep,
+        *,
+        revision_id: str,
+        workspace: str | Path,
+        generators: Sequence[Generator] = (),
+        screen_devices: Sequence[str] = ("cuda:0",),
+        generation: GenerationDriver | None = None,
+        screen: ScreenDriver | None = None,
+        retire: Callable[[str], bool] | None = None,
+        migrate_retired_devices: bool = False,
+        batches_per_device: int = 1,
+    ) -> None:
+        if not revision_id.strip():
+            raise ValueError("a supervisor needs the compiled revision its batches belong to")
+        if not screen_devices:
+            raise ValueError("a supervisor needs at least one device to screen on")
+        self.sweep = sweep
+        self.revision_id = revision_id
+        self.workspace = Path(workspace)
+        self.generators = {generator.tag: generator for generator in generators}
+        # Deduplicated because a device named twice would be offered two batches at once, and the
+        # second claim would be refused by the sweep rather than by anything that could explain it.
+        self.screen_devices = tuple(dict.fromkeys(screen_devices))
+        self.generation = generation
+        self.screen = screen
+        self.retire = retire or (lambda _tag: False)
+        self.migrate_retired_devices = bool(migrate_retired_devices)
+        if int(batches_per_device) < 1:
+            raise ValueError("batches_per_device must be at least 1")
+        self.batches_per_device = int(batches_per_device)
+        self._noted_idle: set[str] = set()
+        self.jobs: list[_Job] = []
+        self.barren: dict[str, int] = {}
+        self.stopped: set[str] = set()
+        self.chunks: dict[str, list[ChunkResult]] = {}
+        self.unique: dict[str, list[int]] = {}
+        # Every generator must share one output root, because only one Ingest is kept (see below)
+        # and it discovers chunks by path. Refused rather than tolerated: with per-generator roots
+        # the campaign runs, every loop generates, every chunk lands on disk with its manifest --
+        # and the pool only ever grows by whichever generator happened to sort first. Measured on
+        # ALK2: five of six loops produced nothing the sweep could see, and the symptom was a pool
+        # that looked merely slow. A Generator's own directory is ``output_root / tag``, so sharing
+        # the root does not make two loops collide.
+        roots = {str(generator.output_root) for generator in self.generators.values()}
+        if len(roots) > 1:
+            raise ValueError(
+                "every Generator must share one output_root; got "
+                + ", ".join(sorted(roots))
+                + ". Each generator already gets its own directory at output_root/tag, and only "
+                "one Ingest is kept for the campaign -- so distinct roots mean every generator but "
+                "one is silently never ingested."
+            )
+        self.ingest = {
+            tag: Ingest(
+                root=generator.output_root,
+                state=self.sweep.pool.with_name(f"{self.sweep.pool.stem}.ingested.json"),
+            )
+            for tag, generator in self.generators.items()
+        } or {}
+        # One ingest state file for the whole campaign, not one per generator: chunks are discovered
+        # by path and a per-generator file would re-read every other generator's chunks on restart.
+        self._ingest = next(iter(self.ingest.values()), None) if self.ingest else None
+        self.workspace.mkdir(parents=True, exist_ok=True)
+
+    # -- one pass -----------------------------------------------------------
+
+    def tick(self) -> TickReport:
+        """Do whatever the campaign's recorded state says is next, and return.
+
+        The order is deliberate. Reaping first means a device freed this pass is usable this pass.
+        Ingesting before emitting means a chunk that just landed can complete a batch. Recovering
+        before claiming means a batch a crash orphaned is re-offered rather than stranded. Migrating
+        before starting screens means a generation device released on the *previous* pass screens on
+        this one -- the stop decision stays in :meth:`_start_generation` alone, so a device retired
+        here waits one interval rather than being decided about twice.
+        """
+
+        notes: list[str] = []
+        finished, failures = self._step("reaping", self._reap, ((), ()), notes)
+        # Straight into notes: a failure that only a counter records reads as nothing happening.
+        notes.extend(failures)
+        ingested, admitted, duplicates = self._step(
+            "chunk ingest", self._ingest_chunks, (0, 0, 0), notes
+        )
+        # Recovery is also how a finished batch gets recorded, and there is deliberately no second
+        # path for the ordinary case. Sweep.recover already asks the run record of every claimed
+        # batch and records the terminal ones; a supervisor with its own "record what my screen
+        # finished" branch would be the same query answered twice, and the two would eventually
+        # disagree about a batch whose screen outlived the process that launched it -- which is the
+        # exact case recovery exists for.
+        recovered = self._step("recovery", self.sweep.recover, (), notes)
+        emitted = self._step("batch emission", self._emit, (), notes)
+        migrated = self._step("device migration", lambda: self._migrate(notes), (), notes)
+        started_screens = self._step(
+            "screen dispatch", lambda: self._start_screens(notes), (), notes
+        )
+        started_generation, retired = self._step(
+            "generation dispatch", lambda: self._start_generation(notes), ((), ()), notes
+        )
+
+        return TickReport(
+            ingested_chunks=ingested,
+            admitted=admitted,
+            duplicates=duplicates,
+            emitted=emitted,
+            screens_started=started_screens,
+            recorded=tuple(r.batch_id for r in recovered if r.action == "recorded"),
+            recovered=tuple(
+                {"batch_id": r.batch_id, "action": r.action}
+                for r in recovered
+                if r.action != "recorded"
+            ),
+            generation_started=started_generation,
+            generation_finished=finished,
+            retired=retired,
+            migrated=migrated,
+            notes=tuple(notes),
+        )
+
+    def _step(
+        self,
+        label: str,
+        work: Callable[[], Any],
+        fallback: Any,
+        notes: list[str],
+    ) -> Any:
+        """Run one piece of a pass, and turn an exception from it into a note.
+
+        A supervisor exists so that a 44-hour campaign survives things going wrong in it, and one
+        piece of one pass going wrong is a thing going wrong in it. Measured on ALK2: a revision
+        check inside ``Sweep.recover`` raised on a single batch, the exception left ``tick``, and
+        the process driving 470,651 molecules through 23 batches exited -- leaving every GPU idle
+        until somebody looked.
+
+        The containment that incident bought was wrapped around ``recover`` alone, which fixed the
+        instance and not the class. Every other piece of a pass reaches the same ledger, the same
+        pool and the same filesystem, and three of ``_emit``'s raises are certainties rather than
+        hypotheses: ``require_gate`` raises ``NotAuthorized`` on every tick after the
+        authorization's lifetime passes -- 168 hours by default, so any campaign outliving its gate
+        meets this -- and again if the compiled funnel stops matching the one the gate was minted
+        for; ``Sweep.emit`` raises ``SweepError`` for a batch id that already names a run in the
+        workspace, which was measured when a second sweep over the same pool carved
+        ``batch_0001..0027`` into a fresh ledger. ``_ingest_chunks`` reaches the ledger's
+        nonblocking lock and SQLite's, either of which can refuse under contention.
+
+        Loud and fatal is not better than silent. The note is the loud part -- ``TickReport.quiet``
+        is false whenever ``notes`` is non-empty, so a pass whose only product was a contained
+        failure still prints -- and continuing is the supervisor's whole job.
+
+        The fallback is the neutral value for that piece, never a fabricated success: a contained
+        ingest reports zero molecules admitted rather than the number it was about to admit.
+        """
+
+        try:
+            return work()
+        except Exception as error:  # noqa: BLE001 -- one piece of a pass must not end the campaign
+            notes.append(f"{label} raised and was contained: {error!r}")
+            return fallback
+
+    def run(
+        self,
+        *,
+        interval: float = 60.0,
+        until: Callable[[], bool] | None = None,
+        on_tick: Callable[[TickReport], None] | None = None,
+    ) -> TickReport:
+        """Tick until ``until`` says stop, or until there is nothing left to do.
+
+        The default stopping condition is the honest one for a sweep: generation is finished or
+        retired, the pool holds no full batch, and no batch is outstanding. A campaign with a
+        molecule budget or a deadline passes its own.
+        """
+
+        done = until or self.complete
+        last = TickReport()
+        while not done():
+            last = self.tick()
+            if on_tick is not None:
+                on_tick(last)
+            if done():
+                break
+            time.sleep(interval)
+        # Stopping is not the same as having screened everything, and the difference was silent.
+        remainder = self.unscreened_remainder()
+        if remainder:
+            last = replace(
+                last,
+                notes=(
+                    *last.notes,
+                    f"the campaign stopped with {remainder} molecules in the pool that no batch "
+                    f"was carved from: fewer than one batch of {self.sweep.batch_size}. They were "
+                    "generated, deduplicated and admitted, and nothing screened them. Carve them "
+                    "with Sweep.emit(flush=True) if a short batch is wanted, or record that they "
+                    "were not screened.",
+                ),
+            )
+        return last
+
+    def unscreened_remainder(self) -> int:
+        """Molecules in the pool that no batch will ever be carved from.
+
+        :meth:`.Sweep.emit` carves full batches only, so a pool holding fewer than ``batch_size``
+        unbatched molecules yields nothing and :meth:`complete` is satisfied by it. Measured on the
+        finished ALK2 v7 campaign: 27 batches of 20,000 all recorded ``committed``, nothing pending
+        and nothing outstanding, and **883 molecules sitting unbatched in the pool** with
+        ``complete`` true. They were generated, deduplicated, admitted, and never screened, and no
+        line of the ledger says so -- the ledger has 27 batch rows and no row for them.
+
+        Reported rather than carved, because a short batch is not a smaller sample of the same
+        thing and ``emit(flush=True)`` exists for exactly this decision: end-to-end survival is a
+        fraction of a percent, and three short batches measured at the tail of one campaign yielded
+        6, 2 and 0 hits. Whether to spend a funnel pass on 883 molecules is the operator's call.
+        What is not theirs to make by default is the silence.
+        """
+
+        ready = self.sweep.ready()
+        return ready if ready < self.sweep.batch_size else 0
+
+    def complete(self) -> bool:
+        """Nothing running, nothing pending, nothing left to generate.
+
+        Deliberately still true with an :meth:`unscreened_remainder`, because a campaign whose pool
+        holds 883 molecules and whose generators have stopped genuinely cannot do anything more on
+        its own -- and a predicate that answered false here would make :meth:`run` loop until its
+        deadline over molecules it is not allowed to carve. The remainder is surfaced by
+        :meth:`run`, as a note on the report it returns, and by :meth:`state`.
+        """
+
+        if self.jobs:
+            return False
+        if self.sweep.pending() or self.sweep.outstanding():
+            return False
+        if self.sweep.ready() >= self.sweep.batch_size:
+            return False
+        return all(tag in self.stopped or self._exhausted_target(tag) for tag in self.generators)
+
+    # -- the pass, in pieces ------------------------------------------------
+
+    def _reap(self) -> tuple[tuple[dict[str, Any], ...], tuple[str, ...]]:
+        """Collect finished subprocesses, and say which ones raised. Never waits.
+
+        A screen that raises used to be reaped in silence: this dropped the job and reported only
+        finished *generation*, so the error ``_Call`` had carefully carried to the poller was read
+        by nobody. Measured on ALK2: every batch failed on its first line, the supervisor ticked on
+        for fourteen hours, and the campaign filled a 470,651-molecule pool that nothing ever
+        screened. A failing screen and an idle one are the same picture -- batches claimed, GPUs
+        quiet -- so the failure has to be said out loud or it cannot be told from a slow start.
+        """
+
+        finished: list[dict[str, Any]] = []
+        failures: list[str] = []
+        still_running: list[_Job] = []
+        for job in self.jobs:
+            status = job.process.poll()
+            if status is None:
+                still_running.append(job)
+                continue
+            if job.kind == "generation":
+                finished.append({"tag": job.name, "seconds": round(time.monotonic() - job.started, 1)})
+            error = getattr(job.process, "error", None)
+            if error is not None:
+                failures.append(f"{job.kind} {job.name} on {job.device} failed: {error!r}")
+        self.jobs = still_running
+        return tuple(finished), tuple(failures)
+
+    def _ingest_chunks(self) -> tuple[int, int, int]:
+        if self._ingest is None:
+            return 0, 0, 0
+        count = admitted = duplicates = 0
+        for chunk in list(self._ingest.pending()):
+            rows = self._ingest.read(chunk)
+            count += 1
+            tag = chunk.parent.name
+            if not rows:
+                # Nothing to admit, so nothing to wait for: a barren chunk is dealt with by being
+                # counted, and re-reading it on every tick for the rest of the campaign is not an
+                # improvement on recording that it was empty.
+                self._ingest.retire(chunk)
+                self.barren[tag] = self.barren.get(tag, 0) + 1
+                # A barren chunk still gets a uniqueness count, and leaving it out is what broke
+                # ``productivity``. ``self.chunks`` grows for every chunk the generator produced and
+                # ``self.unique`` only grew for chunks that produced rows, so one barren chunk made
+                # the two lists permanently unequal in length and ``productivity`` skipped that
+                # generator for the rest of the campaign. Zero is also the honest count: nothing
+                # new reached the library.
+                self.unique.setdefault(tag, []).append(0)
+                continue
+            self.barren[tag] = 0
+            # Admit first, retire second, and the order is the whole point. `Ingest.retire` writes
+            # a file that stops `pending()` ever offering this chunk again, and an `admit` that
+            # raises after that write has thrown the chunk's molecules away: PRISM is not
+            # re-invoked for a chunk whose directory exists, so the SDF on disk is the only copy
+            # the campaign has and nothing re-reads it.
+            report = self.sweep.admit(rows)
+            self._ingest.retire(chunk)
+            admitted += report.accepted
+            duplicates += report.duplicates
+            self.unique.setdefault(tag, []).append(report.accepted)
+        return count, admitted, duplicates
+
+    def _emit(self) -> tuple[str, ...]:
+        if self.sweep.ready() < self.sweep.batch_size:
+            return ()
+        return tuple(batch.batch_id for batch in self.sweep.emit(revision_id=self.revision_id))
+
+    def _free_slots(self) -> list[str]:
+        """Screening slots available now, a device repeated once per free slot on it.
+
+        One batch per device is the right default and was the only option until a measurement
+        contradicted the assumption under it. On ALK2 the docking tier turned out to be CPU-bound --
+        Uni-Dock runs in bursts and the wall clock goes to pose validation in Python -- so eight
+        batches on eight cards held 1.3 cores each of a 96-core machine and 25 GB of each 96 GB
+        card. The limit being enforced was the one resource that was not scarce.
+
+        Occupancy is read from the pool as well as from ``self.jobs``, because ``self.jobs`` is this
+        *process's* memory and a supervisor is advertised as restartable. A restarted one starts
+        with an empty job list while the previous process's screens are still committing stages --
+        ``Sweep.recover`` deliberately leaves those alone, a claim is exactly the durable record of
+        them, and reading only memory therefore reported every card free and dispatched a second
+        full set on top. The claim names the device because ``_start_screens`` claims ``by=device``.
+        """
+
+        from collections import Counter
+
+        busy = Counter(job.device for job in self.jobs if job.kind == "screen")
+        live = {job.name for job in self.jobs if job.kind == "screen"}
+        for batch in self.sweep.outstanding():
+            # Already counted through this process's own job list; counting it twice would retire a
+            # slot that is occupied once.
+            if batch.batch_id in live:
+                continue
+            if batch.claimed_by in self.screen_devices:
+                busy[batch.claimed_by] += 1
+        slots: list[str] = []
+        for device in self.screen_devices:
+            slots.extend([device] * max(0, self.batches_per_device - busy[device]))
+        return slots
+
+    def _start_screens(self, notes: list[str]) -> tuple[str, ...]:
+        if self.screen is None:
+            return ()
+        started: list[str] = []
+        free = self._free_slots()
+        # Batches this process already has a screen running for. `Sweep.recover` releases the claim
+        # of a batch with no run record yet, and a screen that was launched seconds ago has no run
+        # record yet -- the subprocess has to start, import MolCascade and compile the funnel before
+        # it writes one. So a batch dispatched on one tick is routinely back in `pending()` on the
+        # next, and without this it is handed to a second device: two subprocesses, one batch id,
+        # one run id, both committing stages into the same run record. Recovery cannot untangle that
+        # afterwards, because a batch id *is* a run id and the record does not say how many writers
+        # it had. Containing it here is right rather than in `recover`, which has no way to know
+        # whether a process still exists -- that is the design decision its docstring records.
+        running_here = {job.name for job in self.jobs if job.kind == "screen"}
+        for device in free:
+            pending = tuple(
+                batch for batch in self.sweep.pending() if batch.batch_id not in running_here
+            )
+            if not pending:
+                break
+            batch = pending[0]
+            try:
+                self.sweep.claim(batch.batch_id, by=device)
+            except Exception as error:  # noqa: BLE001 -- another supervisor took it; not an error
+                notes.append(f"{batch.batch_id} was claimed by someone else ({error})")
+                continue
+            # Named after its own bytes, not after the batch. MolCascade's source stage carries this
+            # path in its stage config and `stage_cache_key` hashes the config, so a name carrying
+            # the batch id makes the entry stage's key unique per batch -- and every downstream key
+            # with it. Measured on ALK2: two campaigns over the same pool wrote byte-identical
+            # libraries under two names and re-ran all 43 stages, docking included, for identical
+            # scores. See `library_rows`.
+            try:
+                library = library_rows(
+                    self.sweep, batch.batch_id, self.workspace / "libraries", content_addressed=True
+                )
+            except Exception as error:  # noqa: BLE001 -- a claimed batch with no job is the worst case
+                # The claim is already committed at this point, so an exception here leaves the
+                # batch reserved with nothing running against it and ends the tick before any other
+                # device is offered work. Measured: one dangling CSV in the library directory raised
+                # out of index construction, the batch stayed claimed, and the supervisor driving
+                # the campaign exited. `Sweep.recover` runs at the top of every tick and releases a
+                # claimed batch whose run record does not exist, so containing it here is enough --
+                # the batch is re-offered next pass and the other devices still get theirs.
+                notes.append(f"{batch.batch_id} could not be given a library ({error!r})")
+                continue
+            self.jobs.append(
+                _Job(
+                    kind="screen",
+                    name=batch.batch_id,
+                    device=device,
+                    process=_Call(self.screen, batch.batch_id, library, device),
+                )
+            )
+            running_here.add(batch.batch_id)
+            started.append(f"{batch.batch_id}@{device}")
+        return tuple(started)
+
+    def _migrate(self, notes: list[str]) -> tuple[str, ...]:
+        """Hand a device whose generators have all stopped to the screening pool.
+
+        ``screen_devices`` used to be fixed for the life of the supervisor, so a campaign that
+        retired four of five generation loops finished on the screeners it started with and the other
+        four cards sat idle. :func:`etalon.mcp.sweep.etalon_campaign_plan` advises the move and an
+        operator made it by hand on one campaign -- eighteen hours in, three devices -- and that move
+        produced half of that campaign's hits. This is the same move, made when the loop ends rather
+        than when somebody notices.
+
+        A device is taken only when **every** generator configured on it has stopped, because one
+        model on one card across two loops is a normal configuration and the card is not free until
+        both are done. It is also refused while any job still holds the device: ``stopped`` is only
+        set for a tag with no running chunk, so the two conditions agree today, and the second is
+        here so that they still agree if the first ever changes.
+
+        What it does not do: take a device back. Screening keeps it for the rest of the campaign, and
+        a generator that an operator restarts on that card would contend with a screen. Restart the
+        supervisor with the device lists it should have instead.
+        """
+
+        configured = {generator.device for generator in self.generators.values()}
+        held = {job.device for job in self.jobs}
+        idle = sorted(
+            device
+            for device in configured
+            if device not in self.screen_devices
+            and device not in held
+            and all(
+                tag in self.stopped
+                for tag, generator in self.generators.items()
+                if generator.device == device
+            )
+        )
+        if not idle:
+            return ()
+        if not self.migrate_retired_devices:
+            fresh = [device for device in idle if device not in self._noted_idle]
+            if fresh:
+                self._noted_idle.update(fresh)
+                notes.append(
+                    f"{', '.join(fresh)} has been idle since its generators stopped and is not "
+                    "screening. Construct the supervisor with migrate_retired_devices=True, or name "
+                    "the device in screen_devices, to use it."
+                )
+            return ()
+        self.screen_devices = self.screen_devices + tuple(idle)
+        notes.append(
+            f"{', '.join(idle)} joined the screening pool; every generator on it has stopped."
+        )
+        return tuple(idle)
+
+    def _exhausted_target(self, tag: str) -> bool:
+        generator = self.generators[tag]
+        produced = sum(result.delivered for result in self.chunks.get(tag, ()))
+        return produced >= generator.total
+
+    def _start_generation(self, notes: list[str]) -> tuple[tuple[str, ...], tuple[str, ...]]:
+        if self.generation is None:
+            return (), ()
+        running = {job.name for job in self.jobs if job.kind == "generation"}
+        started: list[str] = []
+        retired: list[str] = []
+        for tag, generator in self.generators.items():
+            if tag in running or tag in self.stopped:
+                continue
+            if self.barren.get(tag, 0) >= BARREN_LIMIT:
+                self.stopped.add(tag)
+                retired.append(f"{tag}:barren")
+                notes.append(
+                    f"{tag} produced nothing in {BARREN_LIMIT} consecutive chunks; stopped. One empty "
+                    "chunk is normal, this many is the model or the box."
+                )
+                continue
+            if self._exhausted_target(tag):
+                self.stopped.add(tag)
+                retired.append(f"{tag}:target")
+                continue
+            if self.retire(tag):
+                self.stopped.add(tag)
+                retired.append(f"{tag}:retired")
+                notes.append(f"{tag} retired by the campaign's own productivity rule")
+                continue
+            index = generator.next_index()
+            self.jobs.append(
+                _Job(
+                    kind="generation",
+                    name=tag,
+                    device=generator.device,
+                    process=_Call(self._run_chunk, generator, index),
+                )
+            )
+            started.append(f"{tag}:chunk_{index:03d}")
+        return tuple(started), tuple(retired)
+
+    def _run_chunk(self, generator: Generator, index: int) -> ChunkResult:
+        assert self.generation is not None
+        result = self.generation(generator, index)
+        self.chunks.setdefault(generator.tag, []).append(result)
+        return result
+
+    # -- read ---------------------------------------------------------------
+
+    def state(self) -> dict[str, Any]:
+        """One reading, for a status tool or a model deciding whether to intervene."""
+
+        return {
+            "revision_id": self.revision_id,
+            "sweep": self.sweep.state(),
+            # Reported because it grows: a reader comparing two readings needs to see that a device
+            # moved from generation to screening, not infer it from a note that scrolled past.
+            "screen_devices": list(self.screen_devices),
+            "migrate_retired_devices": self.migrate_retired_devices,
+            "batches_per_device": self.batches_per_device,
+            "running": [
+                {
+                    "kind": job.kind,
+                    "name": job.name,
+                    "device": job.device,
+                    "seconds": round(time.monotonic() - job.started, 1),
+                }
+                for job in self.jobs
+            ],
+            "generators": {
+                tag: {
+                    "model": generator.model,
+                    "pocket": generator.pocket.label,
+                    "device": generator.device,
+                    "chunks": len(self.chunks.get(tag, ())),
+                    "delivered": sum(r.delivered for r in self.chunks.get(tag, ())),
+                    "target": generator.total,
+                    "consecutive_barren": self.barren.get(tag, 0),
+                    "stopped": tag in self.stopped,
+                }
+                for tag, generator in self.generators.items()
+            },
+            "complete": self.complete(),
+            # Beside ``complete`` on purpose: the pair is the whole finding. ``complete`` true with
+            # a non-zero remainder is a campaign that stopped with molecules it never screened.
+            "unscreened_remainder": self.unscreened_remainder(),
+        }
+
+    def productivity(self) -> dict[str, Any]:
+        """Per-generator viability and exhaustion, from this campaign's own chunks.
+
+        Empty until a generator has finished chunks: a productivity verdict on no measurements is the
+        thing :mod:`etalon.generate.productivity` refuses to give.
+        """
+
+        from etalon.campaign.generation import chunk_measurements
+        from etalon.generate.productivity import allocate
+
+        profiles = []
+        skipped: dict[str, str] = {}
+        for tag, generator in self.generators.items():
+            results = self.chunks.get(tag, [])
+            counts = self.unique.get(tag, [])
+            if not results:
+                skipped[tag] = "no chunk of this generator has finished in this process yet"
+                continue
+            if len(results) != len(counts):
+                # Said rather than skipped in silence. A generator dropped here used to vanish from
+                # the reading with no trace, and when every generator was dropped the reading came
+                # back as "no finished chunks yet" -- which on the campaign that exposed this would
+                # have been printed over 239 finished chunks.
+                skipped[tag] = (
+                    f"{len(results)} chunk results against {len(counts)} uniqueness counts, so "
+                    "they cannot be paired: either a chunk this process generated has not been "
+                    "ingested yet, which resolves on a later pass, or this process was restarted "
+                    "and the ingest state outlived the chunk results, which does not"
+                )
+                continue
+            profiles.append(chunk_measurements(generator, results, counts))
+        reading = (
+            allocate(profiles)
+            if profiles
+            else {
+                "loops": [],
+                "retire": {},
+                "note": (
+                    "no generator has a pairable chunk record; see skipped"
+                    if skipped
+                    else "no finished chunks yet"
+                ),
+            }
+        )
+        if skipped:
+            reading["skipped"] = skipped
+        return reading
+
+
+class _Call:
+    """A callable run in a thread, shaped like a ``Popen`` so the supervisor polls one way.
+
+    A thread rather than a process because the work is already in a subprocess -- PRISM and MolCascade
+    are external programs -- and what is being waited on here is only the wrapper that launched one.
+    """
+
+    def __init__(self, function: Callable[..., Any], *args: Any) -> None:
+        import threading
+
+        self.result: Any = None
+        self.error: BaseException | None = None
+
+        def target() -> None:
+            try:
+                self.result = function(*args)
+            except BaseException as error:  # noqa: BLE001 -- carried to the poller, not swallowed
+                self.error = error
+
+        self._thread = threading.Thread(target=target, daemon=True)
+        self._thread.start()
+
+    def poll(self) -> int | None:
+        if self._thread.is_alive():
+            return None
+        return 1 if self.error is not None else 0
+
+
+__all__ = ["GenerationDriver", "ScreenDriver", "Supervisor", "TickReport"]

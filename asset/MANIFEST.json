@@ -1,0 +1,54 @@
+{
+  "assets": {
+    "molcascade": {
+      "copied_bytes": 4177833,
+      "copied_files": 168,
+      "excluded_files": 103,
+      "excluded_prefixes": [
+        "tests/"
+      ],
+      "source_commit": "06f15d7e82748fce7ab4c2c28adac226eab1fc51",
+      "source_committed_at": "2026-09-23T17:51:33+08:00",
+      "source_path": "/mnt/e/My_Project/MolCascade",
+      "source_subject": "Gate default docking survivors by independent redock pose consistency",
+      "tracked_files": 271,
+      "tree_sha256": "3a63111bc33bc22566fc12fa798188cde95f7dda70bace890f582b01b1b8a8ad"
+    },
+    "molquarry": {
+      "copied_bytes": 488909,
+      "copied_files": 64,
+      "excluded_files": 16,
+      "excluded_prefixes": [
+        "tests/"
+      ],
+      "source_commit": "82f4f34e54cb5229d17d7a5fb3440c7188aa41a3",
+      "source_committed_at": "2026-09-23T17:48:00+08:00",
+      "source_path": "/mnt/e/My_Project/MolQuarry",
+      "source_subject": "Add discoverable CADD search skills and bounded substructure queries",
+      "tracked_files": 80,
+      "tree_sha256": "2fd408599d2e0ba8a40edf9736ff94632b4943bbedbfcd06c0f94eb47c7e60fe"
+    },
+    "prism": {
+      "copied_bytes": 25856652,
+      "copied_files": 504,
+      "excluded_files": 194,
+      "excluded_prefixes": [
+        "tests/"
+      ],
+      "source_commit": "f0492d964795ad2281d10f9c1b345f4f0a3bf675",
+      "source_committed_at": "2026-09-12T10:08:57+08:00",
+      "source_path": "/mnt/e/My_Project/PRISM/PRISM_Alpha/PRISM-main",
+      "source_subject": "[mcp] analyze_rmsd indexed a 1-D array as 2-D and failed on every call",
+      "tracked_files": 698,
+      "tree_sha256": "abe6bf2cbe1131a7c4ea3a63a2d005520b95e5aa261ac6603027e6e1aeb52ebf"
+    }
+  },
+  "reference": {
+    "approved_drugs.py": {
+      "lifted_from": "molcascade:tests/fixtures/approved_drugs.py",
+      "sha256": "5e42e75b54460dbdcc1fb0dc04cf69f52e1731944556258268ff6782fe859070",
+      "why": "A panel of 77 approved oral drugs with an in-window/out-of-window split. Every threshold in MolCascade's shipped defaults was calibrated against it, so it is the reference ETALON measures its own gates on. It lives in the excluded test tree upstream, which is where a test fixture belongs and not where reference data is findable."
+    }
+  },
+  "schema_version": 1
+}

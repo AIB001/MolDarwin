@@ -1,0 +1,432 @@
+"""Evidence access and explicit progress publication through the shared SDK."""
+from __future__ import annotations
+
+from typing import Annotated, Any, Literal
+
+from pydantic import Field
+
+from etalon.mcp._common import Cost, absolute_path, ok, tool
+
+
+def _entry_argument(entry):
+    if isinstance(entry, str):
+        return absolute_path(entry, label="entry")
+    if isinstance(entry, dict):
+        for key in ("entry", "workspace"):
+            if key in entry:
+                absolute_path(entry[key], label=key)
+    return entry
+
+
+def _context_page(payload, max_bytes):
+    from etalon.active.schema import canonical
+    from etalon.research.evidence_refs import EvidenceError
+    result = canonical(dict(payload, ok=True))
+    if len(result.encode("utf-8")) > max_bytes:
+        raise EvidenceError("context plus MCP envelope exceeds max_bytes; increase budget or narrow the view")
+    return result
+
+
+def register(mcp: Any) -> None:
+    @mcp.tool()
+    @tool(Cost.CHEAP)
+    def etalon_research_advice(entry: str, action: Literal["prepare", "bind", "report", "collect", "decide"],
+                               topic: str, review_key: str, payload: dict | None = None) -> str:
+        """CHEAP. Recoverable side advice; the MAIN HOST launches its native subagent.
+
+        prepare payload={question,brief,execution_scope}; returns a private entry
+        and launch_required (true once). bind payload={handle: native sub handle}.
+        report on PRIVATE entry payload={outcome:suggestion|no_change,summary,
+        proposed_change?,conditions?,comparison?,costs?,evidence:[paths],counterevidence:[paths]}.
+        One final report per key; private drafts never merge. collect on MAIN
+        imports the final report once. decide payload={decision_id,outcome:
+        try|adopt|retain|defer|reject|no_change|rollback,reason,evaluation?,handles?}.
+        A try closes after normal feedback with another decision_id. Unchanged
+        keys reuse the handle/report/decision. New keys require material new
+        evidence/scope; not polls. Main continues while sub works. No automatic
+        launch, tool ACL, science execution, polling loop or benefit judgment.
+        """
+        from etalon.research.advice import advice
+        return ok(**advice(absolute_path(entry, label="entry"), action, topic, review_key, payload))
+
+    @mcp.tool()
+    @tool(Cost.CHEAP)
+    def etalon_research_progress(entry: str, patch: dict, branch_id: str | None = None,
+                                 publication_id: str | None = None, expected_record: str | None = None,
+                                 evidence: list[str] | None = None, counterevidence: list[str] | None = None,
+                                 resources: dict | None = None, activate: bool = True,
+                                 resource_feedback: dict | None = None) -> str:
+        """CHEAP. Save changed task facts, handles, results and RSI decisions in the existing entry.
+
+        Same operation as CLI research progress / SDK patch_progress. Omitted
+        fields and counterevidence remain. Evidence arguments append original
+        file paths. Relative evidence/counterevidence paths (including those in
+        resource_feedback) use the supplied entry/locator's directory, not the
+        server cwd or an internal handoff directory. Absolute paths and existing
+        pinned refs stay unchanged. resources merges named descriptions. A stable publication_id
+        makes retries idempotent. No calculation, method adoption or new task.
+        patch applies to the NOTE ROOT, not the context response's knowledge
+        envelope. For completion use patch={summary, status, next_action,
+        pending_handles, ...}. patch.knowledge is domain knowledge only; it does
+        not update the continuation summary. The response shows actual effects.
+        Use etalon_method_publish for a callable method with pinned source files.
+        For optional use feedback, pass patch={} and resource_feedback containing
+        resource_id, usage_id, resource_version, part_ids, conditions, outcome,
+        summary and optional cost/definitions/resource_entry. Outcomes describe
+        observed positive/negative/unknown/failed/no_change, not inferred benefit.
+        """
+        from etalon.research.notes import patch_progress, read_entry
+        entry = absolute_path(entry, label="entry")
+        if resource_feedback is not None:
+            if patch or resources is not None or publication_id is not None or expected_record is not None or not activate:
+                raise ValueError("resource_feedback uses its usage_id and ordinary progress publication; send other changes separately")
+            from etalon.research.resource_selection import record_resource_feedback
+            if not isinstance(resource_feedback, dict):
+                raise ValueError("resource_feedback must be an object")
+            feedback = dict(resource_feedback)
+            inner_branch = feedback.pop("branch_id", None)
+            if branch_id is not None and inner_branch is not None and branch_id != inner_branch:
+                raise ValueError("resource feedback branch differs from the selected branch")
+            for key, paths in (("evidence", evidence), ("counterevidence", counterevidence)):
+                feedback[key] = list(dict.fromkeys([*feedback.get(key, []), *(paths or [])]))
+            result = record_resource_feedback(entry, **feedback, branch_id=branch_id or inner_branch)
+        else:
+            result = patch_progress(entry, patch,
+                branch_id=branch_id, publication_id=publication_id, expected_record=expected_record,
+                evidence=evidence or (), counterevidence=counterevidence or (),
+                resources=resources, activate=activate)
+        current = read_entry(entry, branch_id=branch_id, verify_originals=False, expand_resources=False)["note"]
+        from etalon.active.schema import canonical
+        continuation = {k: (current[k] if isinstance(current[k], str) else canonical(current[k]))[:600]
+                        for k in ("summary", "status", "next_action") if k in current}
+        return ok(**result, patched_fields=sorted(patch),
+                  continuation=continuation, pending_handle_count=len(current.get("pending_handles", [])),
+                  continuation_source="current note root preview (600 characters per field); knowledge is separate")
+
+    @mcp.tool()
+    @tool(Cost.CHEAP)
+    def etalon_research_fork_memory(entry: str, destination: str, memory_scope: str, question: str) -> str:
+        """CHEAP. Independent working entry in the existing journal; no transcript copy.
+
+        Shared facts remain explicitly readable. Bind the new entry to a separate
+        host session; drafts never merge into the main entry automatically.
+        This scopes ordinary retrieval, not filesystem access or global host memory.
+        """
+        from etalon.research.notes import fork_memory
+        return ok(**fork_memory(absolute_path(entry, label="entry"),
+            absolute_path(destination, label="destination"), memory_scope=memory_scope, question=question))
+
+    @mcp.tool()
+    @tool(Cost.CHEAP)
+    def etalon_research_handoff(entry: str, destination: str,
+                               publication_intents: list[str] | None = None,
+                               limits: dict | None = None,
+                               skill_bundles: list[dict] | None = None) -> str:
+        """CHEAP. Export a complete released entry into a NEW local directory.
+
+        Reuses graph checkpoints or ordinary note entries, explicit location
+        maps and original hashes. Notes include history and a consistent SQLite
+        backup (including committed WAL data). Copies known failures as history. Bounds fail
+        closed; no network transport, active intent restoration or execution is
+        performed. Existing destinations are refused; failed partial exports
+        remain available for inspection. Returns a verified handoff receipt.
+        skill_bundles optionally provides exact archived {slug, manifest_sha256,
+        root} bundles when the local library has changed; versions never substitute.
+        """
+        from etalon.research.handoff import plan_research_handoff, export_research_handoff
+        source = absolute_path(entry, label="entry")
+        target = absolute_path(destination, label="destination")
+        intents = [absolute_path(p, label="publication_intent") for p in publication_intents or []]
+        return ok(**export_research_handoff(
+            plan_research_handoff(source, publication_intents=intents, limits=limits,
+                                 skill_bundles=skill_bundles or ()), target))
+
+    @mcp.tool()
+    @tool(Cost.FREE)
+    def etalon_research_handoff_verify(directory: str, verify_originals: bool = True) -> str:
+        """FREE. Verify copied bytes, entry and full released record coverage.
+
+        By default also rehash originals. Set verify_originals=False only for
+        an explicit exported-bundle-only check after physical relocation; that
+        result does not establish remote-original or live-authority validity.
+        Never starts science, resumes a publication or grants permission.
+        """
+        from etalon.research.handoff import verify_research_handoff
+        return ok(**verify_research_handoff(absolute_path(directory, label="directory"),
+                                           verify_originals=verify_originals))
+
+    @mcp.tool()
+    @tool(Cost.FREE)
+    def etalon_resource_usage_read(ref: dict, workspace: str | None = None,
+                                  entry: str | dict | None = None,
+                                  read_context: dict | None = None) -> str:
+        """FREE. Verify workset resource/part -> use -> node -> evaluation -> choice.
+
+        Supply exactly one workspace, entry or pinned read_context. Separate
+        selected state, present-byte verification and historical host reports.
+        Missing historical consumption stays unknown; joins do not prove gain.
+        """
+        from etalon.research.entry import resolve_read_workspace
+        from etalon.research.resource_usage import read_resource_usage
+        selected = resolve_read_workspace(
+            absolute_path(workspace, label="workspace") if workspace is not None else None,
+            entry=_entry_argument(entry), read_context=read_context)
+        return ok(**read_resource_usage(selected, ref))
+
+    @mcp.tool()
+    @tool(Cost.FREE)
+    def etalon_research_context(entry: str | dict, node_id: str | None = None,
+                                question: Annotated[str | None, Field(max_length=4096)] = None,
+                                purpose: str = "research", policy: dict | None = None,
+                                max_bytes: Annotated[int, Field(ge=4096, le=65536)] = 16384,
+                                conditions: dict | None = None,
+                                view: Literal["summary", "node", "full", "resources", "branch", "card", "manifest", "reading", "delivery", "impact"] = "full",
+                                branch_id: str | None = None,
+                                cursor: str | None = None,
+                                limit: Annotated[int, Field(ge=1, le=50)] = 20,
+                                view_options: dict | None = None,
+                                scope: dict | None = None,
+                                definitions: dict | None = None) -> str:
+        """FREE. Build bounded decision context from a published research entry.
+
+        Includes source selection, counterevidence coverage and existing branch/pause
+        state. Policy can narrow the published scope; it is not an authorization grant.
+        Does not write memory, submit science, adopt a method or trigger RSI.
+        A read is not an execution grant; existing user authorization remains
+        applicable. Named other_pauses do not pause unrelated task branches.
+        summary is a compact continuation card; node requires node_id and follows
+        explicit dependencies; full preserves the original bounded graph selection.
+        card explicitly selects the small continuation card. summary automatically
+        uses that card when mandatory navigation metadata would exceed its cap.
+        manifest pages exact navigation with view_options={"section": "references"};
+        sections are branches, references, counters, watermarks, publications,
+        issues, authority and workset. Use the card's read_context and next_cursor.
+        The optional closure section pages the declared reference and full permitted
+        counter-incidence closure. Retain consecutive page receipts from index zero;
+        a final cursor alone never proves previous pages or original bodies were read.
+        Closure pages retain legacy resume reviews and grant no execution.
+        For one known node, manifest plus node_id returns its exact typed reference
+        without paging the whole inventory. Rows provide original_read arguments.
+        reading_menu gives optional status, branch, exact-original and scoped recipes;
+        a status-only question need not expand every original or manifest section.
+        reading pages a decision-directed reading plan: supply question and an exact
+        scope or branch_id. view_options accepts reading_mode (status/decision/diagnosis),
+        relevance (explicit ref/why/affects_decision annotations), decision_changed,
+        and as_of. Without a scope it starts at the published task tail. The plan
+        preserves counter pointers, coverage gaps and source roles; it neither ranks
+        natural-language relevance nor certifies that the host read or understood a
+        body. Use the same options and returned read_context/next_cursor to continue.
+        reading supports the existing 4096..16384 byte range; no budget expansion.
+        delivery uses the same exact selection and options, and includes verified
+        selected original bodies and related counters directly in bounded pages.
+        Original fragments use UTF-8 where lossless, otherwise base64. Follow
+        next_cursor with the same question/scope/options and read_context; retain
+        consecutive fragments. Conditional originals remain explicit unread refs.
+        This avoids separately fetching each required original; delivery does not
+        establish comprehension or grant permission to execute or change science.
+        impact follows declared dependencies from exact changed_refs supplied in
+        view_options; max_nodes is optional. It returns review paths and open
+        boundaries, not causal conclusions or permission to repeat work. Select
+        a smaller explicit changed set when the bounded report cannot fit.
+        Index completeness does not establish that original bodies were read.
+        max_bytes is 4096..65536. Expand returned refs with etalon_evidence_read; question
+        is descriptive and does not perform semantic ranking.
+        For a note entry, summary/card execute its explicit read_recipe when present,
+        otherwise return a bounded brief with declared facts, limits, contrary
+        reference bodies and exact unread pointers. This does not rank relevance.
+        definitions optionally pins exact semantic hashes; supplied entry bindings
+        cannot be weakened. Original source bodies remain unread unless requested.
+        Opt in with view_options={"note_view":"index"} for a small continuation and
+        paged key/title inventory. Follow its pinned details as entry; batch fields
+        with {"note_view":"selected","selectors":["/lesson","/knowledge/0"]}.
+        offset in view_options and limit page collection items. Omitted bodies and
+        counter scope remain explicit. full preserves original identity checking.
+        entry may be a server path, a one-hop {entry: server_path} locator, or the
+        returned read_context for a pinned view. Follow-up evidence calls accept
+        read_context directly; never guess a workspace or open server files locally.
+        Cross-workspace refs require the explicitly linked entry's own read_context;
+        this tool never follows arbitrary body links or expands a workspace for you.
+        resources inventories cross-type originals without activation; view_options
+        allows source_ids, kinds, skill_refs, scan_limit. branch requires branch_id;
+        options allows usage_refs, max_nodes, as_of. Both views paginate with cursor
+        and limit and retain coverage gaps. They never infer skill consumption.
+        summary/node/full may take an explicit scope with root_refs or branch_id,
+        and ordinary_hops 0 or 1. Its coverage receipt concerns that neighborhood,
+        not the whole archive; counter relations are checked separately from excerpts.
+        If mandatory scoped context exceeds the cap, returns graph-page rows using
+        the existing cursor and UTF-8 fragment convention. Continue with the same
+        view/scope/options and read_context plus next_cursor. Retain all pages;
+        a final page alone does not establish delivery or original-body reading.
+        """
+        from etalon.research.evidence_refs import EvidenceError
+        options = {} if view_options is None else view_options
+        if not isinstance(options, dict):
+            raise EvidenceError("view_options must be an object")
+        from etalon.research.notes import ENTRY as NOTE_ENTRY, entry_value, read_entry as read_note_entry, read_current
+        note_entry = entry_value(_entry_argument(entry))
+        if note_entry.get("schema") == NOTE_ENTRY:
+            if view == "resources":
+                from etalon.research.resource_catalog import build_resource_catalog
+                return _context_page(build_resource_catalog(entry=note_entry, limit=limit,
+                    cursor=cursor, max_bytes=max_bytes, purpose=purpose, **options), max_bytes)
+            if view not in {"summary", "card", "full"}:
+                raise EvidenceError("note entries support summary, card or full; detailed graph views require a graph entry")
+            if node_id is not None or scope is not None or cursor is not None or policy is not None:
+                raise EvidenceError("note entry already selects one branch; graph options require a graph entry")
+            if set(options) - {"note_view", "selectors", "offset", "verify_originals"}:
+                raise EvidenceError("note options are note_view, selectors, offset, verify_originals")
+            if not options and view != "full" and limit == 20:
+                return _context_page(read_current(note_entry, conditions=conditions, definitions=definitions,
+                    branch_id=branch_id, max_bytes=max_bytes, response_envelope=lambda payload: dict(payload, ok=True)), max_bytes)
+            return _context_page(read_note_entry(note_entry, conditions=conditions, definitions=definitions, branch_id=branch_id,
+                view=options.get("note_view", "full" if view == "full" else "brief"),
+                selectors=options.get("selectors"), offset=options.get("offset", 0), limit=limit,
+                verify_originals=options.get("verify_originals"), max_bytes=max_bytes,
+                response_envelope=lambda payload: dict(payload, ok=True)), max_bytes)
+        if view == "impact":
+            if (node_id is not None or question is not None or branch_id is not None
+                    or scope is not None or conditions is not None or cursor is not None or limit != 20):
+                raise EvidenceError("impact uses exact changed_refs, without implicit selection or pagination")
+            if set(options) - {"changed_refs", "max_nodes"} or not options.get("changed_refs"):
+                raise EvidenceError("impact requires exact changed_refs and optional max_nodes")
+            from etalon.research.research_impact import build_research_impact
+            return _context_page(build_research_impact(_entry_argument(entry),
+                policy=policy, purpose=purpose, max_bytes=max_bytes, **options), max_bytes)
+        if view in {"reading", "delivery"}:
+            if node_id is not None:
+                raise EvidenceError("reading uses exact scope.root_refs or branch_id; resolve node refs through manifest")
+            allowed_options = {"reading_mode", "relevance", "decision_changed", "as_of"}
+            if view == "delivery":
+                allowed_options.add("deduplicate_bodies")
+            if set(options) - allowed_options:
+                raise EvidenceError("unknown reading view option")
+            if branch_id is not None:
+                if scope is not None:
+                    raise EvidenceError("reading takes branch_id or scope, not both")
+                scope = {"branch_id": branch_id, "ordinary_hops": 1}
+            from etalon.research.decision_reading import build_decision_reading, build_decision_delivery
+            build = build_decision_delivery if view == "delivery" else build_decision_reading
+            return _context_page(build(_entry_argument(entry),
+                question=question, scope=scope, purpose=purpose, policy=policy,
+                conditions=conditions, max_bytes=max_bytes, cursor=cursor, limit=limit,
+                **options), max_bytes)
+        if view in {"resources", "branch"}:
+            if scope is not None:
+                raise EvidenceError("graph scope belongs to summary, node or full context views")
+            if node_id is not None or question is not None:
+                raise EvidenceError("node_id/question belong to the existing research context views")
+            if view == "resources":
+                if branch_id is not None or conditions is not None or policy is not None:
+                    raise EvidenceError("resources uses entry/read_context scope; branch/conditions/policy are not catalog selection")
+                if set(options) - {"source_ids", "kinds", "skill_refs", "scan_limit", "query", "resource_ids", "families"}:
+                    raise EvidenceError("unknown resources view option")
+                from etalon.research.resource_catalog import build_resource_catalog
+                # Default research inherits a pinned context's purpose; an explicit
+                # nondefault purpose is checked by the SDK against that context.
+                return _context_page(build_resource_catalog(entry=_entry_argument(entry),
+                    purpose=None if purpose == "research" else purpose,
+                    limit=limit, cursor=cursor, max_bytes=max_bytes, **options), max_bytes)
+            if set(options) - {"usage_refs", "max_nodes", "as_of"}:
+                raise EvidenceError("unknown branch view option")
+            from etalon.research.branch_context import build_branch_context
+            return _context_page(build_branch_context(_entry_argument(entry), branch_id=branch_id,
+                conditions=conditions, purpose=purpose, policy=policy, max_bytes=max_bytes,
+                limit=limit, cursor=cursor, **options), max_bytes)
+        if view == "manifest":
+            if branch_id is not None or question is not None or conditions is not None or scope is not None:
+                raise EvidenceError("manifest uses exact node navigation, without branch/question/conditions/scope selection")
+            if set(options) - {"section"}:
+                raise EvidenceError("unknown manifest view option")
+            from etalon.research.research_context import build_research_context
+            return _context_page(build_research_context(_entry_argument(entry), purpose=purpose,
+                policy=policy, max_bytes=max_bytes, view=view, node_id=node_id,
+                cursor=cursor, limit=limit, **options), max_bytes)
+        if branch_id is not None or options or scope is None and (cursor is not None or limit != 20):
+            raise EvidenceError("branch_id/view_options require resources or branch; cursor/limit also support scoped context")
+        from etalon.research.research_context import build_research_context
+        result = build_research_context(_entry_argument(entry),
+            node_id=node_id, question=question, purpose=purpose, policy=policy,
+            max_bytes=max_bytes, conditions=conditions, definitions=definitions, view=view, scope=scope, cursor=cursor, limit=limit)
+        return _context_page(result, max_bytes) if scope is not None else ok(**result)
+
+    @mcp.tool()
+    @tool(Cost.FREE)
+    def etalon_research_graph(workspace: str, checkpoint_ref: dict,
+                              purpose: str = "research", policy: dict | None = None,
+                              max_nodes: Annotated[int, Field(ge=1, le=128)] = 64,
+                              max_bytes: Annotated[int, Field(ge=4096, le=262144)] = 65536,
+                              scope: dict | None = None, cursor: str | None = None,
+                              limit: Annotated[int, Field(ge=1, le=50)] = 20) -> str:
+        """FREE. Project Search/Judge/Quick/Deep from existing research records.
+
+        Nodes keep evidence identity and cross-workspace references; failed and skipped
+        branches remain visible. A historical projection is not a new execution trace.
+        Bounds: 1..128 nodes, 4096..262144 serialized bytes.
+        Optional scope selects exact root_refs or a checkpoint branch_id, with
+        ordinary_hops 0 or 1. Scoped coverage never certifies the whole archive.
+        Oversized scoped projections return graph-page rows; preserve all pages
+        and continue with the same selection and next_cursor. Single large rows
+        use base64 UTF-8 byte fragments, exactly as continuation manifests do.
+        """
+        from etalon.research.graph_memory import build_research_graph
+        result = build_research_graph(absolute_path(workspace, label="workspace"),
+            checkpoint_ref=checkpoint_ref, purpose=purpose, policy=policy,
+            max_nodes=max_nodes, max_bytes=max_bytes, scope=scope, cursor=cursor, limit=limit)
+        return _context_page(result, max_bytes) if scope is not None else ok(**result)
+
+    @mcp.tool()
+    @tool(Cost.FREE)
+    def etalon_evidence_query(workspace: str | None = None, query: Annotated[str, Field(max_length=4096)] = "",
+                              filters: dict | None = None,
+                              limit: Annotated[int, Field(ge=1, le=50)] = 10,
+                              cursor: str | None = None, entry: str | dict | None = None,
+                              read_context: dict | None = None) -> str:
+        """FREE. Query an explicit released-evidence manifest; no database is created.
+
+        Reading known refs directly is also allowed. Coverage and warnings distinguish
+        missing sources from no matches. This does not dispatch or select a method.
+        limit is 1..50 records per page; use next_cursor when present.
+        Supply exactly one of workspace, entry or the returned read_context.
+        read_context preserves the selected scope and checkpoint across remote reads.
+        """
+        from etalon.research.evidence import query_evidence
+
+        return ok(**query_evidence(absolute_path(workspace, label="workspace") if workspace is not None else None,
+                                  query=query, filters=filters, limit=limit, cursor=cursor,
+                                  entry=_entry_argument(entry), read_context=read_context))
+
+    @mcp.tool()
+    @tool(Cost.FREE)
+    def etalon_evidence_read(workspace: str | None = None, ref: dict | None = None,
+                             view: Literal["record", "summary", "lineage", "artifact"] = "record",
+                             member: str | None = None, selector: str | dict | None = None,
+                             offset: Annotated[int, Field(ge=0, le=2**63 - 1)] = 0,
+                             limit: Annotated[int, Field(ge=1, le=32768)] = 100,
+                             entry: str | dict | None = None, read_context: dict | None = None,
+                             max_bytes: Annotated[int, Field(ge=4096, le=65536)] = 65536) -> str:
+        """FREE. Read a known evidence ref with bounded record/summary/lineage/artifact views.
+
+        Metadata access is not original-byte verification. Original identities, roles,
+        and costs are retained; no model, network or scientific execution is started.
+        Use view=record for journal records such as method_evaluation; follow their
+        linked report refs separately. view=artifact is for artifact files or an
+        explicitly published snapshot member, not every evidence record. Manifest
+        reference rows expose original_read; do not infer view from a scientific label.
+        limit is 1..32768; artifact offset/limit are byte counts. Page with the
+        returned fragment.next_offset rather than requesting a larger limit.
+        For JSON artifact fields, selector={"json":["/rows/0/diagnosis","/cost"]}
+        selects literal JSON Pointers in one call. Collection offset/limit count
+        members (effective maximum 50). Source bytes are checked; untouched content
+        is not delivered. Follow selection.next_reads with the returned ref for
+        partial batches and collection pages. max_bytes includes the serialized MCP
+        payload; an atomic value that cannot fit needs a narrower child pointer.
+        Existing bytes references keep the same identity.
+        Supply ref and exactly one of workspace, entry or the returned read_context.
+        Prefer read_context after etalon_research_context, including on a remote server.
+        """
+        from etalon.research.evidence import read_evidence
+
+        return ok(**read_evidence(absolute_path(workspace, label="workspace") if workspace is not None else None, ref,
+                                 view=view, member=member, selector=selector,
+                                 offset=offset, limit=limit, entry=_entry_argument(entry), read_context=read_context,
+                                 max_bytes=max_bytes, response_envelope=lambda payload: ok(**payload)))

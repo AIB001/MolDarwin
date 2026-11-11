@@ -1,0 +1,5632 @@
+"""The throughput regime, tested against the failures that produced it.
+
+Every test here names a thing that went wrong in one real 1,056,280-molecule campaign. That is the
+standard for this file: a test whose failure mode was never observed is a test of an opinion.
+"""
+
+from __future__ import annotations
+
+import json
+import math
+import os
+from types import SimpleNamespace
+from dataclasses import replace
+from pathlib import Path
+
+import pytest
+
+from etalon.authority.gate import (
+    GateAuthorization,
+    authorize_gate,
+    calibration_digest,
+    require_gate,
+    unauthorized_gate,
+)
+from etalon.authority.grant import NotAuthorized
+from etalon.boundary.infra import etalon_revision
+from etalon.boundary.screen import Screen, ScreenResult, StageOutcome
+from etalon.campaign.calibrate import (
+    Calibration,
+    calibrate,
+    HIGHER_STRONGER,
+    LOWER_STRONGER,
+    MIXED,
+    PanelMember,
+    Separation,
+    TierVerdict,
+    separation,
+)
+from etalon.campaign.ledger import Ledger
+from etalon.campaign.sweep import Sweep, SweepError, library_rows
+from etalon.generate.productivity import Chunk, Productivity, allocate, window
+
+# -- the real SND1 calibration panel, measured 2026-09-25 ---------------------
+#
+# Uni-Dock scores, lower is better. The two co-crystal ligands score worse than imatinib, which does
+# not bind SND1 at all -- which is why the separation verdict matters as much as the recall one.
+PANEL = (
+    PanelMember("bdb_570nM", True, "Kd 570 nM"),
+    PanelMember("bdb_23uM", True, "Kd 23.6 uM"),
+    PanelMember("bdb_279uM", True, "Kd 279 uM"),
+    PanelMember("C-26-A2", True, "co-crystal 7KNW"),
+    PanelMember("C-26-A6", True, "co-crystal 7KNX"),
+    PanelMember("imatinib", False, "negative control"),
+    PanelMember("aspirin", False, "negative control"),
+    PanelMember("caffeine", False, "negative control"),
+)
+SCORES = tuple(
+    {"parent_id": parent, "engine_id": "unidock", "score": score}
+    for parent, score in (
+        ("bdb_23uM", -7.78),
+        ("bdb_570nM", -7.76),
+        ("bdb_279uM", -7.21),
+        ("imatinib", -6.57),
+        ("C-26-A6", -6.05),
+        ("C-26-A2", -5.90),
+        ("aspirin", -5.07),
+        ("caffeine", -4.85),
+    )
+)
+
+
+def stage(stage_id: str, status: str, *, artifact: str | None = None, code: str | None = None):
+    return StageOutcome(
+        stage_id=stage_id,
+        plugin="plugin@1",
+        status=status,
+        attempts=1,
+        artifact_id=artifact,
+        error=None if code is None else {"code": code, "message": "no rows"},
+    )
+
+
+class FakeScreen:
+    """Only ``state`` and ``provenance`` are reached from :class:`Sweep`; nothing starts a run."""
+
+    def __init__(self) -> None:
+        self.runs: dict[str, ScreenResult] = {}
+
+    def state(self, run_id: str) -> ScreenResult | None:
+        return self.runs.get(run_id)
+
+    def provenance(self) -> dict[str, object]:
+        return {"name": "molcascade", "tree_sha256": "deadbeef", "pinned": True}
+
+
+def calibration(*, deleted: tuple[str, ...] = (), revision: str = "rev-1") -> Calibration:
+    survived = len([m for m in PANEL if m.known_active]) - len(deleted)
+    return Calibration(
+        revision_id=revision,
+        run_id="panel-run",
+        outcome="committed",
+        panel_size=len(PANEL),
+        actives=sum(1 for m in PANEL if m.known_active),
+        registered=len(PANEL),
+        tiers=(
+            TierVerdict(
+                "t9_docking",
+                "docking",
+                len(PANEL),
+                survived,
+                deleted,
+                ("imatinib", "aspirin", "caffeine"),
+            ),
+        ),
+        finalize=(),
+        separation=separation(SCORES, PANEL),
+    )
+
+
+@pytest.fixture()
+def keyed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A fixed signing key, so a token minted in one test verifies in the same test."""
+
+    monkeypatch.setenv("ETALON_AUTHORITY_KEY", "test-key")
+
+
+@pytest.fixture()
+def sweep(tmp_path, keyed) -> Sweep:
+    screen = FakeScreen()
+    made = Sweep(
+        screen,
+        Ledger(tmp_path / "ledger.jsonl"),
+        tmp_path / "pool.sqlite",
+        batch_size=5,
+        gate=authorize_gate(calibration(), provenance=screen.provenance()),
+    )
+    made.screen = screen  # type: ignore[assignment] -- the test drives the fake directly
+    return made
+
+
+# -- one SMILES, one row -----------------------------------------------------
+
+
+def test_a_second_key_on_one_smiles_is_a_duplicate_not_a_second_molecule(sweep) -> None:
+    """The pool deduplicates on the caller's key, and nothing checked the key against the SMILES.
+
+    Measured on the v7 pool: 540,883 rows over 540,851 distinct SMILES. The thirty-two SMILES with
+    two keys each were counted as sixty-four molecules, thirty-one pairs were carved into two
+    different batches, and `AdmitReport.duplicates` reported zero of them.
+    """
+
+    one = "c1ccccc1"
+    first = sweep.admit([("AAAAAAAAAAAAAA-UHFFFAOYSA-N", one, "g0")])
+    assert (first.accepted, first.duplicates) == (1, 0)
+
+    second = sweep.admit([("AAAAAAAAAAAAAA-INIZCTEOSA-N", one, "g1")])
+    assert (second.accepted, second.duplicates) == (0, 1)
+    assert sweep.ready() == 1
+
+    pool = sweep.state()["pool"]
+    assert pool["unique"] == 1
+    assert pool["one_row_per_smiles"] is True
+    assert pool["smiles_conflicts"] == 0
+    # And the first proposer keeps the attribution, which is what a source breakdown rests on.
+    assert pool["by_source"] == {"g0": 1}
+
+
+def test_a_pool_that_already_holds_one_smiles_twice_opens_and_says_so(tmp_path, keyed) -> None:
+    """A finished campaign's pool cannot be rewritten to make a new rule fit.
+
+    The v7 pool is such a pool. Imposing the unique index on it would raise, and deleting the
+    conflicting rows would destroy the record of what was actually screened -- those molecules were
+    docked, twice. So the constraint goes unenforced there and the reading has to admit it, rather
+    than a caller inferring from the code that one SMILES means one row everywhere.
+    """
+
+    import sqlite3
+
+    path = tmp_path / "legacy.sqlite"
+    gate = authorize_gate(calibration(), provenance=FakeScreen().provenance())
+    Sweep(FakeScreen(), Ledger(tmp_path / "l.jsonl"), path, batch_size=5, gate=gate)
+
+    # Reach past `admit` to plant the violation the old ingest path produced.
+    db = sqlite3.connect(path)
+    db.execute("DROP INDEX molecule_smiles")
+    db.executemany(
+        "INSERT INTO molecule(key, smiles, source, seen_at) VALUES (?,?,?,?)",
+        [("K1-UHFFFAOYSA-N", "c1ccccc1", "g0", 1.0), ("K1-INIZCTEOSA-N", "c1ccccc1", "g0", 2.0)],
+    )
+    db.commit()
+    db.close()
+
+    reopened = Sweep(FakeScreen(), Ledger(tmp_path / "l.jsonl"), path, batch_size=5, gate=gate)
+    pool = reopened.state()["pool"]
+    assert pool["unique"] == 2
+    assert pool["one_row_per_smiles"] is False
+    assert pool["smiles_conflicts"] == 1
+
+
+# -- exhaustion is an outcome, not a failure ---------------------------------
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        # All three appeared in one campaign. Two were misfiled as failures before the family was
+        # recognised, which is why this is parametrised rather than asserted once.
+        "EVIDENCE_GATE_EMPTY_PARENT_INPUT",
+        "FEATURE_EMPTY_INPUT",
+        "POSE_STRAIN_EMPTY_PARENT_INPUT",
+    ],
+)
+def test_every_emptiness_code_reads_as_exhausted(code: str) -> None:
+    result = ScreenResult(
+        "batch_0053",
+        "rev-1",
+        "FAILED",
+        (stage("docking", "SUCCEEDED", artifact="artifact:sha256:aa"), stage("gate", "FAILED", code=code)),
+    )
+    assert result.exhausted
+    assert result.outcome == "exhausted"
+    assert result.exhaustion is not None and result.exhaustion.stage_id == "gate"
+
+
+def test_a_real_failure_is_not_read_as_exhaustion() -> None:
+    result = ScreenResult(
+        "batch_0007", "rev-1", "FAILED", (stage("docking", "FAILED", code="UNIDOCK_REQUIRES_CUDA"),)
+    )
+    assert not result.exhausted
+    assert result.outcome == "failed"
+
+
+def test_a_code_merely_containing_empty_input_is_not_exhaustion() -> None:
+    # The family is anchored at both ends deliberately: a code about a missing input *file* is a
+    # defect to fix, not a gate that emptied.
+    result = ScreenResult(
+        "b", "rev-1", "FAILED", (stage("load", "FAILED", code="EMPTY_INPUT_FILE_MISSING"),)
+    )
+    assert result.outcome == "failed"
+
+
+def test_exhausted_run_still_reports_its_committed_stages() -> None:
+    # The whole reason exhaustion is not a failure: the scores are there. One such batch held 7,545.
+    result = ScreenResult(
+        "b",
+        "rev-1",
+        "FAILED",
+        (
+            stage("docking", "SUCCEEDED", artifact="artifact:sha256:aa"),
+            stage("docking_2", "SUCCEEDED", artifact="artifact:sha256:bb"),
+            stage("pose_strain", "FAILED", code="POSE_STRAIN_EMPTY_PARENT_INPUT"),
+        ),
+    )
+    assert result.outcome == "exhausted"
+    assert len(result.committed) == 2
+
+
+# -- gate calibration --------------------------------------------------------
+
+
+def test_shipped_defaults_are_refused_on_the_real_panel() -> None:
+    # MolCascade's defaults delete all five known actives including both co-crystal ligands.
+    everything = tuple(m.parent_id for m in PANEL if m.known_active)
+    verdict = calibration(deleted=everything)
+    assert not verdict.admissible
+    assert verdict.recall == 0.0
+    assert set(verdict.deleted_actives) == set(everything)
+    assert any("deleted known actives" in reason for reason in verdict.refusals())
+
+
+def test_a_gate_that_keeps_every_active_is_admissible() -> None:
+    verdict = calibration()
+    assert verdict.admissible
+    assert verdict.recall == 1.0
+    assert verdict.refusals() == ()
+
+
+def test_unreadable_panel_fails_closed() -> None:
+    # "We could not tell" must not read the same as "they kept everything".
+    verdict = Calibration(
+        revision_id="rev-1",
+        run_id="r",
+        outcome="committed",
+        panel_size=len(PANEL),
+        actives=5,
+        registered=0,
+        tiers=(TierVerdict("t", "t", None, None, (), (), unavailable="no id column recorded"),),
+        finalize=(),
+        separation=(),
+    )
+    assert verdict.recall is None
+    assert not verdict.admissible
+    assert any("could not be read" in reason for reason in verdict.refusals())
+
+
+def test_a_panel_with_no_tiers_at_all_fails_closed(keyed) -> None:
+    """The retention read failing outright must not read as perfect recall.
+
+    Found by pointing :func:`calibrate` at a real panel run rather than by a test. That run was
+    screened without an id column, so ``measure_recall`` refused it, ``tiers`` came back empty, and
+    the guard read ``any(tier.unavailable for tier in ())`` -- which is false. Recall was reported as
+    1.0 and ``authorize_gate`` minted a token for a configuration nobody had measured.
+
+    The earlier test above does not cover this: it constructs a tier that *says* it is unavailable,
+    which is the case where something was read. Here nothing was.
+    """
+
+    verdict = Calibration(
+        revision_id="rev-1",
+        run_id="panel003",
+        outcome="committed",
+        panel_size=len(PANEL),
+        actives=5,
+        registered=0,
+        tiers=(),
+        finalize=(),
+        separation=(),
+    )
+    assert verdict.recall is None, "no tiers means nothing was measured"
+    assert not verdict.admissible
+    assert any("never observed" in reason for reason in verdict.refusals())
+    with pytest.raises(NotAuthorized):
+        authorize_gate(verdict)
+
+
+def test_a_panel_with_no_declared_actives_measures_nothing() -> None:
+    verdict = Calibration("rev", "r", "committed", 3, 0, 3, (), (), ())
+    assert not verdict.admissible
+    assert any("no known actives" in reason for reason in verdict.refusals())
+
+
+def test_post_tier_stages_count_toward_recall() -> None:
+    # The shortlist selector caps molecules per Murcko scaffold, and a calibration panel is a
+    # congeneric series -- so it can delete more than every gate combined while each tier reports
+    # keeping everything.
+    verdict = Calibration(
+        revision_id="rev-1",
+        run_id="r",
+        outcome="committed",
+        panel_size=len(PANEL),
+        actives=5,
+        registered=len(PANEL),
+        tiers=(TierVerdict("t9", "docking", 8, 8, (), ()),),
+        finalize=(TierVerdict("shortlist", "scaffold cap", 8, 2, ("C-26-A2", "C-26-A6"), ()),),
+        separation=(),
+    )
+    assert verdict.deleted_actives == ("C-26-A2", "C-26-A6")
+    assert not verdict.admissible
+
+
+def test_known_active_must_be_an_explicit_boolean() -> None:
+    with pytest.raises(ValueError, match="explicit boolean"):
+        PanelMember("x", 1)  # type: ignore[arg-type]
+
+
+# -- separation: the finding a table nobody computed --------------------------
+
+
+def test_the_real_panel_does_not_separate() -> None:
+    row = separation(SCORES, PANEL)[0]
+    assert row.separates is False
+    # imatinib at -6.57 outscores both co-crystal ligands.
+    assert row.actives_below_best_inactive == 2
+    # ...while still not beating the best active, which is why the weaker test was wrong.
+    assert row.inactives_above_best_active == 0
+
+
+def test_a_separating_score_is_reported_as_rankable() -> None:
+    clean = tuple(
+        {"parent_id": p, "engine_id": "e", "score": s}
+        for p, s in (("a1", -9.0), ("a2", -8.8), ("i1", -6.0), ("i2", -5.0))
+    )
+    panel = (PanelMember("a1", True), PanelMember("a2", True), PanelMember("i1", False), PanelMember("i2", False))
+    assert separation(clean, panel)[0].separates is True
+
+
+def test_separation_is_unevaluable_with_one_class() -> None:
+    only_actives = (PanelMember("a1", True), PanelMember("a2", True))
+    rows = separation(
+        ({"parent_id": "a1", "engine_id": "e", "score": -9.0}, {"parent_id": "a2", "engine_id": "e", "score": -8.0}),
+        only_actives,
+    )
+    assert rows[0].separates is None
+
+
+def test_best_pose_per_molecule_is_used() -> None:
+    panel = (PanelMember("a1", True), PanelMember("i1", False))
+    many = (
+        {"parent_id": "a1", "engine_id": "e", "score": -5.0},
+        {"parent_id": "a1", "engine_id": "e", "score": -9.0},
+        {"parent_id": "i1", "engine_id": "e", "score": -6.0},
+    )
+    assert separation(many, panel)[0].best_active == -9.0
+
+
+# -- separation: each engine read under its own convention -------------------
+#
+# The ALK2 panel, measured 2026-09-29. KarmaDock's MDN runs UP -- its gate is ``>= 40`` -- and this
+# function used to compare it as if it ran down, which inverted every extreme it reported. The
+# strongest active here is 67.329 and the weakest is 33.020; read upside down, ``best_active`` came
+# back 33.020 and a reader comparing it against a threshold would have had the panel backwards.
+KARMADOCK_ALK2 = tuple(
+    {
+        "parent_id": parent,
+        "engine_id": "karmadock",
+        "score": score,
+        "score_kind": "KARMADOCK_MDN",
+        "direction": "HIGHER_STRONGER",
+    }
+    for parent, score in (
+        ("act_SARACATINIB", 67.329),
+        ("act_PD-0166285", 61.530),
+        ("act_CHEMBL3818173", 56.560),
+        ("neg_AEE-788", 53.833),
+        ("LDN-193189", 50.820),
+        ("act_CHEMBL1241674", 44.700),
+        ("act_CHEMBL4526828", 33.020),
+        ("neg_aspirin", 17.280),
+    )
+)
+ALK2_PANEL = (
+    PanelMember("LDN-193189", True, "co-crystal 3Q4U"),
+    PanelMember("act_SARACATINIB", True, "AZD0530"),
+    PanelMember("act_PD-0166285", True, "Ki pChEMBL 8.80"),
+    PanelMember("act_CHEMBL3818173", True, "IC50 pChEMBL 8.92"),
+    PanelMember("act_CHEMBL1241674", True, "ChEMBL exact"),
+    PanelMember("act_CHEMBL4526828", True, "ChEMBL exact"),
+    PanelMember("neg_AEE-788", False, "EGFR/VEGFR inhibitor, selectivity control"),
+    PanelMember("neg_aspirin", False, "not a kinase binder"),
+)
+
+
+def test_a_higher_is_better_engine_is_not_read_upside_down() -> None:
+    row = separation(KARMADOCK_ALK2, ALK2_PANEL)[0]
+    assert row.direction == HIGHER_STRONGER
+    # In the engine's own units, and the way round a reader expects.
+    assert row.best_active == 67.329
+    assert row.worst_active == 33.020
+    assert row.best_inactive == 53.833
+    # Three actives score below AEE-788, so the score does not order this panel.
+    assert row.actives_below_best_inactive == 3
+    assert row.separates is False
+
+
+def test_direction_falls_back_to_score_kind_when_the_row_omits_it() -> None:
+    rows = tuple({k: v for k, v in row.items() if k != "direction"} for row in KARMADOCK_ALK2)
+    assert separation(rows, ALK2_PANEL)[0].best_active == 67.329
+
+
+def test_one_engine_with_two_conventions_is_unevaluable() -> None:
+    confused = (
+        {"parent_id": "LDN-193189", "engine_id": "e", "score": 50.8, "direction": "HIGHER_STRONGER"},
+        {"parent_id": "neg_aspirin", "engine_id": "e", "score": -5.0, "direction": "LOWER_STRONGER"},
+    )
+    row = separation(confused, ALK2_PANEL)[0]
+    assert row.direction == MIXED
+    # Fails closed: a comparison across two conventions is not a measurement of anything.
+    assert row.separates is None
+
+
+# -- calibrate: the digest-to-name join --------------------------------------
+
+
+class ScoredScreen(FakeScreen):
+    """A screen carrying one engine's scores, keyed the way MolCascade really keys them.
+
+    Every downstream contract keys on a digest of the standardised molecule. The panel declares the
+    library's own identifiers. ``calibrate`` used to test one against the other directly, so nothing
+    matched and ``separation`` came back empty -- which reads as *the score was not shown to rank*
+    rather than *nobody looked*.
+    """
+
+    def __init__(self, *, joinable: bool = True) -> None:
+        super().__init__()
+        self.digest = {m.parent_id: f"parent:sha256:{i:064x}" for i, m in enumerate(ALK2_PANEL)}
+        self.joinable = joinable
+
+    def recall(self, run_id: str, *, panel_size: int | None = None) -> dict[str, object]:
+        return {
+            "registered": len(ALK2_PANEL),
+            "tiers": [
+                {"tier_id": "t9_docking", "title": "Docking", "entering": 8, "surviving": 8, "lost": []}
+            ],
+            "finalize": [],
+            "notes": [],
+        }
+
+    def parent_names(self, result) -> dict[str, str]:  # noqa: ANN001, ARG002
+        return {} if not self.joinable else {v: k for k, v in self.digest.items()}
+
+    def artifacts_carrying(self, result, contract_id: str) -> tuple[str, ...]:  # noqa: ANN001, ARG002
+        return ("artifact:sha256:aa",)
+
+    def read(self, artifact_id: str, *, contract_id: str | None = None) -> list[dict[str, object]]:  # noqa: ARG002
+        return [dict(row, parent_id=self.digest[row["parent_id"]]) for row in KARMADOCK_ALK2]
+
+
+def _alk2_result() -> ScreenResult:
+    return ScreenResult(
+        run_id="panel",
+        revision_id="rev-alk2",
+        status="SUCCEEDED",
+        stages=(stage("docking_score_2", "SUCCEEDED", artifact="artifact:sha256:aa"),),
+    )
+
+
+def test_calibrate_joins_content_addressed_parents_to_panel_names() -> None:
+    screen = ScoredScreen()
+    measured = calibrate(screen, _alk2_result(), ALK2_PANEL)
+    assert measured.separation, "the join failed and the scores were dropped"
+    row = measured.separation[0]
+    assert row.actives == 6 and row.inactives == 2
+    assert row.best_active == 67.329
+    assert measured.rankable == ()
+
+
+def test_calibrate_says_so_when_the_scores_could_not_be_joined() -> None:
+    measured = calibrate(ScoredScreen(joinable=False), _alk2_result(), ALK2_PANEL)
+    assert measured.separation == ()
+    # The note must name the cause, because "unevaluable" and "nobody looked" read alike otherwise.
+    assert any("none belong to a declared panel member" in note for note in measured.notes)
+
+
+# -- separation: a verdict a degenerate score must not earn -------------------
+
+
+def _flat(value, direction: str = "LOWER_STRONGER", *, engine: str = "e"):
+    """Four molecules, two declared active, all carrying the same score."""
+
+    panel = (
+        PanelMember("a1", True),
+        PanelMember("a2", True),
+        PanelMember("i1", False),
+        PanelMember("i2", False),
+    )
+    scores = tuple(
+        {"parent_id": p, "engine_id": engine, "score": value, "direction": direction}
+        for p in ("a1", "a2", "i1", "i2")
+    )
+    return scores, panel
+
+
+def test_a_constant_score_does_not_separate_the_panel() -> None:
+    """The degenerate case of a score that ranks nothing, reported as one that ranks perfectly.
+
+    Measured: four molecules all scoring exactly -8.0 came back
+    ``actives_below_best_inactive=0, separates=True`` -- while the sibling count in the same row,
+    which has always included its tie, read ``inactives_above_best_active=2``. One row, two
+    tie-handling policies, and the strict one decided the verdict.
+    """
+
+    scores, panel = _flat(-8.0)
+    row = separation(scores, panel)[0]
+    assert row.inactives_above_best_active == 2
+    assert row.actives_below_best_inactive == 2, "the tie is not an ordering"
+    assert row.separates is False
+
+    # Same failure on a higher-is-stronger engine, where the constant was KarmaDock's 40.0.
+    rising = separation(*_flat(40.0, "HIGHER_STRONGER"))[0]
+    assert rising.direction == HIGHER_STRONGER
+    assert rising.separates is False
+
+
+def test_an_active_tied_with_the_best_inactive_is_not_ordered_ahead_of_it() -> None:
+    panel = (PanelMember("a1", True), PanelMember("a2", True), PanelMember("i1", False))
+    scores = tuple(
+        {"parent_id": p, "engine_id": "e", "score": v, "direction": "LOWER_STRONGER"}
+        for p, v in (("a1", -9.0), ("a2", -7.0), ("i1", -7.0))
+    )
+    row = separation(scores, panel)[0]
+    assert row.actives_below_best_inactive == 1
+    assert row.separates is False
+
+
+def test_a_score_that_came_back_nan_ranked_nothing() -> None:
+    """NaN is an instance of ``float``, so the old intake check let it through.
+
+    Measured on four molecules whose every score was NaN: ``best_active`` and ``best_inactive`` both
+    came back NaN, both counters came back 0, and ``separates`` reported ``True`` -- which reached
+    the operator as "Rankable engines: ['unidock']".
+    """
+
+    assert separation(*_flat(float("nan"))) == ()
+    assert separation(*_flat(float("inf"))) == ()
+    assert separation(*_flat(float("-inf"))) == ()
+
+
+def test_one_unorderable_row_cannot_decide_the_verdict_by_its_position() -> None:
+    """``sorted`` over a list holding a NaN is insertion-order dependent.
+
+    Measured with actives at -5.0 and -6.0 against inactives at -9.0 and NaN: the NaN row first
+    gave ``separates True``, the finite row first gave ``False``, from the same four facts.
+    """
+
+    panel = (PanelMember("a1", True), PanelMember("a2", True),
+             PanelMember("i1", False), PanelMember("i2", False))
+    finite = {"parent_id": "i1", "engine_id": "e", "score": -9.0, "direction": "LOWER_STRONGER"}
+    broken = {"parent_id": "i2", "engine_id": "e", "score": float("nan"), "direction": "LOWER_STRONGER"}
+    actives = tuple(
+        {"parent_id": p, "engine_id": "e", "score": v, "direction": "LOWER_STRONGER"}
+        for p, v in (("a1", -5.0), ("a2", -6.0))
+    )
+    first = separation((*actives, broken, finite), panel)[0]
+    second = separation((*actives, finite, broken), panel)[0]
+    assert first.separates is second.separates is False
+    assert first.best_inactive == second.best_inactive == -9.0
+    assert first.inactives == second.inactives == 1
+
+
+def test_an_engine_whose_rows_disagree_about_direction_reports_no_numbers() -> None:
+    """``shown`` was chosen from one heading and a mixture has no single un-flip.
+
+    The fall-through arm was the ``v -> v`` one -- the Vina-family convention -- so a rising
+    KarmaDock MDN was reported as though it were kcal/mol.
+    """
+
+    panel = (PanelMember("a1", True), PanelMember("a2", True), PanelMember("i1", False))
+    scores = (
+        {"parent_id": "a1", "engine_id": "e", "score": -9.0, "direction": "LOWER_STRONGER"},
+        {"parent_id": "a2", "engine_id": "e", "score": 40.0, "direction": "HIGHER_STRONGER"},
+        {"parent_id": "i1", "engine_id": "e", "score": -6.0, "direction": "LOWER_STRONGER"},
+    )
+    row = separation(scores, panel)[0]
+    assert row.direction == MIXED
+    assert row.actives == 2 and row.inactives == 1, "the counts are still real"
+    assert row.best_active is None and row.worst_active is None
+    assert row.median_active is None and row.best_inactive is None
+    # These two were computed from the canonical locals and never passed through ``shown``, so they
+    # read like cross-convention numbers and are not.
+    assert row.inactives_above_best_active is None
+    assert row.actives_below_best_inactive is None
+    assert row.separates is None
+
+
+# -- calibrate: a number that never came back is not a measured negative ------
+
+
+class UnorderableScreen(ScoredScreen):
+    """Every score this run committed is NaN."""
+
+    def read(self, artifact_id: str, *, contract_id: str | None = None):  # noqa: ARG002
+        return [
+            dict(row, parent_id=self.digest[row["parent_id"]], score=float("nan"))
+            for row in KARMADOCK_ALK2
+        ]
+
+
+class PartlyUnorderableScreen(ScoredScreen):
+    """One active's score is NaN; the rest are real."""
+
+    def read(self, artifact_id: str, *, contract_id: str | None = None):  # noqa: ARG002
+        rows = [dict(row, parent_id=self.digest[row["parent_id"]]) for row in KARMADOCK_ALK2]
+        rows[0]["score"] = float("nan")
+        return rows
+
+
+def test_an_engine_with_no_orderable_score_says_so_rather_than_vanishing() -> None:
+    """Silence here was read downstream as a measured negative.
+
+    ``separation`` dropped the engine, ``notes`` stayed empty, and the operator was told "no
+    engine's score ordered the panel, so the shortlist's score column is a filter and not a
+    ranking" -- where the truth was that no number came back at all.
+    """
+
+    measured = calibrate(UnorderableScreen(), _alk2_result(), ALK2_PANEL)
+    assert measured.separation == ()
+    assert measured.rankable == ()
+    note = next(n for n in measured.notes if "orderable" in n)
+    assert "8 of 8" in note
+    assert "does not appear in the separation at all" in note
+    assert "rather than because its score failed to rank" in note
+    # The rows stay in the evidence table even though they are excluded from the verdict.
+    assert len(measured.scores) == 8
+    assert all(math.isnan(row["score"]) for row in measured.scores)
+
+
+def test_a_partly_unorderable_engine_reports_the_panel_it_shrank() -> None:
+    """``Separation.actives`` falls while ``Calibration.actives`` does not, and the two disagree."""
+
+    measured = calibrate(PartlyUnorderableScreen(), _alk2_result(), ALK2_PANEL)
+    assert measured.actives == 6
+    assert measured.separation[0].actives == 5
+    note = next(n for n in measured.notes if "orderable" in n)
+    assert "1 of 8" in note
+    assert "fewer panel molecules than the calibration declares" in note
+
+
+def test_a_calibration_carrying_an_unorderable_score_is_still_json() -> None:
+    """``NaN`` is a bare token in Python's JSON output and no JSON parser accepts it.
+
+    ``Calibration.as_dict`` goes through ``etalon.mcp._common.dumps`` straight into a tool
+    response, so one NaN made the whole response unparseable to the client reading it.
+    """
+
+    body = calibrate(UnorderableScreen(), _alk2_result(), ALK2_PANEL).as_dict()
+    text = json.dumps(body)
+
+    def refuse(token: str) -> None:
+        raise AssertionError(f"{token} is not JSON")
+
+    json.loads(text, parse_constant=refuse)
+
+
+# -- calibrate: recall over molecules the run never had -----------------------
+
+
+def _bare(parent_id: str) -> str:
+    """The library's own id for a declared panel member, under the mismatch that was measured."""
+
+    return "lib_" + parent_id.removeprefix("act_").removeprefix("neg_")
+
+
+class UnregisteredPanelScreen(ScoredScreen):
+    """The funnel deleted every molecule it was given, under ids the panel does not declare.
+
+    Reproduced from the real convention mismatch: the panel declares ``act_SARACATINIB`` and
+    ``neg_aspirin``, and the panel library's id column carried the bare ``SARACATINIB`` and
+    ``aspirin``.
+    """
+
+    def recall(self, run_id: str, *, panel_size: int | None = None) -> dict[str, object]:
+        return {
+            "registered": 8,
+            "tiers": [
+                {
+                    "tier_id": "t9_docking",
+                    "title": "Docking",
+                    "entering": 8,
+                    "surviving": 0,
+                    "lost": [_bare(m.parent_id) for m in ALK2_PANEL],
+                }
+            ],
+            "finalize": [],
+            "notes": [],
+        }
+
+    def parent_names(self, result):  # noqa: ANN001, ARG002
+        return {v: _bare(k) for k, v in self.digest.items()}
+
+
+def test_a_panel_the_run_never_registered_is_not_full_recall() -> None:
+    """Recall is computed from names, so a name nothing matches counts as surviving every gate.
+
+    Measured: a tier reporting ``entering 3, surviving 0, lost [...]`` -- a funnel that deleted
+    every molecule it was given -- calibrated to ``recall 1.0``, ``admissible True``,
+    ``refusals ()``, and minted a signed authorization that carves the whole pool.
+    """
+
+    measured = calibrate(UnregisteredPanelScreen(), _alk2_result(), ALK2_PANEL)
+    assert measured.deleted_actives == (), "the names never matched, which is the point"
+    assert measured.recall is None, "1.0 here is a product over molecules that were not there"
+    assert not measured.admissible
+    reason = next(r for r in measured.refusals() if "panel_identity" in r or "declared panel" in r)
+    assert "surviving every gate" in reason
+    with pytest.raises(NotAuthorized):
+        authorize_gate(measured)
+
+
+def test_a_panel_whose_molecules_are_all_present_is_not_withheld() -> None:
+    """The guard must not fire on the real campaign, where 15 of 15 declared members are observable."""
+
+    measured = calibrate(ScoredScreen(), _alk2_result(), ALK2_PANEL)
+    assert all(tier.tier_id != "panel_identity" for tier in measured.all_tiers)
+    assert measured.recall == 1.0
+    assert measured.admissible
+
+
+def test_a_run_that_registered_nothing_has_no_recall() -> None:
+    """MolCascade's own end-to-end retention is null here and this reported 1.0.
+
+    ``TierRecall.retention`` nulls on ``entering == 0``, and its ``registered and not names``
+    refusal cannot fire on an empty set.
+    """
+
+    verdict = Calibration(
+        revision_id="rev-1",
+        run_id="r",
+        outcome="committed",
+        panel_size=8,
+        actives=5,
+        registered=0,
+        tiers=(TierVerdict("t9", "docking", 0, 0, (), ()),),
+        finalize=(),
+        separation=(),
+    )
+    assert verdict.recall is None
+    assert not verdict.admissible
+    assert any("registered no molecules at all" in reason for reason in verdict.refusals())
+    with pytest.raises(NotAuthorized):
+        authorize_gate(verdict)
+
+
+# -- the comparator: which of two engines a free energy is calibrated against ---
+#
+# Measured on both real ALK2 panel runs, panel009 and panel_v7. Each committed two artifacts on
+# ``docking_score/v1``: ``docking_score`` from ``docking.unidock@0.2.0`` writing VINA_KCAL_MOL /
+# LOWER_STRONGER, and ``docking_score_2`` from ``docking.karmadock@0.3.0`` writing KARMADOCK_MDN /
+# HIGHER_STRONGER. ``Screen.metrics`` looked for the contract with ``artifact_carrying``, which is
+# last-wins, so the comparator was chosen by stage order and the chosen one was the confidence.
+#
+# Both tables, ascending, on panel_v7 -- the ordering an active-learning loop reads as
+# strongest-first because a binding free energy is on the other axis:
+#
+#   unidock   LDN-193189_cocrystal_3Q4U -11.481, act_CHEMBL4526828 -11.323, ... neg_aspirin -6.322
+#   karmadock neg_aspirin 17.285, neg_caffeine 23.325, ... act_SARACATINIB 67.329
+#
+# The first is right way round: the co-crystal ligand strongest, a negative control weakest. The
+# second is exactly inverted, with all four weakest-scoring molecules being declared negative
+# controls and six of seven known actives in the worst eight positions.
+
+#: The two docking tables panel_v7 really committed, one row per molecule, pose_rank 0 only --
+#: which is all those runs carry. Scores are the measured values.
+_UNIDOCK_V7 = (
+    ("LDN-193189_cocrystal_3Q4U", -11.481),
+    ("act_CHEMBL4526828", -11.323),
+    ("act_CHEMBL4575655", -11.209),
+    ("act_CHEMBL1996702", -10.412),
+    ("neg_aspirin", -6.322),
+)
+_KARMADOCK_V7 = (
+    ("neg_aspirin", 17.285),
+    ("neg_caffeine", 23.325),
+    ("act_CHEMBL3818173", 56.560),
+    ("act_PD-0166285", 61.527),
+    ("act_SARACATINIB", 67.329),
+)
+
+
+def _docking_rows(values, *, engine, kind, direction, poses=1):
+    """``docking_score/v1`` rows as MolCascade writes them, every field the contract requires."""
+
+    return [
+        {
+            "parent_id": f"parent:sha256:{parent}",
+            "engine_id": engine,
+            "receptor_id": "receptor:sha256:33b3b8aa2e615717",
+            "pose_rank": rank,
+            "score": score if rank == 0 else score + rank,
+            "score_kind": kind,
+            "direction": direction,
+            "method_id": f"{engine}@test",
+        }
+        for parent, score in values
+        for rank in range(poses)
+    ]
+
+
+class MetricScreen(Screen):
+    """A real :class:`Screen` reading stubbed artifacts, so ``metrics`` can be read on its own.
+
+    ``infra`` is supplied so nothing loads the vendored tree, and ``artifacts_carrying``/``read``
+    are overridden so no artifact store is touched. Everything else is the real method.
+    """
+
+    def __init__(self, workspace, tables) -> None:  # noqa: ANN001
+        super().__init__(workspace, infra=SimpleNamespace(name="molcascade"))
+        #: ``artifact_id -> (contract_id, rows)``.
+        self.tables = dict(tables)
+
+    def artifacts_carrying(self, result, contract_id: str) -> tuple[str, ...]:  # noqa: ANN001
+        carrying = {name for name, (held, _) in self.tables.items() if held == contract_id}
+        return tuple(
+            stage.artifact_id for stage in result.committed if stage.artifact_id in carrying
+        )
+
+    def read(self, artifact_id: str, *, contract_id: str | None = None) -> list[dict[str, object]]:
+        held, rows = self.tables[artifact_id]
+        if contract_id is not None and contract_id != held:
+            raise KeyError(contract_id)
+        return [dict(row) for row in rows]
+
+
+def _two_engine_screen(tmp_path, **kinds):
+    """The panel_v7 shape: unidock then karmadock, in the order the cascade committed them."""
+
+    unidock = _docking_rows(
+        _UNIDOCK_V7, engine="unidock", kind="VINA_KCAL_MOL", direction="LOWER_STRONGER", **kinds
+    )
+    karmadock = _docking_rows(
+        _KARMADOCK_V7, engine="karmadock", kind="KARMADOCK_MDN", direction="HIGHER_STRONGER"
+    )
+    screen = MetricScreen(
+        tmp_path,
+        {
+            "artifact:sha256:c6bc7099": ("docking_score/v1", unidock),
+            "artifact:sha256:e4d7a441": ("docking_score/v1", karmadock),
+        },
+    )
+    result = ScreenResult(
+        run_id="panel_v7",
+        revision_id="rev-alk2",
+        status="SUCCEEDED",
+        stages=(
+            stage("docking_score", "SUCCEEDED", artifact="artifact:sha256:c6bc7099"),
+            stage("docking_score_2", "SUCCEEDED", artifact="artifact:sha256:e4d7a441"),
+        ),
+    )
+    return screen, result
+
+
+def test_two_docking_engines_do_not_let_stage_order_pick_the_comparator(tmp_path) -> None:
+    """The panel_v7 defect: last-wins returned KarmaDock's confidence as a kcal/mol score."""
+
+    screen, result = _two_engine_screen(tmp_path)
+
+    # This is what the predecessor did, and it is still reachable -- the method is the one that
+    # must not use it.
+    last_wins = screen.artifact_carrying(result, "docking_score/v1")
+    inverted = {
+        str(row["parent_id"]): float(row["score"])
+        for row in screen.read(last_wins, contract_id="docking_score/v1")
+    }
+    assert max(inverted.values()) == 67.329, "last-wins really is the karmadock table"
+
+    with pytest.raises(ValueError) as refusal:
+        screen.metrics(result)
+    message = str(refusal.value)
+    assert "docking_score" in message and "docking_score_2" in message, "both stages are named"
+    assert "2 stages" in message
+    # And the refusal is a ValueError specifically, because that is what the round already
+    # catches: loop.py turns it into "No comparator for the screen" and records NO_CHEAP_VALUE.
+    assert isinstance(refusal.value, ValueError)
+
+
+def test_a_rising_confidence_is_refused_even_as_the_only_docking_score(tmp_path) -> None:
+    """Being the only candidate is not an argument. KARMADOCK_MDN is on no energy scale.
+
+    Negating it is not the remedy either: -67.329 "kcal/mol" appears in no artifact, and it sits
+    in the range a real MM/PBSA number occupies, so nothing downstream could catch it.
+    """
+
+    screen, result = _two_engine_screen(tmp_path)
+    alone = replace(
+        result, stages=tuple(s for s in result.stages if s.stage_id == "docking_score_2")
+    )
+
+    with pytest.raises(ValueError) as refusal:
+        screen.metrics(alone)
+    message = str(refusal.value)
+    assert "KARMADOCK_MDN" in message and "not in kcal/mol" in message
+    assert "docking_score_2" in message
+
+
+def test_the_kcal_mol_engine_alone_is_the_comparator_and_is_not_negated(tmp_path) -> None:
+    """The other half: with one energy-scale stage, the sign is left exactly as measured."""
+
+    screen, result = _two_engine_screen(tmp_path, poses=3)
+    alone = replace(
+        result, stages=tuple(s for s in result.stages if s.stage_id == "docking_score")
+    )
+
+    cheap = screen.metrics(alone)
+    assert cheap == {
+        f"parent:sha256:{parent}": score for parent, score in _UNIDOCK_V7
+    }, "every value is the signed kcal/mol number, unnegated and unscaled"
+    # Rank 0 only. A lower-ranked pose is a different hypothesis about the same molecule, and the
+    # stubbed rows carry three poses each precisely so a leak would change the numbers.
+    assert min(cheap.values()) == -11.481 and max(cheap.values()) == -6.322
+    assert len(cheap) == len(_UNIDOCK_V7)
+
+
+def test_one_table_committed_by_two_stages_is_one_measurement(tmp_path) -> None:
+    """Two stage ids resolving to one artifact is one score table, not an ambiguity.
+
+    ``artifacts_carrying`` appends per committed stage, so a cache key shared by two stages put
+    the same artifact in the list twice. Refusing that would refuse a run carrying exactly one
+    docking score.
+    """
+
+    rows = _docking_rows(
+        _UNIDOCK_V7, engine="unidock", kind="VINA_KCAL_MOL", direction="LOWER_STRONGER"
+    )
+    screen = MetricScreen(tmp_path, {"artifact:sha256:c6bc7099": ("docking_score/v1", rows)})
+    result = ScreenResult(
+        run_id="cached",
+        revision_id="rev-alk2",
+        status="SUCCEEDED",
+        stages=(
+            stage("docking_score", "SUCCEEDED", artifact="artifact:sha256:c6bc7099"),
+            stage("docking_score_again", "SUCCEEDED", artifact="artifact:sha256:c6bc7099"),
+        ),
+    )
+
+    assert screen.metrics(result) == {
+        f"parent:sha256:{parent}": score for parent, score in _UNIDOCK_V7
+    }
+
+
+def test_a_run_with_no_docking_stage_still_reaches_the_derived_metrics(tmp_path) -> None:
+    """The refusals must not swallow the path below them.
+
+    ``_docking_metrics`` returns ``None`` -- not an empty mapping -- for a run carrying no
+    docking artifact, because an empty mapping short-circuits and a ligand-only round would stop
+    reporting its derived metrics at all.
+    """
+
+    screen = MetricScreen(
+        tmp_path,
+        {
+            "artifact:sha256:dd": (
+                "derived_metric/v1",
+                [
+                    {
+                        "parent_id": "parent:sha256:a",
+                        "metric_id": "lilly_demerit_total",
+                        "value": 40.0,
+                        "status": "OK",
+                    }
+                ],
+            )
+        },
+    )
+    result = ScreenResult(
+        run_id="ligands-only",
+        revision_id="rev-x",
+        status="SUCCEEDED",
+        stages=(stage("demerits", "SUCCEEDED", artifact="artifact:sha256:dd"),),
+    )
+
+    # Unnamed, it still refuses -- but for the derived-metric reason, naming the metric it has.
+    with pytest.raises(ValueError) as refusal:
+        screen.metrics(result)
+    assert "lilly_demerit_total" in str(refusal.value)
+    assert "no docking score" in str(refusal.value)
+    # Named, it answers.
+    assert screen.metrics(result, metric_id="lilly_demerit_total") == {"parent:sha256:a": 40.0}
+
+
+def test_a_named_derived_metric_is_not_blocked_by_two_docking_stages(tmp_path) -> None:
+    """An operator who named a comparator has made the decision the refusal asks for.
+
+    So the two-stage refusal must not fire ahead of them: ``metric_id`` skips the docking path
+    entirely, which is also how a campaign screening two engines stays able to calibrate at all.
+    """
+
+    screen, result = _two_engine_screen(tmp_path)
+    screen.tables["artifact:sha256:dd"] = (
+        "derived_metric/v1",
+        [
+            {
+                "parent_id": "parent:sha256:a",
+                "metric_id": "qed",
+                "value": 0.71,
+                "status": "OK",
+            }
+        ],
+    )
+    named = ScreenResult(
+        run_id=result.run_id,
+        revision_id=result.revision_id,
+        status=result.status,
+        stages=(*result.stages, stage("qed", "SUCCEEDED", artifact="artifact:sha256:dd")),
+    )
+
+    assert screen.metrics(named, metric_id="qed") == {"parent:sha256:a": 0.71}
+
+
+def test_a_refused_comparator_makes_a_round_that_measures_without_learning(tmp_path) -> None:
+    """What the refusal costs, end to end: the round still runs and the screen learns nothing.
+
+    This is why the refusal is a ``ValueError`` rather than a new exception type. ``loop.py``
+    already catches ``(ValueError, KeyError)`` around ``metrics`` and turns it into a note, so a
+    campaign that would have learned the panel backwards instead records that it could not
+    compare -- and ``admissible.rule`` withholds the measurement rather than fitting to it.
+    """
+
+    import inspect
+
+    from etalon.campaign import loop
+
+    source = inspect.getsource(loop)
+    assert "except (ValueError, KeyError) as no_comparator" in source
+    assert "No comparator for the screen" in source
+
+    screen, result = _two_engine_screen(tmp_path)
+    with pytest.raises((ValueError, KeyError)):
+        screen.metrics(result)
+
+
+# -- gate authorization ------------------------------------------------------
+
+
+def test_an_inadmissible_configuration_cannot_be_authorized(keyed) -> None:
+    with pytest.raises(NotAuthorized, match="deleted known actives"):
+        authorize_gate(calibration(deleted=("C-26-A2",)))
+
+
+def test_a_token_is_bound_to_its_revision(keyed) -> None:
+    token = authorize_gate(calibration(revision="rev-1"))
+    assert require_gate(token, "rev-1") is token
+    with pytest.raises(NotAuthorized, match="configuration changed"):
+        require_gate(token, "rev-2")
+
+
+def test_no_token_is_refused_with_the_remedy(keyed) -> None:
+    with pytest.raises(NotAuthorized, match="known-active panel"):
+        require_gate(None, "rev-1")
+
+
+def test_an_edited_token_does_not_verify(keyed) -> None:
+    import dataclasses
+
+    token = authorize_gate(calibration())
+    assert dataclasses.replace(token, recall=0.1).valid() is False
+
+
+def test_an_unrecorded_engine_is_reported_as_unchecked(keyed) -> None:
+    token = authorize_gate(calibration())
+    assert "ENGINE_IDENTITY_UNRECORDED" in token.unchecked
+
+
+def test_a_score_that_cannot_rank_is_flagged_not_refused(keyed) -> None:
+    # The real panel: admissible once the gate is widened, and still not a ranking.
+    token = authorize_gate(calibration(), provenance={"tree_sha256": "abc"})
+    assert token.rankable_engines == ()
+    assert "SCORE_NOT_SHOWN_TO_RANK" in token.unchecked
+
+
+def test_calibration_digest_ignores_the_score_table(keyed) -> None:
+    left = calibration()
+    right = Calibration(**{**{f.name: getattr(left, f.name) for f in left.__dataclass_fields__.values()},
+                           "scores": ({"parent_id": "x", "engine_id": "e", "score": -1.0},)})
+    assert calibration_digest(left) == calibration_digest(right)
+
+
+def test_unauthorized_gate_reports_without_raising() -> None:
+    report = unauthorized_gate(calibration(deleted=("C-26-A2", "C-26-A6")))
+    assert report["admissible"] is False
+    assert set(report["deleted_actives"]) == {"C-26-A2", "C-26-A6"}
+
+
+# -- the sweep ---------------------------------------------------------------
+
+
+def test_deduplication_is_global_and_permanent(sweep: Sweep) -> None:
+    first = sweep.admit([(f"K{i}", f"C{i}", "flowr") for i in range(8)])
+    second = sweep.admit([(f"K{i}", f"C{i}", "molcraft") for i in range(4)])
+    assert (first.accepted, first.duplicates) == (8, 0)
+    assert (second.accepted, second.duplicates) == (0, 4)
+    # The first proposer keeps the attribution, which is what makes a shortlist traceable.
+    assert sweep.state()["pool"]["by_source"] == {"flowr": 8}
+
+
+def test_a_batch_is_carved_only_when_the_watermark_is_reached(sweep: Sweep) -> None:
+    sweep.admit([(f"K{i}", f"C{i}", "flowr") for i in range(8)])
+    carved = sweep.emit(revision_id="rev-1")
+    assert [b.batch_id for b in carved] == ["batch_0001"]
+    assert sweep.ready() == 3
+
+
+def test_flush_carves_the_short_remainder_and_stops(sweep: Sweep) -> None:
+    sweep.admit([(f"K{i}", f"C{i}", "flowr") for i in range(7)])
+    carved = sweep.emit(revision_id="rev-1", flush=True)
+    assert [b.size for b in carved] == [5, 2]
+    assert sweep.ready() == 0
+
+
+def test_emitting_without_a_gate_authorization_is_refused(tmp_path, keyed) -> None:
+    bare = Sweep(FakeScreen(), Ledger(tmp_path / "l.jsonl"), tmp_path / "p.sqlite", batch_size=2)
+    bare.admit([("K1", "C1", "f"), ("K2", "C2", "f")])
+    with pytest.raises(NotAuthorized, match="known-active panel"):
+        bare.emit(revision_id="rev-1")
+
+
+def test_emitting_with_a_token_for_another_funnel_is_refused(sweep: Sweep) -> None:
+    sweep.admit([(f"K{i}", f"C{i}", "f") for i in range(5)])
+    with pytest.raises(NotAuthorized, match="configuration changed"):
+        sweep.emit(revision_id="rev-EDITED")
+
+
+def test_two_screeners_cannot_claim_one_batch(sweep: Sweep) -> None:
+    sweep.admit([(f"K{i}", f"C{i}", "f") for i in range(5)])
+    sweep.emit(revision_id="rev-1")
+    sweep.claim("batch_0001", by="gpu5")
+    with pytest.raises(SweepError, match="not claimable"):
+        sweep.claim("batch_0001", by="gpu6")
+
+
+def test_an_anonymous_claim_is_refused(sweep: Sweep) -> None:
+    sweep.admit([(f"K{i}", f"C{i}", "f") for i in range(5)])
+    sweep.emit(revision_id="rev-1")
+    with pytest.raises(ValueError, match="name its claimer"):
+        sweep.claim("batch_0001", by="  ")
+
+
+def test_an_outcome_is_append_only(sweep: Sweep) -> None:
+    sweep.admit([(f"K{i}", f"C{i}", "f") for i in range(5)])
+    sweep.emit(revision_id="rev-1")
+    sweep.claim("batch_0001", by="gpu5")
+    done = ScreenResult("batch_0001", "rev-1", "SUCCEEDED", (stage("shortlist", "SUCCEEDED", artifact="a"),))
+    sweep.record("batch_0001", done)
+    with pytest.raises(SweepError, match="already recorded"):
+        sweep.record("batch_0001", done)
+
+
+def test_the_readable_shapes_of_a_sweep_are_json(tmp_path, sweep: Sweep) -> None:
+    """``as_dict`` and ``as_json`` are what a status tool and an MCP reply are built from."""
+
+    import json as json_module
+
+    from etalon.campaign.sweep import as_json
+
+    sweep.admit([(f"K{i}", f"C{i}", "f") for i in range(5)])
+    report = sweep.admit([("K0", "C0", "f")])
+    assert report.as_dict() == {"offered": 1, "accepted": 0, "duplicates": 1, "ready": 5}
+
+    batch = sweep.emit(revision_id="rev-1", flush=True)[0]
+    assert set(batch.as_dict()) >= {"batch_id", "size", "emitted_at", "outcome"}
+
+    # Claimed first, because `recover` only has something to say about an outstanding batch.
+    sweep.claim(batch.batch_id, by="cuda:0")
+    recovery = sweep.recover()
+    assert recovery, "no batch was outstanding, so no recovery action was produced"
+    assert all(set(action.as_dict()) == {"batch_id", "action", "detail"} for action in recovery)
+    assert recovery[0].as_dict()["action"] == "requeued", "a claim with no run record is requeued"
+
+    reading = json_module.loads(as_json(sweep))
+    assert reading["pool"]["unique"] == 5
+    assert reading["batches"]["emitted"] == 1
+
+
+def test_a_batch_size_of_zero_is_refused(tmp_path) -> None:
+    """A sweep with no batch size carves forever or never; neither is a campaign."""
+
+    screen = FakeScreen()
+    for size in (0, -1):
+        with pytest.raises(ValueError, match="batch_size must be positive"):
+            Sweep(screen, Ledger(tmp_path / "l.jsonl"), tmp_path / "p.sqlite", batch_size=size)
+
+
+def test_recording_a_batch_that_was_never_emitted_is_refused(sweep: Sweep) -> None:
+    """A run id that names no batch of this campaign has no row to file an outcome against."""
+
+    done = ScreenResult(
+        "batch_9999", "rev-1", "SUCCEEDED", (stage("shortlist", "SUCCEEDED", artifact="a"),)
+    )
+    with pytest.raises(SweepError, match="was never emitted"):
+        sweep.record("batch_9999", done)
+
+
+def test_a_ledger_row_lost_after_the_pool_commit_can_be_filled(sweep: Sweep) -> None:
+    """The pool's outcome commits first and the ledger row is appended after, with no transaction.
+
+    So anything that makes the append fail leaves the batch recorded in the pool and absent from
+    the ledger -- and this module's premise is that the ledger is the authority and everything else
+    is a derivative, so a batch with no ledger row did not happen as far as any audit is concerned,
+    while ``state()`` reads the pool and goes on reporting it as recorded.
+
+    Measured by contending the ledger with a shared lock, which is what a status tool reading it
+    holds: ``record`` raised ``BlockingIOError``, the pool reported ``recorded: 1`` and
+    ``by_outcome: {'committed': 1}``, and the ledger file had zero lines. The retry then hit the
+    append-only guard and raised, permanently, so nothing could ever fill the hole. The lock is one
+    of several ways in: a full disk is another, and so is any non-finite float anywhere in
+    ``screen.provenance()``, which ``json.dumps(..., allow_nan=False)`` refuses.
+    """
+
+    sweep.admit([(f"K{i}", f"C{i}", "f") for i in range(5)])
+    sweep.emit(revision_id="rev-1")
+    sweep.claim("batch_0001", by="gpu5")
+    done = ScreenResult(
+        "batch_0001", "rev-1", "SUCCEEDED", (stage("shortlist", "SUCCEEDED", artifact="a"),)
+    )
+
+    def lines() -> int:
+        path = sweep.ledger.path
+        return len(path.read_text(encoding="utf-8").splitlines()) if path.exists() else 0
+
+    before = lines()
+    with sweep.ledger._locked(exclusive=False), pytest.raises(
+        BlockingIOError, match="ledger is busy"
+    ):
+        sweep.record("batch_0001", done)
+    assert lines() == before, "the ledger row was never written"
+    assert sweep.state()["batches"]["recorded"] == 1, "but the pool says the batch was recorded"
+
+    # The same measurement again fills the hole rather than raising.
+    sweep.record("batch_0001", done)
+    assert lines() == before + 1
+    rows = [e for e in sweep.ledger.entries() if e.kind == "batch" and e.round_id == "batch_0001"]
+    assert len(rows) == 1
+    assert rows[0].body["outcome"] == "committed"
+
+    # And once the row is there, append-only applies again: there is nothing left to repair.
+    with pytest.raises(SweepError, match="already recorded"):
+        sweep.record("batch_0001", done)
+    assert lines() == before + 1, "a repair that had nothing to repair appended a duplicate"
+
+
+def test_a_repair_does_not_let_a_second_outcome_in(sweep: Sweep) -> None:
+    """The repair is keyed on the measurement being the same one, not on the batch being the same.
+
+    Overwriting ``committed`` with ``failed`` from a retry that should never have been dispatched is
+    exactly what the append-only guard exists to refuse, and a repair path that admitted any result
+    for an already-recorded batch would have reopened it.
+    """
+
+    sweep.admit([(f"K{i}", f"C{i}", "f") for i in range(5)])
+    sweep.emit(revision_id="rev-1")
+    sweep.claim("batch_0001", by="gpu5")
+    done = ScreenResult(
+        "batch_0001", "rev-1", "SUCCEEDED", (stage("shortlist", "SUCCEEDED", artifact="a"),)
+    )
+    with sweep.ledger._locked(exclusive=False), pytest.raises(BlockingIOError):
+        sweep.record("batch_0001", done)
+
+    # The hole is open, which is the only state in which a repair is allowed at all.
+    failed = ScreenResult(
+        "batch_0001", "rev-1", "FAILED", (stage("docking", "FAILED", code="BOOM"),)
+    )
+    with pytest.raises(SweepError, match="already recorded"):
+        sweep.record("batch_0001", failed)
+
+    other_run = ScreenResult(
+        "someone_elses_run", "rev-1", "SUCCEEDED", (stage("shortlist", "SUCCEEDED", artifact="a"),)
+    )
+    with pytest.raises(SweepError, match="already recorded"):
+        sweep.record("batch_0001", other_run)
+
+    unfinished = ScreenResult(
+        "batch_0001", "rev-1", "RUNNING", (stage("shortlist", "SUCCEEDED", artifact="a"),)
+    )
+    with pytest.raises(SweepError, match="already recorded"):
+        sweep.record("batch_0001", unfinished)
+
+    # The hole is still a hole, and still fillable by the measurement that made it.
+    sweep.record("batch_0001", done)
+    rows = [e for e in sweep.ledger.entries() if e.kind == "batch" and e.round_id == "batch_0001"]
+    assert len(rows) == 1 and rows[0].body["outcome"] == "committed"
+
+
+def test_a_batch_keeps_the_revision_it_was_emitted_under(sweep: Sweep) -> None:
+    """The ledger's ``revision_id`` is the funnel, and a differing run digest is provenance.
+
+    This used to raise on any difference, guarding the provenance hole 56 hand-recorded batches
+    had. The guard was unusable where it stood: a compiled revision covers the library as well as
+    the funnel, so a run's own digest is a function of which molecules were in it, and five batches
+    of one ALK2 campaign compiled to five digests from one unchanged config file. The check refused
+    all five -- from inside ``recover``, so the exception left the supervisor's tick and killed the
+    process driving the campaign.
+
+    The guard did not go away; it moved to the only place it can be performed. A screen driver
+    compiles the current config against a fixed reference library before every batch and refuses to
+    run one whose funnel is not the campaign's, so a configuration changed mid-campaign never
+    produces a result for ``record`` to judge. See
+    ``test_a_drifted_configuration_is_refused_before_the_batch_runs``.
+    """
+
+    sweep.admit([(f"K{i}", f"C{i}", "f") for i in range(5)])
+    sweep.emit(revision_id="rev-1")
+    sweep.claim("batch_0001", by="gpu5")
+    recorded = sweep.record(
+        "batch_0001",
+        ScreenResult(
+            "batch_0001", "rev-per-library", "SUCCEEDED", (stage("s", "SUCCEEDED", artifact="a"),)
+        ),
+    )
+    # The funnel, not the funnel-and-these-molecules digest -- which is what `comparable` reads.
+    assert recorded.revision_id == "rev-1"
+    assert sweep.state()["comparable"] is True
+
+
+def test_a_drifted_configuration_is_refused_before_the_batch_runs(tmp_path) -> None:
+    """Where the revision guard lives now: in front of the screen, not behind it."""
+
+    from etalon.campaign.drivers import MolCascadeScreening, RevisionChanged
+
+    class Compiles:
+        def __init__(self, revision: str) -> None:
+            self.revision = revision
+
+        def plan(self, config_path, library=None, *, target=None):  # noqa: ANN001, ARG002
+            return SimpleNamespace(revision_id=self.revision)
+
+        def state(self, run_id: str):  # noqa: ARG002
+            return None
+
+    driver = MolCascadeScreening(
+        screen=Compiles("rev-EDITED"),
+        config_path=tmp_path / "c.json",
+        revision_id="rev-1",
+        reference_library=tmp_path / "panel.csv",
+    )
+    with pytest.raises(RevisionChanged, match="not comparable"):
+        driver("batch_0001", tmp_path / "b.csv", "cuda:0")
+
+
+def test_an_exhausted_batch_is_recorded_as_a_measurement(sweep: Sweep) -> None:
+    sweep.admit([(f"K{i}", f"C{i}", "f") for i in range(5)])
+    sweep.emit(revision_id="rev-1")
+    sweep.claim("batch_0001", by="gpu5")
+    recorded = sweep.record(
+        "batch_0001",
+        ScreenResult(
+            "batch_0001",
+            "rev-1",
+            "FAILED",
+            (
+                stage("docking", "SUCCEEDED", artifact="artifact:sha256:aa"),
+                stage("pose_strain", "FAILED", code="POSE_STRAIN_EMPTY_PARENT_INPUT"),
+            ),
+        ),
+    )
+    assert recorded.outcome == "exhausted"
+    entry = sweep.ledger.entries()[-1]
+    assert entry.kind == "batch"
+    assert entry.body["exhausted_at"] == "pose_strain"
+    assert entry.body["committed_stages"] == 1
+
+
+def test_the_ledger_line_carries_the_revision_and_the_gate(sweep: Sweep) -> None:
+    sweep.admit([(f"K{i}", f"C{i}", "f") for i in range(5)])
+    sweep.emit(revision_id="rev-1")
+    sweep.claim("batch_0001", by="gpu5")
+    sweep.record("batch_0001", ScreenResult("batch_0001", "rev-1", "SUCCEEDED", (stage("s", "SUCCEEDED", artifact="a"),)))
+    body = sweep.ledger.entries()[-1].body
+    assert body["revision_id"] == "rev-1"
+    assert body["gate"] == sweep.gate.calibration_sha256  # type: ignore[union-attr]
+    assert body["infrastructure"]["tree_sha256"] == "deadbeef"
+
+
+def test_an_unfinished_run_is_not_recorded_as_a_measurement(sweep: Sweep) -> None:
+    """A screen killed mid-funnel files as ``committed``, because ``outcome`` reads the stages.
+
+    Measured shape: a supervisor was restarted while a 20,000-molecule batch was at stage 6 of 43.
+    The run record stayed RUNNING with six committed stages and none failed, and
+    ``ScreenResult.outcome`` is derived from the stages -- so it returned ``"committed"``, the same
+    string a finished screen produces. Recording that is a complete measurement of 20,000 molecules
+    with 37 stages that never ran, and nothing downstream can tell it apart: the ledger entry
+    carries ``committed_stages`` but no reader compares it against the funnel's length.
+    """
+
+    sweep.admit([(f"K{i}", f"C{i}", "f") for i in range(5)])
+    sweep.emit(revision_id="rev-1")
+    sweep.claim("batch_0001", by="gpu5")
+    midway = ScreenResult(
+        "batch_0001",
+        "rev-1",
+        "RUNNING",
+        tuple(stage(f"s{i}", "SUCCEEDED", artifact=f"a{i}") for i in range(6)),
+    )
+    # The thing being guarded against: this is not a failure that would be caught some other way.
+    assert midway.outcome == "committed"
+    with pytest.raises(SweepError, match="not a terminal"):
+        sweep.record("batch_0001", midway)
+    still = sweep.batch("batch_0001")
+    assert still is not None and still.outcome is None
+    assert [e.kind for e in sweep.ledger.entries()] == []
+
+
+def test_two_recorders_cannot_both_file_an_outcome(sweep: Sweep) -> None:
+    """The append-only guard is a read, the write is a separate statement, and that is a window.
+
+    Both a supervisor's ``recover`` and an operator's MCP ``etalon_sweep_record`` reach the same
+    pool, and both check ``recorded`` before writing. Two that interleave both pass the check, and
+    the second overwrote the first's measurement -- including overwriting ``committed`` with
+    ``failed`` from a retry that should never have been dispatched. ``claim`` already took the
+    conditional-update-plus-rowcount route; the terminal write did not.
+    """
+
+    sweep.admit([(f"K{i}", f"C{i}", "f") for i in range(5)])
+    sweep.emit(revision_id="rev-1")
+    sweep.claim("batch_0001", by="gpu5")
+    stale = sweep.batch("batch_0001")  # the row as BOTH recorders read it: claimed, unrecorded
+    assert stale is not None and not stale.recorded
+
+    sweep.record(
+        "batch_0001",
+        ScreenResult("batch_0001", "rev-1", "SUCCEEDED", (stage("s", "SUCCEEDED", artifact="a"),)),
+    )
+
+    # The loser's pre-read happened before that write. ``record`` re-reads the row, so replaying
+    # the window means handing it the row it actually had -- once.
+    real = sweep.batch
+    pre_read = iter([stale])
+    sweep.batch = lambda bid: next(pre_read, None) or real(bid)  # type: ignore[assignment]
+    try:
+        with pytest.raises(SweepError, match="recorded by someone else"):
+            sweep.record(
+                "batch_0001",
+                ScreenResult("batch_0001", "rev-1", "FAILED", (stage("s", "FAILED", code="BOOM"),)),
+            )
+    finally:
+        sweep.batch = real  # type: ignore[assignment]
+
+    landed = sweep.batch("batch_0001")
+    assert landed is not None and landed.outcome == "committed"
+    assert [e.body["outcome"] for e in sweep.ledger.entries() if e.kind == "batch"] == ["committed"]
+
+
+def test_the_ledger_records_the_gate_the_batch_was_emitted_under(tmp_path, keyed) -> None:
+    """Not the gate of whichever sweep happened to record it.
+
+    A supervisor restarted mid-campaign re-authorizes its gate before carving anything, and
+    ``record`` read ``self.gate`` -- so every batch it recovered, including ones carved hours
+    earlier under a different calibration, was filed under the live authorization. A ledger read
+    back afterwards therefore attributes the whole campaign to one gate regardless of what was
+    actually screened under what.
+    """
+
+    screen = FakeScreen()
+    emitting = authorize_gate(calibration(), provenance=screen.provenance())
+    carver = Sweep(
+        screen,
+        Ledger(tmp_path / "ledger.jsonl"),
+        tmp_path / "pool.sqlite",
+        batch_size=5,
+        gate=emitting,
+    )
+    carver.admit([(f"K{i}", f"C{i}", "f") for i in range(5)])
+    carver.emit(revision_id="rev-1")
+    carved = carver.batch("batch_0001")
+    assert carved is not None and carved.gate == emitting.calibration_sha256
+
+    # What a restart mints: the same funnel, a differently-digested calibration verdict.
+    restarted = authorize_gate(
+        replace(calibration(), run_id="panel-run-after-restart"), provenance=screen.provenance()
+    )
+    assert restarted.calibration_sha256 != emitting.calibration_sha256
+
+    recorder = Sweep(
+        screen,
+        Ledger(tmp_path / "ledger.jsonl"),
+        tmp_path / "pool.sqlite",
+        batch_size=5,
+        gate=restarted,
+    )
+    recorder.screen = screen  # type: ignore[assignment]
+    recorder.claim("batch_0001", by="gpu5")
+    recorder.record(
+        "batch_0001",
+        ScreenResult("batch_0001", "rev-1", "SUCCEEDED", (stage("s", "SUCCEEDED", artifact="a"),)),
+    )
+    body = recorder.ledger.entries()[-1].body
+    assert body["gate"] == emitting.calibration_sha256
+    assert body["gate"] != restarted.calibration_sha256
+
+
+def test_a_pool_carved_before_the_gate_column_still_records(tmp_path, keyed) -> None:
+    """``CREATE TABLE IF NOT EXISTS`` is a no-op, so a new column needs an explicit migration.
+
+    The campaign already on disk is the one with batches in it, and without the ``ALTER TABLE`` a
+    column added to the schema reaches only pools created after the change -- so the first thing
+    the new code does against a running campaign is raise ``no such column: gate`` out of
+    ``recover``, inside the supervisor tick, which kills the process driving it.
+    """
+
+    import sqlite3
+
+    pool = tmp_path / "pool.sqlite"
+    db = sqlite3.connect(pool)
+    db.executescript(
+        """
+        CREATE TABLE molecule (
+            key TEXT PRIMARY KEY, smiles TEXT NOT NULL, source TEXT NOT NULL,
+            seen_at REAL NOT NULL, batch TEXT
+        );
+        CREATE TABLE batch (
+            batch_id TEXT PRIMARY KEY, size INTEGER NOT NULL, emitted_at TEXT NOT NULL,
+            claimed_by TEXT, claimed_at TEXT, run_id TEXT, revision_id TEXT,
+            outcome TEXT, recorded_at TEXT
+        );
+        INSERT INTO batch(batch_id, size, emitted_at, revision_id)
+        VALUES ('batch_0001', 5, '2026-01-01T00:00:00Z', 'rev-1');
+        """
+    )
+    for i in range(5):
+        db.execute(
+            "INSERT INTO molecule(key, smiles, source, seen_at, batch) VALUES (?,?,?,?,?)",
+            (f"K{i}", f"C{i}", "f", float(i), "batch_0001"),
+        )
+    db.commit()
+    db.close()
+
+    screen = FakeScreen()
+    sweep = Sweep(
+        screen,
+        Ledger(tmp_path / "ledger.jsonl"),
+        pool,
+        batch_size=5,
+        gate=authorize_gate(calibration(), provenance=screen.provenance()),
+    )
+    sweep.screen = screen  # type: ignore[assignment]
+    before = sweep.batch("batch_0001")
+    assert before is not None and before.gate is None  # migrated, and honest about what it holds
+    sweep.claim("batch_0001", by="gpu5")
+    sweep.record(
+        "batch_0001",
+        ScreenResult("batch_0001", "rev-1", "SUCCEEDED", (stage("s", "SUCCEEDED", artifact="a"),)),
+    )
+    # No emitting gate on the row, so the ledger falls back to the live one rather than a null.
+    assert sweep.ledger.entries()[-1].body["gate"] == sweep.gate.calibration_sha256  # type: ignore[union-attr]
+
+
+# -- recovery: the six-hour orphan -------------------------------------------
+
+
+def _three_claimed(sweep: Sweep) -> None:
+    sweep.admit([(f"K{i}", f"C{i}", "f") for i in range(15)])  # batch_size=5, so exactly three batches
+    sweep.emit(revision_id="rev-1")
+    for batch, who in zip(sweep.pending(), ("gpu5", "gpu6", "gpu7"), strict=True):
+        sweep.claim(batch.batch_id, by=who)
+
+
+def test_a_finished_run_is_recorded_whatever_became_of_its_claimer(sweep: Sweep) -> None:
+    # Measured: a screen succeeded at 17:30 and its batch sat claimed until 21:16.
+    _three_claimed(sweep)
+    sweep.screen.runs["batch_0001"] = ScreenResult(  # type: ignore[attr-defined]
+        "batch_0001", "rev-1", "SUCCEEDED", (stage("shortlist", "SUCCEEDED", artifact="a"),)
+    )
+    actions = {a.batch_id: a.action for a in sweep.recover()}
+    assert actions["batch_0001"] == "recorded"
+    assert sweep.batch("batch_0001").outcome == "committed"  # type: ignore[union-attr]
+
+
+def test_a_running_run_is_left_alone(sweep: Sweep) -> None:
+    # A dead supervisor does not stop a committing screen; requeueing here discards real work.
+    _three_claimed(sweep)
+    sweep.screen.runs["batch_0002"] = ScreenResult(  # type: ignore[attr-defined]
+        "batch_0002", "rev-1", "RUNNING", (stage("docking", "RUNNING"),)
+    )
+    actions = {a.batch_id: a.action for a in sweep.recover()}
+    assert actions["batch_0002"] == "running"
+    assert sweep.batch("batch_0002").claimed  # type: ignore[union-attr]
+
+
+def test_a_claim_that_never_started_a_run_is_requeued(sweep: Sweep) -> None:
+    _three_claimed(sweep)
+    actions = {a.batch_id: a.action for a in sweep.recover()}
+    assert actions["batch_0003"] == "requeued"
+    assert "batch_0003" in {b.batch_id for b in sweep.pending()}
+
+
+def test_a_running_run_is_requeued_only_on_an_operator_assertion(sweep: Sweep) -> None:
+    _three_claimed(sweep)
+    sweep.screen.runs["batch_0002"] = ScreenResult(  # type: ignore[attr-defined]
+        "batch_0002", "rev-1", "RUNNING", (stage("docking", "RUNNING"),)
+    )
+    assert {a.batch_id: a.action for a in sweep.recover()}["batch_0002"] == "running"
+    after = {a.batch_id: a.action for a in sweep.recover(abandoned=("batch_0002",))}
+    assert after["batch_0002"] == "requeued"
+
+
+def test_recovery_never_consults_the_process_table(sweep: Sweep, monkeypatch) -> None:
+    # Asserted structurally: recovery must work with no way to look at processes at all.
+    import subprocess
+
+    def refuse(*_a, **_k):
+        raise AssertionError("recovery must not shell out to inspect processes")
+
+    monkeypatch.setattr(subprocess, "run", refuse)
+    monkeypatch.setattr(subprocess, "Popen", refuse)
+    monkeypatch.setattr(os, "kill", refuse)
+    _three_claimed(sweep)
+    assert len(sweep.recover()) == 3
+
+
+# -- status ------------------------------------------------------------------
+
+
+def test_more_than_one_revision_marks_the_batches_incomparable(sweep: Sweep) -> None:
+    sweep.admit([(f"K{i}", f"C{i}", "f") for i in range(10)])
+    sweep.emit(revision_id="rev-1")
+    for batch in sweep.pending():
+        sweep.claim(batch.batch_id, by="gpu5")
+    sweep.record("batch_0001", ScreenResult("batch_0001", "rev-1", "SUCCEEDED", (stage("s", "SUCCEEDED", artifact="a"),)))
+    assert sweep.state()["comparable"] is True
+    # A second revision can only arrive by re-emitting under a retuned funnel; simulate the record.
+    object.__setattr__(sweep, "gate", authorize_gate(calibration(revision="rev-2"), provenance={"t": "1"}))
+    sweep.admit([(f"M{i}", f"M{i}", "f") for i in range(5)])
+    third = sweep.emit(revision_id="rev-2")[0]
+    sweep.claim(third.batch_id, by="gpu6")
+    sweep.record(third.batch_id, ScreenResult(third.batch_id, "rev-2", "SUCCEEDED", (stage("s", "SUCCEEDED", artifact="a"),)))
+    assert sweep.state()["comparable"] is False
+
+
+def test_a_claimed_batch_carries_the_etalon_revision_that_will_screen_it(sweep: Sweep) -> None:
+    """Every provenance block named the three packages ETALON drives and never ETALON.
+
+    Measured: ``grep -c etalon ledger_v7.json`` returns 0 across 27 batch lines, whose single shared
+    ``infrastructure`` block names ``molcascade`` and nothing else. Establishing which ETALON had
+    screened them meant cross-checking 27 ledger timestamps against ``git log`` by hand, and the next
+    commit landed 9m50s after the last batch was recorded.
+    """
+
+    sweep.admit([(f"K{i}", f"C{i}", "f") for i in range(10)])
+    sweep.emit(revision_id="rev-1")
+    assert sweep.batch("batch_0001").etalon is None, "nothing claimed it yet"
+
+    claimed = sweep.claim("batch_0001", by="gpu5")
+    assert claimed.etalon == etalon_revision()
+    assert claimed.etalon, "this checkout is a git repository, so the revision is evaluable here"
+
+    sweep.record(
+        "batch_0001",
+        ScreenResult("batch_0001", "rev-1", "SUCCEEDED", (stage("s", "SUCCEEDED", artifact="a"),)),
+    )
+    line = [e for e in sweep.ledger.entries() if e.kind == "batch"][-1]
+    assert line.body["etalon"] == claimed.etalon
+    assert sweep.state()["etalon_revisions"] == [claimed.etalon]
+
+
+def test_a_requeued_batch_is_attributed_to_the_etalon_that_rescreened_it(sweep: Sweep) -> None:
+    # The gate has this shape already: the recorder is not always the claimer. A batch requeued by
+    # recovery and taken by a newer process was screened by the newer code, and says so.
+    sweep.admit([(f"K{i}", f"C{i}", "f") for i in range(10)])
+    sweep.emit(revision_id="rev-1")
+    sweep.claim("batch_0001", by="gpu5")
+    assert sweep.recover()[0].action == "requeued", "no run record, so the claim never started one"
+
+    sweep.claim("batch_0001", by="gpu6")
+    sweep.record(
+        "batch_0001",
+        ScreenResult("batch_0001", "rev-1", "SUCCEEDED", (stage("s", "SUCCEEDED", artifact="a"),)),
+    )
+    assert sweep.batch("batch_0001").etalon == etalon_revision()
+
+
+def test_two_etalon_revisions_mark_one_funnel_s_batches_incomparable(sweep: Sweep) -> None:
+    """The funnel can be byte-identical while the code driving it is not.
+
+    This is the case ``comparable`` could not see. ``revision_id`` is ``rev-1`` throughout, so the
+    old reading called these batches comparable, and the enrichment computed across them was
+    attributed to a funnel that two different ETALONs had fed and read back.
+    """
+
+    sweep.admit([(f"K{i}", f"C{i}", "f") for i in range(20)])
+    sweep.emit(revision_id="rev-1")
+    for batch in sweep.pending():
+        sweep.claim(batch.batch_id, by="gpu5")
+        sweep.record(
+            batch.batch_id,
+            ScreenResult(batch.batch_id, "rev-1", "SUCCEEDED", (stage("s", "SUCCEEDED", artifact="a"),)),
+        )
+    assert sweep.state()["comparable"] is True
+    assert sweep.state()["revisions"] == ["rev-1"]
+
+    # Rewrite one row's ETALON revision: a batch screened by a different commit of this repo, which
+    # is what a campaign restarted after a fix really looks like.
+    import sqlite3
+
+    with sqlite3.connect(sweep.pool) as db:
+        db.execute("UPDATE batch SET etalon = ? WHERE batch_id = ?", ("deadbeefcafe", "batch_0001"))
+    reading = sweep.state()
+    assert reading["revisions"] == ["rev-1"], "one funnel"
+    assert len(reading["etalon_revisions"]) == 2
+    assert reading["comparable"] is False
+
+
+def test_a_pool_carved_before_the_etalon_column_opens_and_migrates(tmp_path, keyed) -> None:
+    # `CREATE TABLE IF NOT EXISTS` is a no-op on an existing table, so a column added to the schema
+    # never reaches a campaign already on disk -- and the campaign already on disk is the one with
+    # batches in it. Measured on the gate column, which is why `_MIGRATIONS` exists at all.
+    import sqlite3
+
+    pool = tmp_path / "old.sqlite"
+    with sqlite3.connect(pool) as db:
+        db.executescript(
+            """
+            CREATE TABLE molecule (
+                key TEXT PRIMARY KEY, smiles TEXT NOT NULL, source TEXT NOT NULL,
+                seen_at REAL NOT NULL, batch TEXT
+            );
+            CREATE TABLE batch (
+                batch_id TEXT PRIMARY KEY, size INTEGER NOT NULL, emitted_at TEXT NOT NULL,
+                claimed_by TEXT, claimed_at TEXT, run_id TEXT, revision_id TEXT, outcome TEXT,
+                recorded_at TEXT
+            );
+            """
+        )
+        db.execute(
+            "INSERT INTO batch VALUES ('batch_0001', 7, 'then', NULL, NULL, NULL, NULL, NULL, NULL)"
+        )
+    screen = FakeScreen()
+    sweep = Sweep(
+        screen,
+        Ledger(tmp_path / "l.jsonl"),
+        pool,
+        batch_size=7,
+        gate=authorize_gate(calibration(), provenance=screen.provenance()),
+    )
+    old = sweep.batch("batch_0001")
+    assert old is not None and old.etalon is None and old.gate is None
+    assert sweep.state()["etalon_revisions"] == [], "an unrecorded batch contributes no revision"
+    assert sweep.claim("batch_0001", by="gpu5").etalon == etalon_revision()
+
+
+def test_a_tree_without_git_says_so_instead_of_reporting_a_clean_commit(tmp_path, monkeypatch) -> None:
+    # A wheel install has no .git. "Could not tell" and "told you it was clean" are different
+    # claims, and the one this project refuses to make is the second.
+    import etalon.boundary.infra as infra
+
+    monkeypatch.setattr(infra, "__file__", str(tmp_path / "a" / "b" / "c" / "infra.py"))
+    infra.etalon_provenance.cache_clear()
+    try:
+        record = infra.etalon_provenance()
+        assert "problem" in record and "unevaluable" in record["problem"]
+        assert "commit" not in record and "dirty" not in record
+        assert infra.etalon_revision() == "", "empty, not a plausible-looking digest"
+    finally:
+        infra.etalon_provenance.cache_clear()
+
+
+def test_library_rows_always_write_an_id_column(sweep: Sweep, tmp_path) -> None:
+    # Without it a run records no names, and recall, explanation and a named shortlist all fail.
+    sweep.admit([(f"K{i}", f"C{i}", "flowr") for i in range(5)])
+    sweep.emit(revision_id="rev-1")
+    written = library_rows(sweep, "batch_0001", tmp_path / "batch.csv")
+    header, *rows = written.read_text(encoding="utf-8").splitlines()
+    assert header == "id,smiles,source"
+    assert len(rows) == 5
+
+
+def test_two_campaigns_over_the_same_molecules_write_one_library_file(tmp_path, keyed) -> None:
+    """The library's *name* is in the screen's cache key, so a name per batch is a cache miss per batch.
+
+    MolCascade's source stage carries the library's absolute path in its stage config and
+    `stage_cache_key` hashes that config. A caller-chosen name therefore makes the entry stage's key
+    unique, republishes its output under a new digest, and changes every downstream stage's input
+    digest with it -- the whole funnel re-runs.
+
+    Measured on ALK2: a second campaign over the same pool wrote the same 20,000 molecules to
+    `batch_0001.csv` and `v7_batch_0001.csv`. Byte-identical files, same md5. Of 43 stages the 10
+    whose config had genuinely changed were the gates meant to change, and `docking_score`'s own
+    config was identical -- yet all 43 re-ran, because the 11th differing config was the source
+    stage's and the only thing in it that differed was the file name.
+    """
+
+    screen = FakeScreen()
+    gate = authorize_gate(calibration(), provenance=screen.provenance())
+    molecules = [(f"K{i}", f"C{i}", "flowr") for i in range(5)]
+
+    old = Sweep(screen, Ledger(tmp_path / "a.jsonl"), tmp_path / "a.sqlite", batch_size=5, gate=gate)
+    old.admit(molecules)
+    old.emit(revision_id="rev-1")
+    new = Sweep(
+        screen, Ledger(tmp_path / "b.jsonl"), tmp_path / "b.sqlite",
+        batch_size=5, gate=gate, prefix="v7_",
+    )
+    new.admit(molecules)
+    new.emit(revision_id="rev-1")
+
+    root = tmp_path / "libraries"
+    first = library_rows(old, "batch_0001", root, content_addressed=True)
+    second = library_rows(new, "v7_batch_0001", root, content_addressed=True)
+
+    assert first == second, "same molecules, same bytes -- so the same path, or the cache cannot hit"
+    assert first.name.startswith("lib-") and first.name.endswith(".csv")
+    assert "batch_0001" not in first.name, "a batch id in the name is what defeats the cache"
+    assert len(list(root.glob("*.csv"))) == 1
+
+    # Different molecules must still get a different file, or two batches would alias.
+    other = Sweep(screen, Ledger(tmp_path / "c.jsonl"), tmp_path / "c.sqlite", batch_size=5, gate=gate)
+    other.admit([(f"J{i}", f"N{i}", "flowr") for i in range(5)])
+    other.emit(revision_id="rev-1")
+    assert library_rows(other, "batch_0001", root, content_addressed=True) != first
+
+    # The explicit-path form is unchanged: tests and manual runs still name their own file.
+    explicit = library_rows(old, "batch_0001", tmp_path / "named.csv")
+    assert explicit.name == "named.csv"
+    assert explicit.read_bytes() == first.read_bytes()
+
+
+def test_a_library_already_on_disk_keeps_the_name_it_has(tmp_path, keyed) -> None:
+    """One path per content -- not a particular spelling of it.
+
+    A campaign that ran before content-addressing wrote its libraries under its own scheme, and the
+    screen's cache entries are keyed on *those* paths. Insisting on a fresh `lib-<digest>.csv` would
+    be content-addressing that still recomputes everything it was introduced to avoid.
+
+    Measured on ALK2: 27 batches of 20,000 molecules, every one byte-identical to the previous
+    campaign's batch of the same number, 3.9 GB of artifacts and 1,633 cache entries already on
+    disk, ~250 minutes a batch.
+    """
+
+    screen = FakeScreen()
+    gate = authorize_gate(calibration(), provenance=screen.provenance())
+    molecules = [(f"K{i}", f"C{i}", "flowr") for i in range(5)]
+    root = tmp_path / "libraries"
+
+    older = Sweep(screen, Ledger(tmp_path / "a.jsonl"), tmp_path / "a.sqlite", batch_size=5, gate=gate)
+    older.admit(molecules)
+    older.emit(revision_id="rev-1")
+    legacy = library_rows(older, "batch_0001", root / "batch_0001.csv")  # the old naming scheme
+
+    newer = Sweep(
+        screen, Ledger(tmp_path / "b.jsonl"), tmp_path / "b.sqlite",
+        batch_size=5, gate=gate, prefix="v7_",
+    )
+    newer.admit(molecules)
+    newer.emit(revision_id="rev-1")
+    found = library_rows(newer, "v7_batch_0001", root, content_addressed=True)
+
+    assert found == legacy, "the bytes are already on disk; a second name is a second cache miss"
+    assert len(list(root.glob("*.csv"))) == 1
+
+    # And when one content already sits under several names, the oldest wins -- that is the one the
+    # cache entries were written against. Measured on ALK2: 54 files, 27 distinct contents, every v6
+    # name shadowed by a v7 twin, and indexing the later name yields a tidy index and no cache hit.
+    import os
+    import time
+
+    shadow = root / "zz_later_name.csv"
+    shadow.write_bytes(legacy.read_bytes())
+    os.utime(shadow, (time.time() + 60, time.time() + 60))
+    (root / "by-content.json").unlink()
+    assert library_rows(newer, "v7_batch_0001", root, content_addressed=True) == legacy
+
+    # A library that is genuinely new still gets a digest name.
+    other = Sweep(screen, Ledger(tmp_path / "c.jsonl"), tmp_path / "c.sqlite", batch_size=5, gate=gate)
+    other.admit([(f"J{i}", f"N{i}", "flowr") for i in range(5)])
+    other.emit(revision_id="rev-1")
+    fresh = library_rows(other, "batch_0001", root, content_addressed=True)
+    assert fresh.name.startswith("lib-")
+    # And is found again by content on the next pass, without rescanning.
+    assert library_rows(other, "batch_0001", root, content_addressed=True) == fresh
+
+
+def test_an_indexed_library_whose_bytes_changed_is_not_handed_out(tmp_path, keyed) -> None:
+    """The index is a claim about file contents, so the file has to be asked, not the index.
+
+    Measured: replacing an indexed `lib-<digest>.csv` with a 31-byte wrong-content file -- wrong
+    length, so a size guard would have caught it -- still returned that file untouched, because the
+    index hit returned before any guard ran. The original observation was a request for one batch's
+    library returning a path whose first data row read `J0,N0,flowr`: another batch's molecules,
+    under this batch's id, about to be docked and recorded as this batch's measurement.
+    """
+
+    screen = FakeScreen()
+    gate = authorize_gate(calibration(), provenance=screen.provenance())
+    root = tmp_path / "libraries"
+
+    mine = Sweep(screen, Ledger(tmp_path / "a.jsonl"), tmp_path / "a.sqlite", batch_size=5, gate=gate)
+    mine.admit([(f"K{i}", f"C{i}", "flowr") for i in range(5)])
+    mine.emit(revision_id="rev-1")
+    wanted = library_rows(mine, "batch_0001", root, content_addressed=True)
+    payload = wanted.read_bytes()
+
+    # Another batch's molecules, written over the indexed name. Shorter, so the old size guard
+    # would have fired -- and did not, because the index hit returned first.
+    other = Sweep(screen, Ledger(tmp_path / "b.jsonl"), tmp_path / "b.sqlite", batch_size=5, gate=gate)
+    other.admit([(f"J{i}", f"N{i}", "flowr") for i in range(5)])
+    other.emit(revision_id="rev-1")
+    foreign = library_rows(other, "batch_0001", root, content_addressed=True).read_bytes()
+    assert foreign != payload
+    wanted.write_bytes(foreign)
+
+    again = library_rows(mine, "batch_0001", root, content_addressed=True)
+    assert again.read_bytes() == payload, "a library must hold the molecules of the batch asking for it"
+    assert "J0,N0,flowr" not in again.read_text(encoding="utf-8")
+
+    # Truncation is caught the same way, and by content rather than by length.
+    again.write_bytes(payload[: len(payload) // 2])
+    assert library_rows(mine, "batch_0001", root, content_addressed=True).read_bytes() == payload
+
+    # Same length, different bytes -- the case no size check can see.
+    swapped = bytearray(payload)
+    swapped[-2:] = b"zz"
+    again.write_bytes(bytes(swapped))
+    assert len(bytes(swapped)) == len(payload)
+    assert library_rows(mine, "batch_0001", root, content_addressed=True).read_bytes() == payload
+
+
+def test_a_stale_content_index_entry_is_repaired_rather_than_followed(tmp_path, keyed) -> None:
+    """An index naming a file that holds something else must fall through to the write path."""
+
+    import json
+
+    screen = FakeScreen()
+    gate = authorize_gate(calibration(), provenance=screen.provenance())
+    root = tmp_path / "libraries"
+    sweep = Sweep(screen, Ledger(tmp_path / "a.jsonl"), tmp_path / "a.sqlite", batch_size=5, gate=gate)
+    sweep.admit([(f"K{i}", f"C{i}", "flowr") for i in range(5)])
+    sweep.emit(revision_id="rev-1")
+
+    first = library_rows(sweep, "batch_0001", root, content_addressed=True)
+    payload = first.read_bytes()
+    digest = next(iter(json.loads((root / "by-content.json").read_text(encoding="utf-8"))))
+
+    # Point the index at a file that exists and holds the wrong thing.
+    decoy = root / "decoy.csv"
+    decoy.write_text("id,smiles,source\nQ0,X0,flowr\n", encoding="utf-8")
+    (root / "by-content.json").write_text(json.dumps({digest: decoy.name}), encoding="utf-8")
+
+    repaired = library_rows(sweep, "batch_0001", root, content_addressed=True)
+    assert repaired.read_bytes() == payload
+    assert repaired != decoy
+    # And the index now names the file that really holds these bytes.
+    index = json.loads((root / "by-content.json").read_text(encoding="utf-8"))
+    assert index[digest] == repaired.name
+
+
+def test_one_unreadable_csv_does_not_abort_library_writing(tmp_path, keyed, monkeypatch) -> None:
+    """Measured: a dangling CSV raised out of index construction, hence out of `library_rows`.
+
+    The supervisor calls `library_rows` *after* the batch is claimed, so the batch stayed claimed
+    with no screen running and nothing retried it. The stat lived inside the sort key, which is the
+    one place the loop body's own `OSError` guard could not reach.
+    """
+
+    screen = FakeScreen()
+    gate = authorize_gate(calibration(), provenance=screen.provenance())
+    root = tmp_path / "libraries"
+    root.mkdir(parents=True)
+    # Exercise the original stat failure without requiring Windows symlink privileges.
+    unreadable = root / "unreadable.csv"
+    unreadable.write_text("unreadable fixture", encoding="utf-8")
+    original_stat = Path.stat
+    failures = []
+    def unavailable_stat(path, *args, **kwargs):
+        if path == unreadable:
+            failures.append(path)
+            raise OSError("fixture CSV metadata unavailable")
+        return original_stat(path, *args, **kwargs)
+    monkeypatch.setattr(Path, "stat", unavailable_stat)
+
+    sweep = Sweep(screen, Ledger(tmp_path / "a.jsonl"), tmp_path / "a.sqlite", batch_size=5, gate=gate)
+    sweep.admit([(f"K{i}", f"C{i}", "flowr") for i in range(5)])
+    sweep.emit(revision_id="rev-1")
+
+    written = library_rows(sweep, "batch_0001", root, content_addressed=True)
+    assert failures
+    assert written.name.startswith("lib-")
+    assert written.read_text(encoding="utf-8").startswith("id,smiles,source")
+
+
+def _claim_tool():  # noqa: ANN202 -- mirrors the SDK's untyped decorator factory
+    from etalon.mcp import sweep as mcp_sweep
+
+    class Collector:
+        def __init__(self) -> None:
+            self.tools: dict[str, object] = {}
+
+        def tool(self):  # noqa: ANN202
+            def decorate(function):  # noqa: ANN001, ANN202
+                self.tools[function.__name__] = function
+                return function
+
+            return decorate
+
+        def resource(self, _uri: str):  # noqa: ANN202
+            def decorate(function):  # noqa: ANN001, ANN202
+                return function
+
+            return decorate
+
+    collector = Collector()
+    mcp_sweep.register(collector)
+    return collector.tools["etalon_sweep_claim"]
+
+
+def test_the_mcp_claim_tool_can_write_a_content_addressed_library(tmp_path, keyed) -> None:
+    """The content-addressed form existed but only the in-process supervisor could reach it.
+
+    An MCP-driven campaign got a file named after the batch, which is the exact cache defeat the
+    content-addressed form was written for: MolCascade's source stage carries the library path in
+    its stage config and `stage_cache_key` hashes that config, so every downstream key changes with
+    the name. Measured on ALK2: byte-identical 20,000-molecule libraries under `batch_0001.csv` and
+    `v7_batch_0001.csv`, same md5, all 43 stages re-run, docking included, for identical scores.
+    """
+
+    import json as _json
+
+    screen = FakeScreen()
+    gate = authorize_gate(calibration(), provenance=screen.provenance())
+    molecules = [(f"K{i}", f"C{i}", "flowr") for i in range(5)]
+    pool, ledger = tmp_path / "pool.sqlite", tmp_path / "ledger.jsonl"
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+
+    sweep = Sweep(screen, Ledger(ledger), pool, batch_size=5, gate=gate)
+    sweep.admit(molecules)
+    sweep.emit(revision_id="rev-1")
+
+    claim = _claim_tool()
+    root = tmp_path / "libraries"
+    answer = _json.loads(
+        claim(
+            workspace=str(workspace),
+            pool=str(pool),
+            ledger=str(ledger),
+            batch_id="batch_0001",
+            by="cuda:0",
+            library_dir=str(root),
+        )
+    )
+    assert answer["ok"] is True
+    written = Path(answer["library"])
+    assert written.name.startswith("lib-") and written.name.endswith(".csv")
+    assert "batch_0001" not in written.name, "a batch id in the name is what defeats the cache"
+    assert written.read_text(encoding="utf-8").startswith("id,smiles,source")
+
+    # The same molecules under another campaign's batch id land on the same path, which is the
+    # whole point: one path per content, so the screen's cache can hit across campaigns.
+    other_pool, other_ledger = tmp_path / "p2.sqlite", tmp_path / "l2.jsonl"
+    twin = Sweep(screen, Ledger(other_ledger), other_pool, batch_size=5, gate=gate, prefix="v7_")
+    twin.admit(molecules)
+    twin.emit(revision_id="rev-1")
+    second = _json.loads(
+        claim(
+            workspace=str(workspace),
+            pool=str(other_pool),
+            ledger=str(other_ledger),
+            batch_id="v7_batch_0001",
+            by="cuda:1",
+            library_dir=str(root),
+        )
+    )
+    assert Path(second["library"]) == written
+    assert len(list(root.glob("*.csv"))) == 1
+
+
+def test_the_mcp_claim_tool_refuses_two_names_for_one_library(tmp_path, keyed) -> None:
+    """Two paths for one batch's molecules is a question about which the screen will cache on."""
+
+    import json as _json
+
+    screen = FakeScreen()
+    gate = authorize_gate(calibration(), provenance=screen.provenance())
+    pool, ledger = tmp_path / "pool.sqlite", tmp_path / "ledger.jsonl"
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    sweep = Sweep(screen, Ledger(ledger), pool, batch_size=5, gate=gate)
+    sweep.admit([(f"K{i}", f"C{i}", "flowr") for i in range(5)])
+    sweep.emit(revision_id="rev-1")
+
+    answer = _json.loads(
+        _claim_tool()(
+            workspace=str(workspace),
+            pool=str(pool),
+            ledger=str(ledger),
+            batch_id="batch_0001",
+            by="cuda:0",
+            library_dir=str(tmp_path / "libraries"),
+            library_path=str(tmp_path / "named.csv"),
+        )
+    )
+    assert answer["ok"] is False
+    assert answer["error"]["code"] == "AmbiguousLibrary"
+    # And nothing was written under either name.
+    assert not (tmp_path / "named.csv").exists()
+    assert not (tmp_path / "libraries").exists()
+
+
+def test_molecules_of_an_unemitted_batch_is_refused(sweep: Sweep) -> None:
+    with pytest.raises(SweepError, match="never emitted"):
+        sweep.molecules("batch_9999")
+
+
+# -- generation productivity -------------------------------------------------
+
+
+def test_flowr_is_kept_and_molcraft_is_retired() -> None:
+    # The real measurement: FLOWR flat at 87% for 39 chunks, MolCRAFT falling from 32% to 24%.
+    flowr = Productivity("flowr", "flowr", "pocketA_22A", tuple(Chunk(5000, 4840, 4210, 3700) for _ in range(6)))
+    molcraft = Productivity(
+        "molcraft",
+        "molcraft",
+        "pocketA_22A",
+        tuple(Chunk(20000, 19950, unique, 5450) for unique in (6400, 6100, 5700, 5200, 4900, 4790)),
+    )
+    assert not flowr.exhausted and flowr.retire() == ()
+    assert molcraft.exhausted
+    assert any("covered the space" in reason for reason in molcraft.retire())
+    assert molcraft.trend is not None and molcraft.trend < 0
+
+
+def test_a_large_box_is_reported_as_unviable_not_as_a_bad_model() -> None:
+    # TargetDiff: 2 of 100 at 28 A, 92 of 100 at 22 A. The remedy is the box.
+    big = Productivity("targetdiff", "targetdiff", "pocketB_28A", tuple(Chunk(100, 2, 2, 600) for _ in range(3)))
+    small = Productivity("targetdiff", "targetdiff", "pocketA_22A", tuple(Chunk(100, 92, 88, 600) for _ in range(3)))
+    assert not big.viable
+    assert any("shrink the box" in reason for reason in big.retire())
+    assert small.viable and small.retire() == ()
+
+
+def test_one_bad_chunk_does_not_retire_a_generator() -> None:
+    # A sampler discarding its own reconstruction failures produces an empty chunk routinely; one
+    # campaign's loop aborted on exactly that and killed a working model.
+    single = Productivity("flowr", "flowr", "p", (Chunk(5000, 0, 0, 3700),))
+    assert not single.exhausted
+    assert single.trend is None
+
+
+def test_zero_uniqueness_over_enough_chunks_is_exhaustion() -> None:
+    spent = Productivity("m", "m", "p", tuple(Chunk(1000, 900, 0, 100) for _ in range(3)))
+    assert spent.exhausted
+    assert spent.cost_multiplier is None
+
+
+def test_the_window_is_the_tail_not_the_lifetime() -> None:
+    falling = tuple(Chunk(20000, 19950, u, 5450) for u in (6400, 6100, 5700, 5200, 4900, 4790))
+    lifetime = Productivity("m", "m", "p", falling).uniqueness[0]
+    tail = Productivity("m", "m", "p", window(falling, keep=3)).uniqueness[0]
+    assert tail < lifetime
+
+
+def test_allocate_ranks_on_throughput_and_names_who_should_stop() -> None:
+    fast = Productivity("flowr", "flowr", "p", tuple(Chunk(5000, 4840, 4210, 3700) for _ in range(6)))
+    spent = Productivity("molcraft", "molcraft", "p", tuple(Chunk(20000, 19950, 4790, 5450) for _ in range(6)))
+    report = allocate([spent, fast])
+    assert [row["tag"] for row in report["loops"]][0] == "flowr"
+    assert "molcraft" in report["retire"]
+
+
+def test_a_chunk_cannot_be_more_unique_than_delivered() -> None:
+    with pytest.raises(ValueError, match="new to the library"):
+        Chunk(100, 10, 11, 60)
+
+
+def test_a_chunk_that_delivered_nothing_reaches_the_viability_measurement(tmp_path) -> None:
+    """``chunk_measurements`` dropped every chunk with ``delivered == 0`` before measuring.
+
+    Viability is delivered over requested, so a chunk that delivered 0 of 5,000 is not a missing
+    measurement -- it is the strongest one there is, and the one this module's doctrine is about.
+    Measured on the ALK2 v7 generation tree: 19 of 239 chunks delivered zero candidates, over three
+    of the six generators, and ``targetdiff_g2`` delivered zero in 8 chunks out of 8. That is
+    exactly the case ``viable`` exists to catch, and it was being filtered out of its input.
+    """
+
+    from etalon.campaign.generation import ChunkResult, chunk_measurements
+
+    generator = _generator(tmp_path)
+    results = [
+        ChunkResult(generator.tag, i, generator.chunk_path(i), 5000, 0, 600.0, 0, barren="nothing")
+        for i in range(1, 9)
+    ]
+    profile = chunk_measurements(generator, results, [0] * 8)
+
+    assert len(profile.chunks) == 8, "the eight measurements were filtered out of the measurement"
+    assert profile.requested == 40_000
+    assert profile.delivered == 0
+    assert not profile.viable, "eight empty chunks out of eight did not read as unviable"
+    assert profile.cost_multiplier is None
+    assert profile.uniqueness == (0.0, (0.0, 0.0))
+
+
+def test_a_mixed_loop_keeps_its_empty_chunks_in_the_denominator(tmp_path) -> None:
+    """The fabricated fallback chunk is gone, and a real low delivery rate is now visible.
+
+    ``pocket2mol_g3`` ran 108 chunks against a 5,000-molecule request and its best chunk delivered
+    273. Dropping its three empty chunks moved the delivery rate in the one direction that matters.
+    """
+
+    from etalon.campaign.generation import ChunkResult, chunk_measurements
+
+    generator = _generator(tmp_path)
+    delivered = [273, 0, 190, 0, 240]
+    results = [
+        ChunkResult(generator.tag, i, generator.chunk_path(i), 5000, n, 600.0, 0)
+        for i, n in enumerate(delivered, start=1)
+    ]
+    profile = chunk_measurements(generator, results, [n // 2 for n in delivered])
+
+    assert len(profile.chunks) == len(delivered)
+    assert profile.requested == 25_000
+    assert profile.delivered == sum(delivered)
+    assert not profile.viable
+
+
+def test_one_barren_chunk_does_not_hide_a_generator_from_productivity(tmp_path, keyed, monkeypatch) -> None:
+    """``self.chunks`` grew for every chunk and ``self.unique`` only for chunks that had rows.
+
+    So one barren chunk made the two lists permanently unequal in length and ``productivity``
+    skipped that generator for the rest of the campaign -- silently, and when every generator had
+    been skipped the reading came back as "no finished chunks yet". On the campaign that exposed
+    this, three of six generators had a barren chunk and there were 239 finished chunks.
+
+    ``BARREN_LIMIT`` is five, so up to four barren chunks are explicitly normal: the design expects
+    the thing that was disabling the readout.
+    """
+
+    import time
+
+    supervisor, sweep, _ = _campaign(tmp_path, keyed, monkeypatch)
+    tag = next(iter(supervisor.generators))
+
+    # One barren chunk, ingested the way a real one is.
+    import etalon.campaign.generation as generation_module
+
+    monkeypatch.setattr(generation_module, "read_chunk", lambda path, tag=None: [])
+    supervisor._start_generation([])
+    deadline = time.monotonic() + 15.0
+    while any(job.process.poll() is None for job in supervisor.jobs):
+        if time.monotonic() >= deadline:
+            break
+        time.sleep(0.01)
+    supervisor._reap()
+    assert supervisor._ingest_chunks()[0] >= 1, "no chunk was ingested"
+
+    assert supervisor.barren[tag] >= 1, "the chunk was not barren, so this proves nothing"
+    assert len(supervisor.chunks[tag]) == len(supervisor.unique[tag]), "the lists drifted apart"
+
+    reading = supervisor.productivity()
+    assert reading.get("skipped", {}) == {}, reading.get("skipped")
+    assert [row["tag"] for row in reading["loops"]] == [tag]
+
+
+def test_a_generator_skipped_from_the_productivity_reading_says_why(tmp_path, keyed, monkeypatch) -> None:
+    """A silent `continue` reported "no finished chunks yet" over a campaign's whole chunk record.
+
+    The lists can still be unequal for a reason this does not fix -- a restarted process loads the
+    ingest state and starts with no chunk results -- so the reading now names the generator it
+    could not pair and says which of the two cases it is.
+    """
+
+    supervisor, sweep, _ = _campaign(tmp_path, keyed, monkeypatch)
+    tag = next(iter(supervisor.generators))
+
+    from etalon.campaign.generation import ChunkResult
+
+    supervisor.chunks[tag] = [
+        ChunkResult(tag, 1, tmp_path / "c1", 5000, 4800, 600.0, 0),
+        ChunkResult(tag, 2, tmp_path / "c2", 5000, 4700, 600.0, 0),
+    ]
+    supervisor.unique[tag] = [4000]
+
+    reading = supervisor.productivity()
+    assert reading["loops"] == []
+    assert tag in reading["skipped"]
+    assert "2 chunk results against 1 uniqueness counts" in reading["skipped"][tag]
+    assert reading["note"] != "no finished chunks yet"
+
+
+# -- the supervisor: the loop that replaces a person checking every five minutes ----------
+
+
+def _campaign(
+    tmp_path,
+    keyed,
+    monkeypatch,
+    *,
+    chunk=8,
+    total=24,
+    batch_size=10,
+    generator_devices=("cuda:0",),
+    migrate=False,
+):
+    """A whole campaign with fake drivers, wired the way a real one is.
+
+    ``generator_devices`` takes one entry per generation loop, so naming a device twice builds the
+    two-loops-one-card configuration that ``tag`` exists to distinguish.
+    """
+
+    import json
+
+    from etalon.campaign.generation import ChunkResult, Generator, Pocket
+    from etalon.campaign.supervisor import Supervisor
+    import etalon.campaign.generation as generation_module
+
+    screen = FakeScreen()
+    sweep = Sweep(
+        screen,
+        Ledger(tmp_path / "ledger.jsonl"),
+        tmp_path / "pool.sqlite",
+        batch_size=batch_size,
+        gate=authorize_gate(calibration(), provenance=screen.provenance()),
+    )
+    generators = [
+        Generator(
+            tag=f"flowr_{chr(ord('a') + n)}",
+            model="flowr",
+            pocket=Pocket("A22", "reference", tmp_path / "ref.sdf"),
+            device=device,
+            protein=tmp_path / "p.pdb",
+            output_root=tmp_path / "gen",
+            generation_config=tmp_path / "g.yaml",
+            chunk=chunk,
+            total=total,
+        )
+        for n, device in enumerate(generator_devices)
+    ]
+
+    produced = {"n": 0}
+
+    def generate(gen, index):
+        path = gen.chunk_path(index)
+        path.mkdir(parents=True, exist_ok=True)
+        produced["n"] += 1
+        smiles = [f"M{produced['n']}_{i}" for i in range(gen.chunk)]
+        (path / "manifest.json").write_text(json.dumps({"candidate_count": gen.chunk}))
+        (path / "_smiles.json").write_text(json.dumps(smiles))
+        return ChunkResult(gen.tag, index, path, gen.chunk, gen.chunk, 1.0, 0)
+
+    def read(path, tag=None):
+        source = path.parent.name
+        payload = path / "_smiles.json"
+        if not payload.is_file():
+            return []
+        return [(s, s, source) for s in json.loads(payload.read_text())]
+
+    # Through ``monkeypatch`` rather than by assignment: a bare assignment here is never undone, so
+    # every later test in the process read chunks through this fake and saw no rows.
+    #
+    # Only ``read_chunk`` is faked. ``Ingest`` used to be faked too, with a ``consume`` that wrote
+    # the consumed-state file and then read the chunk -- the same order as the real one, so the
+    # fixture reproduced the defect rather than exposing it. ``Ingest.read`` and ``Ingest.retire``
+    # are now exercised for real, and they reach the fake through this module global.
+    monkeypatch.setattr(generation_module, "read_chunk", read)
+
+    def screen_batch(batch_id, library, device):
+        result = ScreenResult(
+            batch_id, "rev-1", "SUCCEEDED", (stage("shortlist", "SUCCEEDED", artifact="a"),)
+        )
+        screen.runs[batch_id] = result
+        return result
+
+    supervisor = Supervisor(
+        sweep,
+        revision_id="rev-1",
+        workspace=tmp_path / "ws",
+        generators=generators,
+        screen_devices=("cuda:5", "cuda:6"),
+        generation=generate,
+        screen=screen_batch,
+        migrate_retired_devices=migrate,
+    )
+    return supervisor, sweep, screen
+
+
+def _settle(supervisor, seconds=15.0):
+    """Wait for every in-flight job to finish, then reap it with one tick.
+
+    The alternative -- tick, sleep a fixed 50 ms, tick -- assumes a generation thread completes in
+    50 ms. Observed: this file passing three runs in a row alone and failing once when run beside
+    tests/test_mcp.py, which starts servers and takes the CPU away. A test that depends on how busy
+    the machine is reports the machine, not the supervisor.
+    """
+
+    import time
+
+    deadline = time.monotonic() + seconds
+    while any(job.process.poll() is None for job in supervisor.jobs):
+        if time.monotonic() >= deadline:
+            break
+        time.sleep(0.01)
+    supervisor.tick()
+
+
+def _drain(supervisor, seconds=30.0):
+    """Tick until the campaign completes, bounded by wall clock rather than by tick count.
+
+    The bound used to be 40 ticks of 50 ms, which is two seconds of *this* process's time and says
+    nothing about how long the worker threads it is waiting on need. Observed: the whole file
+    passing four runs in a row on an idle machine and this helper's caller failing once while the
+    host sat at load 232 -- a false failure that says the machine was busy, not that a supervisor
+    stopped working.
+    """
+
+    import time
+
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        supervisor.tick()
+        if supervisor.complete():
+            return True
+        time.sleep(0.05)
+    return supervisor.complete()
+
+
+def test_generators_with_separate_output_roots_are_refused(tmp_path, keyed, monkeypatch) -> None:
+    """Per-generator roots ingest one generator and silently drop the rest.
+
+    Only one Ingest is kept for the campaign and it discovers chunks by path, so distinct roots
+    mean every loop but one contributes nothing to the pool. Measured on an ALK2 campaign: six
+    loops generating, five of them invisible to the sweep, and the only symptom was a pool that
+    looked slow. Refused at construction rather than diagnosed sixteen hours in.
+    """
+
+
+    from etalon.campaign.supervisor import Supervisor
+
+    supervisor, sweep, _ = _campaign(tmp_path, keyed, monkeypatch, generator_devices=("cuda:0", "cuda:1"))
+    generators = list(supervisor.generators.values())
+    assert len(generators) == 2, "one generator cannot exhibit a disagreement about roots"
+    split = [
+        replace(generator, output_root=tmp_path / "gen" / generator.tag)
+        for generator in generators
+    ]
+    with pytest.raises(ValueError, match="share one output_root"):
+        Supervisor(
+            sweep,
+            revision_id="rev-1",
+            workspace=tmp_path / "ws2",
+            generators=split,
+            screen_devices=("cuda:5",),
+        )
+
+
+def test_a_campaign_runs_itself_to_completion(tmp_path, keyed, monkeypatch) -> None:
+    """Generation, ingest, emission, screening and recording, with nobody watching."""
+
+    supervisor, sweep, _ = _campaign(tmp_path, keyed, monkeypatch)
+    assert _drain(supervisor), "the campaign did not terminate"
+    state = sweep.state()
+    assert state["batches"]["recorded"] == 2
+    assert state["batches"]["outstanding"] == 0
+    assert state["pool"]["unique"] == 24
+    assert supervisor.state()["generators"]["flowr_a"]["stopped"] is True
+
+
+def test_most_passes_are_quiet_and_say_so(tmp_path, keyed, monkeypatch) -> None:
+    """The report a supervisor returns when nothing happened must be distinguishable.
+
+    490 of one campaign's 500 readings changed nothing. A loop whose every pass looks eventful
+    trains its reader to stop looking.
+    """
+
+    supervisor, _, _ = _campaign(tmp_path, keyed, monkeypatch)
+    _drain(supervisor)
+    assert supervisor.tick().quiet
+
+
+def test_a_pass_whose_only_product_is_a_note_is_not_quiet() -> None:
+    """Notes are where a screen that raised ends up, and `quiet` decides whether a pass is printed.
+
+    One ALK2 campaign spent 14 hours screening nothing: every batch was claimed, the screen raised
+    on its first line, and the supervisor ticked on with no output. The fix put those failures in
+    `notes` -- but `quiet` did not look at `notes`, so a pass whose one product was a failure still
+    reported itself as having changed nothing, and a printer that skips quiet passes still showed
+    nothing. The channel was repaired; the gate in front of it was not.
+    """
+
+    from etalon.campaign.supervisor import TickReport
+
+    assert not TickReport(notes=("v7_batch_0003: screen raised FileNotFoundError",)).quiet
+    assert TickReport().quiet
+
+
+def test_recovery_that_left_a_batch_alone_is_a_quiet_pass() -> None:
+    """`running` is `Sweep.recover`'s documented no-op: the one branch of four that mutates nothing.
+
+    Counting it meant a campaign with batches in flight had no quiet pass at all. Measured on ALK2:
+    27 consecutive ticks, each printing the same 1,200-character line listing 16 batches as running,
+    and that line is the channel a failure note arrives on. A log where every pass looks eventful
+    hides a note exactly as well as a log that prints nothing.
+    """
+
+    from etalon.campaign.supervisor import TickReport
+
+    left_alone = TickReport(
+        recovered=({"batch_id": "v7_batch_0001", "action": "running"},) * 16
+    )
+    assert left_alone.quiet
+
+    requeued = TickReport(recovered=({"batch_id": "v7_batch_0001", "action": "requeued"},))
+    assert not requeued.quiet, "requeued releases the claim -- that is a change"
+
+
+def test_a_supervisor_resumes_from_disk(tmp_path, keyed, monkeypatch) -> None:
+    """Kill it mid-campaign and the next one picks up from the pool, the ledger and the manifests."""
+
+    first, sweep, screen = _campaign(tmp_path, keyed, monkeypatch)
+    first.tick()  # start generation
+    import time
+
+    time.sleep(0.2)
+    first.tick()  # ingest chunk 1
+    assert sweep.state()["pool"]["unique"] == 8
+
+    second, sweep2, _ = _campaign(tmp_path, keyed, monkeypatch)  # a new process, same paths
+    assert sweep2.state()["pool"]["unique"] == 8, "the pool survived"
+    assert _drain(second), "the resumed supervisor did not finish the campaign"
+
+
+def test_an_already_ingested_chunk_is_not_ingested_twice(tmp_path, keyed, monkeypatch) -> None:
+    supervisor, sweep, _ = _campaign(tmp_path, keyed, monkeypatch)
+    _drain(supervisor)
+    before = sweep.state()["pool"]["unique"]
+    supervisor.tick()
+    assert sweep.state()["pool"]["unique"] == before
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@pytest.mark.parametrize(
+    ("step", "label", "on_sweep"),
+    [
+        ("_reap", "reaping", False),
+        ("_ingest_chunks", "chunk ingest", False),
+        ("recover", "recovery", True),
+        ("_emit", "batch emission", False),
+        ("_migrate", "device migration", False),
+        ("_start_screens", "screen dispatch", False),
+        ("_start_generation", "generation dispatch", False),
+    ],
+)
+def test_a_raise_from_any_piece_of_a_pass_is_contained(
+    tmp_path, keyed, monkeypatch, step, label, on_sweep
+) -> None:
+    """The containment an outage bought was wrapped around one of the seven pieces.
+
+    Measured on ALK2: a revision check inside ``Sweep.recover`` raised on a single batch, the
+    exception left ``tick``, and the process driving 470,651 molecules through 23 batches exited
+    with every GPU idle. ``recover`` was then wrapped, which fixed that instance and left the class
+    alone -- and ``_emit`` has three raises that are certainties rather than hypotheses:
+    ``require_gate`` refuses on every tick once the authorization's 168-hour lifetime passes and
+    again if the compiled funnel stops matching it, and ``Sweep.emit`` raises ``SweepError`` for a
+    batch id that already names a run, which was measured when a second sweep over one pool carved
+    ``batch_0001..0027`` into a fresh ledger.
+    """
+
+    supervisor, sweep, _ = _campaign(tmp_path, keyed, monkeypatch)
+    owner = sweep if on_sweep else supervisor
+    assert hasattr(owner, step), f"{step} is not where this test thinks it is"
+
+    def boom(*_args, **_kwargs):
+        raise RuntimeError(f"{step} is broken")
+
+    monkeypatch.setattr(owner, step, boom)
+    report = supervisor.tick()
+    assert any(
+        note.startswith(f"{label} raised and was contained") for note in report.notes
+    ), report.notes
+    assert not report.quiet, "a pass whose only product was a contained failure reported as quiet"
+
+
+def test_a_campaign_that_stops_with_a_part_batch_says_so(tmp_path, keyed, monkeypatch) -> None:
+    """``complete`` was true over molecules that were generated, admitted and never screened.
+
+    ``Sweep.emit`` carves full batches only, so a pool holding fewer than ``batch_size`` unbatched
+    molecules yields nothing and ``complete`` is satisfied by it. Measured on the finished ALK2 v7
+    campaign: 27 batches of 20,000 all recorded ``committed``, nothing pending, nothing outstanding,
+    and 883 molecules sitting unbatched in the pool with ``complete`` true -- and 27 batch rows in
+    the ledger with no row for them.
+
+    The predicate stays true, because the campaign genuinely cannot carve them without a decision
+    nobody has made, and a predicate answering false would make ``run`` loop to its deadline. What
+    changes is that the silence ends.
+    """
+
+    supervisor, sweep, _ = _campaign(tmp_path, keyed, monkeypatch, chunk=8, total=8, batch_size=10)
+    assert _drain(supervisor), "the campaign did not reach its own completion condition"
+
+    assert sweep.ready() == 8, "this test needs a pool holding less than one batch"
+    assert supervisor.unscreened_remainder() == 8
+    assert supervisor.complete() is True
+    assert supervisor.state()["unscreened_remainder"] == 8
+
+    # Already complete, so this runs no ticks at all and the closing note is the whole product.
+    report = supervisor.run(interval=0.0)
+    assert any("no batch was carved from" in note for note in report.notes), report.notes
+    assert not report.quiet
+
+
+def test_a_screen_that_raised_is_said_out_loud(tmp_path, keyed, monkeypatch) -> None:
+    """The path a fourteen-hour outage ran down, and neither half of it had a test.
+
+    ``_Call`` catches the driver's exception on its worker thread and carries it to the poller;
+    ``_reap`` turns it into a note. Before those existed a screen that raised was reaped in silence,
+    which dropped the job and reported only finished *generation* -- so every batch failed on its
+    first line, the supervisor ticked on for fourteen hours, and the campaign filled a
+    470,651-molecule pool that nothing ever screened. A failing screen and an idle one are the same
+    picture, batches claimed and GPUs quiet, so the failure has to be said or it cannot be told from
+    a slow start.
+    """
+
+    import time
+
+    supervisor, sweep, _ = _campaign(tmp_path, keyed, monkeypatch, batch_size=10)
+    sweep.admit([(f"K{i}", f"S{i}", "src") for i in range(10)])
+    sweep.emit(revision_id="rev-1")
+
+    def explodes(batch_id, _library, _device):
+        raise RuntimeError(f"{batch_id}: ImportError: no module named torch")
+
+    monkeypatch.setattr(supervisor, "screen", explodes)
+    supervisor._start_screens([])
+    assert supervisor.jobs, "no screen was dispatched, so this proves nothing"
+
+    deadline = time.monotonic() + 15.0
+    while any(job.process.poll() is None for job in supervisor.jobs):
+        if time.monotonic() >= deadline:
+            break
+        time.sleep(0.01)
+
+    _finished, failures = supervisor._reap()
+    assert failures, "a screen that raised was reaped in silence"
+    assert "no module named torch" in failures[0]
+    assert "screen batch_0001" in failures[0]
+
+    # And through tick(), where the note is what makes the pass print at all. One tick to let
+    # recovery requeue the batch its failed screen left claimed and dispatch it again, then one to
+    # reap it: _reap runs at the top of a pass, so a job started in a pass is noted in the next.
+    supervisor.tick()
+    deadline = time.monotonic() + 15.0
+    while any(job.process.poll() is None for job in supervisor.jobs):
+        if time.monotonic() >= deadline:
+            break
+        time.sleep(0.01)
+    report = supervisor.tick()
+    assert any("no module named torch" in note for note in report.notes), report.notes
+    assert not report.quiet
+
+
+def test_a_batch_another_supervisor_claimed_first_is_a_note_not_a_failure(tmp_path, keyed, monkeypatch) -> None:
+    """Two supervisors over one pool is a supported configuration; losing a race is not an error."""
+
+    supervisor, sweep, _ = _campaign(tmp_path, keyed, monkeypatch, batch_size=10)
+    sweep.admit([(f"K{i}", f"S{i}", "src") for i in range(10)])
+    sweep.emit(revision_id="rev-1")
+
+    def taken(batch_id, *, by):  # noqa: ARG001
+        raise SweepError(f"{batch_id} was claimed by cuda:9")
+
+    monkeypatch.setattr(sweep, "claim", taken)
+    notes: list[str] = []
+    assert supervisor._start_screens(notes) == ()
+    assert any("claimed by someone else" in note for note in notes), notes
+    assert supervisor.jobs == []
+
+
+def test_a_supervisor_with_no_screen_driver_dispatches_nothing(tmp_path, keyed, monkeypatch) -> None:
+    supervisor, sweep, _ = _campaign(tmp_path, keyed, monkeypatch, batch_size=10)
+    sweep.admit([(f"K{i}", f"S{i}", "src") for i in range(10)])
+    sweep.emit(revision_id="rev-1")
+    monkeypatch.setattr(supervisor, "screen", None)
+    assert supervisor._start_screens([]) == ()
+
+
+def test_a_campaign_is_not_complete_while_anything_is_in_flight(tmp_path, keyed, monkeypatch) -> None:
+    """Three separate reasons, and each was an uncovered early return."""
+
+    supervisor, sweep, _ = _campaign(tmp_path, keyed, monkeypatch, chunk=8, total=8, batch_size=10)
+    assert _drain(supervisor), "the campaign did not reach its own completion condition"
+    assert supervisor.complete()
+
+    # A job in flight.
+    supervisor.jobs.append(
+        SimpleNamespace(kind="screen", name="batch_0001", device="cuda:0",
+                        process=SimpleNamespace(poll=lambda: None), started=0.0)
+    )
+    assert not supervisor.complete()
+    supervisor.jobs.clear()
+    assert supervisor.complete()
+
+    # A full batch still in the pool, not yet carved: emit would produce one, so there is work.
+    sweep.admit([(f"X{i}", f"Y{i}", "src") for i in range(10)])
+    assert sweep.ready() >= sweep.batch_size
+    assert not supervisor.complete()
+    assert supervisor.unscreened_remainder() == 0, "a full batch is not a remainder"
+
+    # And once it is carved, it is pending rather than ready, which is a different early return.
+    sweep.emit(revision_id="rev-1")
+    assert sweep.pending(), "no batch is pending, so this proves nothing"
+    assert sweep.ready() < sweep.batch_size
+    assert not supervisor.complete()
+
+
+def test_a_generator_that_met_its_target_is_retired(tmp_path, keyed, monkeypatch) -> None:
+    """``_exhausted_target`` is the stop condition for a loop that delivered what it was asked."""
+
+    from etalon.campaign.generation import ChunkResult
+
+    supervisor, _sweep, _ = _campaign(tmp_path, keyed, monkeypatch, chunk=8, total=8, batch_size=10)
+    tag = next(iter(supervisor.generators))
+    supervisor.chunks[tag] = [ChunkResult(tag, 1, tmp_path / "c1", 8, 8, 1.0, 0)]
+    assert supervisor._exhausted_target(tag)
+
+    notes: list[str] = []
+    started, retired = supervisor._start_generation(notes)
+    assert started == ()
+    assert f"{tag}:target" in retired
+    assert tag in supervisor.stopped
+
+
+def test_a_generator_the_productivity_rule_retires_says_which_rule_did_it(tmp_path, keyed, monkeypatch) -> None:
+    """Two retirement reasons, and they are not the same statement about the model.
+
+    ``:target`` means the loop delivered what the campaign asked for. ``:retired`` means the
+    campaign's own productivity rule stopped it before that -- unviable at this box, or exhausted at
+    the price the cost ceiling sets -- which is a claim about the model and its pocket.
+    """
+
+    supervisor, _sweep, _ = _campaign(tmp_path, keyed, monkeypatch, chunk=8, total=10_000)
+    tag = next(iter(supervisor.generators))
+    monkeypatch.setattr(supervisor, "retire", lambda _tag: True)
+
+    notes: list[str] = []
+    started, retired = supervisor._start_generation(notes)
+    assert started == ()
+    assert f"{tag}:retired" in retired
+    assert tag in supervisor.stopped
+    assert any("productivity rule" in note for note in notes), notes
+
+
+def test_a_slot_is_not_counted_twice_for_one_batch(tmp_path, keyed, monkeypatch) -> None:
+    """Occupancy comes from the pool as well as from this process's job list, so it can double.
+
+    ``self.jobs`` is one process's memory and a restarted supervisor starts with an empty list
+    while the previous process's screens are still committing stages, which is why the pool is read
+    at all. A batch present in both must still occupy one slot.
+    """
+
+    supervisor, sweep, _ = _campaign(tmp_path, keyed, monkeypatch, batch_size=10)
+    sweep.admit([(f"K{i}", f"S{i}", "src") for i in range(20)])
+    sweep.emit(revision_id="rev-1")
+
+    import threading
+
+    release = threading.Event()
+
+    def waits(_batch_id, _library, _device):
+        assert release.wait(20), "the test never released its screen"
+
+    monkeypatch.setattr(supervisor, "screen", waits)
+    supervisor._start_screens([])
+    assert supervisor.jobs, "no screen was dispatched"
+
+    live = {job.name for job in supervisor.jobs}
+    outstanding = {batch.batch_id for batch in sweep.outstanding()}
+    assert live & outstanding, "the batch must be in both to exercise the double-count guard"
+
+    busy_devices = {job.device for job in supervisor.jobs}
+    free = supervisor._free_slots()
+    for device in busy_devices:
+        occupied = sum(1 for job in supervisor.jobs if job.device == device)
+        assert free.count(device) == max(
+            supervisor.batches_per_device - occupied, 0
+        ), "a batch in the job list and in the pool consumed two slots"
+
+    release.set()
+    for job in supervisor.jobs:
+        job.process._thread.join(timeout=20)
+    supervisor.jobs.clear()
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"revision_id": "  "}, "compiled revision"),
+        ({"screen_devices": ()}, "at least one device"),
+    ],
+)
+def test_a_supervisor_refuses_a_configuration_it_cannot_drive(tmp_path, kwargs, message) -> None:
+    from etalon.campaign.supervisor import Supervisor
+
+    screen = FakeScreen()
+    sweep = Sweep(screen, Ledger(tmp_path / "l.jsonl"), tmp_path / "p.sqlite", batch_size=10)
+    fields = {"revision_id": "rev-1", "workspace": tmp_path / "ws", "screen_devices": ("cuda:0",)}
+    with pytest.raises(ValueError, match=message):
+        Supervisor(sweep, **{**fields, **kwargs})
+
+
+def test_productivity_names_a_generator_with_no_finished_chunk(tmp_path, keyed, monkeypatch) -> None:
+    """Before any chunk lands there is nothing to pair, and that is a different reason from a drift."""
+
+    supervisor, _sweep, _ = _campaign(tmp_path, keyed, monkeypatch)
+    tag = next(iter(supervisor.generators))
+    reading = supervisor.productivity()
+    assert reading["loops"] == []
+    assert "no chunk of this generator has finished" in reading["skipped"][tag]
+
+
+def test_run_ticks_until_done_and_hands_every_pass_to_on_tick(tmp_path, keyed, monkeypatch) -> None:
+    """``run``'s loop body was never entered by a test; only the already-complete shortcut was."""
+
+    supervisor, sweep, _ = _campaign(tmp_path, keyed, monkeypatch, chunk=8, total=8, batch_size=10)
+    seen: list = []
+    last = supervisor.run(interval=0.01, on_tick=seen.append)
+
+    assert seen, "run returned without ticking once"
+    assert all(hasattr(report, "notes") for report in seen)
+    assert supervisor.complete()
+    assert sweep.state()["pool"]["unique"] == 8
+    # The closing note is attached after the loop, so it is on the returned report and not on the
+    # last one `on_tick` saw.
+    assert any("no batch was carved from" in note for note in last.notes)
+
+
+def test_a_campaign_that_screened_its_whole_pool_adds_no_such_note(tmp_path, keyed, monkeypatch) -> None:
+    """The counterpart: a remainder of zero must not produce a warning about nothing."""
+
+    supervisor, sweep, _ = _campaign(tmp_path, keyed, monkeypatch, chunk=10, total=20, batch_size=10)
+    assert _drain(supervisor), "the campaign did not reach its own completion condition"
+    assert sweep.ready() == 0
+    assert supervisor.unscreened_remainder() == 0
+    report = supervisor.run(interval=0.0)
+    assert not any("no batch was carved from" in note for note in report.notes), report.notes
+
+
+def test_a_pool_that_refuses_an_admission_does_not_cost_the_chunk(tmp_path, keyed, monkeypatch) -> None:
+    """The retirement is durable and the molecules were not, so the order was the wrong way round.
+
+    ``_ingest_chunks`` read a chunk through a call that retired it, then offered the rows to the
+    pool. An admission that raised therefore left a chunk permanently retired with none of its
+    molecules admitted, which no later tick and no re-run recovers.
+    """
+
+    import time
+
+    supervisor, sweep, _ = _campaign(tmp_path, keyed, monkeypatch)
+
+    # Generate one chunk without ingesting it: generation runs on its own thread, so wait for the
+    # thread rather than for a tick, which would ingest what it had just produced.
+    supervisor._start_generation([])
+    deadline = time.monotonic() + 15.0
+    while any(job.process.poll() is None for job in supervisor.jobs):
+        if time.monotonic() >= deadline:
+            break
+        time.sleep(0.01)
+    supervisor._reap()
+
+    waiting = [path.name for path in supervisor._ingest.pending()]
+    assert waiting, "no chunk was generated, so this test would prove nothing"
+
+    def refuse(_rows):
+        raise OSError("the pool is read-only")
+
+    original, sweep.admit = sweep.admit, refuse
+    with pytest.raises(OSError):
+        supervisor._ingest_chunks()
+    assert [path.name for path in supervisor._ingest.pending()] == waiting, "the chunk was retired"
+    assert sweep.state()["pool"]["unique"] == 0
+
+    sweep.admit = original
+    count, admitted, _duplicates = supervisor._ingest_chunks()
+    assert count == len(waiting)
+    assert admitted > 0, "the chunk the pool refused never reached it on the retry"
+    assert list(supervisor._ingest.pending()) == []
+
+
+def test_consecutive_barren_chunks_stop_a_loop_but_one_does_not(tmp_path, keyed, monkeypatch) -> None:
+    """One empty chunk is a sampler discarding reconstruction failures; five is the model."""
+
+    import json
+
+    from etalon.campaign.generation import BARREN_LIMIT, ChunkResult, Generator, Pocket
+    from etalon.campaign.supervisor import Supervisor
+    import etalon.campaign.generation as generation_module
+
+    screen = FakeScreen()
+    sweep = Sweep(
+        screen,
+        Ledger(tmp_path / "l.jsonl"),
+        tmp_path / "p.sqlite",
+        batch_size=10,
+        gate=authorize_gate(calibration(), provenance=screen.provenance()),
+    )
+    generator = Generator(
+        tag="empty",
+        model="m",
+        pocket=Pocket("A", "reference", tmp_path / "r.sdf"),
+        device="cuda:0",
+        protein=tmp_path / "p.pdb",
+        output_root=tmp_path / "gen",
+        generation_config=tmp_path / "g.yaml",
+        chunk=5,
+        total=1000,
+    )
+
+    def generate(gen, index):
+        path = gen.chunk_path(index)
+        path.mkdir(parents=True, exist_ok=True)
+        (path / "manifest.json").write_text(json.dumps({"candidate_count": 0}))
+        return ChunkResult(gen.tag, index, path, gen.chunk, 0, 1.0, 0, barren="model returned nothing")
+
+    monkeypatch.setattr(generation_module, "read_chunk", lambda path, tag=None: [])
+
+    supervisor = Supervisor(
+        sweep,
+        revision_id="rev-1",
+        workspace=tmp_path / "ws",
+        generators=[generator],
+        screen_devices=("cuda:5",),
+        generation=generate,
+        screen=lambda *_: None,
+    )
+    import time
+
+    for index in range(BARREN_LIMIT):
+        supervisor.tick()
+        _settle(supervisor)
+        if index < BARREN_LIMIT - 1:
+            assert "empty" not in supervisor.stopped, f"stopped after {index + 1} barren chunks"
+    for _ in range(3):
+        supervisor.tick()
+        time.sleep(0.05)
+    assert "empty" in supervisor.stopped
+    assert supervisor.state()["generators"]["empty"]["consecutive_barren"] >= BARREN_LIMIT
+
+
+def test_a_library_that_cannot_be_written_does_not_strand_the_claimed_batch(tmp_path, keyed) -> None:
+    """The claim is committed before the library exists, so a failure there reserves and abandons.
+
+    Measured: one dangling CSV in the library directory raised out of index construction, the batch
+    stayed claimed with nothing running against it, and the supervisor driving the campaign exited
+    before any other device was offered work. `Sweep.recover` releases a claimed batch whose run
+    record does not exist, so containment is enough -- but only if the tick survives to reach it.
+    """
+
+    import etalon.campaign.supervisor as supervisor_module
+    from etalon.campaign.supervisor import Supervisor
+
+    screen = FakeScreen()
+    sweep = Sweep(
+        screen,
+        Ledger(tmp_path / "l.jsonl"),
+        tmp_path / "p.sqlite",
+        batch_size=5,
+        gate=authorize_gate(calibration(), provenance=screen.provenance()),
+    )
+    sweep.admit([(f"K{i}", f"C{i}", "flowr") for i in range(10)])
+    sweep.emit(revision_id="rev-1")
+    assert len(sweep.pending()) == 2
+
+    launched: list[str] = []
+    original = supervisor_module.library_rows
+
+    def refuses(*args, **kwargs):
+        raise OSError("dangling library")
+
+    supervisor_module.library_rows = refuses
+    try:
+        supervisor = Supervisor(
+            sweep,
+            revision_id="rev-1",
+            workspace=tmp_path / "ws",
+            generators=[],
+            screen_devices=("cuda:0",),
+            screen=lambda batch_id, *_: launched.append(batch_id),
+        )
+        report = supervisor.tick()
+        assert report.screens_started == ()
+        assert launched == []
+        assert any("could not be given a library" in note for note in report.notes)
+        # The batch is claimed, which is what recovery looks for.
+        assert len(sweep.outstanding()) == 1
+    finally:
+        supervisor_module.library_rows = original
+
+    # Next tick: recovery releases it (no run record exists) and the batch screens normally.
+    report = supervisor.tick()
+    assert any(r["action"] == "requeued" for r in report.recovered), report.recovered
+    _settle(supervisor)
+    report = supervisor.tick()
+    assert report.screens_started, report.notes
+
+
+def test_the_screen_driver_refuses_an_edited_cascade() -> None:
+    """A configuration edited mid-campaign is caught before it produces an incomparable batch."""
+
+    from etalon.campaign.drivers import MolCascadeScreening, RevisionChanged
+
+    class Compiles:
+        def plan(self, *_a, **_k):
+            return type("P", (), {"revision_id": "rev-EDITED"})()
+
+    driver = MolCascadeScreening(
+        screen=Compiles(), config_path=Path("cascade.json"), revision_id="rev-1"
+    )
+    with pytest.raises(RevisionChanged, match="not comparable"):
+        driver("batch_0001", Path("batch.csv"), "cuda:0")
+
+
+def test_a_chunk_is_finished_only_when_its_manifest_exists(tmp_path) -> None:
+    """Per-molecule SDFs on disk with no manifest is a chunk mid-consolidation, not a finished one."""
+
+    from etalon.campaign.generation import finished_chunks
+
+    root = tmp_path / "gen"
+    (root / "flowr" / "chunk_001" / "models").mkdir(parents=True)
+    assert finished_chunks(root) == []
+    (root / "flowr" / "chunk_001" / "manifest.json").write_text("{}")
+    assert [p.name for p in finished_chunks(root)] == ["chunk_001"]
+
+
+def test_a_failed_chunk_reads_as_empty_rather_than_raising(tmp_path) -> None:
+    """A manifest beside a zero-byte candidates file took one collector down for twelve hours."""
+
+    from etalon.campaign.generation import read_chunk
+
+    chunk = tmp_path / "flowr" / "chunk_001"
+    chunk.mkdir(parents=True)
+    (chunk / "manifest.json").write_text("{}")
+    (chunk / "candidates.sdf").write_bytes(b"")
+    assert read_chunk(chunk) == []
+
+
+
+
+
+
+def test_a_chunk_the_reader_cannot_parse_is_barren_rather_than_fatal(tmp_path, monkeypatch) -> None:
+    """The guard was on ``OSError`` alone, which is one of the types the reader raises.
+
+    ``SDMolSupplier`` is a C++ extension reached through a Boost wrapper. A zero-byte file comes
+    back as ``OSError`` and that is the one the twelve-hour outage was found on, so that is the one
+    the guard was written for. A record truncated mid-block or a property block the parser cannot
+    close comes back as ``RuntimeError``, and a wrapper-level argument error as a Boost
+    ``ArgumentError``; neither subclasses ``OSError``, so neither was caught, and a single
+    unparseable chunk took the ingest loop out exactly as the zero-byte file had.
+    """
+
+    from rdkit import Chem
+
+    from etalon.campaign.generation import read_chunk
+
+    chunk = tmp_path / "flowr" / "chunk_001"
+    chunk.mkdir(parents=True)
+    (chunk / "manifest.json").write_text("{}")
+    (chunk / "candidates.sdf").write_text("not an SDF")
+
+    def raise_runtime(*_args, **_kwargs):
+        raise RuntimeError("Pre-condition Violation: bad counts line")
+
+    monkeypatch.setattr(Chem, "SDMolSupplier", raise_runtime)
+    assert read_chunk(chunk) == []
+
+
+def test_reading_a_chunk_does_not_retire_it(tmp_path) -> None:
+    """``Ingest`` recorded a chunk as consumed before its molecules reached the pool.
+
+    The write that retires a chunk is durable and ``pending()`` never offers a retired chunk
+    again, so anything that made the admission fail after that write -- a ledger whose lock was
+    held, a full disk, a pool opened read-only -- threw the chunk's molecules away permanently.
+    They cannot be re-derived: PRISM is not re-invoked for a chunk whose directory already exists,
+    and the SDF on disk is the only copy of what the sampler produced.
+    """
+
+    import json
+
+    from etalon.campaign.generation import Ingest
+
+    root = tmp_path / "gen"
+    chunk = root / "flowr" / "chunk_001"
+    chunk.mkdir(parents=True)
+    (chunk / "manifest.json").write_text("{}")
+    (chunk / "candidates.sdf").write_bytes(b"")
+
+    state = tmp_path / "consumed.json"
+    ingest = Ingest(root=root, state=state)
+    assert [path.name for path in ingest.pending()] == ["chunk_001"]
+
+    ingest.read(chunk)
+    assert [path.name for path in ingest.pending()] == ["chunk_001"], "reading retired the chunk"
+    assert not state.exists(), "reading wrote the consumed-state file"
+
+    ingest.retire(chunk)
+    assert list(ingest.pending()) == []
+    assert json.loads(state.read_text(encoding="utf-8")) == [str(chunk)]
+
+
+# One real PocketXMol candidate, 24 atoms, whose two stereo perceivers disagree: RDKit assigns a
+# chiral tag from the signed volume and writes `[C@H]` into the canonical SMILES, while the InChI
+# library reads the same coordinates, declares the centre undefined, and returns the flat
+# `UHFFFAOYSA` block. Kept as a molblock rather than built in code because the disagreement is a
+# property of this geometry.
+_MARGINAL_STEREO_MOLBLOCK = """\
+
+     RDKit          3D
+
+ 24 27  0  0  0  0  0  0  0  0999 V2000
+   22.9521  -19.3510    5.3527 C   0  0  0  0  0  0  0  0  0  0  0  0
+   19.2912  -27.3646    8.0099 C   0  0  0  0  0  0  0  0  0  0  0  0
+   24.2273  -16.6098    7.4187 C   0  0  0  0  0  0  0  0  0  0  0  0
+   22.4362  -19.6355    3.1056 C   0  0  0  0  0  0  0  0  0  0  0  0
+   19.6924  -29.3658    6.9094 N   0  0  0  0  0  0  0  0  0  0  0  0
+   20.0882  -25.8517    6.2671 C   0  0  0  0  0  0  0  0  0  0  0  0
+   19.6294  -25.5116    5.0348 C   0  0  0  0  0  0  0  0  0  0  0  0
+   19.8925  -27.1228    6.7350 C   0  0  2  0  0  0  0  0  0  0  0  0
+   23.5848  -18.6368    6.4120 C   0  0  0  0  0  0  0  0  0  0  0  0
+   21.6429  -21.1161    4.6114 C   0  0  0  0  0  0  0  0  0  0  0  0
+   21.7425  -20.7066    3.3939 N   0  0  0  0  0  0  0  0  0  0  0  0
+   23.6690  -17.2747    6.3866 C   0  0  0  0  0  0  0  0  0  0  0  0
+   24.7541  -18.6317    8.4498 C   0  0  0  0  0  0  0  0  0  0  0  0
+   20.0999  -28.3586    6.0281 C   0  0  0  0  0  0  0  0  0  0  0  0
+   20.7450  -24.9537    7.0733 C   0  0  0  0  0  0  0  0  0  0  0  0
+   19.8682  -24.2691    4.5891 C   0  0  0  0  0  0  0  0  0  0  0  0
+   20.8563  -22.1703    4.8327 N   0  0  0  0  0  0  0  0  0  0  0  0
+   19.1292  -28.8360    8.0992 C   0  0  0  0  0  0  0  0  0  0  0  0
+   24.7695  -17.2806    8.4069 N   0  0  0  0  0  0  0  0  0  0  0  0
+   22.2791  -20.5022    5.5659 N   0  0  0  0  0  0  0  0  0  0  0  0
+   24.0997  -19.3431    7.4509 C   0  0  0  0  0  0  0  0  0  0  0  0
+   22.9955  -18.9046    4.0589 C   0  0  0  0  0  0  0  0  0  0  0  0
+   21.0122  -23.7403    6.5861 C   0  0  0  0  0  0  0  0  0  0  0  0
+   20.5873  -23.4118    5.3363 C   0  0  0  0  0  0  0  0  0  0  0  0
+  1  9  1  0
+  1 20  2  0
+  1 22  1  0
+  2  8  1  0
+  2 18  1  0
+  3 12  2  0
+  3 19  1  0
+  4 11  1  0
+  4 22  2  0
+  5 14  1  0
+  5 18  1  0
+  6  7  1  0
+  8  6  1  6
+  6 15  2  0
+  7 16  2  0
+  8 14  1  0
+  9 12  1  0
+  9 21  2  0
+ 10 11  2  0
+ 10 17  1  0
+ 10 20  1  0
+ 13 19  2  0
+ 13 21  1  0
+ 15 23  1  0
+ 16 24  1  0
+ 17 24  1  0
+ 23 24  2  0
+M  END
+M  END
+"""
+
+
+def _write_chunk(chunk, molblock: str) -> None:
+    chunk.mkdir(parents=True, exist_ok=True)
+    (chunk / "manifest.json").write_text("{}")
+    (chunk / "candidates.sdf").write_text(molblock.rstrip("\n") + "\n$$$$\n")
+
+
+def test_a_chunk_row_is_keyed_on_the_smiles_it_ships(tmp_path) -> None:
+    """A key read off the 3D molecule is not a function of the string the screen docks.
+
+    Thirty-two SMILES in the v7 pool carried two InChIKeys each; thirty-one of those pairs were
+    carved into two different batches, docked twice, and counted as two molecules.
+    """
+
+    pytest.importorskip("rdkit")
+    from rdkit import Chem, RDLogger
+
+    from etalon.campaign.generation import read_chunk
+
+    RDLogger.DisableLog("rdApp.*")
+    chunk = tmp_path / "pocketxmol" / "chunk_001"
+    _write_chunk(chunk, _MARGINAL_STEREO_MOLBLOCK)
+
+    rows = read_chunk(chunk)
+    assert len(rows) == 1
+    key, smiles, _ = rows[0]
+
+    # The property, which is what has to hold for every molecule rather than just this one.
+    assert key == Chem.MolToInchiKey(Chem.MolFromSmiles(smiles))
+
+    # And this particular geometry is one where the old policy gave a different answer, so the
+    # test would fail against it rather than merely passing for a different reason.
+    read = Chem.MolFromMolBlock(_MARGINAL_STEREO_MOLBLOCK, removeHs=True, sanitize=True)
+    assert Chem.MolToInchiKey(read) != key
+
+
+def test_a_generator_resumes_at_the_first_unwritten_chunk(tmp_path) -> None:
+    from etalon.campaign.generation import Generator, Pocket
+
+    generator = Generator(
+        tag="flowr",
+        model="flowr",
+        pocket=Pocket("A", "reference", tmp_path / "r.sdf"),
+        device="cuda:0",
+        protein=tmp_path / "p.pdb",
+        output_root=tmp_path / "gen",
+        generation_config=tmp_path / "g.yaml",
+    )
+    assert generator.next_index() == 1
+    for index in (1, 2):
+        generator.chunk_path(index).mkdir(parents=True)
+    assert generator.next_index() == 3
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#: A record ``SDMolSupplier`` yields ``None`` for: a carbon carrying five single bonds, which fails
+#: valence sanitization. Written out rather than generated, because RDKit will not emit one.
+PENTAVALENT_RECORD = """pentavalent
+     RDKit          2D
+
+  6  5  0  0  0  0  0  0  0  0999 V2000
+    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    1.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -1.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    0.0000    1.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    0.0000   -1.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    0.7000    0.7000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+  1  2  1  0
+  1  3  1  0
+  1  4  1  0
+  1  5  1  0
+  1  6  1  0
+M  END
+$$$$
+"""
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def _generator(tmp_path):
+    from etalon.campaign.generation import Generator, Pocket
+
+    return Generator(
+        tag="flowr",
+        model="flowr",
+        pocket=Pocket("A", "reference", tmp_path / "r.sdf"),
+        device="cuda:0",
+        protein=tmp_path / "p.pdb",
+        output_root=tmp_path / "gen",
+        generation_config=tmp_path / "g.yaml",
+    )
+
+
+def test_a_chunk_log_does_not_advance_the_chunk_index(tmp_path) -> None:
+    """``PrismGeneration`` writes each chunk's log beside the chunk, and ``chunk_*`` matched both.
+
+    ``log = path.with_suffix(self.log_suffix)`` puts ``chunk_001.log`` next to ``chunk_001/`` in the
+    generator's own directory, so a glob-and-count read one finished chunk as two and every
+    resumption advanced the index by two instead of one.
+
+    Measured on the ALK2 v7 generation tree, which ran this way from end to end: 270 chunk
+    directories, 270 sidecar logs, and **every one of the 270 indices is odd -- not one even index
+    across six generators.** 264 index values were never written. ``pocket2mol_g3`` delivered 110
+    chunks and reached ``chunk_219``.
+
+    Nothing was lost, and that is why it went unnoticed for the whole campaign. What broke is that
+    the chunk index stopped counting chunks: ``Productivity`` is measured per chunk and
+    :func:`finished_chunks` enumerates what is on disk, so a readout taken from the highest index
+    was wrong by a factor of two. The seed went with it -- ``seed(index)`` is linear in the index,
+    so the campaign drew only odd-multiple seeds and no record anywhere says why.
+    """
+
+    generator = _generator(tmp_path)
+    generator.chunk_path(1).mkdir(parents=True)
+    generator.chunk_path(1).with_suffix(".log").write_text("prism said things\n")
+    assert generator.next_index() == 2
+
+
+def test_a_resumed_generator_does_not_write_into_a_finished_chunk(tmp_path) -> None:
+    """A count collides with an existing directory as soon as there is a gap.
+
+    With ``chunk_001`` and ``chunk_003`` on disk -- a middle chunk moved aside after a crash, which
+    is a thing an operator does -- the count is two, so the next invocation was told to write
+    ``chunk_003``: a second sampling of the pocket, under a different seed, landing in a finished
+    chunk's directory and under its manifest.
+    """
+
+    generator = _generator(tmp_path)
+    generator.chunk_path(1).mkdir(parents=True)
+    generator.chunk_path(3).mkdir(parents=True)
+    assert generator.next_index() == 4
+    assert generator.seed(4) != generator.seed(3), "a reused index would also reuse the seed"
+
+
+def test_a_pocket_that_is_not_a_reference_ligand_passes_its_kind_through(tmp_path) -> None:
+    """``center`` and ``residues`` take ``--pocket-kind``; only ``reference`` takes a ligand."""
+
+    from etalon.campaign.generation import Pocket
+
+    centre = Pocket("A22", "center", tmp_path / "box.yaml")
+    assert centre.arguments() == ["--pocket", str(tmp_path / "box.yaml"), "--pocket-kind", "center"]
+
+    residues = Pocket("A22", "residues", tmp_path / "res.txt")
+    assert residues.arguments()[-2:] == ["--pocket-kind", "residues"]
+
+    # A reference pocket with no separate ligand conditions on the pocket file itself.
+    ref = Pocket("A22", "reference", tmp_path / "lig.sdf")
+    assert ref.arguments() == [
+        "--pocket", str(tmp_path / "lig.sdf"), "--reference-ligand", str(tmp_path / "lig.sdf")
+    ]
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"tag": "  "}, "needs a tag and a model"),
+        ({"model": ""}, "needs a tag and a model"),
+        ({"chunk": 0}, "must be positive"),
+        ({"total": -1}, "must be positive"),
+    ],
+)
+def test_a_generator_refuses_a_configuration_it_cannot_run(tmp_path, kwargs, message) -> None:
+    """A tagless generator cannot be told apart from another, and a zero chunk never finishes."""
+
+    from etalon.campaign.generation import Generator, Pocket
+
+    fields = {
+        "tag": "flowr",
+        "model": "flowr",
+        "pocket": Pocket("A", "reference", tmp_path / "r.sdf"),
+        "device": "cuda:0",
+        "protein": tmp_path / "p.pdb",
+        "output_root": tmp_path / "gen",
+        "generation_config": tmp_path / "g.yaml",
+    }
+    with pytest.raises(ValueError, match=message):
+        Generator(**{**fields, **kwargs})
+
+
+def test_a_directory_under_the_chunk_prefix_that_is_not_an_index_is_ignored(tmp_path) -> None:
+    """Counting only numbered directories means something else under the prefix cannot shift it."""
+
+    generator = _generator(tmp_path)
+    generator.chunk_path(1).mkdir(parents=True)
+    (generator.directory / "chunk_scratch").mkdir()
+    (generator.directory / "chunk_001.log").write_text("x")
+    assert generator.next_index() == 2
+
+
+#: A record ``SDMolSupplier`` yields ``None`` for: a carbon carrying five single bonds, which fails
+#: valence sanitization. Written out rather than generated, because RDKit will not emit one.
+PENTAVALENT_RECORD = """pentavalent
+     RDKit          2D
+
+  6  5  0  0  0  0  0  0  0  0999 V2000
+    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    1.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+   -1.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    0.0000    1.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    0.0000   -1.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+    0.7000    0.7000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0
+  1  2  1  0
+  1  3  1  0
+  1  4  1  0
+  1  5  1  0
+  1  6  1  0
+M  END
+$$$$
+"""
+
+
+def test_a_record_rdkit_yields_none_for_is_skipped_not_fatal(tmp_path) -> None:
+    """``SDMolSupplier`` returns ``None`` for a record it cannot sanitize, and keeps going."""
+
+    from rdkit import Chem
+
+    from etalon.campaign.generation import read_chunk
+
+    chunk = tmp_path / "flowr" / "chunk_001"
+    chunk.mkdir(parents=True)
+    (chunk / "manifest.json").write_text("{}")
+    writer = Chem.SDWriter(str(chunk / "good.sdf"))
+    writer.write(Chem.MolFromSmiles("CCO"))
+    writer.close()
+    (chunk / "candidates.sdf").write_text(
+        PENTAVALENT_RECORD + (chunk / "good.sdf").read_text(encoding="utf-8"), encoding="utf-8"
+    )
+
+    rows = read_chunk(chunk)
+    assert [row[1] for row in rows] == ["CCO"], "the unsanitizable record took the good one with it"
+
+
+def test_chunk_measurements_refuses_counts_it_cannot_pair(tmp_path) -> None:
+    """``Supervisor.productivity`` now reports a mismatch rather than reaching this, so it is the
+    guard behind that report: a silently mis-paired count would attribute one chunk's uniqueness to
+    another chunk's delivery."""
+
+    from etalon.campaign.generation import ChunkResult, chunk_measurements
+
+    generator = _generator(tmp_path)
+    results = [
+        ChunkResult(generator.tag, i, generator.chunk_path(i), 5000, 4800, 600.0, 0)
+        for i in (1, 2)
+    ]
+    with pytest.raises(ValueError, match="one uniqueness count per chunk result"):
+        chunk_measurements(generator, results, [4000])
+
+
+def test_a_molecule_rdkit_cannot_key_does_not_lose_the_chunk(tmp_path, monkeypatch) -> None:
+    """One unconvertible molecule costs that molecule, not the chunk's other 4,999."""
+
+    from rdkit import Chem
+
+    from etalon.campaign.generation import read_chunk
+
+    chunk = tmp_path / "flowr" / "chunk_001"
+    chunk.mkdir(parents=True)
+    (chunk / "manifest.json").write_text("{}")
+    writer = Chem.SDWriter(str(chunk / "candidates.sdf"))
+    for smiles in ("CCO", "c1ccccc1"):
+        writer.write(Chem.MolFromSmiles(smiles))
+    writer.close()
+
+    real = Chem.MolToInchiKey
+    calls = {"n": 0}
+
+    def flaky(molecule):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("InChI generation failed for this molecule")
+        return real(molecule)
+
+    monkeypatch.setattr(Chem, "MolToInchiKey", flaky)
+    rows = read_chunk(chunk)
+    assert len(rows) == 1, "the unconvertible molecule took the readable one with it"
+    assert rows[0][1] == "c1ccccc1"
+
+
+def test_a_generation_chunk_that_timed_out_is_barren_with_its_reason(tmp_path, monkeypatch) -> None:
+    """A timeout is data the loop reasons about, not an exception the supervisor has to survive."""
+
+    import subprocess as subprocess_module
+
+    from etalon.campaign.generation import PrismGeneration
+
+    generator = _generator(tmp_path)
+
+    def timed_out(*_a, **_k):
+        raise subprocess_module.TimeoutExpired(cmd="prism", timeout=7200)
+
+    monkeypatch.setattr(subprocess_module, "run", timed_out)
+    result = PrismGeneration(timeout=7200)(generator, 1)
+    assert result.barren == "timed out after 7200s"
+    assert result.returncode == -1
+    assert not result.usable
+    assert result.seed == generator.seed(1), "a chunk that produced nothing still records its seed"
+
+
+def test_prism_missing_from_the_path_is_a_barren_chunk_not_a_crash(tmp_path, monkeypatch) -> None:
+    """The commonest misconfiguration there is, and it must not end the campaign on tick one."""
+
+    import subprocess as subprocess_module
+
+    from etalon.campaign.generation import PrismGeneration
+
+    def missing(*_a, **_k):
+        raise FileNotFoundError(2, "No such file or directory: 'prism'")
+
+    monkeypatch.setattr(subprocess_module, "run", missing)
+    result = PrismGeneration()(_generator(tmp_path), 1)
+    assert result.barren is not None
+    assert "prism is not on PATH" in result.barren
+    assert not result.usable
+
+
+def test_a_manifest_that_will_not_parse_is_a_barren_chunk(tmp_path, monkeypatch) -> None:
+    """A chunk whose manifest is unreadable delivered nothing this process can account for."""
+
+    import subprocess as subprocess_module
+
+    from etalon.campaign.generation import PrismGeneration
+
+    generator = _generator(tmp_path)
+
+    def wrote_rubbish(*_a, **_k):
+        chunk = generator.chunk_path(1)
+        chunk.mkdir(parents=True, exist_ok=True)
+        (chunk / "manifest.json").write_text("{not json", encoding="utf-8")
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(subprocess_module, "run", wrote_rubbish)
+    result = PrismGeneration()(generator, 1)
+    assert result.delivered == 0
+    assert result.barren == "no manifest, or a manifest reporting no candidates"
+
+
+def test_a_finished_chunk_reports_what_its_manifest_says(tmp_path, monkeypatch) -> None:
+    """The counterpart, so the three barren shapes above are not the only path exercised."""
+
+    import json as json_module
+    import subprocess as subprocess_module
+
+    from etalon.campaign.generation import PrismGeneration
+
+    generator = _generator(tmp_path)
+
+    def wrote_a_chunk(argv, **_kwargs):
+        assert "--seed" in argv and str(generator.seed(1)) in argv
+        chunk = generator.chunk_path(1)
+        chunk.mkdir(parents=True, exist_ok=True)
+        (chunk / "manifest.json").write_text(
+            json_module.dumps({"candidate_count": 4821}), encoding="utf-8"
+        )
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(subprocess_module, "run", wrote_a_chunk)
+    result = PrismGeneration()(generator, 1)
+    assert result.delivered == 4821
+    assert result.barren is None
+    assert result.usable
+    assert result.as_dict()["seed"] == generator.seed(1)
+
+
+def test_the_generation_command_sets_no_cuda_mask() -> None:
+    """PRISM's wrappers disagree about the mask, so the only correct choice is to set neither."""
+
+    from etalon.campaign.generation import Generator, Pocket
+
+    generator = Generator(
+        tag="flowr",
+        model="flowr",
+        pocket=Pocket("A", "reference", Path("/r.sdf")),
+        device="cuda:3",
+        protein=Path("/p.pdb"),
+        output_root=Path("/gen"),
+        generation_config=Path("/g.yaml"),
+    )
+    command = generator.command(1)
+    assert "--device" in command and command[command.index("--device") + 1] == "cuda:3"
+    assert not any("CUDA_VISIBLE_DEVICES" in part for part in command)
+
+
+def test_the_generation_seed_is_the_same_seed_in_the_next_process(tmp_path) -> None:
+    """The same tag and index used to mean a different seed in every interpreter.
+
+    ``Generator.command`` built its seed as ``seed_base + index * 1000 + abs(hash(tag)) % 997``,
+    and CPython salts ``hash`` on a ``str`` per process unless ``PYTHONHASHSEED`` is set, which
+    nothing in this project sets. Measured across three interpreters:
+
+        abs(hash("flowr_g0")) % 997        419, 184, 470
+        abs(hash("pocketxmol_g5")) % 997   824, 966, 457
+
+    So the arithmetic promised "same generator, same chunk index, same seed" and broke the promise
+    at every supervisor restart. ``next_index`` resumes at the first unwritten chunk, so a chunk
+    deleted or lost to a crash is regenerated -- under a seed that existed only in the argv of a
+    process that is gone, which is why the molecules were not reproducible and nothing recorded
+    what they had been generated from.
+
+    Two subprocesses with different hash salts, which is the condition the field version met by
+    accident on every restart.
+    """
+
+    import subprocess
+    import sys
+
+    program = (
+        "from pathlib import Path;"
+        "from etalon.campaign.generation import Generator, Pocket;"
+        "g = Generator(tag='flowr_g0', model='flowr',"
+        " pocket=Pocket('A', 'reference', Path('/r.sdf')), device='cuda:0',"
+        " protein=Path('/p.pdb'), output_root=Path('/gen'),"
+        " generation_config=Path('/g.yaml'));"
+        "c = g.command(7);"
+        "print(c[c.index('--seed') + 1])"
+    )
+    seeds = []
+    for salt in ("1", "2"):
+        environment = dict(os.environ, PYTHONHASHSEED=salt)
+        seeds.append(
+            subprocess.run(  # noqa: S603 -- our own interpreter, argv built here
+                [sys.executable, "-c", program],
+                capture_output=True,
+                text=True,
+                check=True,
+                env=environment,
+                cwd=str(Path(__file__).resolve().parent.parent),
+            ).stdout.strip()
+        )
+
+    assert seeds[0] == seeds[1], f"two processes, two seeds for one chunk: {seeds}"
+
+    # And the seed reaches the record, so the molecules in a chunk are attributable to one. It used
+    # to live only in that process's argv: ChunkResult carried tag, index, delivered and seconds,
+    # and nothing afterwards could say what the generator had been seeded with.
+    from etalon.campaign.generation import ChunkResult, Generator, Pocket
+
+    generator = Generator(
+        tag="flowr_g0",
+        model="flowr",
+        pocket=Pocket("A", "reference", tmp_path / "r.sdf"),
+        device="cuda:0",
+        protein=tmp_path / "p.pdb",
+        output_root=tmp_path / "gen",
+        generation_config=tmp_path / "g.yaml",
+    )
+    assert generator.seed(7) == int(seeds[0])
+    result = ChunkResult(
+        tag="flowr_g0",
+        index=7,
+        path=tmp_path,
+        requested=1,
+        delivered=1,
+        seconds=1.0,
+        returncode=0,
+        seed=generator.seed(7),
+    )
+    assert result.as_dict()["seed"] == generator.seed(7)
+
+
+# -- a retired generator's device, which used to sit idle for the rest of the campaign -------
+
+
+def test_a_retired_generator_hands_its_device_to_screening(tmp_path, keyed, monkeypatch) -> None:
+    """The move an operator made by hand eighteen hours in, made when the loop ends instead.
+
+    ``screen_devices`` was fixed at construction, so a campaign that retired its generators finished
+    on the screeners it started with. One campaign's hand-made version of this move -- three devices
+    -- produced half that campaign's hits.
+    """
+
+    supervisor, _, _ = _campaign(tmp_path, keyed, monkeypatch, migrate=True)
+    assert "cuda:0" not in supervisor.screen_devices
+
+    _drain(supervisor)
+
+    assert supervisor.state()["generators"]["flowr_a"]["stopped"] is True
+    assert "cuda:0" in supervisor.screen_devices, "the retired generator's card never joined"
+    assert supervisor.state()["screen_devices"] == ["cuda:5", "cuda:6", "cuda:0"]
+
+
+def test_migration_is_reported_and_is_not_a_quiet_pass(tmp_path, keyed, monkeypatch) -> None:
+    """A device changing hands is an event. 490 of 500 passes are quiet and this is not one of them."""
+
+    import time
+
+    supervisor, _, _ = _campaign(tmp_path, keyed, monkeypatch, migrate=True)
+    reports = []
+    for _ in range(40):
+        report = supervisor.tick()
+        reports.append(report)
+        if supervisor.complete():
+            break
+        time.sleep(0.05)
+
+    moved = [report for report in reports if report.migrated]
+    assert len(moved) == 1, "the device should change hands exactly once"
+    assert moved[0].migrated == ("cuda:0",)
+    assert not moved[0].quiet
+    assert "cuda:0" in moved[0].as_dict()["migrated"]
+    assert any("joined the screening pool" in note for note in moved[0].notes)
+
+
+def test_without_the_flag_the_idle_device_is_named_once_and_not_taken(tmp_path, keyed, monkeypatch) -> None:
+    """Off by default, because on a shared host those cards may be owed back to the machine.
+
+    An idle GPU nobody mentions is the failure this exists to stop, so the refusal to take it still
+    has to say it is there -- once, not every sixty seconds for forty-four hours.
+    """
+
+    import time
+
+    supervisor, _, _ = _campaign(tmp_path, keyed, monkeypatch, migrate=False)
+    reports = []
+    for _ in range(40):
+        reports.append(supervisor.tick())
+        if supervisor.complete():
+            break
+        time.sleep(0.05)
+
+    assert "cuda:0" not in supervisor.screen_devices, "the device was taken without being asked"
+    assert all(report.migrated == () for report in reports)
+    mentions = [
+        note
+        for report in reports
+        for note in report.notes
+        if "cuda:0" in note and "idle" in note
+    ]
+    assert len(mentions) == 1, f"said it {len(mentions)} times, not once: {mentions}"
+    assert "migrate_retired_devices=True" in mentions[0]
+
+
+def test_a_card_shared_by_two_loops_is_not_taken_until_both_stop(tmp_path, keyed, monkeypatch) -> None:
+    """One model across two loops on one card is a normal configuration.
+
+    ``tag`` rather than the model is the generator's identity precisely because of this shape, and a
+    card handed to screening while one of its loops still generates would contend for its memory.
+    """
+
+    supervisor, _, _ = _campaign(
+        tmp_path,
+        keyed,
+        monkeypatch,
+        generator_devices=("cuda:0", "cuda:0"),
+        total=8,
+        chunk=8,
+        migrate=True,
+    )
+    assert set(supervisor.generators) == {"flowr_a", "flowr_b"}
+
+    # Stop one loop by hand and tick: one of two is not enough.
+    supervisor.stopped.add("flowr_a")
+    supervisor.tick()
+    assert "cuda:0" not in supervisor.screen_devices, "taken while flowr_b could still generate"
+
+    _drain(supervisor)
+    assert supervisor.state()["generators"]["flowr_b"]["stopped"] is True
+
+    # One more pass, and the reason is the tick order: a generator stopped in `_start_generation` is
+    # migrated at the top of the *next* pass, so the stop decision stays in one place rather than
+    # being made twice per tick. On a sixty-second interval that is one interval of latency; here it
+    # is one explicit call, and it is asserted rather than hidden because a reader draining to
+    # completion would otherwise conclude migration was broken.
+    assert supervisor.tick().migrated == ("cuda:0",)
+    assert "cuda:0" in supervisor.screen_devices
+
+
+def test_a_device_named_in_both_lists_is_not_offered_two_batches(tmp_path, keyed, monkeypatch) -> None:
+    """A duplicate lane would be claimed twice and refused by the sweep rather than by anything
+    that could explain it."""
+
+    supervisor, _, _ = _campaign(tmp_path, keyed, monkeypatch, generator_devices=("cuda:5",), migrate=True)
+    assert supervisor.screen_devices == ("cuda:5", "cuda:6")
+
+    _drain(supervisor)
+    assert supervisor.screen_devices.count("cuda:5") == 1
+
+
+# -- sizing a campaign against a machine that actually exists --------------------------------
+
+
+def _sweep_tool(name, **arguments):
+    """Call one registered sweep tool and parse its result.
+
+    Parsing here rather than in each test because a tool returns a JSON string: an assertion written
+    against the string would pass on a substring that appeared in an error message.
+    """
+
+    import json
+
+    from etalon.mcp import sweep
+
+    class Collector:
+        def __init__(self):
+            self.tools = {}
+
+        def tool(self, *_args, **_kwargs):
+            def register(function):
+                self.tools[function.__name__] = function
+                return function
+
+            return register
+
+    collector = Collector()
+    sweep.register(collector)
+    return json.loads(collector.tools[name](**arguments))
+
+
+def test_the_planner_reproduces_the_campaign_it_was_measured_on() -> None:
+    """5 generation loops against 6 screen workers, which sat generation-limited by 3.7x."""
+
+    plan = _sweep_tool(
+        "etalon_campaign_plan", pool_size=1_056_280, screen_devices=6, generation_devices=5
+    )
+    assert plan["ok"]
+    assert plan["capacity_ratio"] == 3.7
+    assert plan["binding_constraint"] == "generation"
+
+
+def test_the_advised_move_is_the_one_the_operator_actually_made() -> None:
+    """The shipped formula said four; the balance point says three, and three is what that campaign's
+    operator moved eighteen hours in.
+
+    Four is not absurd -- it lands at 0.68, inside the tolerated band by 0.01 -- but it is 1.47x
+    imbalanced the other way where three is 1.16x. The assertion is therefore that three sits closer
+    to parity, not that four trips a threshold: it does not, and an earlier version of this test
+    claimed it did.
+    """
+
+    advised = _sweep_tool(
+        "etalon_campaign_plan", pool_size=1_056_280, screen_devices=6, generation_devices=5
+    )
+    assert advised["recommended_split"] == {
+        "total_devices": 11, "generation": 8, "screening": 3, "basis": "declared",
+    }
+    assert "Move 3 device(s)" in advised["advice"][0]
+
+    # The split it names is balanced; the move the old formula named is not.
+    balanced = _sweep_tool(
+        "etalon_campaign_plan", pool_size=1_056_280, screen_devices=3, generation_devices=8
+    )
+    overshot = _sweep_tool(
+        "etalon_campaign_plan", pool_size=1_056_280, screen_devices=2, generation_devices=9
+    )
+    assert 0.67 <= balanced["capacity_ratio"] <= 1.5, balanced["capacity_ratio"]
+    assert abs(balanced["capacity_ratio"] - 1.0) < abs(overshot["capacity_ratio"] - 1.0), (
+        f"three ({balanced['capacity_ratio']}) should sit closer to parity than four "
+        f"({overshot['capacity_ratio']})"
+    )
+
+
+def test_a_plan_may_not_ask_for_more_devices_than_the_host_has() -> None:
+    """The one arithmetic error no care in the rates can catch: a plan for a machine that is not there.
+
+    The refusal has to name both numbers, because "8 requested, 1 detected" is the whole diagnosis.
+    """
+
+    detected = _sweep_tool("etalon_devices")
+    assert detected["ok"]
+    asked_screen = detected["total"] + 4
+    result = _sweep_tool(
+        "etalon_campaign_plan",
+        pool_size=1000,
+        screen_devices=asked_screen,
+        generation_devices=4,
+        detect=True,
+    )
+    assert not result["ok"]
+    assert result["error"]["retryable"] is False, "a machine does not grow on retry"
+    message = result["error"]["message"]
+    assert str(asked_screen + 4) in message
+    assert f"{detected['total']} were detected" in message
+
+
+def test_detection_names_the_pinned_commit_it_measured_through() -> None:
+    """A reading that cannot say which MolCascade produced it cannot be cited later.
+
+    An editable install shadowing the vendored tree is silent, so the commit is reported beside the
+    measurement rather than assumed from the manifest.
+    """
+
+    from etalon.boundary.infra import load
+
+    reading = _sweep_tool("etalon_devices")
+    assert reading["ok"]
+    assert reading["measured_by"]["source_commit"] == load("molcascade").source_commit
+    assert reading["measured_by"]["function"] == "molcascade.environment.detect_environment"
+    # Detection must not invent an accelerator, and must not omit the count.
+    assert reading["total"] == len(reading["devices"])
+    assert (reading["accelerator"] == "none") == (reading["total"] == 0)
+
+
+def test_the_plan_says_which_of_its_numbers_are_borrowed() -> None:
+    """Both shipped rates were measured on one campaign and neither records its device.
+
+    A plan built entirely from defaults is a plan for somebody else's machine, and the result has to
+    say so rather than leaving it in a docstring the caller did not read.
+    """
+
+    borrowed = _sweep_tool("etalon_campaign_plan", pool_size=1000)
+    assert "default" in borrowed["basis"]["minutes_per_batch"]
+    assert "no device recorded" in borrowed["basis"]["minutes_per_batch"]
+    assert "no device recorded" in borrowed["basis"]["unique_per_generator_hour"]
+    assert borrowed["basis"]["devices"] == "declared by the caller"
+
+    supplied = _sweep_tool(
+        "etalon_campaign_plan", pool_size=1000, minutes_per_batch=42.0, unique_per_generator_hour=900.0
+    )
+    assert supplied["basis"]["minutes_per_batch"] == "caller"
+    assert supplied["basis"]["unique_per_generator_hour"] == "caller"
+
+
+def test_one_device_is_reported_as_unsplittable_rather_than_split() -> None:
+    """Half a GPU is not a lane. Generating and screening on one card is sequential, not a ratio."""
+
+    plan = _sweep_tool(
+        "etalon_campaign_plan", pool_size=1000, screen_devices=1, generation_devices=0
+    )
+    assert plan["ok"]
+    assert plan["recommended_split"]["total_devices"] == 1
+    assert "cannot be split" in plan["recommended_split"]["note"]
+
+
+def test_a_batch_is_not_resumed_before_it_exists(tmp_path) -> None:
+    """``--resume`` on a run that never started is MolCascade's RUN_NOT_FOUND, not a no-op.
+
+    Both screen drivers had this, and it is the same one line in each: the committed-stage cache is
+    always safe to reuse, but the run record it is keyed on has to exist first. Measured on ALK2:
+    every batch of a fresh campaign failed on its first line, twice -- once through the in-process
+    driver and once again through the CLI after the first fix, because the flag was hardcoded.
+    """
+
+    from etalon.campaign.drivers import MolCascadeProcessScreening
+
+    class Records:
+        def __init__(self, known: set[str]) -> None:
+            self.known = known
+
+        def state(self, run_id: str):
+            return object() if run_id in self.known else None
+
+    driver = MolCascadeProcessScreening(
+        screen=Records({"batch_old"}),
+        config_path=tmp_path / "c.json",
+        workspace=tmp_path / "ws",
+        revision_id="rev-1",
+        target_args=("--receptor", str(tmp_path / "r.pdb")),
+        reference_library=tmp_path / "panel.csv",
+    )
+    assert "--resume" not in driver._argv(tmp_path / "b.csv", "batch_new", dry_run=False)
+    assert "--resume" in driver._argv(tmp_path / "b.csv", "batch_old", dry_run=False)
+    # A dry run never resumes: it compiles and stops before any run record is consulted.
+    assert "--resume" not in driver._argv(tmp_path / "panel.csv", "batch_old", dry_run=True)
+
+
+# -- a run record that exists is not the same as a screen that finished ------
+#
+# Both drivers established "the screen is over" by asking whether a run record exists. MolCascade
+# writes the record when the run *starts*, so a subprocess killed by the OOM killer, cut off by the
+# driver's own timeout, or stopped with its host leaves a record in RUNNING -- and that was returned
+# as the batch's result.
+#
+# What follows is worse than the wrong status. `_reap` sees a job that finished without raising,
+# drops it and frees the device; the batch is still claimed, so `Sweep.recover` asks the run record,
+# gets a non-terminal status and reports `running` -- the one recovery action `TickReport.quiet`
+# deliberately does not count. So the batch sits claimed for the rest of the campaign and no tick
+# prints anything about it.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# -- a run record that exists is not the same as a screen that finished ------
+#
+# Both drivers established "the screen is over" by asking whether a run record exists. MolCascade
+# writes the record when the run *starts*, so a subprocess killed by the OOM killer, cut off by the
+# driver's own timeout, or stopped with its host leaves a record in RUNNING -- and that was returned
+# as the batch's result.
+#
+# What follows is worse than the wrong status. `_reap` sees a job that finished without raising,
+# drops it and frees the device; the batch is still claimed, so `Sweep.recover` asks the run record,
+# gets a non-terminal status and reports `running` -- the one recovery action `TickReport.quiet`
+# deliberately does not count. So the batch sits claimed for the rest of the campaign and no tick
+# prints anything about it.
+
+
+@pytest.mark.parametrize("status", ["RUNNING", "QUEUED", ""])
+def test_an_unfinished_run_record_is_not_returned_as_a_batch_result(tmp_path, monkeypatch, status) -> None:
+    """The process driver reads the record after a subprocess that may have been killed."""
+
+    import subprocess as subprocess_module
+
+    from etalon.campaign.drivers import MolCascadeProcessScreening
+
+    record = ScreenResult(
+        "batch_0001", "rev-1", status, (stage("source", "SUCCEEDED", artifact="a"),)
+    )
+
+    def fake_run(argv, **_kwargs):
+        if "--dry-run" in argv:
+            return SimpleNamespace(returncode=0, stdout='{"revision_id": "rev-1"}', stderr="")
+        # 137 is what the OOM killer leaves behind, and the run record stays where it was.
+        return SimpleNamespace(returncode=137, stdout="", stderr="Killed")
+
+    monkeypatch.setattr(subprocess_module, "run", fake_run)
+
+    driver = MolCascadeProcessScreening(
+        screen=SimpleNamespace(state=lambda run_id: record),
+        config_path=tmp_path / "c.json",
+        workspace=tmp_path / "ws",
+        revision_id="rev-1",
+        target_args=(),
+        reference_library=tmp_path / "panel.csv",
+    )
+    with pytest.raises(RuntimeError, match="not a terminal state"):
+        driver("batch_0001", tmp_path / "b.csv", "cuda:0")
+
+
+@pytest.mark.parametrize("status", ["SUCCEEDED", "FAILED"])
+def test_a_finished_run_is_returned_whichever_way_it_finished(tmp_path, monkeypatch, status) -> None:
+    """``FAILED`` is terminal, and an exhausted batch is a ``FAILED`` run that is a measurement."""
+
+    import subprocess as subprocess_module
+
+    from etalon.campaign.drivers import MolCascadeProcessScreening
+
+    record = ScreenResult(
+        "batch_0001", "per-library-digest", status,
+        (stage("docking", "SUCCEEDED", artifact="a"),),
+    )
+
+    def fake_run(argv, **_kwargs):
+        if "--dry-run" in argv:
+            return SimpleNamespace(returncode=0, stdout='{"revision_id": "rev-1"}', stderr="")
+        return SimpleNamespace(returncode=1, stdout="", stderr="")
+
+    monkeypatch.setattr(subprocess_module, "run", fake_run)
+
+    driver = MolCascadeProcessScreening(
+        screen=SimpleNamespace(state=lambda run_id: record),
+        config_path=tmp_path / "c.json",
+        workspace=tmp_path / "ws",
+        revision_id="rev-1",
+        target_args=(),
+        reference_library=tmp_path / "panel.csv",
+    )
+    result = driver("batch_0001", tmp_path / "b.csv", "cuda:0")
+    assert result.status == status
+    assert result.revision_id == "rev-1", "the funnel revision, not the per-library digest"
+
+
+def test_the_in_process_driver_also_refuses_an_unfinished_run(tmp_path) -> None:
+    """One fix in each driver, because the fault is in each driver. It has been so twice before."""
+
+    from etalon.campaign.drivers import MolCascadeScreening
+
+    class Runs:
+        def plan(self, _config, _library, target=None):
+            return SimpleNamespace(revision_id="rev-1")
+
+        def state(self, _run_id):
+            return None
+
+        def run(self, _plan, *, run_id, resume, workers, devices):
+            return ScreenResult(run_id, "rev-1", "RUNNING", ())
+
+    driver = MolCascadeScreening(
+        screen=Runs(), config_path=tmp_path / "c.json", revision_id="rev-1"
+    )
+    with pytest.raises(RuntimeError, match="not a terminal state"):
+        driver("batch_0001", tmp_path / "b.csv", "cuda:0")
+
+
+def test_terminal_is_defined_once_and_progress_reads_it(tmp_path) -> None:
+    """`progress`'s `terminal` key had the set inline while the drivers had no notion of it."""
+
+    from etalon.boundary.screen import TERMINAL_RUN_STATUSES
+
+    assert set(TERMINAL_RUN_STATUSES) == {"SUCCEEDED", "FAILED"}
+    assert ScreenResult("r", "rev", "SUCCEEDED", ()).terminal
+    assert ScreenResult("r", "rev", "FAILED", ()).terminal
+    assert not ScreenResult("r", "rev", "RUNNING", ()).terminal
+
+    from etalon.boundary.screen import Screen
+
+    def reading(record):
+        class OneRun(Screen):
+            def __init__(self) -> None:  # noqa: D107 -- no workspace is touched
+                self.workspace = tmp_path
+
+            def state(self, run_id: str):  # noqa: ARG002
+                return record
+
+        return OneRun().progress("r")
+
+    assert reading(ScreenResult("r", "rev", "RUNNING", (stage("s", "RUNNING"),)))["terminal"] is False
+    assert reading(ScreenResult("r", "rev", "FAILED", (stage("s", "FAILED", code="X"),)))["terminal"] is True
+
+
+def _process_driver(tmp_path, screen):
+    from etalon.campaign.drivers import MolCascadeProcessScreening
+
+    return MolCascadeProcessScreening(
+        screen=screen,
+        config_path=tmp_path / "c.json",
+        workspace=tmp_path / "ws",
+        revision_id="rev-1",
+        target_args=(),
+        reference_library=tmp_path / "panel.csv",
+    )
+
+
+def test_a_cascade_that_will_not_compile_is_refused_before_the_batch_runs(tmp_path, monkeypatch) -> None:
+    """The identity probe is the cheap refusal, and a non-zero probe is a cascade that is broken.
+
+    Refused as a revision problem rather than reported as a screen failure, because the batch has
+    not been screened: nothing was spent and nothing is recorded, so the campaign can be fixed and
+    the batch re-offered.
+    """
+
+    import subprocess as subprocess_module
+
+    from etalon.campaign.drivers import RevisionChanged
+
+    monkeypatch.setattr(
+        subprocess_module,
+        "run",
+        lambda *_a, **_k: SimpleNamespace(
+            returncode=2, stdout="", stderr="ConfigError: unknown field 'cutof'"
+        ),
+    )
+    driver = _process_driver(tmp_path, SimpleNamespace(state=lambda _r: None))
+    with pytest.raises(RevisionChanged, match="would not compile"):
+        driver("batch_0001", tmp_path / "b.csv", "cuda:0")
+
+
+def test_a_configuration_edited_mid_campaign_is_refused_by_the_process_driver(tmp_path, monkeypatch) -> None:
+    """The check exists to catch an edited cascade at the first batch it would make incomparable.
+
+    The alternative is finding out at harvest time, when 56 batches carry two revisions and nothing
+    says which molecules went through which funnel.
+    """
+
+    import subprocess as subprocess_module
+
+    from etalon.campaign.drivers import RevisionChanged
+
+    monkeypatch.setattr(
+        subprocess_module,
+        "run",
+        lambda *_a, **_k: SimpleNamespace(
+            returncode=0, stdout='{"revision_id": "rev-2-after-an-edit"}', stderr=""
+        ),
+    )
+    driver = _process_driver(tmp_path, SimpleNamespace(state=lambda _r: None))
+    with pytest.raises(RevisionChanged, match="now compiles to"):
+        driver("batch_0001", tmp_path / "b.csv", "cuda:0")
+
+
+def test_a_screen_that_left_no_run_record_is_not_a_result(tmp_path, monkeypatch) -> None:
+    """No record at all is the other half of the terminal check: there is nothing to read."""
+
+    import subprocess as subprocess_module
+
+    def fake_run(argv, **_kwargs):
+        if "--dry-run" in argv:
+            return SimpleNamespace(returncode=0, stdout='{"revision_id": "rev-1"}', stderr="")
+        return SimpleNamespace(returncode=1, stdout="", stderr="ImportError: no module named torch")
+
+    monkeypatch.setattr(subprocess_module, "run", fake_run)
+    driver = _process_driver(tmp_path, SimpleNamespace(state=lambda _r: None))
+    with pytest.raises(RuntimeError, match="left no run record"):
+        driver("batch_0001", tmp_path / "b.csv", "cuda:0")
+
+
+def test_the_in_process_driver_returns_a_result_unchanged_without_a_reference_library(tmp_path) -> None:
+    """The plain path, which no test entered: no reference library, so no digest to rewrite."""
+
+    from etalon.campaign.drivers import MolCascadeScreening
+
+    class Runs:
+        def __init__(self) -> None:
+            self.resumed: list[bool] = []
+
+        def plan(self, _config, _library, target=None):  # noqa: ARG002
+            return SimpleNamespace(revision_id="rev-1")
+
+        def state(self, _run_id):
+            return None
+
+        def run(self, _plan, *, run_id, resume, workers, devices):  # noqa: ARG002
+            self.resumed.append(resume)
+            return ScreenResult(
+                run_id, "rev-1", "SUCCEEDED", (stage("shortlist", "SUCCEEDED", artifact="a"),)
+            )
+
+    runs = Runs()
+    driver = MolCascadeScreening(screen=runs, config_path=tmp_path / "c.json", revision_id="rev-1")
+    result = driver("batch_0001", tmp_path / "b.csv", "cuda:0")
+    assert result.revision_id == "rev-1"
+    assert result.run_id == "batch_0001"
+    assert runs.resumed == [False], "a batch with no run record must not be resumed"
+
+
+def test_the_in_process_driver_reports_the_funnel_not_the_per_library_digest(tmp_path) -> None:
+    """A compiled revision covers the library, so a run's own digest differs for every batch.
+
+    The sweep asks two questions of a recorded revision and both are about the funnel: does it match
+    what the batch was carved under, and do all recorded batches share one. Under the per-library
+    digest the first refuses every batch and the second makes ``comparable`` false for any campaign
+    with more than one batch, which is every campaign. Measured: five batches of one ALK2 campaign
+    compiled to five digests from one unchanged config file.
+    """
+
+    from etalon.campaign.drivers import MolCascadeScreening
+
+    reference = tmp_path / "panel.csv"
+
+    class Runs:
+        def plan(self, _config, library, target=None):  # noqa: ARG002
+            return SimpleNamespace(
+                revision_id="rev-1" if library == reference else "digest-of-this-batch"
+            )
+
+        def state(self, _run_id):
+            return None
+
+        def run(self, _plan, *, run_id, resume, workers, devices):  # noqa: ARG002
+            return ScreenResult(
+                run_id, "digest-of-this-batch", "SUCCEEDED",
+                (stage("shortlist", "SUCCEEDED", artifact="a"),),
+            )
+
+    driver = MolCascadeScreening(
+        screen=Runs(),
+        config_path=tmp_path / "c.json",
+        revision_id="rev-1",
+        reference_library=reference,
+    )
+    result = driver("batch_0001", tmp_path / "b.csv", "cuda:0")
+    assert result.revision_id == "rev-1", "the per-library digest was reported as the funnel"
+    assert result.status == "SUCCEEDED"
+
+
+def test_the_identity_probe_compiles_the_reference_library(tmp_path) -> None:
+    """The revision check must compile the library the campaign's revision was computed from.
+
+    A compiled revision covers the library, so probing with the batch's own library asks a question
+    whose answer is different for every batch and equal to the campaign's for none of them.
+    """
+
+    from etalon.campaign.drivers import MolCascadeProcessScreening
+
+    driver = MolCascadeProcessScreening(
+        screen=None,
+        config_path=tmp_path / "c.json",
+        workspace=tmp_path / "ws",
+        revision_id="rev-1",
+        target_args=(),
+        reference_library=tmp_path / "panel.csv",
+    )
+    probe = driver._argv(driver.reference_library, "batch_0001__identity", dry_run=True)
+    assert str(tmp_path / "panel.csv") in probe
+    assert "--dry-run" in probe and "--json" in probe
+
+
+def test_progress_counts_a_cached_stage_as_reached(tmp_path) -> None:
+    """A resumed batch must not read as wedged at the first stage it recomputed.
+
+    ``CACHED`` is as terminal as ``SUCCEEDED`` -- more so, in the sense that the campaign already
+    holds the artifact. Measured on ALK2: five batches resumed after an out-of-memory failure came
+    back with eighteen stages CACHED, and ``progress`` called them stage 8 of 41 while every one was
+    running stage 26. Two readings ten minutes apart both said 8, which is what an operator reads
+    when deciding whether to intervene -- and the opposite of the truth.
+    """
+
+    from etalon.boundary.screen import Screen
+
+    result = ScreenResult(
+        run_id="batch_0001",
+        revision_id="rev-1",
+        status="RUNNING",
+        stages=(
+            stage("library", "SUCCEEDED", artifact="a"),
+            *(stage(f"cheap_{i}", "CACHED", artifact=f"c{i}") for i in range(18)),
+            stage("admet", "SUCCEEDED", artifact="b"),
+            stage("conformers", "RUNNING"),
+            stage("docking", "PENDING"),
+        ),
+    )
+
+    class OneRun(Screen):
+        def __init__(self) -> None:  # noqa: D107 -- no workspace is touched
+            self.workspace = tmp_path
+
+        def state(self, run_id: str):  # noqa: ARG002
+            return result
+
+    reading = OneRun().progress("batch_0001")
+    # 1 library + 18 cached + 1 admet, and the one in flight.
+    assert reading["stage"] == 21
+    assert reading["stages"] == 22
+    assert reading["current"] == "conformers"
+
+
+def test_the_device_goes_in_the_argv_not_the_environment(tmp_path) -> None:
+    """CUDA_VISIBLE_DEVICES does not compose, so setting it here would defeat itself.
+
+    MolCascade pins each shard with ``os.environ["CUDA_VISIBLE_DEVICES"] = device[5:]``, and that
+    value indexes the machine's devices rather than the subset the process can see. A screen
+    launched under ``CUDA_VISIBLE_DEVICES=3`` sees one card, names it ``cuda:0``, and pins its
+    shards to "0" -- physical card zero. Measured on ALK2: eight screens with eight distinct values,
+    and every Uni-Dock child on the same physical GPU, 63 GB on card 0 while seven cards idled.
+    """
+
+    from etalon.campaign.drivers import MolCascadeProcessScreening
+
+    class NoRuns:
+        def state(self, run_id: str):  # noqa: ARG002
+            return None
+
+    driver = MolCascadeProcessScreening(
+        screen=NoRuns(),
+        config_path=tmp_path / "c.json",
+        workspace=tmp_path / "ws",
+        revision_id="rev-1",
+        target_args=(),
+        reference_library=tmp_path / "panel.csv",
+    )
+    argv = driver._argv(tmp_path / "b.csv", "batch_0004", dry_run=False, device="cuda:3")
+    assert argv[argv.index("--device") + 1] == "cuda:3"
+    # The identity probe compiles and stops; it reaches no engine and names no card.
+    assert "--device" not in driver._argv(
+        driver.reference_library, "batch_0004__identity", dry_run=True
+    )
+
+
+def test_one_batch_per_device_unless_told_otherwise(tmp_path, keyed, monkeypatch) -> None:
+    """The default rations devices; ``batches_per_device`` says when that is the wrong resource.
+
+    Measured on ALK2: the docking tier's wall clock went to PoseBusters in Python rather than to the
+    engine, so eight batches on eight cards held 1.3 cores each of a 96-core machine and 25 GB of
+    each 96 GB card. One per device was rationing the resource that was spare.
+    """
+
+    from etalon.campaign.supervisor import Supervisor
+
+    supervisor, sweep, _ = _campaign(tmp_path, keyed, monkeypatch)
+    devices = ("cuda:5", "cuda:6")
+
+    def build(per_device: int) -> Supervisor:
+        return Supervisor(
+            sweep,
+            revision_id="rev-1",
+            workspace=tmp_path / f"ws{per_device}",
+            screen_devices=devices,
+            batches_per_device=per_device,
+        )
+
+    assert build(1)._free_slots() == ["cuda:5", "cuda:6"]
+    assert build(3)._free_slots() == ["cuda:5"] * 3 + ["cuda:6"] * 3
+    assert build(2).state()["batches_per_device"] == 2
+    with pytest.raises(ValueError, match="at least 1"):
+        build(0)
+
+
+def test_a_device_with_a_batch_on_it_offers_one_fewer_slot(tmp_path, keyed, monkeypatch) -> None:
+    """Occupancy is counted per device, not treated as a boolean."""
+
+    from etalon.campaign.supervisor import Supervisor, _Job
+
+    supervisor, sweep, _ = _campaign(tmp_path, keyed, monkeypatch)
+    two = Supervisor(
+        sweep,
+        revision_id="rev-1",
+        workspace=tmp_path / "ws2",
+        screen_devices=("cuda:5", "cuda:6"),
+        batches_per_device=2,
+    )
+
+    class Forever:
+        def poll(self):
+            return None
+
+    two.jobs.append(_Job(kind="screen", name="b1", device="cuda:5", process=Forever(), started=0.0))
+    assert two._free_slots() == ["cuda:5", "cuda:6", "cuda:6"]
+    two.jobs.append(_Job(kind="screen", name="b2", device="cuda:5", process=Forever(), started=0.0))
+    assert two._free_slots() == ["cuda:6", "cuda:6"]
+
+
+def test_a_batch_already_screening_here_is_not_handed_to_a_second_device(tmp_path, keyed, monkeypatch) -> None:
+    """``recover`` releases a claim with no run record, and a screen that just started has none.
+
+    A screen subprocess has to start, import MolCascade and compile the funnel before it writes a
+    run record -- seconds on a loaded host. ``Sweep.recover`` runs at the top of every tick and
+    releases the claim of any claimed batch whose run record does not exist, which is right for a
+    crash and wrong for a launch: the batch is back in ``pending()`` on the very next tick while
+    its screen is still starting. Handed to a second device, two subprocesses commit stages into
+    one run record, and because a batch id *is* a run id nothing afterwards can say that record had
+    two writers.
+    """
+
+    import threading
+
+    supervisor, sweep, _ = _campaign(tmp_path, keyed, monkeypatch, batch_size=5)
+    held = threading.Event()
+    dispatched: list[str] = []
+
+    def slow_screen(batch_id, library, device):  # noqa: ANN001, ARG001
+        dispatched.append(f"{batch_id}@{device}")
+        held.wait(10.0)  # the window: started, no run record written yet
+
+    supervisor.screen = slow_screen  # type: ignore[assignment]
+    sweep.admit([(f"K{i}", f"C{i}", "f") for i in range(5)])
+    sweep.emit(revision_id="rev-1")
+
+    try:
+        assert supervisor._start_screens([]) == ("batch_0001@cuda:5",)
+        # The release recovery performs, verbatim: claimed, and no run record to ask.
+        assert [r.action for r in sweep.recover()] == ["requeued"]
+        assert [b.batch_id for b in sweep.pending()] == ["batch_0001"]
+
+        # Next pass. cuda:6 is free, batch_0001 is pending again, and its screen is still live here.
+        assert supervisor._start_screens([]) == ()
+        assert dispatched == ["batch_0001@cuda:5"]
+    finally:
+        held.set()
+
+
+def test_a_restarted_supervisor_does_not_dispatch_on_top_of_live_screens(tmp_path, keyed, monkeypatch) -> None:
+    """``self.jobs`` is this process's memory; a supervisor is advertised as restartable.
+
+    The previous process's screens keep committing stages after it dies -- measured, a worker whose
+    shell had died left a child committing stages for another hour -- and ``Sweep.recover``
+    deliberately leaves a running run alone, because the claim is exactly the durable record of it.
+    Counting occupancy from memory alone therefore reported every card free, and the restart
+    dispatched a second full set of batches on top of the first.
+    """
+
+    from etalon.campaign.supervisor import Supervisor
+
+    _, sweep, screen = _campaign(tmp_path, keyed, monkeypatch, batch_size=5)
+    sweep.admit([(f"K{i}", f"C{i}", "f") for i in range(15)])
+    sweep.emit(revision_id="rev-1")
+    for batch_id, device in (("batch_0001", "cuda:5"), ("batch_0002", "cuda:6")):
+        sweep.claim(batch_id, by=device)
+        screen.runs[batch_id] = ScreenResult(
+            batch_id, "rev-1", "RUNNING", (stage("conformers", "SUCCEEDED", artifact="a"),)
+        )
+    assert {r.action for r in sweep.recover()} == {"running"}
+
+    def build(per_device: int) -> Supervisor:
+        return Supervisor(
+            sweep,
+            revision_id="rev-1",
+            workspace=tmp_path / f"restart{per_device}",
+            screen_devices=("cuda:5", "cuda:6"),
+            batches_per_device=per_device,
+            screen=lambda *args: None,
+        )
+
+    fresh = build(1)
+    assert fresh.jobs == []  # a restart genuinely remembers nothing
+    assert fresh._free_slots() == []
+    assert fresh._start_screens([]) == ()
+    # The ration is still per device, not a blanket refusal: two per card leaves one each.
+    assert build(2)._free_slots() == ["cuda:5", "cuda:6"]
+
+
+# -- enrichment: a threshold is a percentile you have not measured -----------
+#
+# The ALK2 campaign's Uni-Dock gate was set to -8.0 because the weakest known active scored -8.497.
+# Measured against the 274,097 molecules the campaign actually screened, -8.356 sits at the 81st
+# percentile -- so that gate was a "keep the best 81%" gate, and nobody knew it. The same number on
+# SND1's shallow groove sat *above* every known binder and kept 2 of 5,822. One threshold, a
+# 2,000-fold difference in what it does.
+_POPULATION = tuple(-6.0 - i * 0.004 for i in range(1000))  # -6.000 down to -9.996, strongest last
+
+
+def _pool(engine: str, values, direction: str = "LOWER_STRONGER", *, parents=None):
+    """The screened library as ``docking_score/v1`` rows, which is what ``enrichment`` takes.
+
+    One row per pose is what a docking artifact really holds, and ``enrichment`` used to take one
+    number per molecule -- a shape a caller holding rows satisfies wrongly in two different ways.
+    """
+
+    return tuple(
+        {
+            "parent_id": (parents[i] if parents else f"pool{i:05d}"),
+            "engine_id": engine,
+            "score": v,
+            "direction": direction,
+        }
+        for i, v in enumerate(values)
+    )
+
+
+def test_a_score_threshold_is_a_percentile_nobody_measured(tmp_path) -> None:  # noqa: ARG001
+    from etalon.campaign.calibrate import enrichment
+
+    panel = (
+        PanelMember("strong", True, "co-crystal"),
+        PanelMember("weak", True, "measured, micromolar"),
+        PanelMember("decoy", False, "negative control"),
+    )
+    scores = tuple(
+        {"parent_id": p, "engine_id": "unidock", "score": v, "direction": "LOWER_STRONGER"}
+        for p, v in (("strong", -9.99), ("weak", -7.0), ("decoy", -6.5))
+    )
+    row = enrichment(scores, panel, _pool("unidock", _POPULATION))[0]
+
+    assert row.population == 1000
+    assert row.population_unit == "molecules"
+    # -9.99 is at the strong end of a -6.0 to -10.0 ramp; -7.0 is three quarters of the way in.
+    assert row.best is not None and row.best < 0.01
+    assert 0.70 < row.worst < 0.80
+    # Keeping the best 1% retains the co-crystal ligand and deletes the micromolar one.
+    assert row.recall_at(0.01) == 0.5
+    # Full recall costs whatever percentile the weakest active sits at -- which is the number the
+    # absolute threshold was choosing without saying so.
+    assert row.keep_for(1.0) == row.worst
+    assert row.informative is True
+
+
+def test_the_percentile_becomes_the_number_a_cascade_gate_takes() -> None:
+    from etalon.campaign.calibrate import HIGHER_STRONGER, percentile_threshold
+
+    # Lower-is-stronger: the best 10% of a descending ramp.
+    assert percentile_threshold(_POPULATION, 0.10) == pytest.approx(-9.6, abs=0.01)
+    # Higher-is-stronger reverses which end is kept, and the helper must not read one as the other.
+    rising = tuple(-v for v in _POPULATION)
+    assert percentile_threshold(rising, 0.10, HIGHER_STRONGER) == pytest.approx(9.6, abs=0.01)
+    assert percentile_threshold((), 0.1) is None
+    assert percentile_threshold(_POPULATION, 0.0) is None
+
+
+def test_a_score_that_orders_neither_class_is_not_informative() -> None:
+    from etalon.campaign.calibrate import enrichment
+
+    panel = (
+        PanelMember("a1", True),
+        PanelMember("a2", True),
+        PanelMember("i1", False),
+        PanelMember("i2", False),
+    )
+    # Actives bracket the inactives symmetrically: the median active is no better than the
+    # median inactive, which is what a score with no enrichment on this panel looks like.
+    scores = tuple(
+        {"parent_id": p, "engine_id": "e", "score": v, "direction": "LOWER_STRONGER"}
+        for p, v in (("a1", -9.0), ("i1", -8.9), ("a2", -6.9), ("i2", -7.0))
+    )
+    row = enrichment(scores, panel, _pool("e", _POPULATION))[0]
+    assert row.informative is False
+
+
+def test_the_population_is_collapsed_per_molecule_not_per_pose() -> None:
+    """A percentile is a share of molecules, and a docking artifact holds one row per pose.
+
+    ``docking_score/v1`` is keyed on ``(parent_id, engine_id, receptor_id, pose_rank)``, so the old
+    ``Mapping[str, Sequence[float]]`` signature had three readings a caller could satisfy it with --
+    every row, the best pose per molecule, or a dict comprehension that is last-wins over a
+    best-first pose list -- and they are different quantiles.
+
+    On the ALK2 v7 campaign all three agree: 274,072 kcal/mol rows pooled over 27 batches, every one
+    at ``pose_rank`` 0, covering 274,043 molecules, with the best-2% cut at -11.385 under each
+    reading. No threshold that campaign set changes. The multi-pose case is constructed here instead
+    of measured, because the failure needs a cascade committing more than one mode and this one
+    committed one.
+    """
+
+    from etalon.campaign.calibrate import enrichment
+
+    panel = (PanelMember("a1", True), PanelMember("i1", False))
+    scores = (
+        {"parent_id": "a1", "engine_id": "e", "score": -9.0, "direction": "LOWER_STRONGER"},
+        {"parent_id": "i1", "engine_id": "e", "score": -6.0, "direction": "LOWER_STRONGER"},
+    )
+    # Ten molecules, but the two strongest contribute nine poses each: 26 rows for 10 molecules.
+    values, parents = [], []
+    for index in range(10):
+        poses = 9 if index < 2 else 1
+        for pose in range(poses):
+            values.append(-10.0 + index * 0.5 + pose * 0.01)
+            parents.append(f"m{index}")
+    rows = _pool("e", values, parents=parents)
+    assert len(rows) == 26
+
+    row = enrichment(scores, panel, rows)[0]
+    assert row.population == 10, "poses were counted as molecules"
+    assert row.population_unit == "molecules"
+    # -9.0 is the third strongest of the ten molecules' best poses, so it sits at 0.3 -- not at the
+    # 0.46 a pose-level denominator reports, where the two strong molecules fill the head.
+    assert row.best == pytest.approx(0.3)
+
+
+def test_a_population_value_that_cannot_be_ordered_is_not_counted() -> None:
+    from etalon.campaign.calibrate import enrichment
+
+    panel = (PanelMember("a1", True),)
+    scores = ({"parent_id": "a1", "engine_id": "e", "score": -9.0, "direction": "LOWER_STRONGER"},)
+    rows = _pool("e", (*_POPULATION, float("nan"), float("inf")), )
+    row = enrichment(scores, panel, rows)[0]
+    assert row.population == 1000
+    assert row.population_dropped == 2
+
+
+def test_a_threshold_is_refused_for_a_direction_that_is_no_convention() -> None:
+    """``MIXED`` reached ``percentile_threshold`` and was read as a Vina-family score.
+
+    Measured on the KarmaDock MDN scores of all 27 ALK2 v7 batches, 299,805 rows declaring
+    ``HIGHER_STRONGER``: the best-2% cut is 59.359 and keeps 2.00% of them, while the same call read
+    as Vina-family returns 20.200, which keeps 98.00%. Both are a bare float, so the gate that had
+    stopped gating would have been recorded as a 2% gate.
+    """
+
+    from etalon.campaign.calibrate import percentile_threshold
+
+    rising = tuple(-v for v in _POPULATION)
+    assert percentile_threshold(rising, 0.10, MIXED) is None
+    assert percentile_threshold(rising, 0.10, "lower_stronger") is None
+    # And a population with nothing orderable left in it.
+    assert percentile_threshold((float("nan"), float("inf")), 0.10) is None
+    # A NaN among real values is dropped rather than corrupting the sort.
+    assert percentile_threshold(
+        (*_POPULATION, float("nan")), 0.10
+    ) == pytest.approx(-9.6, abs=0.01)
+
+
+def test_a_direction_nobody_recognises_is_mixed_not_the_default() -> None:
+    """A declared direction that is neither convention fell through to the fail-open default.
+
+    `etalon.active.schema` validates an endpoint's direction against `{"minimize", "maximize"}` and
+    has no MIXED at all, while this module declares LOWER_STRONGER / HIGHER_STRONGER / MIXED. Two
+    vocabularies for one concept in one repository with no translation, so a row arriving from the
+    active side declared its convention in words this module did not know, and was treated as
+    though it had declared nothing: `_DIRECTION_BY_KIND.get(..., LOWER_STRONGER)`.
+
+    Measured on the 15 KarmaDock MDN rows of the live `panel_v7` run, which declare
+    HIGHER_STRONGER. Relabelled `maximize` with the score kind untouched the answer came out right
+    by luck, because the kind table happens to list KARMADOCK_MDN. Relabelled `maximize` with any
+    score kind the table does not list, `best_inactive` moved from 67.329 to 17.285 -- the two
+    opposite ends of one panel, the best-scoring molecule swapped for the worst.
+
+    The same fallthrough discarded an explicitly declared MIXED, which is the one value whose whole
+    purpose is to fail closed, and read it as LOWER_STRONGER.
+    """
+
+    from etalon.campaign.calibrate import _direction
+
+    # The two conventions, verbatim.
+    assert _direction({"direction": "LOWER_STRONGER"}) == LOWER_STRONGER
+    assert _direction({"direction": "HIGHER_STRONGER"}) == HIGHER_STRONGER
+
+    # The active layer's spelling is translated, not guessed: these are the same two conventions.
+    assert _direction({"direction": "minimize", "score_kind": "ANYTHING"}) == LOWER_STRONGER
+    assert _direction({"direction": "maximize", "score_kind": "ANYTHING"}) == HIGHER_STRONGER
+    assert _direction({"direction": "MAXIMIZE"}) == HIGHER_STRONGER
+
+    # Anything else that was declared fails closed.
+    assert _direction({"direction": "MIXED", "score_kind": "KARMADOCK_MDN"}) == MIXED
+    assert _direction({"direction": "ascending", "score_kind": "VINA_KCAL_MOL"}) == MIXED
+
+    # Only an omitted direction reaches the score-kind table, which is the documented path.
+    assert _direction({"score_kind": "KARMADOCK_MDN"}) == HIGHER_STRONGER
+    assert _direction({"score_kind": "VINA_KCAL_MOL"}) == LOWER_STRONGER
+    assert _direction({}) == LOWER_STRONGER
+    assert _direction({"direction": None, "score_kind": "CNN_SCORE"}) == HIGHER_STRONGER
+
+
+def test_the_panel_ends_do_not_swap_under_an_unknown_direction() -> None:
+    """The consequence of the fallthrough, on the shape the measurement was taken on.
+
+    A rising score read as Vina-family makes the weakest molecule the best one. Before the fix this
+    returned a separation with the extremes reversed and nothing said so; now the engine declares
+    MIXED and publishes no verdict at all.
+    """
+
+    panel = (
+        PanelMember("a1", True),
+        PanelMember("a2", True),
+        PanelMember("i1", False),
+        PanelMember("i2", False),
+    )
+    rising = {"a1": 67.3, "a2": 56.6, "i1": 23.3, "i2": 17.3}
+
+    def rows(direction: str, kind: str):
+        return tuple(
+            {"parent_id": p, "engine_id": "karmadock", "score": v,
+             "score_kind": kind, "direction": direction}
+            for p, v in rising.items()
+        )
+
+    honest = separation(rows("HIGHER_STRONGER", "KARMADOCK_MDN"), panel)[0]
+    assert honest.direction == HIGHER_STRONGER
+    assert honest.best_active == 67.3 and honest.best_inactive == 23.3
+    assert honest.separates is True
+
+    # The active layer's word, translated, gives the same verdict rather than the inverted one.
+    translated = separation(rows("maximize", "SOME_NEW_ENGINE"), panel)[0]
+    assert translated.direction == HIGHER_STRONGER
+    assert translated.best_active == 67.3 and translated.best_inactive == 23.3
+    assert translated.separates is True
+
+    # Anything unrecognised publishes no verdict instead of an inverted one.
+    refused = separation(rows("ascending", "SOME_NEW_ENGINE"), panel)[0]
+    assert refused.direction == MIXED
+    assert refused.separates is None
+
+
+def test_a_mixed_direction_engine_publishes_no_percentiles() -> None:
+    """And is reported rather than dropped, which is why the branch sits above the population check.
+
+    ``Enrichment.actives`` returned ``len(percentiles)``, so a ``MIXED`` engine published
+    ``"actives": 0`` for a panel that declares six of them.
+    """
+
+    from etalon.campaign.calibrate import enrichment
+
+    panel = (PanelMember("a1", True), PanelMember("a2", True), PanelMember("i1", False))
+    scores = (
+        {"parent_id": "a1", "engine_id": "e", "score": -9.0, "direction": "LOWER_STRONGER"},
+        {"parent_id": "a2", "engine_id": "e", "score": 40.0, "direction": "HIGHER_STRONGER"},
+        {"parent_id": "i1", "engine_id": "e", "score": -6.0, "direction": "LOWER_STRONGER"},
+    )
+    row = enrichment(scores, panel, _pool("e", _POPULATION))[0]
+    assert row.direction == MIXED
+    assert row.percentiles == ()
+    assert row.actives is None, "0 reads as a panel that declares no binders"
+    assert row.best is None and row.worst is None and row.median is None
+    assert row.recall_at(0.01) is None and row.keep_for(1.0) is None
+    assert row.informative is None
+    body = row.as_dict()
+    assert body["actives"] is None
+    assert body["best_percentile"] is None and body["worst_percentile"] is None
+    assert body["inactive_median_percentile"] is None
+
+    # The row survives an engine with no population at all: the mixture is a fact about the scores.
+    orphan = enrichment(scores, panel, ())[0]
+    assert orphan.direction == MIXED and orphan.population == 0
+
+
+def test_a_pose_quality_tier_is_not_offered_as_droppable() -> None:
+    """"Widen it or drop the tier" is wrong advice for a check on the coordinates.
+
+    A known active failing `t9_redock` has not been shown to be a poor binder; it has been shown
+    that the docking placed it badly, and every number computed from those coordinates inherits
+    that. Measured on ALK2, this exact wording is what the campaign cited when it disabled the
+    redock tier after one known active redocked at 5.834 A -- trading a pose-reproducibility check
+    for a molecule whose pose was, by that very measurement, not reproducible.
+    """
+
+    structural = Calibration(
+        revision_id="rev-1",
+        run_id="panel",
+        outcome="committed",
+        panel_size=len(PANEL),
+        actives=sum(1 for m in PANEL if m.known_active),
+        registered=len(PANEL),
+        # Named anything -- the protection is keyed on `structural`, which `calibrate` decides
+        # from the backends the tier's criteria compiled to, not on the tier's id.
+        tiers=(TierVerdict("f7_redock", "redock", 8, 7, ("C-26-A2",), (), structural=True),),
+        finalize=(),
+        separation=(),
+    )
+    reason = " ".join(structural.refusals())
+    assert "do NOT drop it" in reason
+    assert "judges the pose, not the molecule" in reason
+
+    # And the name alone no longer earns it. This is the defect: `STRUCTURAL_TIERS` was
+    # `frozenset({"t9_redock", "t10_docking_metrics"})`, so a cascade free to name its tiers
+    # anything turned the guard off by naming them anything else. Measured on a CRBN tri-Trp
+    # fragment campaign whose tiers were `f7_redock` and `f8_pose_metrics`: the redock tier
+    # deleted six known actives, four of them at 5.78, 6.02, 6.18 and 6.97 A, and the refusal
+    # read "widen it or drop the tier" -- the one remedy this check exists to forbid.
+    by_name_only = replace(
+        structural,
+        tiers=(TierVerdict("t9_redock", "redock", 8, 7, ("C-26-A2",), ()),),
+    )
+    named = " ".join(by_name_only.refusals())
+    assert "do NOT drop it" not in named, "the tier id alone still earns the protection"
+    assert "widen it or drop the tier" in named
+
+    selective = Calibration(
+        revision_id="rev-1",
+        run_id="panel",
+        outcome="committed",
+        panel_size=len(PANEL),
+        actives=sum(1 for m in PANEL if m.known_active),
+        registered=len(PANEL),
+        tiers=(TierVerdict("t9_docking", "docking", 8, 7, ("C-26-A2",), ()),),
+        finalize=(),
+        separation=(),
+    )
+    assert "widen it or drop the tier" in " ".join(selective.refusals())
+
+
+def test_a_batch_id_that_already_names_a_run_is_refused(sweep: Sweep) -> None:
+    """A batch id is a run id, and recovery reads run records by id without knowing whose they are.
+
+    Measured on ALK2: a second sweep over the same pool, with its own fresh ledger and its own
+    gate, carved batch_0001..0027 into a workspace that still held the first sweep's finished runs
+    under those names. `recover()` found them SUCCEEDED and recorded all 27 as committed within 100
+    seconds -- results produced by a different cascade, under a different gate, filed as the new
+    campaign's own output. Nothing failed and nothing warned.
+    """
+
+    sweep.admit([(f"K{i}", f"C{i}", "f") for i in range(5)])
+    sweep.screen.runs["batch_0001"] = ScreenResult(
+        "batch_0001", "someone-elses-revision", "SUCCEEDED", (stage("s", "SUCCEEDED", artifact="a"),)
+    )
+    with pytest.raises(SweepError, match="already names a run"):
+        sweep.emit(revision_id="rev-1")
+
+
+def test_a_prefix_scopes_batch_ids_to_one_campaign(tmp_path, keyed) -> None:
+    """The remedy the refusal names: two campaigns in one workspace need distinct run ids."""
+
+    screen = FakeScreen()
+    gate = authorize_gate(calibration(), provenance=screen.provenance())
+    first = Sweep(screen, Ledger(tmp_path / "a.jsonl"), tmp_path / "a.sqlite", batch_size=5, gate=gate)
+    first.admit([(f"K{i}", f"C{i}", "f") for i in range(5)])
+    assert [b.batch_id for b in first.emit(revision_id="rev-1")] == ["batch_0001"]
+    screen.runs["batch_0001"] = ScreenResult(
+        "batch_0001", "rev-1", "SUCCEEDED", (stage("s", "SUCCEEDED", artifact="a"),)
+    )
+
+    second = Sweep(
+        screen,
+        Ledger(tmp_path / "b.jsonl"),
+        tmp_path / "b.sqlite",
+        batch_size=5,
+        gate=gate,
+        prefix="v7_",
+    )
+    second.admit([(f"K{i}", f"C{i}", "f") for i in range(5)])
+    assert [b.batch_id for b in second.emit(revision_id="rev-1")] == ["v7_batch_0001"]
+
+
+def test_a_sweep_that_lost_its_prefix_is_refused_by_its_own_pool(tmp_path, keyed) -> None:
+    """The dangerous direction, and the one `startswith` would wave through.
+
+    The prefix is a constructor argument and is not stored, so a supervisor restarted from a script
+    that lost it carves into a different id family in the same pool. The run-collision guard does
+    not fire -- `batch_0028` beside `v7_batch_0027` is a free name -- and the campaign ends up
+    holding two families. Measured downstream on ALK2: a harvest selecting runs by id prefix then
+    collected the *other* family, 27 batches from a different cascade revision, and reported their
+    198,511 hits under this campaign's name.
+    """
+
+    screen = FakeScreen()
+    gate = authorize_gate(calibration(), provenance=screen.provenance())
+    pool = tmp_path / "pool.sqlite"
+
+    scoped = Sweep(screen, Ledger(tmp_path / "a.jsonl"), pool, batch_size=5, gate=gate, prefix="v7_")
+    scoped.admit([(f"K{i}", f"C{i}", "f") for i in range(5)])
+    assert [b.batch_id for b in scoped.emit(revision_id="rev-1")] == ["v7_batch_0001"]
+
+    lost = Sweep(screen, Ledger(tmp_path / "a.jsonl"), pool, batch_size=5, gate=gate)
+    lost.admit([(f"J{i}", f"J{i}", "f") for i in range(5)])
+    with pytest.raises(SweepError, match="two id families") as refusal:
+        lost.emit(revision_id="rev-1")
+    # The refusal names the prefix that would make it work, read out of the pool itself.
+    assert "'v7_'" in str(refusal.value)
+
+    # And the other direction: a prefix pointed at a pool carved without one.
+    bare = Sweep(screen, Ledger(tmp_path / "c.jsonl"), tmp_path / "c.sqlite", batch_size=5, gate=gate)
+    bare.admit([(f"L{i}", f"L{i}", "f") for i in range(5)])
+    assert [b.batch_id for b in bare.emit(revision_id="rev-1")] == ["batch_0001"]
+    moved = Sweep(
+        screen, Ledger(tmp_path / "c.jsonl"), tmp_path / "c.sqlite",
+        batch_size=5, gate=gate, prefix="v8_",
+    )
+    moved.admit([(f"M{i}", f"M{i}", "f") for i in range(5)])
+    with pytest.raises(SweepError, match="two id families"):
+        moved.emit(revision_id="rev-1")
+
+
+def test_a_claim_whose_library_cannot_be_written_names_the_reservation_it_is_holding(
+    tmp_path, keyed
+) -> None:
+    """The containment reached the supervisor and not the tool an LLM drives.
+
+    `Sweep.claim` commits before `library_rows` runs, so a library that cannot be written leaves
+    the batch reserved with nothing screening it. The supervisor catches that and notes it; this
+    tool let the exception out, and the boundary's generic handler then said the opposite of the
+    truth. Measured, with `library_dir` under a path whose parent is a regular file:
+
+        first call   NotADirectoryError, retryable=true, "calling again is reasonable once"
+        the retry    SweepError "batch_0001 is not claimable", hinted as a defect to report
+
+    Meanwhile `state()["batches"]` read `outstanding: 1` and one `etalon_sweep_recover` would have
+    released it.
+    """
+
+    import json as _json
+
+    screen = FakeScreen()
+    gate = authorize_gate(calibration(), provenance=screen.provenance())
+    pool, ledger = tmp_path / "pool.sqlite", tmp_path / "ledger.jsonl"
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    sweep = Sweep(screen, Ledger(ledger), pool, batch_size=5, gate=gate)
+    sweep.admit([(f"K{i}", f"C{i}", "flowr") for i in range(5)])
+    sweep.emit(revision_id="rev-1")
+
+    blocker = tmp_path / "blocker"
+    blocker.write_text("a regular file, so nothing can be created beneath it")
+
+    answer = _json.loads(
+        _claim_tool()(
+            workspace=str(workspace),
+            pool=str(pool),
+            ledger=str(ledger),
+            batch_id="batch_0001",
+            by="cuda:0",
+            library_dir=str(blocker / "libraries"),
+        )
+    )
+
+    assert answer["ok"] is False
+    assert answer["error"]["code"] == "LibraryNotWritten"
+    assert answer["error"]["retryable"] is False, "claiming it again cannot succeed"
+    assert "etalon_sweep_recover" in answer["error"]["hint"], "the remedy is named"
+    assert answer["error"]["context"]["batch_id"] == "batch_0001"
+    assert answer["error"]["context"]["claimed_by"] == "cuda:0"
+
+    # And the reservation the message describes is really there, which is why naming it matters.
+    assert Sweep(screen, Ledger(ledger), pool, batch_size=5, gate=gate).state()["batches"][
+        "outstanding"
+    ] == 1
+
+
+# -- a run that cannot be read is not a run that does not exist --------------
+
+
+def test_an_unreadable_run_state_is_not_reported_as_an_absent_run(tmp_path) -> None:
+    """`Screen.state` swallowed every exception and returned None for all of them.
+
+    The reasoning was that RUN_NOT_FOUND and an unreadable state are both "no answer", and for the
+    caller that matters they are opposite answers. MolCascade raises `PipelineError` with
+    `code="RUN_NOT_FOUND"` only for a run that genuinely does not exist, and something else for a
+    state file that exists and will not parse, is over its size limit, or fails validation.
+    """
+
+    from etalon.boundary.screen import Screen
+
+    screen = Screen(tmp_path / "ws")
+    assert screen.state("batch_0001") is None, "an absent run must still read as absent"
+
+    from molcascade.plugins import create_builtin_registry
+    from molcascade.runtime import LocalRunner
+
+    runner = LocalRunner(tmp_path / "ws", plugins=create_builtin_registry())
+    state_file = runner.runs_root / "batch_0002.json"
+    state_file.parent.mkdir(parents=True, exist_ok=True)
+    state_file.write_text("{not json", encoding="utf-8")
+
+    with pytest.raises(Exception) as unreadable:
+        screen.state("batch_0002")
+    assert getattr(unreadable.value, "code", "") == "RUNTIME_STATE_INVALID"
+
+    # A malformed run id is a caller error, and used to read as "no such run".
+    with pytest.raises(Exception) as bad_id:
+        screen.state("../escape")
+    assert getattr(bad_id.value, "code", "") == "RUN_ID_INVALID"
+
+
+def test_a_batch_whose_run_state_is_corrupt_is_not_requeued(tmp_path, keyed) -> None:
+    """The consequence, and it is a re-screen of committed work.
+
+    `Sweep.recover` reads `None` as "claimed but no run was ever started" and its action is
+    `requeued`: release the claim and re-offer the batch. A state file that exists and cannot be
+    read belongs to a run that *did* start, may have committed stages, and may still be committing
+    them -- so requeueing it re-screens work already paid for and puts a second writer on one run
+    id, which is the case `_start_screens` has a paragraph about containing.
+    """
+
+    class Unreadable(FakeScreen):
+        """Readable until armed: ``emit`` also asks ``state`` to refuse a run-id collision."""
+
+        armed = False
+
+        def state(self, run_id: str):
+            if self.armed:
+                raise RuntimeError(f"state file for {run_id} will not parse")
+            return super().state(run_id)
+
+    screen = Unreadable()
+    sweep = Sweep(
+        screen,
+        Ledger(tmp_path / "l.jsonl"),
+        tmp_path / "p.sqlite",
+        batch_size=5,
+        gate=authorize_gate(calibration(), provenance=screen.provenance()),
+    )
+    sweep.admit([(f"K{i}", f"C{i}", "s") for i in range(5)])
+    batch = sweep.emit(revision_id="rev-1")[0]
+    sweep.claim(batch.batch_id, by="cuda:0")
+    assert sweep.outstanding(), "the batch is not outstanding, so recovery has nothing to say"
+
+    screen.armed = True
+    with pytest.raises(RuntimeError, match="will not parse"):
+        sweep.recover()
+
+    # Still claimed. Before the fix this call returned `requeued` and released it.
+    assert [b.batch_id for b in sweep.outstanding()] == [batch.batch_id]
+    assert not sweep.pending(), "the batch was re-offered for screening"
+
+
+def test_the_supervisor_contains_an_unreadable_run_state_as_a_note(tmp_path, keyed, monkeypatch) -> None:
+    """Loud and survivable, which is the trade the containment exists to make."""
+
+    supervisor, sweep, _ = _campaign(tmp_path, keyed, monkeypatch, batch_size=10)
+    sweep.admit([(f"K{i}", f"C{i}", "s") for i in range(10)])
+    batch = sweep.emit(revision_id="rev-1")[0]
+    sweep.claim(batch.batch_id, by="cuda:0")
+
+    def unreadable(_run_id):
+        raise RuntimeError("state file will not parse")
+
+    monkeypatch.setattr(sweep.screen, "state", unreadable)
+    report = supervisor.tick()
+    assert any("recovery raised and was contained" in note for note in report.notes), report.notes
+    assert not report.quiet
+    assert [b.batch_id for b in sweep.outstanding()] == [batch.batch_id]
+
+
+def test_the_terminal_status_set_is_defined_once() -> None:
+    """Three readers, one definition. Two of them had re-typed the tuple beside the constant.
+
+    `boundary/screen.py` declares `TERMINAL_RUN_STATUSES`, `campaign/sweep.py` imports it at the
+    top of the file and then compared against its own `("SUCCEEDED", "FAILED")` 650 lines later,
+    and `mcp/sweep.py` carried a third copy. Re-typing a set that agrees is harmless until it does
+    not: `screening.py` held a fourth notion of terminality and classified an exhausted run as a
+    failure for exactly as long as nobody compared them.
+    """
+
+    import inspect
+
+    import etalon.campaign.sweep as campaign_sweep
+    import etalon.mcp.sweep as mcp_sweep
+    from etalon.boundary.screen import TERMINAL_RUN_STATUSES
+
+    assert set(TERMINAL_RUN_STATUSES) == {"SUCCEEDED", "FAILED"}
+    for module in (campaign_sweep, mcp_sweep):
+        source = inspect.getsource(module)
+        assert '("SUCCEEDED", "FAILED")' not in source, module.__name__
+        assert '{"SUCCEEDED", "FAILED"}' not in source, module.__name__
+        assert "TERMINAL_RUN_STATUSES" in source, module.__name__
+
+
+# -- which tiers judge the pose, decided from what they contain ---------------
+
+
+def _revision_file(workspace, revision_id, tiers, stages):
+    """One run's recorded revision, in the shape MolCascade writes."""
+
+    import json
+
+    out = workspace / "revisions"
+    out.mkdir(parents=True, exist_ok=True)
+    (out / f"{revision_id}.json").write_text(json.dumps({
+        "revision_id": revision_id,
+        "revision_schema_version": 1,
+        "config": {
+            "name": "c", "schema_version": 2,
+            "metadata": {"tiers": tiers},
+            "stages": stages,
+        },
+    }), encoding="utf-8")
+
+
+def test_a_pose_tier_is_recognised_by_its_backend_not_its_name(tmp_path) -> None:
+    """`STRUCTURAL_TIERS` was a set of two tier ids, so a rename turned the guard off.
+
+    Measured on a CRBN tri-Trp fragment campaign: its pose tiers were named `f7_redock` and
+    `f8_pose_metrics`, the redock tier deleted six known actives -- four of them at 5.78, 6.02,
+    6.18 and 6.97 Angstrom, including lenalidomide and 5-hydroxythalidomide -- and the refusal
+    read "widen it or drop the tier". That is the one remedy a pose check must never be offered,
+    and a legitimate rename is all it took.
+    """
+
+    from etalon.campaign.calibrate import STRUCTURAL_BACKENDS, structural_tiers
+
+    assert "docking.redock_consistency" in STRUCTURAL_BACKENDS
+    assert "derived.pose_strain" in STRUCTURAL_BACKENDS
+    assert "derived.normalized_docking_score" in STRUCTURAL_BACKENDS
+
+    revision = "rev-pose"
+    _revision_file(
+        tmp_path, revision,
+        tiers=[
+            {"id": "anything_at_all", "title": "redock", "mode": "all",
+             "criteria": ["my_redock"]},
+            {"id": "also_renamed", "title": "metrics", "mode": "all",
+             "criteria": ["my_strain", "my_le"]},
+            {"id": "t9_docking", "title": "docking", "mode": "all",
+             "criteria": ["docking_score"]},
+            {"id": "f2_properties", "title": "properties", "mode": "all",
+             "criteria": ["window"]},
+        ],
+        stages=[
+            {"id": "my_redock", "plugin": "docking.redock_consistency@0.1.0"},
+            {"id": "my_strain", "plugin": "derived.pose_strain@0.1.0"},
+            {"id": "my_le", "plugin": "derived.normalized_docking_score@0.1.0"},
+            {"id": "docking_score", "plugin": "docking.unidock@0.2.0"},
+            {"id": "window", "plugin": "chemistry.rdkit_property_range_gate@0.1.0"},
+        ],
+    )
+
+    screen = SimpleNamespace(workspace=tmp_path)
+    result = ScreenResult("panel", revision, "SUCCEEDED", ())
+    found, why_not = structural_tiers(screen, result)
+
+    assert why_not is None
+    assert found == {"anything_at_all", "also_renamed"}, found
+    # The docking tier scores the molecule; it is droppable and must not be protected.
+    assert "t9_docking" not in found
+    assert "f2_properties" not in found
+
+
+def test_a_criterion_gate_also_makes_its_tier_structural(tmp_path) -> None:
+    """A criterion compiles to a stage of its own name and a `__gate` beside it.
+
+    The pose-judging backend can be on either, so both are checked: `redock_consistency` is the
+    criterion while `derived.numeric_evidence_gate` is its threshold, and a tier whose pose
+    backend sits only on the gate stage is still a pose tier.
+    """
+
+    from etalon.campaign.calibrate import structural_tiers
+
+    revision = "rev-gate"
+    _revision_file(
+        tmp_path, revision,
+        tiers=[{"id": "zz", "title": "t", "mode": "all", "criteria": ["strain"]}],
+        stages=[
+            {"id": "strain", "plugin": "features.rdkit_properties@0.1.0"},
+            {"id": "strain__gate", "plugin": "derived.pose_strain@0.1.0"},
+        ],
+    )
+    found, why_not = structural_tiers(SimpleNamespace(workspace=tmp_path),
+                                      ScreenResult("p", revision, "SUCCEEDED", ()))
+    assert why_not is None and found == {"zz"}
+
+
+def test_a_version_bump_does_not_turn_the_guard_off(tmp_path) -> None:
+    """Matched on the plugin id before `@`, so `@0.2.0` is still the same backend."""
+
+    from etalon.campaign.calibrate import structural_tiers
+
+    revision = "rev-bump"
+    _revision_file(
+        tmp_path, revision,
+        tiers=[{"id": "r", "title": "t", "mode": "all", "criteria": ["rd"]}],
+        stages=[{"id": "rd", "plugin": "docking.redock_consistency@9.9.9"}],
+    )
+    found, why_not = structural_tiers(SimpleNamespace(workspace=tmp_path),
+                                      ScreenResult("p", revision, "SUCCEEDED", ()))
+    assert why_not is None and found == {"r"}
+
+
+def test_an_unreadable_revision_says_so_rather_than_answering_no(tmp_path) -> None:
+    """Unevaluable is not false, and here the two have opposite consequences.
+
+    "Not structural" offers "widen it or drop the tier". "Could not be read" has to fall back to
+    the shipped names and say that it did, because a pose tier told to drop itself is the failure
+    this whole check exists to prevent.
+    """
+
+    from etalon.campaign.calibrate import structural_tiers
+
+    screen = SimpleNamespace(workspace=tmp_path)
+    found, why_not = structural_tiers(screen, ScreenResult("p", "absent", "SUCCEEDED", ()))
+    assert found == frozenset()
+    assert why_not is not None and "no recorded revision" in why_not
+
+    # A screen double with no workspace at all must not raise: an exception here is caught
+    # upstream as "per-tier retention unreadable", which loses the whole measurement over one
+    # field.
+    found, why_not = structural_tiers(object(), ScreenResult("p", "x", "SUCCEEDED", ()))
+    assert found == frozenset()
+    assert why_not is not None and "could not be read" in why_not
+
+
+def test_a_consistency_check_is_not_an_accuracy_check(tmp_path) -> None:
+    """The redock tier's refusal named the one cause its own evidence denies.
+
+    `docking.redock_consistency` opens its module docstring with "Independent re-search and
+    fixed-frame pose consistency, never pose accuracy", calls the 2 Angstrom cutoff "an
+    engineering default here, not a validation", and stamps
+    `"interpretation": "prediction_consistency_not_crystal_pose_accuracy"` into every row it
+    emits.  ETALON read that metric, classified its tier as pose-judging -- which it is -- and
+    then told the operator the docking had placed the molecule badly.
+
+    Measured on SND1 pocket_A_w401 with two co-crystal ligands in the panel: C26A2_QOY scored
+    4.04 and C26A6_QOV 4.47 on this metric and were both deleted, while their docked poses sat
+    1.09 and 1.02 Angstrom from their crystal poses -- correct by the conventional criterion.
+    The best score on the panel, 0.25, belonged to a decoy whose pose is 2.6 Angstrom off the
+    pocket centre.  The metric was anti-correlated with pose correctness, and the refusal sent
+    the operator to inspect two poses that were right.
+    """
+
+    from etalon.campaign.calibrate import (
+        ACCURACY,
+        CONSISTENCY,
+        CONSISTENCY_BACKENDS,
+        pose_tiers,
+    )
+
+    assert set(CONSISTENCY_BACKENDS) == {"docking.redock_consistency"}
+    # Pose strain and the normalized score judge the coordinates themselves, not search agreement.
+    assert "derived.pose_strain" not in CONSISTENCY_BACKENDS
+    assert "derived.normalized_docking_score" not in CONSISTENCY_BACKENDS
+
+    revision = "rev-measures"
+    _revision_file(
+        tmp_path, revision,
+        tiers=[
+            {"id": "renamed_redock", "title": "redock", "mode": "all",
+             "criteria": ["my_redock"]},
+            {"id": "renamed_metrics", "title": "metrics", "mode": "all",
+             "criteria": ["my_strain", "my_le"]},
+            {"id": "mixed_tier", "title": "both", "mode": "all",
+             "criteria": ["my_redock2", "my_strain2"]},
+            # Same tier with the criteria the other way round. One order alone lets an
+            # unconditional "last one wins" pass by accident, which is how this test first
+            # failed to catch its own reversion.
+            {"id": "mixed_reversed", "title": "both", "mode": "all",
+             "criteria": ["my_strain2", "my_redock2"]},
+            {"id": "ordinary", "title": "properties", "mode": "all", "criteria": ["window"]},
+        ],
+        stages=[
+            {"id": "my_redock", "plugin": "docking.redock_consistency@0.1.0"},
+            {"id": "my_strain", "plugin": "derived.pose_strain@0.1.0"},
+            {"id": "my_le", "plugin": "derived.normalized_docking_score@0.1.0"},
+            {"id": "my_redock2", "plugin": "docking.redock_consistency@0.1.0"},
+            {"id": "my_strain2", "plugin": "derived.pose_strain@0.1.0"},
+            {"id": "window", "plugin": "chemistry.rdkit_property_range_gate@0.1.0"},
+        ],
+    )
+
+    measures, why_not = pose_tiers(
+        SimpleNamespace(workspace=tmp_path), ScreenResult("panel", revision, "SUCCEEDED", ())
+    )
+
+    assert why_not is None
+    assert measures["renamed_redock"] == CONSISTENCY
+    assert measures["renamed_metrics"] == ACCURACY
+    # A tier holding both kinds reports accuracy: offering "revisit the threshold" on a tier that
+    # carries a real pose check is the costlier of the two mistakes.
+    assert measures["mixed_tier"] == ACCURACY
+    assert measures["mixed_reversed"] == ACCURACY, "accuracy must win regardless of order"
+    assert "ordinary" not in measures
+
+
+def test_the_consistency_refusal_names_the_search_and_not_the_pose() -> None:
+    """Three refusals, not two, and the middle one is the one SND1 and CRBN both needed."""
+
+    from etalon.campaign.calibrate import ACCURACY, CONSISTENCY, Calibration, TierVerdict
+
+    def refusal(measures: str | None, structural: bool) -> str:
+        tier = TierVerdict(
+            tier_id="t9", title="redock", entering=8, surviving=3,
+            lost_actives=("QOY", "QOV"), lost_inactives=(),
+            structural=structural, measures=measures,
+        )
+        reasons = Calibration(
+            revision_id="r", run_id="p", outcome="SUCCEEDED", panel_size=8, actives=2,
+            registered=8, tiers=(tier,), finalize=(), separation=(),
+        ).refusals()
+        return next(r for r in reasons if "t9" in r)
+
+    consistency = refusal(CONSISTENCY, True)
+    accuracy = refusal(ACCURACY, True)
+    molecular = refusal(None, False)
+
+    # The consistency refusal must name the search, decline the false diagnosis, and say which
+    # measurement settles it -- the co-crystal comparison, which is the only discriminating one.
+    assert "SEARCH" in consistency
+    assert "does not mean the pose is wrong" in consistency
+    assert "co-crystal" in consistency and "crystal pose" in consistency
+    assert "exhaustiveness" in consistency and "box" in consistency
+    assert "placed that molecule badly" not in consistency
+
+    # The accuracy refusal keeps the old diagnosis, which is correct for a real pose check.
+    assert "placed that molecule badly" in accuracy
+    assert "do NOT drop it" in accuracy
+
+    # Neither pose refusal may offer the molecular remedy.
+    for text in (consistency, accuracy):
+        assert "widen it or drop the tier" not in text
+    assert "widen it or drop the tier" in molecular
+
+    # The three are distinct: a single branch collapsing two of them is the defect.
+    assert len({consistency, accuracy, molecular}) == 3
+
+
+def test_a_stored_calibration_says_which_kind_of_pose_check_refused_it() -> None:
+    """Without the field a re-read of a stored verdict cannot tell the two refusals apart."""
+
+    from etalon.campaign.calibrate import CONSISTENCY, TierVerdict
+
+    plain = TierVerdict("d2", "physchem", 8, 8, (), ())
+    pose = TierVerdict("t9", "redock", 8, 3, ("QOY",), (), structural=True, measures=CONSISTENCY)
+
+    assert plain.as_dict()["measures"] is None
+    assert plain.as_dict()["structural"] is False
+    assert pose.as_dict()["measures"] == CONSISTENCY
+    assert pose.as_dict()["structural"] is True
+
+
+def test_the_shipped_fallback_knows_which_of_its_two_pose_tiers_is_which(tmp_path) -> None:
+    """An unreadable revision still has to distinguish the two shipped pose tiers.
+
+    The fallback is reached when the revision cannot be read, which is a real state -- a run
+    whose workspace moved.  Falling back to "both are accuracy checks" would restore exactly
+    the wrong refusal for `t9_redock`, which is the shipped name of the consistency tier.
+    """
+
+    from etalon.campaign.calibrate import (
+        ACCURACY,
+        CONSISTENCY,
+        LEGACY_STRUCTURAL_TIERS,
+        LEGACY_TIER_MEASURES,
+    )
+
+    assert set(LEGACY_TIER_MEASURES) == set(LEGACY_STRUCTURAL_TIERS)
+    assert LEGACY_TIER_MEASURES["t9_redock"] == CONSISTENCY
+    assert LEGACY_TIER_MEASURES["t10_docking_metrics"] == ACCURACY
+
+
+def test_calibrate_carries_the_pose_measure_all_the_way_to_the_refusal(tmp_path) -> None:
+    """End to end: the classification is useless if `calibrate` does not wire it through.
+
+    `pose_tiers` can be right and `refusals` can be right while `_verdict` drops the field
+    between them, and every unit test on either end still passes.  That is what happened: the
+    reversion that stops `_verdict` passing `measures` broke nothing.
+    """
+
+    from etalon.campaign.calibrate import CONSISTENCY, calibrate
+
+    revision = "rev-wired"
+    _revision_file(
+        tmp_path, revision,
+        tiers=[{"id": "whatever_we_call_it", "title": "redock", "mode": "all",
+                "criteria": ["redock_consistency"]}],
+        stages=[{"id": "redock_consistency", "plugin": "docking.redock_consistency@0.1.0"}],
+    )
+
+    class PoseScreen(ScoredScreen):
+        workspace = tmp_path
+
+        def recall(self, run_id: str, *, panel_size: int | None = None) -> dict[str, object]:
+            return {
+                "registered": len(ALK2_PANEL),
+                "tiers": [{
+                    "tier_id": "whatever_we_call_it", "title": "redock",
+                    "entering": 8, "surviving": 3,
+                    "lost": [ALK2_PANEL[0].parent_id],
+                }],
+                "finalize": [],
+                "notes": [],
+            }
+
+    measured = calibrate(
+        PoseScreen(),
+        ScreenResult("panel", revision, "SUCCEEDED",
+                     (stage("docking_score_2", "SUCCEEDED", artifact="artifact:sha256:aa"),)),
+        ALK2_PANEL,
+    )
+
+    tier = measured.tiers[0]
+    assert tier.structural is True
+    assert tier.measures == CONSISTENCY, "the measure was dropped between pose_tiers and refusals"
+    assert measured.as_dict()["tiers"][0]["measures"] == CONSISTENCY
+
+    refusal = next(r for r in measured.refusals() if "whatever_we_call_it" in r)
+    assert "SEARCH" in refusal
+    assert "placed that molecule badly" not in refusal
+    assert "widen it or drop the tier" not in refusal
+
+
+def test_two_cuda_laned_runs_in_one_process_are_refused() -> None:
+    """A thread per card in one process silently destroys both runs.
+
+    MolCascade pins a shard's device with two pieces of process-global state:
+    `shards._WORKER_DEVICE`, a module variable, and `CUDA_VISIBLE_DEVICES` via
+    `devices.pinned_device`, whose own docstring says it restores the previous value "so an
+    in-process single-lane run does not leak its pinning into the rest of the program". One run
+    at a time is the contract and nothing said so where a caller of `Screen.run` would read it.
+
+    The damage is not that a batch lands on the wrong card. `shards._execute_shard` re-stamps a
+    task whose device disagrees with the global, and `shards._replace_device` rebuilds the
+    ShardTask field by field while omitting `side_inputs`, which carries
+    `field(default_factory=dict)` -- so the rebuilt task gets an empty one and the shard dies
+    with "was given no files for side input 'conformers'": a message about geometry that is
+    really about a device.
+
+    Measured on the SND1 v2 sweep. Four batches ran as four threads of one process, each
+    `screen.run(..., workers=4, devices=(d,))` for d in cuda:0..3. All four reached
+    docking_score and all four failed there, each after hours: shard 0 docked 20,000 molecules
+    while shard 1 died in seconds, and the error surfaced only when the pool drained. Eight
+    GPU-hours on four cards for four runs that could not have succeeded. The same batch resumed
+    afterwards as the only run in its own process went straight through docking to stage 16.
+    """
+
+    from etalon.boundary.screen import (
+        _IN_FLIGHT_LANES,
+        ConcurrentLanesRefused,
+        _claim_lanes,
+        _release_lanes,
+    )
+
+    _IN_FLIGHT_LANES.clear()
+    try:
+        _claim_lanes("batch_0001", ("cuda:0",))
+        with pytest.raises(ConcurrentLanesRefused) as refused:
+            _claim_lanes("batch_0002", ("cuda:1",))
+
+        message = str(refused.value)
+        # The refusal has to name the real cause, because the symptom names the wrong subsystem.
+        assert "process-global" in message
+        assert "_WORKER_DEVICE" in message and "CUDA_VISIBLE_DEVICES" in message
+        assert "side input" in message
+        # And the remedy, which is not something the caller can guess from the symptom.
+        assert "one batch per OS process" in message
+        # Both runs are named, so a log line identifies which pair collided.
+        assert "batch_0001" in message and "batch_0002" in message
+
+        _release_lanes("batch_0001", ("cuda:0",))
+        _claim_lanes("batch_0002", ("cuda:1",))
+        _release_lanes("batch_0002", ("cuda:1",))
+        assert not _IN_FLIGHT_LANES
+    finally:
+        _IN_FLIGHT_LANES.clear()
+
+
+def test_concurrent_cpu_runs_are_left_alone() -> None:
+    """The refusal is about CUDA pinning, and refusing CPU runs would be collateral.
+
+    `pinned_device` returns immediately for a non-CUDA device and every CPU task's device equals
+    the global, so the re-stamp path that loses side inputs is never taken. Two CPU runs in one
+    process collide over nothing.
+    """
+
+    from etalon.boundary.screen import _IN_FLIGHT_LANES, _claim_lanes, _release_lanes
+
+    _IN_FLIGHT_LANES.clear()
+    try:
+        _claim_lanes("one", ("cpu",))
+        _claim_lanes("two", ("cpu",))
+        # Nothing is tracked, so nothing can be refused.
+        assert not _IN_FLIGHT_LANES
+        _release_lanes("one", ("cpu",))
+        _release_lanes("two", ("cpu",))
+
+        # A run naming no lanes at all is likewise untracked.
+        _claim_lanes("three", ())
+        assert not _IN_FLIGHT_LANES
+    finally:
+        _IN_FLIGHT_LANES.clear()
+
+
+def test_a_failing_run_releases_its_lanes() -> None:
+    """A run that raises must not wedge the process against every later run.
+
+    The claim is taken before the runner and released in a `finally`, because the alternative --
+    releasing after a successful return -- turns one crashed batch into a campaign that can never
+    screen again in that process, and the supervisor's own retry is the first thing it breaks.
+    """
+
+    from etalon.boundary.screen import _IN_FLIGHT_LANES, _claim_lanes, _release_lanes
+
+    _IN_FLIGHT_LANES.clear()
+    try:
+        def failing_run() -> None:
+            _claim_lanes("boom", ("cuda:0",))
+            try:
+                raise RuntimeError("the stage blew up")
+            finally:
+                _release_lanes("boom", ("cuda:0",))
+
+        with pytest.raises(RuntimeError, match="blew up"):
+            failing_run()
+        assert not _IN_FLIGHT_LANES, "a crashed run left its lane claimed"
+
+        # The next run gets the card.
+        _claim_lanes("after", ("cuda:0",))
+        _release_lanes("after", ("cuda:0",))
+    finally:
+        _IN_FLIGHT_LANES.clear()
+
+
+def test_screen_run_claims_lanes_around_the_runner(tmp_path) -> None:
+    """End to end: the guard is useless if `Screen.run` does not take it.
+
+    Asserted against the real method rather than the helpers, because the helpers can both be
+    right while `run` never calls them -- which is the only way this defect could come back.
+    """
+
+    import threading
+
+    from etalon.boundary.screen import _IN_FLIGHT_LANES, ConcurrentLanesRefused, Screen
+
+    entered = threading.Event()
+    release = threading.Event()
+    observed: list[BaseException | None] = []
+
+    class SlowRunner:
+        def __init__(self, workspace, *, plugins, resources) -> None:  # noqa: ANN001, ARG002
+            pass
+
+        def run(self, pipeline, *, run_id, resume):  # noqa: ANN001, ARG002
+            entered.set()
+            release.wait(timeout=10)
+            return SimpleNamespace(run_id=run_id or "generated")
+
+        def load_run(self, run_id):  # noqa: ANN001
+            return SimpleNamespace(status="SUCCEEDED", stages=())
+
+    plan = SimpleNamespace(
+        revision_id="rev",
+        _internal={"registry": object(), "pipeline": object()},
+    )
+
+    _IN_FLIGHT_LANES.clear()
+    from etalon.boundary.infra import load
+    load("molcascade")
+    import molcascade.runtime as runtime
+
+    real_runner = runtime.LocalRunner
+    runtime.LocalRunner = SlowRunner
+    try:
+        screen = Screen.__new__(Screen)
+        object.__setattr__(screen, "workspace", tmp_path)
+        object.__setattr__(screen, "read_only", False)
+
+        def first() -> None:
+            try:
+                screen.run(plan, run_id="first", workers=1, devices=("cuda:0",))
+                observed.append(None)
+            except BaseException as error:  # noqa: BLE001
+                observed.append(error)
+
+        thread = threading.Thread(target=first, daemon=True)
+        thread.start()
+        assert entered.wait(timeout=10), f"the first run never reached the runner: {observed}"
+
+        # While the first is inside the runner, the lane is claimed.
+        assert _IN_FLIGHT_LANES, "Screen.run did not claim its lane"
+        with pytest.raises(ConcurrentLanesRefused):
+            screen.run(plan, run_id="second", workers=1, devices=("cuda:1",))
+
+        release.set()
+        thread.join(timeout=10)
+        assert observed == [None], f"the first run did not finish cleanly: {observed}"
+        assert not _IN_FLIGHT_LANES, "Screen.run did not release its lane"
+    finally:
+        runtime.LocalRunner = real_runner
+        _IN_FLIGHT_LANES.clear()

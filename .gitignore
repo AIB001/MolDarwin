@@ -1,0 +1,26 @@
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+# Scratch the falsification probes build. The recorded results under findings/ are the
+# durable part; the trees the probes create are not.
+/tmp-*
+/runs/
+/pytest-of-*/
+
+# Keep local research notes and records local. The MCP resources for findings and
+# architectural decisions report their absence when these directories are not present.
+/findings/
+/docs/*
+# Public interface contracts and implementation handoffs are versioned.
+!/docs/thin-harness/
+
+# Chinese-language notes for this machine's install and the SND1 campaign. Same reason as
+# /docs/: a record of one run, carrying absolute paths, that would drift from the code.
+/docs-zh/
+
+# Stray generation logs written beside the repository by campaign scripts.
+/gen_*.log
