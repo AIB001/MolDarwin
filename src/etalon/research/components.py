@@ -172,18 +172,26 @@ def record_json(journal, payload, directory, *, source_kind, bindings=None, capa
     """Immutable ordinary Artifact; complete bytes retained, no custom DB table.
 
     `capability` names what produced this record -- an MCP tool name, a skill slug or a
-    registered executor id -- and lands in `bindings["produced_by"]`. A caller that does
-    not say gets `not_recorded`, never a guess (`research/capability_attribution.py` has
-    the reasons, including why `source_kind` does not answer this and must not be
-    repurposed). Attribution is `used`-class information about the record's making: it
-    carries no admission and says nothing about whether the capability was appropriate.
+    registered executor id -- and lands in `bindings["produced_by"]`. It is the *more
+    specific* claim and is the only thing this seam contributes: the verb is merely the
+    entry point to whatever skill or executor actually ran, so a caller that knows the
+    latter says so here and outranks the dispatch layer.
+
+    The guarantee that a record carries attribution at all does **not** live here. It lives
+    at `ResearchJournal.record`, which every `Record` reaches and which stamps the running
+    verb, or `not_recorded`, for anything that arrives without one
+    (`research/capability_attribution.stamp`). A caller that says nothing therefore gets
+    `not_recorded`, never a guess, whether it comes through this function or not.
+    Attribution is `used`-class information about the record's making: it carries no
+    admission and says nothing about whether the capability was appropriate.
     """
     from .capability_attribution import with_attribution
-    # `with_attribution` reads the executing verb when no name is given, so this seam holds no
-    # branch of its own: one definition of "who produced this", applied wherever bindings are
-    # assembled rather than re-implemented per write site.
-    bindings = with_attribution(bindings, capability, basis=capability_basis,
-                                version=capability_version)
+    # Only the declared name is applied here, and only when there is one. Writing the default
+    # at both seams would be two places deciding one thing; the floor is `journal.record`'s,
+    # and a block already present is never overwritten there either.
+    if capability is not None:
+        bindings = with_attribution(bindings, capability, basis=capability_basis,
+                                    version=capability_version)
     from etalon.data.artifacts import write_json
     from .schema import Artifact
     content = json.loads(canonical(payload))

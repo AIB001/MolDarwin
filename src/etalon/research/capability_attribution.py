@@ -21,6 +21,15 @@ So attribution goes in `bindings`, which is free-form JSON already used to carry
 evidence_refs, under one reserved key. Nothing in the serialized `Artifact` format or its
 digest rules changes (`schema.py:32-34`).
 
+**Where it is applied: `ResearchJournal.record`, the seam every `Record` passes through.**
+`stamp` below is called from there, so a write site cannot miss attribution by forgetting
+it. The first attempt wired this at `components.record_json` and described that function as
+the one *"every artifact write funnels through"*; the census says otherwise -- 40 calls
+reach `ResearchJournal.record` and one of them is `record_json`. A guarantee that depends
+on 39 sites each remembering it is not a guarantee, it is a list, and the cost of a missed
+entry is an under-counted census denominator that reads afterwards exactly like a
+capability that produced nothing.
+
 **Declared, never inferred.** A caller that does not say which capability it is gets
 `not_recorded`, not a guess. CLAUDE.md constraint 7: a quantity that cannot be obtained is
 reported as not obtained. A guessed attribution would be worse than none here, because the
@@ -152,6 +161,68 @@ def with_attribution(bindings: dict[str, Any] | None, capability: str | None = N
             capability, basis = running, MCP_TOOL
     merged[KEY] = attribution(capability, basis=basis, version=version)
     return merged
+
+
+def stamp(value: Any) -> Any:
+    """Write the attribution into a record's `bindings`, at the journal's write seam.
+
+    This is the whole of the per-site discipline, held in one place. It was previously held
+    at `components.record_json`, whose own test docstring claimed *"every artifact write
+    funnels through"* it. That claim was false and measured so: of the 40 calls that reach
+    `ResearchJournal.record`, exactly one is `record_json`. The other 39 build their own
+    `Record` -- 27 of them a `Record` that owns a `bindings` mapping -- so they produced
+    unattributed records and the verb census counted them in nobody's column. By the
+    hardening criterion that is layer 1: an unattributed record and a record produced
+    outside any verb are byte-identical afterwards, so the mistake cannot be told from the
+    correct thing once the session ends.
+
+    Three things it deliberately does not do.
+
+    **It does not stamp twice or overwrite.** A `bindings` that already carries the key is
+    returned untouched -- not merely equal, the same object -- so a caller's more specific
+    declared name survives and the record's identity does not move under it.
+
+    **It touches only the reserved block.** `bindings` is the one place ETALON's own
+    annotations about a record live (`reserved_bindings.py`); a record's payload is the
+    caller's document and is not ETALON's to annotate. Records with no `bindings` mapping
+    -- `Observation`, `Contrast`, `Revision`, `TaskSplit` and the three method records --
+    are therefore left alone rather than grown a field, because inventing one would put
+    ETALON's annotation inside a typed schema whose fields mean something else.
+
+    **It rebinds the field rather than mutating the dict.** Two reasons, each from a real
+    shape in this repository. `research/pose.py:196` passes one caller-owned dict
+    (`request['input_identity']`) as the bindings of every artifact in a loop; mutating it
+    would write ETALON's annotation into the caller's own request and into every record
+    sharing it. And a record's identity is `digest(as_dict())`, so `dataclasses.replace`
+    would leave the caller holding an object whose `.id` is not the one stored -- which
+    `rows.py:27`, `method_execution.py:213` and `journal.audit_json` all read immediately
+    after recording. Rebinding on the frozen instance keeps `value.id` and the stored
+    identity the same fact.
+
+    Stamped at the write, never backfilled, in the discipline `CLAUDE.md` constraint 4 sets
+    for `admission`: a record already in the journal is never reopened to add this.
+
+    **What it still does not reach, named rather than left to be discovered.**
+    `ResearchJournal._put` is the lower seam, and one caller writes `Record`s through it
+    without going by `record`: `evidence_window.release_outcomes`, which registers a
+    controlled release and its outcome artifacts in a single transaction. Its outcome
+    identities are pinned byte-for-byte against the frozen window slot (`_check_outcome`
+    compares `canonical(artifact.as_dict())` with `slot["expected_artifact"]`), so stamping
+    them would add attribution to an identity frozen before the write -- a backfill, which
+    is the one thing this must not do. Those records count as `not_recorded` in the census,
+    which is exactly what they are.
+    """
+
+    bindings = getattr(value, "bindings", None)
+    if not isinstance(bindings, dict) or KEY in bindings:
+        return value
+    merged = with_attribution(bindings)
+    # The same refusal the record types run in `__post_init__`. Cheap, and it means a
+    # malformed block can never be the one thing that lands under a reserved name.
+    from .reserved_bindings import validate_bindings
+    validate_bindings(merged, record=type(value).__name__.lower())
+    object.__setattr__(value, "bindings", merged)
+    return value
 
 
 def read_attribution(record: dict[str, Any]) -> dict[str, Any]:

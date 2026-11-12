@@ -91,7 +91,9 @@ class Coupling(Record):
 class Experiment(Record):
     task_id: str
     kind: str
-    bindings: dict[str, str]
+    # Same shape as `Artifact.bindings`: free-form, and also where ETALON's own annotations
+    # live, so a value may be a nested block rather than a string -- `produced_by` is one.
+    bindings: dict[str, Any]
     inputs: tuple[str, ...]
     method_id: str
     protocol_instance_id: str

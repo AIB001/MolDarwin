@@ -7,6 +7,7 @@ from pathlib import Path
 from etalon.active.schema import canonical, digest
 from etalon.active.store import CampaignStore, StateError
 from etalon.boundary.prism_v1 import file_identity
+from .capability_attribution import stamp
 from .schema import (
     Artifact, Contrast, Coupling, Experiment, MethodEvaluation, MethodUse, MethodVersion,
     Observation, Record, Revision, TaskSplit, method_record_from_dict,
@@ -77,6 +78,13 @@ class ResearchJournal:
         if not isinstance(value, (Artifact, Experiment, Observation, Contrast, Revision, TaskSplit,
                                   MethodVersion, MethodUse, MethodEvaluation)):
             raise TypeError('unsupported research record type')
+        # Which capability produced this record is stamped here, at the one seam every Record
+        # reaches, and not at each of the 40 call sites. A site that builds its own Record is
+        # the ordinary case, not the exception, so a per-site rule under-counts the verb census
+        # by exactly the sites nobody enumerated. Applied before `value.id` is read anywhere
+        # below, so the identity the caller keeps is the identity stored; never applied to a
+        # record already in the journal (see `capability_attribution.stamp`).
+        value = stamp(value)
         # Frozen dataclasses may contain mutable nested dicts. Reparse a canonical snapshot
         # so validation, digest and persisted bytes all refer to the same payload.
         if isinstance(value, (MethodVersion, MethodUse, MethodEvaluation)):

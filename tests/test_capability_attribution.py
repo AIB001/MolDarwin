@@ -109,7 +109,17 @@ def test_source_kind_is_not_repurposed_as_attribution():
 
 
 def test_record_json_accepts_the_capability_and_leaves_the_artifact_format_alone():
-    """Wired at `record_json`, which every artifact write funnels through."""
+    """`record_json` carries the *declared* name. It is not where the guarantee lives.
+
+    This docstring previously read "wired at `record_json`, which every artifact write
+    funnels through". That was false, and the census says by how much: 40 calls reach
+    `ResearchJournal.record` and exactly one of them is `record_json`. Every other write
+    site builds its own `Record`, so under the old wiring 27 bindings-bearing sites
+    produced records the verb census could not attribute. The guarantee now lives at
+    `ResearchJournal.record` and is held by
+    `test_a_bindings_bearing_record_cannot_reach_the_journal_unattributed`; what stays here
+    is the ability to declare something more specific than the dispatched verb.
+    """
 
     import inspect
 
@@ -257,3 +267,207 @@ def test_the_running_verb_is_read_where_bindings_are_assembled_not_per_write_sit
     assert "current_capability" not in inspect.getsource(record_json), (
         "the write seam grew its own copy of the consultation again"
     )
+
+
+# -- the seam: every Record lands at ResearchJournal.record --------------------------------------
+
+
+def _journal(tmp_path):
+    from etalon.active.schema import CampaignSpec, Endpoint
+    from etalon.active.store import CampaignStore
+    from etalon.research.journal import ResearchJournal
+
+    store = CampaignStore(tmp_path / "research.sqlite")
+    store.configure(CampaignSpec("attribution", 0, "wall_second", "attribution-fixture"),
+                    [Endpoint("attribution", "fixture", "unmeasured", "count", "fixture/1", 0,
+                              queryable=False)])
+    return ResearchJournal(store)
+
+
+def _artifact(tmp_path, name, payload, **overrides):
+    import json
+
+    from etalon.boundary.prism_v1 import file_identity
+    from etalon.research.schema import Artifact
+
+    path = tmp_path / name
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    fields = {"source_kind": "fixture", "role": "diagnostic", "bindings": {}, **overrides}
+    return Artifact(str(path), **file_identity(path), **fields)
+
+
+def _stored_records(journal):
+    """Every research record in the store, read back the way a census would read them."""
+
+    import json
+
+    with journal.store.connection() as db:
+        return [json.loads(row[0]) for row in
+                db.execute("SELECT body FROM metadata WHERE key LIKE 'research:%'")]
+
+
+def test_attribution_reaches_exactly_the_record_types_that_own_a_bindings_mapping():
+    """Scope. The reserved `bindings` block is ETALON's; a record's payload is not.
+
+    A previous overreach in this area annotated content that belonged to callers' own
+    documents. So the stamp is confined to the one mapping `reserved_bindings.py` already
+    governs, and the types that own it are pinned here: a record type that grows or loses
+    `bindings` changes what the seam can reach, and that is a decision, not a side effect.
+    """
+
+    import dataclasses
+
+    from etalon.research import schema
+
+    types = (schema.Artifact, schema.Experiment, schema.Observation, schema.Contrast,
+             schema.Revision, schema.TaskSplit, schema.MethodVersion, schema.MethodUse,
+             schema.MethodEvaluation)
+    owning = {c.__name__ for c in types
+              if "bindings" in {f.name for f in dataclasses.fields(c)}}
+    assert owning == {"Artifact", "Experiment"}, (
+        "the set of records that can carry attribution changed; the other seven carry no "
+        "bindings mapping and must not be grown one to hold ETALON's annotation")
+
+
+def test_a_bindings_bearing_record_cannot_reach_the_journal_unattributed(tmp_path):
+    """The property, held by its consequence, over the journal rather than a list of sites.
+
+    Nothing below names a write site. Three unrelated real paths write records -- one that
+    builds its own `Artifact` and calls `journal.record` (the shape 27 sites use), one that
+    goes through `record_json`, and `audit_json`, which writes an `Artifact`, an
+    `Experiment` and an `Observation` in a single call -- and then *every* research record
+    in the store is counted. A site nobody enumerated fails this exactly as a known one
+    does, because the thing under test is the census denominator itself: a record that got
+    in without attribution shows up as the `not_recorded` remainder, which is precisely how
+    the defect read before (an under-counted denominator that looks like a capability which
+    produced nothing).
+    """
+
+    from etalon.research.capability_attribution import MCP_TOOL, running_capability
+    from etalon.research.components import record_json
+    from etalon.research.journal import audit_json
+
+    journal = _journal(tmp_path)
+    with running_capability("etalon_probe_verb"):
+        journal.record(_artifact(tmp_path, "raw.json", {"n": 1}))
+        record_json(journal, {"n": 2}, tmp_path / "records", source_kind="fixture")
+        audit_json(journal, _artifact(tmp_path, "audited.json", {"n": 3}),
+                   task_id="attribution-task", selectors={"n": ("n",)})
+
+    carrying = [r for r in _stored_records(journal) if isinstance(r.get("bindings"), dict)]
+    assert len(carrying) >= 4, "the write paths under test produced no bindings-bearing records"
+    out = census(carrying)
+    assert out["not_recorded"] == 0, (
+        f"{out['not_recorded']} of {out['records']} records reached the journal carrying a "
+        "bindings mapping and no attribution: the verb census under-counts by that many, and "
+        "afterwards they are indistinguishable from records produced outside any verb")
+    assert out["by_capability"] == {"etalon_probe_verb": len(carrying)}
+    assert out["by_basis"] == {MCP_TOOL: len(carrying)}
+
+
+def test_a_record_written_outside_any_verb_is_labelled_rather_than_left_blank(tmp_path):
+    """Constraint 7: not obtained is reported as not obtained, and reporting it is a write.
+
+    Direct library use genuinely has no verb to name. The honest value is the one `BASES`
+    already allows and `assessment_role_basis` already uses for the analogous case -- the
+    key present, saying `not_recorded` -- because an omitted key and a record predating
+    attribution read identically, and only one of those is a fact about this record.
+    """
+
+    journal = _journal(tmp_path)
+    identifier = journal.record(_artifact(tmp_path, "outside.json", {"n": 1}))
+    body = journal.get(identifier)
+    assert KEY in body["bindings"], "the attribution was omitted rather than labelled"
+    assert read_attribution(body) == {"capability": NOT_RECORDED, "basis": NOT_RECORDED}
+
+
+def test_the_record_the_caller_holds_keeps_the_identity_that_was_stored(tmp_path):
+    """A record's id is a digest of its body, so stamping moves it. It must move before.
+
+    `rows.py:27` returns `artifact.id` after recording, `method_execution.py:213` uses it as
+    a dict key beside the returned id, and `audit_json` builds an `Observation` around
+    `experiment.id`. If the seam handed back a different identity than the caller's object
+    carries, those three would reference records that are not there.
+    """
+
+    from etalon.research.capability_attribution import running_capability
+
+    journal = _journal(tmp_path)
+    artifact = _artifact(tmp_path, "identity.json", {"n": 1})
+    with running_capability("etalon_probe_verb"):
+        identifier = journal.record(artifact)
+    assert artifact.id == identifier
+    assert journal.get(artifact.id)["bindings"][KEY]["capability"] == "etalon_probe_verb"
+
+
+def test_the_stamp_does_not_reach_into_the_bindings_dict_the_caller_passed(tmp_path):
+    """`pose.py:196` hands one caller-owned dict to every artifact in a loop.
+
+    That dict is `request['input_identity']` -- the caller's own document. Mutating it in
+    place would stamp ETALON's annotation into the request, and into every other record
+    sharing the object. The record carries the block; what the caller passed does not.
+    """
+
+    from etalon.research.capability_attribution import running_capability
+
+    journal = _journal(tmp_path)
+    shared = {"kind": "poses"}
+    with running_capability("etalon_probe_verb"):
+        identifiers = [journal.record(_artifact(tmp_path, name, {"n": n}, bindings=shared))
+                       for n, name in ((1, "a.json"), (2, "b.json"))]
+    assert shared == {"kind": "poses"}, "the caller's own bindings dict was annotated"
+    for identifier in identifiers:
+        body = journal.get(identifier)
+        assert body["bindings"]["kind"] == "poses", "the rest of the bindings must be untouched"
+        assert body["bindings"][KEY]["capability"] == "etalon_probe_verb"
+
+
+def test_the_seam_never_overwrites_a_more_specific_name(tmp_path):
+    """Moving the stamp must not stamp twice or rename someone else's work.
+
+    Both ways a specific name arrives: declared through `record_json`, and already present
+    in the bindings of a record built elsewhere. The verb is only the entry point to
+    whatever skill or executor actually ran, so it never outranks either.
+    """
+
+    from etalon.research.capability_attribution import running_capability
+    from etalon.research.components import record_json
+
+    journal = _journal(tmp_path)
+    with running_capability("etalon_probe_verb"):
+        through = record_json(journal, {"n": 1}, tmp_path / "records", source_kind="fixture",
+                              capability="etalon-step-corpus")
+        prestamped = journal.record(_artifact(
+            tmp_path, "declared.json", {"n": 2},
+            bindings=with_attribution({"kind": "poses"}, "etalon-step-corpus")))
+    for identifier in (through, prestamped):
+        assert read_attribution(journal.get(identifier)) == {
+            "capability": "etalon-step-corpus", "basis": "declared"}
+
+
+def test_attribution_is_stamped_at_the_write_and_never_backfilled(tmp_path):
+    """`CLAUDE.md` constraint 4's discipline, applied to the same class of fact.
+
+    `admission` is written at dispatch and never added afterwards, for the reason this
+    module exists: a value added later is indistinguishable from one that was there. So
+    re-recording a record already in the journal under a different verb must not reopen it,
+    and the journal's own refusal to rewrite an identity must still be the thing standing
+    behind that.
+    """
+
+    from etalon.active.store import StateError
+    from etalon.research.capability_attribution import running_capability
+
+    journal = _journal(tmp_path)
+    artifact = _artifact(tmp_path, "backfill.json", {"n": 1})
+    identifier = journal.record(artifact)
+    assert read_attribution(journal.get(identifier))["capability"] == NOT_RECORDED
+
+    with running_capability("etalon_later_verb"):
+        assert journal.record(artifact) == identifier, "a second write renamed the producer"
+    assert read_attribution(journal.get(identifier))["capability"] == NOT_RECORDED
+
+    body = journal.get(identifier)
+    body["bindings"] = {**body["bindings"], KEY: attribution("etalon_later_verb")}
+    with pytest.raises(StateError), journal.store.connection(write=True) as db:
+        journal._put(db, identifier, body)
