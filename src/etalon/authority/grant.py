@@ -46,55 +46,43 @@ The signature is a keyed digest over those fields. It makes a token non-construc
 -- no dictionary literal produces one -- and it makes tampering visible. It is not a claim that a
 determined caller in the same process cannot mint one, and this docstring is the place that is said
 rather than a README that implies otherwise.
+
+**What moved out.** Signing, expiry, serialisation and the shape of the three refusals now live in
+:mod:`etalon.authority.subject`, which this module and :mod:`etalon.authority.gate` were two copies
+of and :mod:`etalon.authority.method` is the third instance of. The subject -- a parent id *and* a
+content digest -- stayed here, because it is the thing the three disagree about. Not one byte any
+token signs changed, which ``tests/test_method_authority.py`` pins against the signatures recorded
+from a ``git archive HEAD`` checkout rather than against itself.
 """
 
 from __future__ import annotations
 
 import hashlib
-import hmac
-import json
-import os
-import secrets
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from etalon.authority.subject import (
+    NotAuthorized,
+    Signed,
+    campaign_secret,
+    digest_of,
+    require_signed,
+    sign,
+)
+
+#: Kept as a name in this module because it is the import path the rest of the tree uses, and an
+#: import path is part of a module's contract. The definition moved to
+#: :mod:`etalon.authority.subject` when the third instance needed it.
+_campaign_secret = campaign_secret
+
 #: How long an authorization is good for. A build starts within minutes of its check in any
 #: campaign that is working; a token still valid a week later is one that outlived the state it
 #: describes. Short enough to catch a resumed run that skipped re-checking, long enough that a
 #: queue wait does not invalidate a legitimate spend.
 DEFAULT_LIFETIME_HOURS = 24.0
-
-
-class NotAuthorized(PermissionError):
-    """Raised when a spend was attempted without, or past, an authorization."""
-
-
-def _campaign_secret() -> bytes:
-    """The key the signature is taken under.
-
-    Read from ``ETALON_AUTHORITY_KEY`` when set, so that a campaign spanning processes -- a build
-    queued now and driven by tomorrow's interpreter -- can verify tokens it did not mint. Otherwise
-    generated per process.
-
-    The per-process default is the safe one and the surprising one, so it is stated here: tokens do
-    not survive a restart unless the variable is set. That is deliberate. A token surviving a
-    restart is a token outliving the preflight it came from, and the remedy -- re-run a check that
-    costs nothing -- is cheaper than the failure it prevents.
-    """
-
-    supplied = os.environ.get("ETALON_AUTHORITY_KEY", "")
-    if supplied:
-        return supplied.encode("utf-8")
-    global _PROCESS_SECRET
-    if _PROCESS_SECRET is None:
-        _PROCESS_SECRET = secrets.token_bytes(32)
-    return _PROCESS_SECRET
-
-
-_PROCESS_SECRET: bytes | None = None
 
 
 def record_digest(row: Mapping[str, Any]) -> str:
@@ -105,9 +93,7 @@ def record_digest(row: Mapping[str, Any]) -> str:
     authorization that cannot be minted for a perfectly good record.
     """
 
-    return hashlib.sha256(
-        json.dumps(dict(row), sort_keys=True, default=str).encode("utf-8")
-    ).hexdigest()
+    return digest_of(dict(row))
 
 
 def _file_digest(path: Path | None) -> str:
@@ -117,11 +103,15 @@ def _file_digest(path: Path | None) -> str:
 
 
 @dataclass(frozen=True, slots=True)
-class SpendAuthorization:
+class SpendAuthorization(Signed):
     """Permission to spend GPU-time on one molecule, bound to the thing that was checked.
 
     Constructed only by :func:`authorize`. Every field is in the signature, so changing one
     invalidates the token rather than producing a token for different circumstances.
+
+    Signing, expiry and serialisation come from :class:`etalon.authority.subject.Signed`; the field
+    layout and :meth:`covers` stay here, because the subject is the one thing the three
+    authorizations in this package genuinely disagree about.
     """
 
     parent_id: str
@@ -140,26 +130,16 @@ class SpendAuthorization:
     unchecked: tuple[str, ...]
     signature: str
 
-    def _body(self) -> str:
-        return json.dumps(
-            {
-                "parent_id": self.parent_id,
-                "record_sha256": self.record_sha256,
-                "receptor_sha256": self.receptor_sha256,
-                "issued_at": self.issued_at,
-                "expires_at": self.expires_at,
-                "proceeded_under_waiver": list(self.proceeded_under_waiver),
-                "unchecked": list(self.unchecked),
-            },
-            sort_keys=True,
-        )
-
-    def valid(self, *, when: datetime | None = None) -> bool:
-        moment = when or datetime.now(UTC)
-        signed = hmac.new(_campaign_secret(), self._body().encode("utf-8"), hashlib.sha256)
-        if not hmac.compare_digest(signed.hexdigest(), self.signature):
-            return False
-        return moment <= datetime.fromisoformat(self.expires_at)
+    def _signed_fields(self) -> dict[str, Any]:
+        return {
+            "parent_id": self.parent_id,
+            "record_sha256": self.record_sha256,
+            "receptor_sha256": self.receptor_sha256,
+            "issued_at": self.issued_at,
+            "expires_at": self.expires_at,
+            "proceeded_under_waiver": self.proceeded_under_waiver,
+            "unchecked": self.unchecked,
+        }
 
     def covers(self, row: Mapping[str, Any]) -> bool:
         """Whether this token authorises spending on *this* row, not merely on its name.
@@ -175,25 +155,9 @@ class SpendAuthorization:
             and record_digest(row) == self.record_sha256
         )
 
-    def as_dict(self) -> dict[str, Any]:
-        return {
-            "parent_id": self.parent_id,
-            "record_sha256": self.record_sha256,
-            "receptor_sha256": self.receptor_sha256,
-            "issued_at": self.issued_at,
-            "expires_at": self.expires_at,
-            "proceeded_under_waiver": list(self.proceeded_under_waiver),
-            "unchecked": list(self.unchecked),
-            "signature": self.signature,
-        }
-
 
 def _sign(**fields: Any) -> SpendAuthorization:
-    body = json.dumps(fields, sort_keys=True)
-    signature = hmac.new(
-        _campaign_secret(), body.encode("utf-8"), hashlib.sha256
-    ).hexdigest()
-    return SpendAuthorization(**fields, signature=signature)
+    return SpendAuthorization(**fields, signature=sign(fields))
 
 
 @dataclass(frozen=True, slots=True)
@@ -313,35 +277,42 @@ def require(
     Called at the top of every expensive stage. The three refusals are distinct on purpose: a
     missing token, an expired or tampered one, and one that belongs to a different version of the
     row are different mistakes with different fixes, and a single "not authorised" would send a
-    reader looking in the wrong place for all three.
+    reader looking in the wrong place for all three. They are taken by
+    :func:`etalon.authority.subject.require_signed`, which is that skeleton extracted; the messages
+    stay here because only this module knows which function mints the token and what it is minted
+    on, and a refusal that does not say so is a wall.
+
+    The receptor check below is a fourth refusal and deliberately not part of the shared skeleton:
+    it is about a file on disk now rather than about the token, and no other instance has one.
     """
 
     identifier = str(row.get("parent_id", ""))
-    token = grants.get(identifier)
-    if token is None:
-        raise NotAuthorized(
+    token = require_signed(
+        grants.get(identifier),
+        covers=lambda issued: issued.covers(row),
+        when=when,
+        missing=(
             f"no spend authorization for {identifier!r}. The expensive stage takes the output of "
             "etalon.authority.authorize, which runs the preflight and issues nothing for a record "
             "that blocks -- so a missing token means either the check refused this record or it "
             "was never run on it. Run authorize() over the handoff rows and pass what it returns. "
             "See ADR 0006: a guard on the path nobody takes is not a guard, which is why this one "
             "is an argument rather than a recommendation."
-        )
-    if not token.valid(when=when):
-        raise NotAuthorized(
-            f"the authorization for {identifier!r} does not verify or has expired (issued "
-            f"{token.issued_at}, expires {token.expires_at}). A token outliving its preflight "
-            "describes a state nobody has checked recently; re-run authorize(), which costs "
-            "nothing. If it was minted in another process, set ETALON_AUTHORITY_KEY in both."
-        )
-    if not token.covers(row):
-        raise NotAuthorized(
+        ),
+        stale=(
+            f"the authorization for {identifier!r} does not verify or has expired. A token "
+            "outliving its preflight describes a state nobody has checked recently; re-run "
+            "authorize(), which costs nothing. If it was minted in another process, set "
+            "ETALON_AUTHORITY_KEY in both."
+        ),
+        mismatch=(
             f"the authorization for {identifier!r} was minted for a different version of this "
             "record -- the id matches and the content digest does not. Something edited the row "
             "between the check and the spend, so what was ruled on is not what would be built. "
             "This is the taxonomy's WRONG_SUBJECT applied to the authorization itself. Re-run "
             "authorize() on the rows you are actually going to build."
-        )
+        ),
+    )
     if receptor_path is not None and (
         not token.receptor_sha256 or _file_digest(receptor_path) != token.receptor_sha256
     ):

@@ -38,14 +38,12 @@ chose to skip the check, which is a different thing from a check that was never 
 
 from __future__ import annotations
 
-import hashlib
-import hmac
-import json
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, Mapping
 
-from etalon.authority.grant import NotAuthorized, _campaign_secret
+from etalon.authority.grant import NotAuthorized
+from etalon.authority.subject import Signed, digest_of, require_signed, sign
 
 if TYPE_CHECKING:  # pragma: no cover -- import cycle: calibrate reads screen, screen needs no authority
     from etalon.campaign.calibrate import Calibration
@@ -71,9 +69,7 @@ def calibration_digest(calibration: Calibration) -> str:
     same conclusion.
     """
 
-    return hashlib.sha256(
-        json.dumps(calibration.as_dict(), sort_keys=True, default=str).encode("utf-8")
-    ).hexdigest()
+    return digest_of(calibration.as_dict())
 
 
 def _provenance_digest(provenance: Mapping[str, Any] | None) -> str:
@@ -86,17 +82,20 @@ def _provenance_digest(provenance: Mapping[str, Any] | None) -> str:
 
     if not provenance:
         return ""
-    return hashlib.sha256(
-        json.dumps(dict(provenance), sort_keys=True, default=str).encode("utf-8")
-    ).hexdigest()
+    return digest_of(dict(provenance))
 
 
 @dataclass(frozen=True, slots=True)
-class GateAuthorization:
+class GateAuthorization(Signed):
     """Permission to screen at scale with one compiled funnel.
 
     Constructed only by :func:`authorize_gate`. Every field is in the signature, so editing one
     invalidates the token rather than producing a token for different circumstances.
+
+    Signing, expiry and serialisation come from :class:`etalon.authority.subject.Signed`. What stays
+    here is the field layout and :meth:`covers`, whose subject is a single compiled ``revision_id``
+    where a spend token's is an identifier plus a content digest -- the difference that kept the two
+    classes from collapsing into one.
     """
 
     #: The compiled funnel this permits. MolCascade's revision id, not a config path.
@@ -119,29 +118,19 @@ class GateAuthorization:
     expires_at: str
     signature: str
 
-    def _body(self) -> str:
-        return json.dumps(
-            {
-                "revision_id": self.revision_id,
-                "calibration_sha256": self.calibration_sha256,
-                "infrastructure_sha256": self.infrastructure_sha256,
-                "panel_size": self.panel_size,
-                "actives": self.actives,
-                "recall": self.recall,
-                "rankable_engines": list(self.rankable_engines),
-                "unchecked": list(self.unchecked),
-                "issued_at": self.issued_at,
-                "expires_at": self.expires_at,
-            },
-            sort_keys=True,
-        )
-
-    def valid(self, *, when: datetime | None = None) -> bool:
-        moment = when or datetime.now(UTC)
-        signed = hmac.new(_campaign_secret(), self._body().encode("utf-8"), hashlib.sha256)
-        if not hmac.compare_digest(signed.hexdigest(), self.signature):
-            return False
-        return moment <= datetime.fromisoformat(self.expires_at)
+    def _signed_fields(self) -> dict[str, Any]:
+        return {
+            "revision_id": self.revision_id,
+            "calibration_sha256": self.calibration_sha256,
+            "infrastructure_sha256": self.infrastructure_sha256,
+            "panel_size": self.panel_size,
+            "actives": self.actives,
+            "recall": self.recall,
+            "rankable_engines": self.rankable_engines,
+            "unchecked": self.unchecked,
+            "issued_at": self.issued_at,
+            "expires_at": self.expires_at,
+        }
 
     def covers(self, revision_id: str) -> bool:
         """Whether this token permits screening with *this* compiled funnel.
@@ -154,21 +143,6 @@ class GateAuthorization:
         """
 
         return bool(revision_id) and revision_id == self.revision_id
-
-    def as_dict(self) -> dict[str, Any]:
-        return {
-            "revision_id": self.revision_id,
-            "calibration_sha256": self.calibration_sha256,
-            "infrastructure_sha256": self.infrastructure_sha256,
-            "panel_size": self.panel_size,
-            "actives": self.actives,
-            "recall": self.recall,
-            "rankable_engines": list(self.rankable_engines),
-            "unchecked": list(self.unchecked),
-            "issued_at": self.issued_at,
-            "expires_at": self.expires_at,
-            "signature": self.signature,
-        }
 
 
 def authorize_gate(
@@ -224,9 +198,7 @@ def authorize_gate(
         "issued_at": issued.isoformat(),
         "expires_at": (issued + timedelta(hours=float(lifetime_hours))).isoformat(),
     }
-    body = json.dumps(fields, sort_keys=True, default=str)
-    signature = hmac.new(_campaign_secret(), body.encode("utf-8"), hashlib.sha256).hexdigest()
-    return GateAuthorization(**fields, signature=signature)
+    return GateAuthorization(**fields, signature=sign(fields))
 
 
 def require_gate(token: GateAuthorization | None, revision_id: str) -> GateAuthorization:
@@ -234,25 +206,26 @@ def require_gate(token: GateAuthorization | None, revision_id: str) -> GateAutho
 
     Three refusals, and the third is the one worth having: a token that is present, valid and about a
     different revision. That is ``faults``' WRONG_SUBJECT applied to a permission -- calibrating one
-    funnel and screening with another.
+    funnel and screening with another. The skeleton is
+    :func:`etalon.authority.subject.require_signed`; the messages stay here because they have to
+    name this regime's minting route, and a refusal a host cannot act on is a wall.
     """
 
-    if token is None:
-        raise NotAuthorized(
+    return require_signed(
+        token,
+        covers=lambda issued: issued.covers(revision_id),
+        missing=(
             f"no gate authorization for revision {revision_id[:12]}. Screen a known-active panel "
             "through this cascade, call campaign.calibrate.calibrate, then authorize_gate. A gate "
             "nobody tested on known binders is an untested claim applied to every molecule."
-        )
-    if not token.valid():
-        raise NotAuthorized(
-            "gate authorization is expired or its signature does not verify; re-run the panel"
-        )
-    if not token.covers(revision_id):
-        raise NotAuthorized(
-            f"gate authorization is for revision {token.revision_id[:12]}, but the compiled funnel "
-            f"is {revision_id[:12]}. The configuration changed after it was calibrated."
-        )
-    return token
+        ),
+        stale="gate authorization is expired or its signature does not verify; re-run the panel",
+        mismatch=(
+            f"gate authorization is for revision {token.revision_id[:12] if token else ''}, but "
+            f"the compiled funnel is {revision_id[:12]}. The configuration changed after it was "
+            "calibrated."
+        ),
+    )
 
 
 def unauthorized_gate(calibration: Calibration) -> dict[str, Any]:

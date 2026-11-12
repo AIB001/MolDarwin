@@ -288,13 +288,31 @@ def _refusal(error: BaseException) -> str | None:
     *"this is a defect in ETALON ... Report it with this message rather than retrying."* The
     remedy was in the message the whole time, and the hint told the reader to disregard it.
 
+    ``NotAuthorizedMethod`` is the third, and it inherits the first one's hazard by inheriting its
+    type: it is a subclass of ``NotAuthorized``, so it was transient-by-default for the same reason,
+    and it has to be matched *before* its parent or it inherits the gate remedy as well. A method
+    refusal told to calibrate a screening panel is the ``threshold_evidence`` mistake -- a host
+    follows the instruction and arrives back at the same refusal.
+
     The imports are deferred rather than module-scope so this module stays importable without the
     authority and campaign layers, and so the cost is paid on the error path only.
     """
 
     from etalon.authority.grant import NotAuthorized
+    from etalon.authority.method import MINTING_ROUTE, NotAuthorizedMethod
     from etalon.campaign.sweep import SweepError
 
+    if isinstance(error, NotAuthorizedMethod):
+        # Matched before NotAuthorized because it is a subclass of it, and the branch below names
+        # the gate route -- calibrate a panel, call etalon_authorize_gates. That route cannot fix a
+        # method refusal, and a refusal pointing at a remedy that does not apply is the
+        # `threshold_evidence` mistake over again: the host reads an instruction, follows it, and
+        # arrives at the same refusal having learned nothing.
+        return (
+            "This is a refusal, not a transient failure: method.run was dispatched with no "
+            "authorization, or with one that is expired, tampered with, or minted for a different "
+            "method request. Calling again unchanged will refuse again. " + MINTING_ROUTE
+        )
     if isinstance(error, NotAuthorized):
         return (
             "This is a refusal, not a transient failure: a gate authorization is missing, expired "

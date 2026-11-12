@@ -28,21 +28,50 @@ def register(mcp: Any) -> None:
     @mcp.tool()
     @threaded_tool(Cost.FREE)
     def etalon_action_prepare(request: dict[str, Any]) -> str:
-        """FREE. Validate and bind one supported host-selected action without dispatch or a skill gate."""
+        """FREE. Validate and bind one supported host-selected action without dispatch or a skill gate.
+
+        For operation=method.run this also mints the method authorization over the declaration
+        -- method_id, argv, the content digests of the declared files, inputs and outputs -- and
+        returns the request carrying it at arguments.authorization. Submit the returned `request`
+        and `plan_id` verbatim; a token constructed by hand does not verify.
+        """
+        from etalon.mcp import method_authority
         from etalon.runtime.api import prepare_action
 
-        return ok(prepared=prepare_action(request))
+        prepared = prepare_action(request)
+        # `.get` rather than `[...]`: this tool delegates and must not assume more of the
+        # preparation's shape than it needs. Without a normalized request there is no declaration
+        # to mint over, and the response is what it always was.
+        normalized = prepared.get("request") if isinstance(prepared, dict) else None
+        if normalized is None:
+            return ok(prepared=prepared)
+        authorized, minted = method_authority.authorize_request(normalized)
+        if authorized is not normalized:
+            # Re-prepare so the returned plan_id is the one the authorized request plans to.
+            # prepare_action is read-only and FREE; a plan_id taken before the token was attached
+            # would be stale the moment the host submitted the request this tool told it to.
+            prepared = prepare_action(authorized)
+        return ok(prepared=prepared, request=prepared["request"],
+                  method_authorization=minted,
+                  authorization=method_authority.state(prepared["request"]))
 
     @mcp.tool()
     @threaded_tool(Cost.SPENDS)
-    def etalon_action_submit(request: dict[str, Any], workspace: str, plan_id: str) -> str:
+    def etalon_action_submit(request: dict[str, Any], workspace: str, plan_id: str,
+                             authorization_json: str = "") -> str:
         """SPENDS. Submit a prepared action through existing budget, execution and recovery checks.
 
         Replays identify the original execution; unresolved results require reconciliation.
+        For method.run, pass the request etalon_action_prepare returned -- it already carries its
+        authorization. authorization_json is the alternative for a host that kept the original
+        request: the `authorization` object from that tool, verbatim. Dispatch rules on it.
         """
+        from etalon.mcp import method_authority
         from etalon.runtime.api import submit_action
 
-        return ok(handle=submit_action(request, workspace=workspace, plan_id=plan_id))
+        request = method_authority.merge(request, method_authority.tokens_from_json(authorization_json))
+        return ok(handle=submit_action(request, workspace=workspace, plan_id=plan_id),
+                  authorization=method_authority.state(request))
 
     @mcp.tool()
     @threaded_tool(Cost.FREE)
@@ -142,24 +171,44 @@ def register(mcp: Any) -> None:
 
         Returns normalized spec and plan_id. Resource quotes are explicit; only supported usage
         receipts establish actual consumption. Existing active journals remain mutable.
+        Every method.run node is also minted a method authorization over its declaration; submit
+        the returned spec and plan_id verbatim. A node whose arguments still carry a {$ref} gets
+        none and is reported as not taken, because its declaration is not final yet.
         """
+        from etalon.mcp import method_authority
         from etalon.runtime.service import plan
 
-        return ok(**plan(spec))
+        planned = plan(spec)
+        normalized = planned.get("spec") if isinstance(planned, dict) else None
+        if normalized is None:
+            return ok(**planned)
+        authorized, minted = method_authority.authorize_spec(normalized)
+        if authorized is not normalized:
+            planned = plan(authorized)
+        return ok(**planned, method_authorization=minted,
+                  authorization=method_authority.state(planned["spec"]))
 
     @mcp.tool()
     @threaded_tool(Cost.SPENDS)
-    def etalon_workflow_submit(spec: dict[str, Any], workspace: str, job_id: str, plan_id: str) -> str:
+    def etalon_workflow_submit(spec: dict[str, Any], workspace: str, job_id: str, plan_id: str,
+                               authorization_json: str = "") -> str:
         """SPENDS. Submit the reviewed plan to a durable local worker within its declared scope.
 
         May run real data acquisition, screening, active learning or registered PRISM execution.
         Same job ID and plan return the existing job. External mode waits for explicit decisions.
         Use etalon_workflow_status, etalon_workflow_observe and etalon_workflow_artifact; client disconnection does not stop the worker.
+        Submit the spec etalon_workflow_plan returned -- its method.run nodes already carry their
+        authorizations. authorization_json is the alternative: a {node_id: authorization} map from
+        that tool, verbatim. Dispatch rules on it, per node, including nodes added later by
+        etalon_workflow_advance.
         """
+        from etalon.mcp import method_authority
         from etalon.runtime.service import submit
 
+        spec = method_authority.merge(spec, method_authority.tokens_from_json(authorization_json))
         return ok(job=submit(spec, absolute_path(workspace, label="workspace"), job_id=job_id,
-                             expected_plan_id=plan_id))
+                             expected_plan_id=plan_id),
+                  authorization=method_authority.state(spec))
 
     @mcp.tool()
     @tool(Cost.FREE)
@@ -183,7 +232,8 @@ def register(mcp: Any) -> None:
 
     @mcp.tool()
     @threaded_tool(Cost.SPENDS)
-    def etalon_workflow_advance(workspace: str, job_id: str, proposal: dict[str, Any]) -> str:
+    def etalon_workflow_advance(workspace: str, job_id: str, proposal: dict[str, Any],
+                                authorization_json: str = "") -> str:
         """SPENDS. Advance an external decision or queue a side-channel revision for an ordered worker.
 
         External mode: proposal contains observation_id, node_id, reason, selecting a ready node.
@@ -193,10 +243,21 @@ def register(mcp: Any) -> None:
         Current computation continues without waiting for this optional advice. Retries with the
         same revision_id are idempotent. Single actions remain immutable. Inspect revision events
         to distinguish queued, applied and too-late suggestions; no automatic model invocation.
+        A revision that adds or replaces a method.run node is how new host-authored argv enters a
+        running job, and dispatch rules on that node's authorization like any other. Nothing is
+        minted here: run the node's declaration through etalon_workflow_plan (CHEAP, read-only --
+        a token binds the declaration, not the job) and pass {node_id: authorization} as
+        authorization_json.
         """
+        from etalon.mcp import method_authority
         from etalon.runtime.service import advance
 
-        return ok(job=advance(absolute_path(workspace, label="workspace"), job_id, proposal))
+        # Deliberately a merge and not a mint. A spending tool that issued its own authorization
+        # would be authorising itself, which is ADR 0006's almost-guard with a signature attached:
+        # the model types new argv, the tool stamps it, and the stamp establishes nothing.
+        proposal = method_authority.merge(proposal, method_authority.tokens_from_json(authorization_json))
+        return ok(job=advance(absolute_path(workspace, label="workspace"), job_id, proposal),
+                  authorization=method_authority.state(proposal))
 
     @mcp.tool()
     @tool(Cost.CHEAP)

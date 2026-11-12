@@ -18,7 +18,12 @@ from etalon.data.artifacts import file_hash, read_snapshot
 from etalon.runtime.schema import absolute, bounded_int, fields, references
 
 _OPERATIONS = {
-    "method.run": ({"method_id", "command", "files", "inputs"}, {"cwd", "outputs", "input_files"}),
+    # `authorization` is the token etalon.authority.method mints over this declaration. It is
+    # optional in the argument contract and ruled on at dispatch by preflight(), not here: a
+    # validator that accepted or refused it would be deciding authorization at validation time,
+    # which happens in several places that never dispatch anything.
+    "method.run": ({"method_id", "command", "files", "inputs"},
+                   {"cwd", "outputs", "input_files", "authorization"}),
     "data.acquire": ({"request", "budget"}, {"allow_partial", "min_records"}),
     "data.prepare": ({"snapshot"}, {"id_field", "smiles_field", "identity_policy", "allow_partial", "min_records"}),
     "campaign.create": ({"spec", "endpoints", "executors"}, set()),
@@ -183,8 +188,18 @@ def action_binding(operation: str, parameters: dict) -> dict:
 def preflight(operation: str, parameters: dict, resources: dict) -> dict:
     validate_arguments(operation, parameters)
     inputs = input_hashes(parameters)
-    if operation == "method.run" and resources.get("wall_second", 0) <= 0:
-        raise ValueError("method.run requires an explicit wall_second allowance")
+    if operation == "method.run":
+        if resources.get("wall_second", 0) <= 0:
+            raise ValueError("method.run requires an explicit wall_second allowance")
+        # The allowance above is a budget declaration; it says what the step may cost and nothing
+        # about whether the program being launched is the one that was prepared. ADR 0006's class
+        # was still open here: of the registered operations only active.evaluate could reach an
+        # authority object, and method.run runs host-authored argv. The ruling happens at dispatch
+        # -- this function is what the worker calls before every node, including a node added to a
+        # running job by etalon_workflow_advance -- and never afterwards, per hard constraint 4.
+        from etalon.authority.method import require_method
+
+        return {"inputs": inputs, "method_authorization": require_method(parameters)}
     if operation == "data.acquire":
         from etalon.boundary.quarry import DataBudget
         from etalon.data.service import plan_data

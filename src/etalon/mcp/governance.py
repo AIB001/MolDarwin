@@ -553,13 +553,16 @@ def register(mcp: Any) -> None:
 
         The larger case was this server, when it had nine tools and none of them spent: every
         refusal ``etalon_check_handoff`` produced was advice offered beside an action it had no
-        relationship with. The server now has 87 tools and seven that spend -- counted from the
-        registration index rather than remembered, because this sentence reasons from the number and
-        had been stale by thirty tools -- so it is history rather than description. But the half
-        that matters here has not changed. No tool on this surface accepts a spend token, and none
-        of the seven that spend is the expensive stage. So the governance of a GPU-hour still rests
-        on you choosing to be governed nine rounds into a campaign, and the token below is still the
-        only thing that makes it structural.
+        relationship with. The server now has 89 tools and seven that spend -- counted by
+        ``tools/count_unguarded_spends.py`` from the registration index rather than remembered,
+        because this sentence reasons from the number and had been stale twice -- so it is history
+        rather than description. Four of the seven now take an authorization object: a gate token
+        on ``etalon_screen_submit`` and a method token on ``etalon_action_submit``,
+        ``etalon_workflow_submit`` and ``etalon_workflow_advance``. But the half that matters *here* has not changed. No tool on
+        this surface accepts **this** token, and none of the seven that spend is the expensive
+        stage. So the governance of a GPU-hour still rests on you choosing to be governed nine
+        rounds into a campaign, and the token below is still the only thing that makes it
+        structural.
 
         A token is minted only for a record that survives the preflight, and it is bound to a
         SHA-256 of that exact row. ``PrismStage`` and anything else implementing the campaign's
