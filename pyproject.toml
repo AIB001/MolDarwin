@@ -106,6 +106,17 @@ packages = ["src/etalon"]
 ".claude/skills/etalon-method-optimization" = "etalon/mcp/skills/bundles/method-optimization"
 ".claude/skills/etalon-workflow-optimization" = "etalon/mcp/skills/bundles/workflow-optimization"
 ".claude/skills/rsi-skill-creator" = "etalon/mcp/skills/bundles/rsi-skill-creator"
+# Registration is derived from the bundles present (skills.discover_bundles), but a wheel
+# can only ship files it was told to copy, so a bundle absent here is absent from the
+# wheel and then absent from the catalog it would otherwise have joined. That is the same
+# forgotten-list hazard, relocated -- and what closes it is that
+# test_every_workflow_document_is_carried_into_the_wheel derives its expectation from the
+# catalog, so a bundle added to .claude/skills and left out here fails the suite.
+".claude/skills/etalon-assessment-regime" = "etalon/mcp/skills/bundles/assessment-regime"
+".claude/skills/etalon-evaluation-contract" = "etalon/mcp/skills/bundles/evaluation-contract"
+".claude/skills/etalon-recomputability-audit" = "etalon/mcp/skills/bundles/recomputability-audit"
+".claude/skills/etalon-step-corpus" = "etalon/mcp/skills/bundles/step-corpus"
+".claude/skills/etalon-stochastic-oracle" = "etalon/mcp/skills/bundles/stochastic-oracle"
 # MolQuarry bundles stay at their original asset path in both source and wheel;
 # skills.bundle_root and the legacy resource URIs resolve these same bytes.
 "asset" = "etalon/_assets"

@@ -3,6 +3,12 @@
 Digests describe observed bytes, not host invocation or scientific efficacy. A
 bundle includes its references and scripts; changing or deleting either changes
 its version. The usage guide is versioned separately from the domain skills.
+
+The catalog is derived from the bundles that are present, not written out. A
+bundle directory joins ``WORKFLOWS`` by existing and declaring its own name; it
+can leave the catalog only by failing one of the checks in ``discover_bundles``,
+and then it is kept in ``UNREGISTERED`` with the reason so a refusal can say
+which route makes it deliverable. Nothing has to be remembered to ship a skill.
 """
 
 from __future__ import annotations
@@ -13,37 +19,140 @@ import posixpath
 import re
 from pathlib import Path, PurePosixPath
 
-WORKFLOWS = {
-    "campaign": "etalon-campaign",
-    "sweep": "etalon-screening-sweep",
-    "gate-calibration": "etalon-gate-calibration",
-    "generation-planning": "etalon-generation-planning",
-    "monitoring": "etalon-campaign-monitoring",
-    "install": "etalon-install",
-    "data-design": "etalon-data-design",
-    "research": "etalon-research",
-    "research-context": "etalon-research-context",
-    "research-decision": "etalon-research-decision",
-    "research-index": "etalon-research-index",
-    "method-configuration": "etalon-method-configuration",
-    "skill-improvement": "etalon-skill-improvement",
-    "execution-tuning": "etalon-execution-tuning",
-    "method-optimization": "etalon-method-optimization",
-    "workflow-optimization": "etalon-workflow-optimization",
-    "rsi-skill-creator": "rsi-skill-creator",
-    "molquarry-analogue-search": "molquarry-analogue-search",
-    "molquarry-assay-literature": "molquarry-assay-literature",
-    "molquarry-compound-sourcing": "molquarry-compound-sourcing",
-    "molquarry-selectivity-evidence": "molquarry-selectivity-evidence",
-    "molquarry-structure-templates": "molquarry-structure-templates",
-    "molquarry-target-modulators": "molquarry-target-modulators",
-}
 ROLE_PATH = Path(__file__).with_name("HOST.md")
 MAX_FILE_BYTES = 256 * 1024
 MAX_BUNDLE_BYTES = 4 * 1024 * 1024
 MAX_MEMBERS = 512
 SNAPSHOT_MANIFEST = "etalon-bundle-manifest.json"
 DEPENDENCIES = "skill-dependencies.json"
+SKILL_NAME = re.compile(r"[a-z0-9][a-z0-9-]{0,63}")
+FRONTMATTER_BYTES = 16 * 1024
+
+# Two bundles were addressed by a shortened slug before the convention settled,
+# and hosts, saved notes and the wheel still reach them that way. The map is
+# closed and historical: a bundle that is absent from it takes its slug from the
+# name it declares, so being missing here never costs a bundle its registration.
+LEGACY_SLUGS = {
+    "etalon-screening-sweep": "sweep",
+    "etalon-campaign-monitoring": "monitoring",
+}
+
+
+def redirected(path: Path) -> bool:
+    return path.is_symlink() or (hasattr(path, "is_junction") and path.is_junction())
+
+
+def _bundle_sources() -> tuple[Path, ...]:
+    """Every layout a bundle arrives in: a checkout, a pinned asset, or a wheel."""
+    package = Path(__file__).resolve().parent
+    repository = package.parents[1]
+    return (repository / ".claude" / "skills",
+            repository / "asset" / "molquarry" / "skills",
+            package / "mcp" / "skills" / "bundles",
+            package / "_assets" / "molquarry" / "skills")
+
+
+def _declared_name(entry: Path) -> tuple[str | None, str]:
+    """Read the name a bundle declares for itself; no outside list may name it."""
+    try:
+        with (entry / "SKILL.md").open("rb") as handle:
+            head = handle.read(FRONTMATTER_BYTES)
+    except OSError as exc:
+        return None, f"SKILL.md could not be read ({exc.strerror or exc.__class__.__name__})"
+    front = head.decode("utf-8", "replace").split("---", 2)
+    if len(front) != 3 or front[0].strip():
+        return None, (f"SKILL.md must open with YAML frontmatter within its first "
+                      f"{FRONTMATTER_BYTES} bytes")
+    metadata = dict(line.split(": ", 1) for line in front[1].splitlines() if ": " in line)
+    name = metadata.get("name", "").strip()
+    if not name:
+        return None, "SKILL.md frontmatter must declare `name: <skill>`"
+    if not SKILL_NAME.fullmatch(name):
+        return None, f"declared name {name!r} is not a safe single directory name"
+    return name, ""
+
+
+def derived_slug(name: str) -> str:
+    """The address a host uses, computed from the declared name, never assigned."""
+    return LEGACY_SLUGS.get(name, name.removeprefix("etalon-"))
+
+
+def discover_bundles(sources: tuple[Path, ...] | None = None) -> tuple[dict[str, str], dict[str, str]]:
+    """Register every present bundle that declares a usable identity, and say why not.
+
+    Returns the slug/name catalog and, beside it, the present-but-unregistered
+    bundles with the reason each was refused. A new bundle directory cannot be
+    forgotten here, because nothing enumerates the subjects: it is registered
+    unless one of these checks rejects what it declares.
+    """
+    registered: dict[str, str] = {}
+    unregistered: dict[str, str] = {}
+    seen: set[Path] = set()
+    roots = _bundle_sources() if sources is None else tuple(sources)
+    origins = {root.resolve() for root in roots}
+    for root in roots:
+        try:
+            entries = sorted(root.iterdir())
+        except OSError:
+            continue
+        for entry in entries:
+            if not (entry / "SKILL.md").is_file():
+                continue
+            resolved = entry.resolve()
+            if redirected(entry):
+                # A bundle is read from its original path, so a host-discovery
+                # symlink never becomes a source: its target registers instead.
+                if resolved.parent in origins:
+                    continue
+                unregistered[entry.name] = (
+                    "bundle directory is a symlink and ETALON reads original bytes only; "
+                    "register the directory it points at")
+                continue
+            if resolved in seen:
+                continue  # the same bundle reached through a second layout
+            seen.add(resolved)
+            name, reason = _declared_name(entry)
+            if name is None:
+                unregistered[entry.name] = reason
+                continue
+            slug = derived_slug(name)
+            if entry.name not in {name, slug}:
+                unregistered[entry.name] = (
+                    f"directory holds the bundle that declares name {name!r}; a bundle "
+                    f"directory must be named {name!r} or for its slug {slug!r}")
+                continue
+            if registered.get(slug) == name:
+                continue  # the same bundle in a second layout; bundle_root picks the source
+            if slug in registered:
+                unregistered[entry.name] = (f"slug {slug!r} is already registered to "
+                                            f"{registered[slug]!r}; rename one of the bundles")
+                continue
+            if name in registered.values():
+                unregistered[entry.name] = (f"name {name!r} is already registered under another "
+                                            f"slug; rename one of the bundles")
+                continue
+            registered[slug] = name
+    return registered, unregistered
+
+
+WORKFLOWS, UNREGISTERED = discover_bundles()
+
+
+def _unregistered_reason(name: str) -> str:
+    """Why a bundle a host can see is still not deliverable; empty when absent."""
+    if name in UNREGISTERED:
+        return UNREGISTERED[name]
+    candidates = [candidate for candidate in (name, f"etalon-{name}")
+                  if SKILL_NAME.fullmatch(candidate)]
+    for candidate in candidates:
+        if candidate in UNREGISTERED:
+            return UNREGISTERED[candidate]
+    for root in _bundle_sources():
+        for candidate in candidates:
+            if (root / candidate / "SKILL.md").is_file():
+                return ("it was added after this process read its bundles; restart the ETALON "
+                        "server (or reimport etalon.skills) to register it")
+    return ""
 
 
 def canonical_slug(identifier: str) -> str:
@@ -56,7 +165,12 @@ def canonical_slug(identifier: str) -> str:
     for slug, host_name in WORKFLOWS.items():
         if name == host_name:
             return slug
-    raise KeyError(f"unknown skill {identifier!r}; use etalon_capabilities to discover installed skills")
+    # An absent bundle and an unregistered one need different actions from the
+    # host, so the refusal names the route instead of giving both the same wall.
+    reason = _unregistered_reason(name)
+    present = f"bundle present on disk, not registered: {reason}; " if reason else ""
+    raise KeyError(f"unknown skill {identifier!r}; {present}"
+                   "use etalon_capabilities to discover installed skills")
 
 
 def skill_reference(identifier: str) -> dict:
@@ -87,10 +201,6 @@ def digest(value: object) -> str:
                              ensure_ascii=False, allow_nan=False).encode("utf-8"))
 
 
-def redirected(path: Path) -> bool:
-    return path.is_symlink() or (hasattr(path, "is_junction") and path.is_junction())
-
-
 def bundle_root(slug: str) -> Path:
     slug = canonical_slug(slug)
     if slug not in WORKFLOWS:
@@ -101,13 +211,19 @@ def bundle_root(slug: str) -> Path:
         # The existing asset wheel mapping already carries the complete source.
         repository = package.parents[1] / "asset" / "molquarry" / "skills" / WORKFLOWS[slug]
         installed = package / "_assets" / "molquarry" / "skills" / WORKFLOWS[slug]
+        candidates = (repository, installed)
     else:
-        repository = package.parents[1] / ".claude" / "skills" / WORKFLOWS[slug]
-        installed = package / "mcp" / "skills" / "bundles" / slug
-    for root in (repository, installed):
+        bundles = package / "mcp" / "skills" / "bundles"
+        # A wheel may carry each bundle under its slug or under its own name, so
+        # the package table that fills that directory can be a whole-directory
+        # mapping instead of one written-out line for every skill.
+        candidates = (package.parents[1] / ".claude" / "skills" / WORKFLOWS[slug],
+                      bundles / slug, bundles / WORKFLOWS[slug])
+    for root in candidates:
         if (root / "SKILL.md").is_file():
             return root
-    raise FileNotFoundError(f"no capability bundle for {slug!r}: {repository} or {installed}")
+    raise FileNotFoundError(f"no capability bundle for {slug!r}: "
+                            + " or ".join(str(root) for root in candidates))
 
 
 def snapshot(slug: str, *, bundle_ref: dict | None = None) -> tuple[dict, dict[str, bytes]]:
