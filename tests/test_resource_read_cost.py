@@ -1,5 +1,5 @@
 """Avoid unrelated code reads without reusing a stale verification verdict."""
-from etalon.research import read_scope
+from moldarwin.research import read_scope
 
 
 def test_ordinary_read_scope_does_not_fingerprint_unused_projection_cache(monkeypatch):

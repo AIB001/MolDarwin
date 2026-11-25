@@ -2,7 +2,7 @@
 import pytest
 Chem = pytest.importorskip('rdkit.Chem')
 from rdkit.Chem import AllChem
-from etalon.research.pose_verifier import symmetry_rmsd
+from moldarwin.research.pose_verifier import symmetry_rmsd
 
 
 def test_translation_is_not_aligned_away():

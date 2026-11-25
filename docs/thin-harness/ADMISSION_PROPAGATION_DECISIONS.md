@@ -2,7 +2,7 @@
 
 状态:已决定 v1 · 2026-11-05
 依据:阶段 0–3 的实跑结果与 Opus 复核(`ADMISSION_PROPAGATION_REVIEW_R1.md`)
-作用对象:`RSI_REWARD.md`、`ADMISSION_PROPAGATION.md`、`src/etalon/learn/admission_view.py`
+作用对象:`RSI_REWARD.md`、`ADMISSION_PROPAGATION.md`、`src/moldarwin/learn/admission_view.py`
 
 第一部分是项目负责人的决定原文。第二部分是把这些决定落到代码上时查到的事实,
 包括一处与硬约束 1 的冲突。第二部分不改变任何决定,只记录每条决定落地时需要的
@@ -110,7 +110,7 @@ waiver 的数量单独报告并计入成本。waiver 因此不再是旋钮 —�
 
 ### 环境待办
 
-项目需要一个固定的 Python ≥3.11 环境。本轮结果只能对着 `/tmp/etalon-venv` 的 freeze 复算,
+项目需要一个固定的 Python ≥3.11 环境。本轮结果只能对着 `/tmp/moldarwin-venv` 的 freeze 复算,
 证据强度低于固定环境。
 
 ---
@@ -178,7 +178,7 @@ label 键改为 `"<from>|<to>|<kind>"`,解决复核 2.10 的碰撞问题。
 - **scoped builder(`graph_scope.py`)产出 `scope_receipt`**,其中 `reference_coverage_complete`
   是计算出来的(`:388`),被丢掉的边列在 `deliberate_boundary_refs` / `boundary_relations` 里。
   所以 scoped 图可以正向断言完整,条件是:
-  - `scope_receipt.schema == "etalon-research-graph-scope/1"`;
+  - `scope_receipt.schema == "moldarwin-research-graph-scope/1"`;
   - `reference_coverage_complete is True`,`traversal_complete is True`;
   - 两个边界列表都为空;
   - `scope_receipt.issues == []`,顶层 `issues == []`,`truncated is False`。
@@ -216,18 +216,18 @@ binding 新增 `store_status`(`Evaluation.status`,∈ `ok`/`failed`/`invalid`/`b
 1. **"282 个 setup error 只有 20 个带原因"是我的解析错误。** pytest 的 section 头只用单个
    `_`,而我的正则要求至少三个。修正后 **283 个 setup error 全部带原因**:239 个缺
    `pydantic`,44 个缺 `rdkit`。实现方报的 282 也是数错了,实际是 283。
-   清单见 `/tmp/etalon-setup-causes.txt`。
+   清单见 `/tmp/moldarwin-setup-causes.txt`。
 2. **343 vs 340:汇总是对的,我的清单错了。** 清单里有 3 行不是 pytest 的结果行,是被捕获的
-   日志(`ERROR    etalon.mcp:_common.py:374 etalon_resource_feedback raised`,一次;
-   `… etalon_devices raised`,两次),它们碰巧以 `ERROR ` 开头。
+   日志(`ERROR    moldarwin.mcp:_common.py:374 moldarwin_resource_feedback raised`,一次;
+   `… moldarwin_devices raised`,两次),它们碰巧以 `ERROR ` 开头。
    以 `^ERROR tests/` 计,是 340 = 57(collection)+ 283(setup)。
-3. **`test_standardize_parallel.py` 实际缺 `pyarrow`**,不是找不到 `etalon`(核对了
+3. **`test_standardize_parallel.py` 实际缺 `pyarrow`**,不是找不到 `moldarwin`(核对了
    collection section 里的 `E` 行)。
 
 ### doctor 的缺口(查到的事实)
 
-在这台机器上,`PYTHONPATH=src /usr/bin/python3 -m etalon doctor`(3.9.6)**在 import 时就崩了**:
+在这台机器上,`PYTHONPATH=src /usr/bin/python3 -m moldarwin doctor`(3.9.6)**在 import 时就崩了**:
 `ImportError: cannot import name 'StrEnum' from 'enum'`,退出码 1,输出的是 traceback。
-`etalon/__main__.py`、`etalon/__init__.py`、`etalon/doctor.py` 里都没有 `sys.version_info`
+`moldarwin/__main__.py`、`moldarwin/__init__.py`、`moldarwin/doctor.py` 里都没有 `sys.version_info`
 检查,而 `__main__.py` 会先 import `campaign.pipeline`,根本走不到 doctor。
 所以 doctor 无法报告"解释器版本不足"。本轮没有修。

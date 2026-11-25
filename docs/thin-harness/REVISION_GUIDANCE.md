@@ -1,6 +1,6 @@
 # Decision-backed candidate guidance
 
-`etalon.research.revision_guidance` connects existing decision, revision context,
+`moldarwin.research.revision_guidance` connects existing decision, revision context,
 candidate brief and normal-use evaluation records. It adds two read-only SDK
 helpers and no schema, store, MCP tool, automatic selection or required phase.
 
@@ -17,7 +17,7 @@ links are verified with the existing readers.
 `build_candidate_from_decision(workspace, *, decision_ref, prediction_id,
 context_ref, opportunity_ref, object_kind, falsifier, differences=(),
 update_ref=None, **brief_arguments)` returns `revision_input` and an existing
-`etalon-candidate-brief/1`. The caller supplies title, rationale, target_part,
+`moldarwin-candidate-brief/1`. The caller supplies title, rationale, target_part,
 change, applicability and optional brief provenance. `expected_effect` contains
 metric, unit and direction; metric equals the decision observable. The expected
 result, execution reference, discriminator and fixed check identities are derived

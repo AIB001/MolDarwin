@@ -1,4 +1,4 @@
-"""CPU-only closed-loop example using real MolCascade components, not synthetic oracle labels.
+"""CPU-only closed-loop example using real MolCat components, not synthetic oracle labels.
 
 Run after installing .[cascade]:
     python examples/component_learning.py --workspace runs/components
@@ -14,10 +14,10 @@ import argparse
 import json
 from pathlib import Path
 
-from etalon.active import ActiveCampaign, CampaignSpec, CampaignStore
-from etalon.active.adapters import MOLECULAR_REPRESENTATION, molecular_candidates
-from etalon.active.cascade import CascadeExecutor, CascadeRecipe, Readout
-from etalon.campaign.design import component, compose
+from moldarwin.active import ActiveCampaign, CampaignSpec, CampaignStore
+from moldarwin.active.adapters import MOLECULAR_REPRESENTATION, molecular_candidates
+from moldarwin.active.cascade import CascadeExecutor, CascadeRecipe, Readout
+from moldarwin.campaign.design import component, compose
 
 
 def main() -> None:

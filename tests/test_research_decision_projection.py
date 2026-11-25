@@ -1,7 +1,7 @@
 """Actual ordinary records remain attributable judgments in existing graph views."""
-from etalon.research.research_decision import build_decision_update
-from etalon.research.evidence_window import build_evidence_window
-from etalon.research.graph_memory import build_research_graph, node_identity, _project_node
+from moldarwin.research.research_decision import build_decision_update
+from moldarwin.research.evidence_window import build_evidence_window
+from moldarwin.research.graph_memory import build_research_graph, node_identity, _project_node
 from test_research_continuation import case, publish, save, checkpoint, step
 from test_research_decision import prepared, build, store, observed
 
@@ -25,9 +25,9 @@ def test_decision_update_and_window_reachable_from_ordinary_checkpoint(case, pre
 
 
 def test_release_projection_distinguishes_window_ack_from_result_delivery():
-    ref={'schema':'etalon-evidence-ref/1','source_id':'fixture','record_id':'artifact-'+'a'*64,'record_digest':'a'*64}
+    ref={'schema':'moldarwin-evidence-ref/1','source_id':'fixture','record_id':'artifact-'+'a'*64,'record_digest':'a'*64}
     node=_project_node(ref,{'record_type':'artifact','record':{},'projected_content':{
-        'schema':'etalon-outcome-release/1','window_delivery':'host_acknowledged',
+        'schema':'moldarwin-outcome-release/1','window_delivery':'host_acknowledged',
         'outcome_delivery':'prepared_for_return','consumption':'not_attested'}},task_id='fixture',home_overrides={})
     assert node['evidence_timing']['window_delivery']=='host_acknowledged'
     assert node['evidence_timing']['outcome_delivery']=='prepared_for_return'

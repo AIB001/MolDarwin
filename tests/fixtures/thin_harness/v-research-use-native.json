@@ -10,12 +10,12 @@
   "mcp": [
     {
       "line": 7,
-      "tool": "etalon_capabilities",
+      "tool": "moldarwin_capabilities",
       "arguments": {}
     },
     {
       "line": 11,
-      "tool": "etalon_skill_read",
+      "tool": "moldarwin_skill_read",
       "arguments": {
         "slug": "campaign",
         "member": "SKILL.md"
@@ -23,7 +23,7 @@
     },
     {
       "line": 13,
-      "tool": "etalon_skill_read",
+      "tool": "moldarwin_skill_read",
       "arguments": {
         "slug": "campaign",
         "member": "references/paired-models-and-segments.md"

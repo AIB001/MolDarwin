@@ -1,14 +1,14 @@
 # Tunable methods and research routes
 
 These optional helpers extend the existing `ResearchJournal`, `research-step`,
-`MethodVersion` / `MethodUse` / `MethodEvaluation` and MolCascade `Screen.plan`.
+`MethodVersion` / `MethodUse` / `MethodEvaluation` and MolCat `Screen.plan`.
 There is no new execution ledger, scheduler, resource allocator or fixed Probe
 stage. R4b remains paused. Compilation and comparability are not evidence of
 scientific benefit.
 
 ## Parameter contract
 
-`etalon.research.method_contract` provides:
+`moldarwin.research.method_contract` provides:
 
 - `validate_contract(payload)` and `parameter_values(contract, configuration)`.
 - `compare_parameters(contract, base_config, candidate_config)`.
@@ -18,7 +18,7 @@ scientific benefit.
 - `assess_comparability(base, candidate, *, mode, base_coverage,
   candidate_coverage, verify_receipt=None)`.
 
-A contract is ordinary immutable JSON with schema `etalon-method-contract/1`,
+A contract is ordinary immutable JSON with schema `moldarwin-method-contract/1`,
 name, parameters, required semantic checks, a fixed external evaluation object,
 and supersedes. Every parameter declares a JSON Pointer, category, strict type,
 unit, default, numeric bounds or choices, required flag, immutable flag,
@@ -98,7 +98,7 @@ declared denominators. No comparison helper promotes a shared default.
 
 ## Four-stage trace in the same Journal
 
-`research_trace.trace_event(...)` builds `etalon-research-trace/1` content.
+`research_trace.trace_event(...)` builds `moldarwin-research-trace/1` content.
 Persist it through `continuation.record_content`; refs and artifact hashes use
 the existing Journal publication mechanism. There is no extra trace database.
 
@@ -143,7 +143,7 @@ scientific benefit.
 
 ## Validation scope
 
-`tests/test_method_contract.py` uses real MolCascade compilation and explicit
+`tests/test_method_contract.py` uses real MolCat compilation and explicit
 fixture execution receipts. `tests/test_research_trace.py` tests rejected/failed
 denominators, reuse, duplicate delivery, compiler-added checks, escaped HTML,
 unknown costs and Journal-linked admission. These are engineering checks;

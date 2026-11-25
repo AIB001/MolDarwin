@@ -3,11 +3,11 @@ import argparse
 from pathlib import Path
 import json
 import time
-from etalon.active import CampaignStore
-from etalon.active.schema import canonical
-from etalon.research import ResearchJournal
-from etalon.research.transfer import load_policy
-from etalon.research.feedback import attach_transfer_feedback
+from moldarwin.active import CampaignStore
+from moldarwin.active.schema import canonical
+from moldarwin.research import ResearchJournal
+from moldarwin.research.transfer import load_policy
+from moldarwin.research.feedback import attach_transfer_feedback
 
 
 if __name__=='__main__':

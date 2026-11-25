@@ -5,13 +5,13 @@ import json
 import numpy as np
 import pytest
 
-from etalon.__main__ import main
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.research.evidence import EvidenceError, OriginalReader
-from etalon.research.journal import ResearchJournal
-from etalon.research.notes import (open_original, original, patch_progress, read_current,
+from moldarwin.__main__ import main
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.research.evidence import EvidenceError, OriginalReader
+from moldarwin.research.journal import ResearchJournal
+from moldarwin.research.notes import (open_original, original, patch_progress, read_current,
                                    read_entry, read_original, resolve_method, save_progress)
-from etalon.runtime.files import file_identity
+from moldarwin.runtime.files import file_identity
 
 
 @pytest.fixture
@@ -42,7 +42,7 @@ def project(tmp_path):
 
 
 def test_index_reads_headers_without_loading_arrays_and_selected_member_loads_once(project, monkeypatch):
-    from etalon.research import evidence_refs
+    from moldarwin.research import evidence_refs
     entry, _, arrays, _, _ = project
     identities, loads = [], []
     identify, read_array = evidence_refs.file_identity, np.lib.format.read_array
@@ -114,7 +114,7 @@ def test_method_resolution_preserves_old_descriptor_without_import_or_unrelated_
 
 
 def test_relocated_original_and_method_use_existing_handoff_mapping(project, tmp_path):
-    from etalon.research.handoff import export_research_handoff, plan_research_handoff
+    from moldarwin.research.handoff import export_research_handoff, plan_research_handoff
     entry, _, arrays, result, code = project
     bundle = tmp_path / "portable"
     export_research_handoff(plan_research_handoff(entry), bundle)

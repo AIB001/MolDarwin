@@ -8,15 +8,15 @@ import sys
 
 import pytest
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.schema import digest
-from etalon.boundary.prism_v1 import file_identity
-from etalon.research import Artifact, ResearchJournal
-from etalon.research.controller import register_controller
-from etalon.research.validation import attach_decision_validation
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.schema import digest
+from moldarwin.boundary.prism_v1 import file_identity
+from moldarwin.research import Artifact, ResearchJournal
+from moldarwin.research.controller import register_controller
+from moldarwin.research.validation import attach_decision_validation
 
 
-SCRIPT = Path(__file__).resolve().parents[1] / '.claude/skills/etalon-research/scripts/released_feedback.py'
+SCRIPT = Path(__file__).resolve().parents[1] / '.claude/skills/moldarwin-research/scripts/released_feedback.py'
 
 
 def logical_snapshot(path):
@@ -75,8 +75,8 @@ def invoke(fixture, output, *, script=SCRIPT, **overrides):
         command.extend(['--' + key, value])
     env = dict(os.environ, PYTHONDONTWRITEBYTECODE='1')
     # Bind subprocess imports to the package actually imported by this test/probe.
-    import etalon
-    env['PYTHONPATH'] = str(Path(etalon.__file__).resolve().parent.parent)
+    import moldarwin
+    env['PYTHONPATH'] = str(Path(moldarwin.__file__).resolve().parent.parent)
     run = subprocess.run(command, cwd=output.parent, env=env, capture_output=True, text=True, timeout=30)
     return {'command': command, 'exit_code': run.returncode, 'stdout': run.stdout, 'stderr': run.stderr,
             'receipt': json.loads(output.read_text()) if output.is_file() else None}

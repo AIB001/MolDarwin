@@ -4,7 +4,7 @@ import json
 from copy import deepcopy
 
 import pytest
-from etalon.research.reaction_candidate import (
+from moldarwin.research.reaction_candidate import (
     bind_pose_route, choose_pose_route, pose_route_dependency_keys, route_dependency_manifest,
 )
 

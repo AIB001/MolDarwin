@@ -1,7 +1,7 @@
 # Design review, round 1: `admission_view` against ADMISSION_PROPAGATION.md
 
-Reviewer: Opus, acting as `etalon-design-review`. Date: 2026-11-05.
-Reviewed: the round-1 implementation (`src/etalon/learn/admission_view.py`,
+Reviewer: Opus, acting as `moldarwin-design-review`. Date: 2026-11-05.
+Reviewed: the round-1 implementation (`src/moldarwin/learn/admission_view.py`,
 `tests/test_admission_view.py`) against the round-1 design. Decisions taken in response:
 `ADMISSION_PROPAGATION_DECISIONS.md`. Line numbers refer to the round-1 files, so they will
 not match later revisions.
@@ -14,7 +14,7 @@ hand. Five decisions in the design don't hold up against the code:
 - Nothing in a binding is verifiable, so constraint 4 is not protected.
 - The §0.3 split of 4 relied_on / 24 used sites contradicts the design's own §3 table.
 
-**What was checked.** The 42 new tests were rerun and passed in `/tmp/etalon-venv`.
+**What was checked.** The 42 new tests were rerun and passed in `/tmp/moldarwin-venv`.
 `git diff HEAD` was empty, so `learn/admissible.py` was unedited. 27 mutants of a copy of the
 module were run (`/tmp/avmut/run_mutants.py`), plus 15 behaviour probes
 (`/tmp/avmut/probes.py`, `/tmp/avmut/probe2.py`).
@@ -252,7 +252,7 @@ What a passing test here shows is behaviour on synthetic inputs, not a scientifi
 ## 4. Open items
 
 - The project needs a fixed Python ≥3.11 environment; this round's test results are
-  reproducible only against the `/tmp/etalon-venv` freeze and carry lower evidential weight
+  reproducible only against the `/tmp/moldarwin-venv` freeze and carry lower evidential weight
   than results in a fixed environment.
 - Decide whether the `supports` / `evaluated_node` default stays `relied_on`, given that it can
   raise an admission (2.1). Settle it with incidence data from real journals.

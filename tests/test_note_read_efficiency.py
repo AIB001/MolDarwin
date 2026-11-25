@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from etalon.research import advice as advice_module
-from etalon.research import note_resources as resources
-from etalon.research.notes import patch_progress, read_entry, save_progress
+from moldarwin.research import advice as advice_module
+from moldarwin.research import note_resources as resources
+from moldarwin.research.notes import patch_progress, read_entry, save_progress
 from test_research_notes import case
 
 

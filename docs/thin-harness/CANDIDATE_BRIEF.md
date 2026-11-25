@@ -1,6 +1,6 @@
 # Optional candidate brief
 
-`etalon-candidate-brief/1` is ordinary immutable JSON Artifact content in the
+`moldarwin-candidate-brief/1` is ordinary immutable JSON Artifact content in the
 existing ResearchJournal. It connects an exact revision opportunity and context
 to a concrete proposed replacement, its rationale, expected measurable effect,
 frozen invariants, quality criteria, applicability, counterevidence and the
@@ -8,7 +8,7 @@ smallest discriminating existing normal execution. It creates no method version,
 execution stage, Probe, journal, scheduler, automatic proposer or adoption rule.
 Hosts may omit the brief. R4b authorization and pauses remain external authority.
 
-The public Python API is in `etalon.research.candidate_brief`:
+The public Python API is in `moldarwin.research.candidate_brief`:
 
 - `SCHEMAS`, `CANDIDATE_BRIEF`, `validate_content(payload)`.
 - `build_candidate_brief(workspace, **arguments)` reads explicitly supplied
@@ -61,7 +61,7 @@ The base method must already exist. For `method_content`, its `content_ref` must
 be an ordinary Artifact exactly matching `before_ref`; `after_ref` identifies
 actual intended replacement bytes, without requiring a new MethodVersion.
 This version does not replace a skill-bundle manifest directly. `workflow`
-changes instead reference before/after `etalon-research-workflow/1` Artifacts;
+changes instead reference before/after `moldarwin-research-workflow/1` Artifacts;
 the original workflow must explicitly reference the exact base method.
 
 `task_id`, `scope`, and `conditions` come from the exact context. The opportunity

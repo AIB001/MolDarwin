@@ -6,11 +6,11 @@ import sys
 
 import pytest
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.research import Artifact, ResearchJournal
-from etalon.research.continuation import CHECKPOINT, STEP, read_content, record_content, resume_research
-from etalon.research.evidence_refs import EvidenceError, file_identity, make_ref
-from etalon.research.publication import (
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.research import Artifact, ResearchJournal
+from moldarwin.research.continuation import CHECKPOINT, STEP, read_content, record_content, resume_research
+from moldarwin.research.evidence_refs import EvidenceError, file_identity, make_ref
+from moldarwin.research.publication import (
     STAGES, close_publication, discover_publications, inspect_publication, prepare_publication, resume_publication,
 )
 
@@ -46,7 +46,7 @@ def case(tmp_path):
     rid = record_content(journal, checkpoint, old / "content", source_id="prior", source_kind="fixture")
     cp_ref = make_ref("prior", rid, journal.get(rid))
     workspace = old / "workspace.json"
-    workspace.write_text(json.dumps({"schema": "etalon-evidence-workspace/1", "workspace_id": "fixture",
+    workspace.write_text(json.dumps({"schema": "moldarwin-evidence-workspace/1", "workspace_id": "fixture",
         "sources": [{"source_id": "prior", "kind": "journal", "location": str(store.path),
             "identity": {"kind": "snapshot_sha256", "value": file_identity(store.path)["sha256"]}}],
         "status_refs": [str(status)], "location_map": []}), encoding="utf-8")
@@ -131,7 +131,7 @@ def test_branch_transition_recovers_without_repeating_native_work(case, phase):
     prepared = prepare_publication(**request)
     script = """
 import os,sys
-from etalon.research import publication as p
+from moldarwin.research import publication as p
 stage = p._stage
 def crash(root, phase, payload):
     result = stage(root, phase, payload)
@@ -182,7 +182,7 @@ def test_real_process_death_at_each_durable_boundary(case, phase):
     prepared = prepare_publication(**case["request"])
     script = """
 import os,sys
-from etalon.research import publication as p
+from moldarwin.research import publication as p
 original = p._stage
 def crash(root, phase, payload):
     result = original(root, phase, payload)
@@ -293,7 +293,7 @@ def test_crash_between_effect_and_receipt_is_not_repeated(case, boundary):
     prepared = prepare_publication(**case["request"])
     script = """
 import os,sys
-from etalon.research import publication as p
+from moldarwin.research import publication as p
 boundary=sys.argv[2]
 original_record=p.ResearchJournal.record
 count=0
@@ -369,7 +369,7 @@ def test_prepare_crash_is_discoverable_before_any_results_are_archived(case, bou
     script = """
 import json,os,sys
 from pathlib import Path
-from etalon.research import publication as p
+from moldarwin.research import publication as p
 original=p._save
 def save(path,value,**kwargs):
     result=original(path,value,**kwargs)
@@ -443,14 +443,14 @@ def test_static_invalid_publication_is_rejected_before_any_archival_write(case, 
     with pytest.raises(EvidenceError):
         prepare_publication(**request)
     assert not case["entry"].exists()
-    assert not (case["entry"].parent / ".etalon").exists()
+    assert not (case["entry"].parent / ".moldarwin").exists()
     assert not Path(str(case["entry"]) + ".publications.json").exists()
     assert_old_unchanged(case)
 
 
 def test_preflight_catches_checkpoint_overflow_not_only_individual_steps(case):
-    from etalon.active.schema import canonical
-    from etalon.research.continuation import MAX_CONTENT_BYTES
+    from moldarwin.active.schema import canonical
+    from moldarwin.research.continuation import MAX_CONTENT_BYTES
     old = case["old"]
     journal = ResearchJournal(CampaignStore(old / "research.sqlite"))
     content = json.loads(json.dumps(case["checkpoint"]))
@@ -471,7 +471,7 @@ def test_preflight_catches_checkpoint_overflow_not_only_individual_steps(case):
 
 
 def test_preflight_allows_ordered_aliases_without_changing_real_record_identity(case):
-    import etalon.research.publication as p
+    import moldarwin.research.publication as p
     first = case["request"]["steps"][0]
     second = json.loads(json.dumps(first))
     second["name"] = "later"
@@ -489,7 +489,7 @@ def test_preflight_allows_ordered_aliases_without_changing_real_record_identity(
 
 
 def test_withdraw_keeps_partial_data_and_is_exactly_idempotent(case, monkeypatch):
-    import etalon.research.publication as p
+    import moldarwin.research.publication as p
     prepared = prepare_publication(**case["request"])
     original = p._stage
     def interrupt(root, phase, payload):
@@ -550,7 +550,7 @@ def test_unrelated_operation_cannot_be_claimed_as_replacement(case):
 
 @pytest.mark.parametrize("successful_state", ["published", "superseded", "before_receipt"])
 def test_successful_publication_cannot_be_marked_failed(case, monkeypatch, successful_state):
-    import etalon.research.publication as p
+    import moldarwin.research.publication as p
     old = prepare_publication(**case["request"])
     if successful_state == "before_receipt":
         original = p._stage
@@ -587,7 +587,7 @@ def test_terminal_disposition_process_death_is_replayable(case):
     script = """
 import os,sys
 from pathlib import Path
-from etalon.research import publication as p
+from moldarwin.research import publication as p
 original=p._save
 def save(path,value,**kwargs):
     result=original(path,value,**kwargs)
@@ -605,11 +605,11 @@ p.close_publication(sys.argv[1],disposition='withdrawn',reason='Explicit archiva
 
 
 def test_close_and_publisher_share_the_same_cross_process_lock(case):
-    from etalon.host import _consumer_lock
+    from moldarwin.host import _consumer_lock
     prepared = prepare_publication(**case["request"])
     script = """
 import sys
-from etalon.research.publication import close_publication,inspect_publication
+from moldarwin.research.publication import close_publication,inspect_publication
 state=inspect_publication(sys.argv[1])
 try:
     close_publication(sys.argv[1],disposition='withdrawn',reason='Explicit withdrawal',expected_intent_identity=state['intent_identity'])

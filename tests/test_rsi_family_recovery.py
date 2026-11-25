@@ -3,12 +3,12 @@ import json
 
 import pytest
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.research import Artifact, ResearchJournal
-from etalon.research import defect_family, improvement, opportunity_state
-from etalon.research.continuation import record_content
-from etalon.research.evidence_refs import file_identity, make_ref
-from etalon.research.method_revision import journal_ref
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.research import Artifact, ResearchJournal
+from moldarwin.research import defect_family, improvement, opportunity_state
+from moldarwin.research.continuation import record_content
+from moldarwin.research.evidence_refs import file_identity, make_ref
+from moldarwin.research.method_revision import journal_ref
 
 
 def fixture_case(root, sid):
@@ -35,7 +35,7 @@ def fixture_case(root, sid):
             sources.append({"source_id": other["sid"], "kind": "journal", "location": str(other["journal"].store.path),
                 "identity": {"kind": "snapshot_sha256", "value": file_identity(other["journal"].store.path)["sha256"]}})
         path = root / "workspace.json"
-        path.write_text(json.dumps({"schema": "etalon-evidence-workspace/1", "workspace_id": "synthetic-" + sid,
+        path.write_text(json.dumps({"schema": "moldarwin-evidence-workspace/1", "workspace_id": "synthetic-" + sid,
                                    "sources": sources + extra_sources, "location_map": []}), encoding="utf-8")
         return path
 
@@ -89,7 +89,7 @@ def test_selected_members_compare_their_own_bytes_when_recovering_terminal(tmp_p
         members.append({"member": name, "path": str(path), **file_identity(path), "visibility": "released"})
     body = {"role": "diagnostic", "members": members, "fixture": "synthetic member envelope"}
     manifest = case["root"] / "envelope.json"
-    manifest.write_text(json.dumps({"schema": "etalon-artifact-manifest/1", "records": [{"record_id": "envelope",
+    manifest.write_text(json.dumps({"schema": "moldarwin-artifact-manifest/1", "records": [{"record_id": "envelope",
         "record_type": "data_snapshot", "visibility": "released", "record": body}]}), encoding="utf-8")
     case["extra_sources"].append({"source_id": "members", "kind": "artifact_manifest", "location": str(manifest),
         "identity": {"kind": "snapshot_sha256", "value": file_identity(manifest)["sha256"]}})

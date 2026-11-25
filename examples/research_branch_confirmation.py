@@ -23,10 +23,10 @@ import threading
 import time
 import zipfile
 
-from etalon.active.schema import digest
-from etalon.research.scientific_input import identity
-from etalon.research.pose_task import compile_task
-from etalon.research.result_integrity import result_binding, validate_verifier, top1_observation
+from moldarwin.active.schema import digest
+from moldarwin.research.scientific_input import identity
+from moldarwin.research.pose_task import compile_task
+from moldarwin.research.result_integrity import result_binding, validate_verifier, top1_observation
 
 TASK = 'branch-confirmation-20261025'
 QUESTION = 'Can empirical near-tie gating preserve CNN pose quality with lower attributed CNN cost?'
@@ -36,8 +36,8 @@ METHOD = {'id':'empirical-gap-cnn-gate-v1','score_property':'minimizedAffinity',
           'cnn_failure':'empirical fallback, CNN comparator unknown, adoption blocked',
           'information':'empirical score/order only before CNN; never reference/checker labels',
           'cnn':'crossdock_default2018 score_only rescore; original coordinates unchanged'}
-REMOTE = Path('/home/zx/etalon/runs')
-OLD = REMOTE/'etalon-research-closeout-20261025/ranking'
+REMOTE = Path('/home/zx/moldarwin/runs')
+OLD = REMOTE/'moldarwin-research-closeout-20261025/ranking'
 PRIOR = [REMOTE/'posebusters24-20261023/cases.json',REMOTE/'pose-selection24-20261023/cases.json',OLD/'panel.json']
 ARCHIVE = REMOTE/'posebusters24-20261023/downloads/posebusters_paper_data.zip'
 RAW = ARCHIVE.parent.parent/'organizer/raw'
@@ -85,8 +85,8 @@ def gate_from_ranking(ranking):
 
 
 def design():
-    return {'schema':'etalon-branch-confirmation-design/1','frozen_at_ns':time.time_ns(),'candidate':METHOD,
-        'requested_count':24,'minimum_adoption_count':12,'selection_salt':'etalon-branch-independent-20261025-v1:',
+    return {'schema':'moldarwin-branch-confirmation-design/1','frozen_at_ns':time.time_ns(),'candidate':METHOD,
+        'requested_count':24,'minimum_adoption_count':12,'selection_salt':'moldarwin-branch-independent-20261025-v1:',
         'source_order':'single SHA256(salt+caseID) order over PB308 and Astex85; no source outcome labels read',
         'selection':'exclude all historical accepted/rejected/inspected IDs plus additional-navigation 5SB2_1K2; all historical inspected graphs/chains excluded by exact nonempty Murcko scaffold, Morgan radius2/2048 Tanimoto>=0.4, or chain SequenceMatcher ratio>=0.4; unique among newly accepted; single organic 10-45 heavy atoms; graph ETKDGv3 seed20261025 and MMFF200 convergence required',
         'input_guard':'reject any target CCD ATOM/HETATM including H/D, preserve raw source, no silent cleaning; renamed remnants not certified absent',
@@ -193,7 +193,7 @@ def prepare(root):
             'inputs':{p.name:identity(p) for p in sorted(public.iterdir())},'reference_identity':identity(gold/'reference.sdf')})
         fps.append(fp);scaffolds.add(scaffold);seqs.extend(seq)
         if len(rows)==24:break
-    panel={'schema':'etalon-branch-independent-panel/1','cases':rows,'rejected':rejected,'excluded_historical_ids':sorted(seen),
+    panel={'schema':'moldarwin-branch-independent-panel/1','cases':rows,'rejected':rejected,'excluded_historical_ids':sorted(seen),
         'history':provenance,'source_archive':{'path':str(ARCHIVE),**identity(ARCHIVE)},'universe':{'PB308':len(pb),'Astex85':len(astex)},
         'design':identity(root/'design-freeze.json'),'requested_count':24,'frozen_count':len(rows),'all_source_ids_exhausted':len(rows)<24,
         'post_prediction_replacement':False,'preparation_wall_seconds':time.perf_counter()-started,'scope':SCOPE}
@@ -207,9 +207,9 @@ def freeze(root,binary):
     for row in panel['cases']:prior.guard_target_component_absence(root/'inputs'/row['id']/'receptor.pdb',target_component_id=row['target_component_id'])
     contract=helper.pose_check_contract()
     if len(contract['required_checks'])!=22:raise ValueError('expected22checks')
-    names=['etalon','etalon.research.pose_task','etalon.research.pose_engine','etalon.research.scientific_input','etalon.research.pose_verifier','etalon.research.result_integrity','molcascade.plugins.builtin.docking.common','rdkit','posebusters','numpy']
+    names=['moldarwin','moldarwin.research.pose_task','moldarwin.research.pose_engine','moldarwin.research.scientific_input','moldarwin.research.pose_verifier','moldarwin.research.result_integrity','molcat.plugins.builtin.docking.common','rdkit','posebusters','numpy']
     imports={n:{'path':importlib.import_module(n).__file__,**identity(importlib.import_module(n).__file__)} for n in names}
-    value={'schema':'etalon-branch-execution-freeze/1','frozen_at_ns':time.time_ns(),'design':identity(root/'design-freeze.json'),'panel':identity(root/'panel.json'),
+    value={'schema':'moldarwin-branch-execution-freeze/1','frozen_at_ns':time.time_ns(),'design':identity(root/'design-freeze.json'),'panel':identity(root/'panel.json'),
         'candidate':METHOD,'check_contract':contract,'source':{str(p):identity(p) for folder in ('source','final-source') for p in sorted((root/folder).glob('*')) if p.is_file()},
         'pre_execution_amendment':identity(root/'pre-execution-amendment.json'),'final_protocol':identity(root/'PROTOCOL-v2.md'),
         'runtime':{'executable':sys.executable,'python':sys.version,'imports':imports,'versions':{n:importlib.metadata.version(n) for n in ('rdkit','posebusters','numpy')}},
@@ -226,9 +226,9 @@ def task(root,row,prior):
     settings=read(folder/'settings.json')
     params={'receptor':str(folder/'receptor.pdb'),'ligand':str(folder/'ligand.sdf'),'box':settings['box'],'seed':41,'num_modes':10,'exhaustiveness':8}
     sources=[{'id':key,'path':str(folder/name),'locator':'frozen source/graph/known-centroid; no gold coordinates','role':'conditioning','scope':QUESTION,**identity(folder/name)} for key,name in [('receptor','receptor.pdb'),('ligand','ligand.sdf'),('settings','settings.json')]]
-    return {'schema':'etalon-pose-task/1','task_id':TASK,'case_id':row['id'],'question':QUESTION,'split':'validation',
+    return {'schema':'moldarwin-pose-task/1','task_id':TASK,'case_id':row['id'],'question':QUESTION,'split':'validation',
         'method':{'engine':'GNINA1.3.3','pool':'empirical vina','candidate':METHOD['id']},'output_contract':{'poses':'SDF','scores':'typed-with-direction','receipt':'request-and-file-identities','failure':'retained'},
-        'input':{'schema':'etalon-scientific-input/1','task_id':TASK,'scope':QUESTION,'subject':{'molecule':row['smiles'],'series_id':row['series_id']},
+        'input':{'schema':'moldarwin-scientific-input/1','task_id':TASK,'scope':QUESTION,'subject':{'molecule':row['smiles'],'series_id':row['series_id']},
             'sources':sources,'observations':[],'interpretations':[],
             'bindings':[{'id':k,'target':k,'value':v,'use':'constraint' if k in {'receptor','ligand','box'} else 'selection','basis_ids':[k if k in {'receptor','ligand'} else 'settings'],'rationale':'predeclared independent confirmation input'} for k,v in params.items()]}}
 
@@ -285,7 +285,7 @@ class Runner:
             verifier.update(wall_seconds=time.perf_counter()-wall,cpu_seconds=time.thread_time()-cpu,started_after_candidate_ns=read(folder/'candidate.json')['frozen_at_ns'])
             save(folder/'verifier.json',verifier)
         verifier=read(folder/'verifier.json');integrity=validate_verifier(verifier,expected_pose_count=count,check_contract=self.freeze['check_contract'],expected_binding=binding)
-        result={'schema':'etalon-branch-case-result/1','case_id':row['id'],'dataset':row['dataset'],'status':'completed','stages':{'empirical':empirical['status'],'cnn':cnn['status']},
+        result={'schema':'moldarwin-branch-case-result/1','case_id':row['id'],'dataset':row['dataset'],'status':'completed','stages':{'empirical':empirical['status'],'cnn':cnn['status']},
             'binding':binding,'integrity':integrity,'gate':gate,'rankings':ranks,
             'top1':{m:top1_observation(verifier,r,count,check_contract=self.freeze['check_contract'],expected_binding=binding) for m,r in ranks.items()},
             'verifier':{'path':str(folder/'verifier.json'),**identity(folder/'verifier.json')},
@@ -362,7 +362,7 @@ def evaluate(root,*,output_path=None):
         ids={r['id'] for r in panel['cases'] if r['dataset']==dataset};subset=[r for r in rows if r['case_id'] in ids]
         strata[dataset]={'denominator':len(subset),'top1_success':{m:sum(r.get('top1',{}).get(m,{}).get('valid_and_RMSD_le_2A') is True for r in subset) for m in metrics},
                         'paired':{m:paired(subset,m) for m in ('empirical','cnn')},'policy_CNN_requests':sum(bool(r.get('gate',{}).get('request_cnn')) for r in subset)}
-    value={'schema':'etalon-branch-evaluation/1','denominator':n,'requested_target':24,'freeze':identity(root/'execution-freeze.json'),'panel':identity(root/'panel.json'),
+    value={'schema':'moldarwin-branch-evaluation/1','denominator':n,'requested_target':24,'freeze':identity(root/'execution-freeze.json'),'panel':identity(root/'panel.json'),
         'metrics':metrics,'paired':comparisons,'costs':costs,'missed_CNN_rescues_outside_gate':missed,
         'physical_valid_regressions_vs_either':physical_regressions,
         'source_strata':strata,

@@ -4,24 +4,24 @@
 
 ## 1. 唯一文件负责人
 
-所有路径相对于 ETALON。I4 管理共享接口和新增路径登记；每个文件只有一名写入者。各线可以立即做无依赖工作，不等整个实现完成。未列路径默认不可写，向 I 提出具体需要并更新归属；不同文件可以并行，不跨线整目录覆盖。
+所有路径相对于 MolDarwin。I4 管理共享接口和新增路径登记；每个文件只有一名写入者。各线可以立即做无依赖工作，不等整个实现完成。未列路径默认不可写，向 I 提出具体需要并更新归属；不同文件可以并行，不跨线整目录覆盖。
 
 | 唯一负责人 | 允许写入的产品文件 | 接口与交付责任 |
 | --- | --- | --- |
-| A4 证据 | 新 src/etalon/research/evidence.py；新 src/etalon/research/evidence_refs.py；tests/test_evidence_query.py、test_evidence_refs.py | 清单/ref/claim 校验、query/read、只读跨源查询、位置解析；向 I 提供 journal/skill 接点所需的纯函数签名；向 B/C 提供 SDK 样例 |
-| B4 元方法 | .claude/skills/etalon-skill-improvement/**；新 src/etalon/research/method_revision.py；examples/skill_improvement.py；tests/test_method_revision.py、test_skill_improvement.py | 修订 Artifact helper、S/U/G references、自身修改实际开发痕迹；不改现有 schema/journal；向 V 交 G0/G1 和完整来源 |
-| C4 专项指引 | src/etalon/HOST.md、HOST_SETUP.md；新 src/etalon/host-guides/**；.claude/skills/etalon-research/SKILL.md 与新 references/evidence-reuse.md；examples/evidence_reuse.py；tests/test_evidence_guidance.py | 按需专项与新 chat 入口、真实 SDK 例；不覆盖 validation-feedback.md/released_feedback.py；向 I 交待包装资源 |
-| I4 集成/共享 | src/etalon/research/schema.py、journal.py、__init__.py；src/etalon/skills.py、host.py；src/etalon/mcp/server.py、host.py 及新 evidence.py；pyproject.toml；docs/thin-harness/**；tests/test_evolution_integration.py | 唯一公共契约、MCP注册、打包/导出、旧路径兼容接点负责人；不重写科学算法；集成检查、READY、最终交付 |
+| A4 证据 | 新 src/moldarwin/research/evidence.py；新 src/moldarwin/research/evidence_refs.py；tests/test_evidence_query.py、test_evidence_refs.py | 清单/ref/claim 校验、query/read、只读跨源查询、位置解析；向 I 提供 journal/skill 接点所需的纯函数签名；向 B/C 提供 SDK 样例 |
+| B4 元方法 | .claude/skills/moldarwin-skill-improvement/**；新 src/moldarwin/research/method_revision.py；examples/skill_improvement.py；tests/test_method_revision.py、test_skill_improvement.py | 修订 Artifact helper、S/U/G references、自身修改实际开发痕迹；不改现有 schema/journal；向 V 交 G0/G1 和完整来源 |
+| C4 专项指引 | src/moldarwin/HOST.md、HOST_SETUP.md；新 src/moldarwin/host-guides/**；.claude/skills/moldarwin-research/SKILL.md 与新 references/evidence-reuse.md；examples/evidence_reuse.py；tests/test_evidence_guidance.py | 按需专项与新 chat 入口、真实 SDK 例；不覆盖 validation-feedback.md/released_feedback.py；向 I 交待包装资源 |
+| I4 集成/共享 | src/moldarwin/research/schema.py、journal.py、__init__.py；src/moldarwin/skills.py、host.py；src/moldarwin/mcp/server.py、host.py 及新 evidence.py；pyproject.toml；docs/thin-harness/**；tests/test_evolution_integration.py | 唯一公共契约、MCP注册、打包/导出、旧路径兼容接点负责人；不重写科学算法；集成检查、READY、最终交付 |
 | V4 独立验收 | tests/test_evolution_acceptance.py（如确有必要）；本轮 integration/v/** | 事前真实任务与评分、外部宿主调用、独立证据检查；不修改产品实现或替实现线修代码 |
 | R 审查 | 本轮 integration/r/**；启动前本三份契约和入口增补 | 启动后不与 I 同时写公共文档；查差异与原生证据，明确科学/工程/收益边界 |
 
 A 的 evidence_refs 为无外部派发的身份/定位辅助；A 的 evidence 组合它与既有读入口。B 的 method_revision 消费已有 Journal 与 A 的引用格式，保持现有 method schemas。I 仅在共享接点适配上述函数。不要为 ownership 再加包层级、通用 registry 或管理数据库。
 
-C4 新增专项文件已由 I4 登记：`src/etalon/host-guides/research.md`、`method-improvement.md`、`engineering.md`、`project-entry.md`。I4 负责将其以独立按需文件打包、导出；不拼入默认宿主指引。
+C4 新增专项文件已由 I4 登记：`src/moldarwin/host-guides/research.md`、`method-improvement.md`、`engineering.md`、`project-entry.md`。I4 负责将其以独立按需文件打包、导出；不拼入默认宿主指引。
 
-B4 的新增 bundle references 登记为 `.claude/skills/etalon-skill-improvement/references/selection-composition.md` 与 `references/self-revision.md`，仍由 B4 单写。
+B4 的新增 bundle references 登记为 `.claude/skills/moldarwin-skill-improvement/references/selection-composition.md` 与 `references/self-revision.md`，仍由 B4 单写。
 
-受保护：其余 src/etalon 科学算法、asset/**、PRISM 全仓、历史 integration 证据和 R4b。确需修改其他文件时由 I 登记理由、兼容方式和验证，再交唯一负责人；不得清除已有 dirty/untracked/staged。不能用只含 HEAD 的 worktree 当本地科学基线。
+受保护：其余 src/moldarwin 科学算法、asset/**、PRISM 全仓、历史 integration 证据和 R4b。确需修改其他文件时由 I 登记理由、兼容方式和验证，再交唯一负责人；不得清除已有 dirty/untracked/staged。不能用只含 HEAD 的 worktree 当本地科学基线。
 
 ## 2. 共享接口负责人
 

@@ -41,7 +41,7 @@ and its dependency closure, with a reason and reconsideration conditions.
 | Visibility | Purpose-restricted workspaces; evaluation-only descriptors filtered before summary; full evidence dependency bindings on the workset Artifact |
 | Publication | Existing `decision` step, unchanged checkpoint schema, durable intent and CAS entry update |
 | Activation | Only checkpoint-reachable marked decisions; explicit same-task parent chain; conflicting heads, omitted dependency bindings and foreign predecessors rejected |
-| Context | Existing `etalon_research_context` adds `task_workset`; exact details remain available through existing evidence reads |
+| Context | Existing `moldarwin_research_context` adds `task_workset`; exact details remain available through existing evidence reads |
 | Hook | Task/workset change gives a baseline with removed and enabled resource versions; same version keeps existing delta/unchanged behavior |
 | Skill export | Optional `host.export(..., task_workset=...)` physically omits unselected members; complete discovered skill-root inventory is verified |
 | Legacy behavior | No workset means `legacy_unscoped`; old export calls still export the full library; no new content projection enum |
@@ -134,7 +134,7 @@ claim improvement.
 
 `research.resource_usage` connects an exact workset part to existing MethodVersion,
 MethodUse, research node, evaluation step and subsequent decision. It stores one
-ordinary `etalon-resource-usage/1` Artifact with complete evidence dependencies
+ordinary `moldarwin-resource-usage/1` Artifact with complete evidence dependencies
 and source-qualified graph links. It creates no MethodUse, evaluation, cost entry,
 executor or activation. Use `build_resource_usage`, `record_resource_usage`, then
 `read_resource_usage` to verify the association. `workset_resource_part` resolves

@@ -1,10 +1,10 @@
 # Windows stdio and lazy native imports
 
-ETALON's stdio entrypoint keeps scientific imports on demand. Reading skills or
+MolDarwin's stdio entrypoint keeps scientific imports on demand. Reading skills or
 memory does not preload NumPy, PyArrow or the molecular execution stack.
 
 On the tested Windows/Conda Python 3.13 environment, a pending synchronous stdin
-pipe read stalled the first NumPy native import during `etalon_screen_configure`.
+pipe read stalled the first NumPy native import during `moldarwin_screen_configure`.
 The same failure was reproduced against the prior source revision. Standalone
 imports succeeded, and additional client input released the stalled import.
 This identifies an input/import interaction, not the particular native lock
@@ -24,7 +24,7 @@ does not change the cancellation semantics of scientific tool workers.
 There must be exactly one stdin reader and no competing blocking read on the
 same pipe. Microsoft documents that `PeekNamedPipe` itself can block on a
 synchronous handle in a multithreaded application; this is a bounded workaround
-verified for ETALON's single-reader stdio lifecycle, not a general Windows I/O
+verified for MolDarwin's single-reader stdio lifecycle, not a general Windows I/O
 guarantee. Idle input checks wait 10 ms between probes and use the SDK's existing
 reader thread. See [Microsoft's API contract](https://learn.microsoft.com/en-us/windows/win32/api/namedpipeapi/nf-namedpipeapi-peeknamedpipe)
 and [AnyIO's cooperative thread cancellation](https://anyio.readthedocs.io/en/stable/threads.html#reacting-to-cancellation-in-worker-threads).

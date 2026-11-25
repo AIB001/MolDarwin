@@ -19,9 +19,9 @@ import time
 import numpy as np
 from rdkit import Chem
 
-from etalon.active.schema import digest
-from etalon.research.scientific_input import identity
-from etalon.research.pose_check_bridge import freeze_posebusters_dock, audit_pose_verification
+from moldarwin.active.schema import digest
+from moldarwin.research.scientific_input import identity
+from moldarwin.research.pose_check_bridge import freeze_posebusters_dock, audit_pose_verification
 
 
 def read(p):
@@ -67,7 +67,7 @@ def audit(root, out):
             raise ValueError('historical source changed: ' + path)
     contract = freeze_posebusters_dock()
     verifier_path = root / 'source/pose_verifier.py'
-    spec = importlib.util.spec_from_file_location('etalon.research.check_audit_frozen_pose_verifier', verifier_path)
+    spec = importlib.util.spec_from_file_location('moldarwin.research.check_audit_frozen_pose_verifier', verifier_path)
     verifier = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(verifier)
     selection = read(root / 'selection.json')
@@ -82,10 +82,10 @@ def audit(root, out):
         'original_protocol_freeze': frozen_pin, 'original_inputs': originals, 'check_contract': contract,
         'old_verifier_source': {'path': str(verifier_path), **identity(verifier_path)},
         'actual_python': sys.executable, 'audit_source': {'path': __file__, **identity(__file__)},
-        'bridge_source': {'path': sys.modules['etalon.research.pose_check_bridge'].__file__,
-                          **identity(sys.modules['etalon.research.pose_check_bridge'].__file__)},
-        'integrity_source': {'path': sys.modules['etalon.research.result_integrity'].__file__,
-                            **identity(sys.modules['etalon.research.result_integrity'].__file__)},
+        'bridge_source': {'path': sys.modules['moldarwin.research.pose_check_bridge'].__file__,
+                          **identity(sys.modules['moldarwin.research.pose_check_bridge'].__file__)},
+        'integrity_source': {'path': sys.modules['moldarwin.research.result_integrity'].__file__,
+                            **identity(sys.modules['moldarwin.research.result_integrity'].__file__)},
         'native_execution': 'prohibited', 'posebusters_bust_calls': 'prohibited',
         'historical_config_predeclaration': 'not_established; full dock configuration frozen retrospectively here'}
     save(out / 'freeze.json', audit_freeze)

@@ -1,6 +1,6 @@
 # Scientific result integrity and SND1 reassessment
 
-`etalon.research.result_integrity` checks the completeness and identity of already
+`moldarwin.research.result_integrity` checks the completeness and identity of already
 produced pose evidence. It does not execute docking, determine affinity, or
 certify scientific truth. `examples/snd1_scale_screen.py` freezes its actual
 PoseBusters configuration and implementation before a new batch.

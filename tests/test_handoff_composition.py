@@ -7,8 +7,8 @@ import json
 import pytest
 import yaml
 
-from etalon.boundary.screen import Screen
-from etalon.campaign.design import component, compose
+from moldarwin.boundary.screen import Screen
+from moldarwin.campaign.design import component, compose
 
 
 def test_handoff_requires_and_preserves_explicit_geometry_binding(tmp_path):
@@ -23,7 +23,7 @@ def test_handoff_requires_and_preserves_explicit_geometry_binding(tmp_path):
     library.write_text("id,smiles\na,CCO\n")
     screen = Screen(tmp_path / "work")
     ambiguous = screen.with_handoff(source, tmp_path / "ambiguous.yaml", prefer="embedded_conformer")
-    from molcascade.errors import ConfigError
+    from molcat.errors import ConfigError
 
     with pytest.raises(ConfigError, match="earlier stages"):
         screen.plan(ambiguous, library)

@@ -11,17 +11,17 @@ import json
 from pathlib import Path
 import time
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.schema import canonical
-from etalon.research import Artifact, MethodVersion, MethodUse, ResearchJournal
-from etalon.research import research_decision as rd, research_model as rm, improvement as imp
-from etalon.research.action_learning import gather_action_basis, compare_action_feedback, gather_rule_revision_context
-from etalon.research.components import record_json
-from etalon.research.composition import node_step
-from etalon.research.continuation import record_content
-from etalon.research.evidence_refs import file_identity
-from etalon.research.method_revision import journal_ref, build_method_revision, record_method_revision
-from etalon.research.publication import _save
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.schema import canonical
+from moldarwin.research import Artifact, MethodVersion, MethodUse, ResearchJournal
+from moldarwin.research import research_decision as rd, research_model as rm, improvement as imp
+from moldarwin.research.action_learning import gather_action_basis, compare_action_feedback, gather_rule_revision_context
+from moldarwin.research.components import record_json
+from moldarwin.research.composition import node_step
+from moldarwin.research.continuation import record_content
+from moldarwin.research.evidence_refs import file_identity
+from moldarwin.research.method_revision import journal_ref, build_method_revision, record_method_revision
+from moldarwin.research.publication import _save
 
 TASK = "snd1-mechanism-improvement"
 SCOPE = "QOV seen three-pair short relaxation; task-local improvement procedure trial"
@@ -51,7 +51,7 @@ def run(root, primary_path, old_skill, skill_directory, creator_directory):
         "base": skill_bundle(skill_directory, old_entry=old_skill),
         "candidate": skill_bundle(skill_directory), "producer": skill_bundle(creator_directory),
         "source": file_identity(__file__), "adapters": {name: file_identity(Path(__file__).parents[1] /
-            "src/etalon/research" / (name + ".py")) for name in ("action_learning", "research_model", "research_decision", "improvement")}}
+            "src/moldarwin/research" / (name + ".py")) for name in ("action_learning", "research_model", "research_decision", "improvement")}}
     if (root / "DONE.json").exists():
         if read(root / "request.json") != request:
             raise ValueError("revision inputs changed; use a new explicit trial")
@@ -74,7 +74,7 @@ def run(root, primary_path, old_skill, skill_directory, creator_directory):
         source_kind="existing_real_artifact", role="diagnostic", bindings={"kind": "completed_md_summary"})))
     def workspace():
         path = root / "workspace.json"
-        _save(path, {"schema": "etalon-evidence-workspace/1", "workspace_id": TASK,
+        _save(path, {"schema": "moldarwin-evidence-workspace/1", "workspace_id": TASK,
             "sources": [{"source_id": SID, "kind": "journal", "location": str(store.path),
                 "identity": {"kind": "snapshot_sha256", "value": file_identity(store.path)["sha256"]}}],
             "status_refs": [], "location_map": []}, replace=True)
@@ -87,8 +87,8 @@ def run(root, primary_path, old_skill, skill_directory, creator_directory):
         return ref(journal.record(MethodVersion(name, ("improvement_method",),
             {"artifact_ref": content["record_id"]}, parents=parents,
             change_summary="Task-local procedure, not scientific adoption")))
-    base = method("etalon-skill-improvement-before-mechanism-revision", base_content)
-    candidate = method("etalon-skill-improvement-mechanism-revision", candidate_content, (base["record_id"],))
+    base = method("moldarwin-skill-improvement-before-mechanism-revision", base_content)
+    candidate = method("moldarwin-skill-improvement-mechanism-revision", candidate_content, (base["record_id"],))
     creator = method("rsi-skill-creator-used-by-lead", creator_content)
     window = artifact({"timing": "retrospective", "prior_results_already_seen": True,
         "interpretation": "Re-examine the rejected geometry-to-retention inference; no historical prediction fabricated"})
@@ -106,7 +106,7 @@ def run(root, primary_path, old_skill, skill_directory, creator_directory):
         branch_id="rule-revision", question="Does static geometric success explain retained contact?", problem_refs=[original],
         structure=dict(task_family="mechanism_learning", objective_kind="local_retention", subject="QOV",
             intervention="geometric proposal", readout="existing paired MD", constraints=["seen results", "no new MD"], unknowns=[]),
-        attribution=dict(actor="ETALON lead", basis="host_judgment", model_ref=None, skill_refs=[candidate], verifier_refs=[]),
+        attribution=dict(actor="MolDarwin lead", basis="host_judgment", model_ref=None, skill_refs=[candidate], verifier_refs=[]),
         options=[dict(option_id="geometry", kind="hypothesis", statement="Static contact construction predicts retention", claim_refs=[]),
                  dict(option_id="other", kind="unknown", statement="Preparation, environment or strain matters", claim_refs=[])],
         predictions=[dict(prediction_id="retention", action_id="read", option_ids=["geometry"],

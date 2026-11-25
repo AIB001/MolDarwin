@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from scipy.linalg import cho_solve, solve_triangular
 
-from etalon.active.protocol_score import rank_variants
+from moldarwin.active.protocol_score import rank_variants
 
 
 @pytest.mark.parametrize("scale", [1e-200, 1e-160, 1e160, 1e200])

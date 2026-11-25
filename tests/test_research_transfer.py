@@ -9,8 +9,8 @@ import sys
 
 import pytest
 
-from etalon.research.diagnostics import Probe, Resource
-from etalon.research.transfer import (Catalog, GroupSplit, checked_rows, evaluate_policies,
+from moldarwin.research.diagnostics import Probe, Resource
+from moldarwin.research.transfer import (Catalog, GroupSplit, checked_rows, evaluate_policies,
     fit_policy, load_policy, next_action, probability_assessment, save_policy, calibrate_policy)
 
 
@@ -188,7 +188,7 @@ def test_common_prefix_is_required_and_charged_for_every_control():
 
 
 def test_chunk_outcome_uses_only_paid_subset_and_respects_ties_failures():
-    from etalon.research.fixed_pool import subset_rank_outcome, two_chunk_catalog
+    from moldarwin.research.fixed_pool import subset_rank_outcome, two_chunk_catalog
     ids=('a','b','c'); vina=dict(a=-3.,b=-2.,c=-1.)
     assert subset_rank_outcome(candidate_ids=ids,vina=vina,vinardo=dict(a=-30.,b=-20.,c=-10.))['outcome']=='same'
     assert subset_rank_outcome(candidate_ids=ids,vina=vina,vinardo=dict(a=-3.,b=-1.,c=-2.))['outcome']=='changed'

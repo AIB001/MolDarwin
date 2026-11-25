@@ -30,9 +30,9 @@ if value.assessment_role == 'diagnostic':
     return
 ```
 
-A previous review read all 244 source files under `src/etalon` and could not determine
+A previous review read all 244 source files under `src/moldarwin` and could not determine
 whether that early return was a deliberate two-regime design or an accretion
-(`etalon-architecture-review.md:623-629`). It made the answer the question that most
+(`moldarwin-architecture-review.md:623-629`). It made the answer the question that most
 changed its own top-ranked proposal, and asked a human.
 
 The split is deliberate and wanted. The repo owner confirmed it. **That confirmation is
@@ -71,7 +71,7 @@ Everything after the early return is skipped, and each skipped check is a cost t
 Citation freshness: these numbers were re-derived at the end of this round, after
 concurrent edits to `research/journal.py` by another session. The architecture review cites
 the same two quoted refusals as `:258-260` and `:263-269`
-(`etalon-architecture-review.md:46-49`); they are the same text at `:259-261` and `:264-269`
+(`moldarwin-architecture-review.md:46-49`); they are the same text at `:259-261` and `:264-269`
 here. Where the two disagree, the quoted text is the claim.
 
 So `diagnostic` buys: no predeclaration, reuse of already-seen bytes, cheap proxies, and no
@@ -209,19 +209,19 @@ no new output field beyond the basis string.
 ### 3.2 Scope — read this before implementing
 
 The regime is **already in the graph**. `research/graph_memory.py:241-243` projects, for
-`schema == "etalon-method-evaluation/1"`, a node field
+`schema == "moldarwin-method-evaluation/1"`, a node field
 `node["evaluation"]` carrying the keys `("subjects", "comparators", "assessment_role",
 "conclusion", "scope")`. The membrane therefore reads an existing projected field. No
 schema change, no emission-point change, no write of any kind. Evidence: `measured_here`.
 
-Only `etalon-method-evaluation/1` nodes carry a regime. Four cases, and the fourth is the
+Only `moldarwin-method-evaluation/1` nodes carry a regime. Four cases, and the fourth is the
 one that matters:
 
 | premise node | regime | classification |
 |---|---|---|
-| `etalon-method-evaluation/1`, `assessment_role == "independent_validation"` | declared strong | unchanged (§3 table applies) |
-| `etalon-method-evaluation/1`, `assessment_role == "diagnostic"` | declared weak | `used`, basis `regime_cannot_settle` |
-| `etalon-method-evaluation/1`, regime absent or unreadable | unknown | `used`, basis `regime_not_declared` (§4) |
+| `moldarwin-method-evaluation/1`, `assessment_role == "independent_validation"` | declared strong | unchanged (§3 table applies) |
+| `moldarwin-method-evaluation/1`, `assessment_role == "diagnostic"` | declared weak | `used`, basis `regime_cannot_settle` |
+| `moldarwin-method-evaluation/1`, regime absent or unreadable | unknown | `used`, basis `regime_not_declared` (§4) |
 | any other node schema | **not applicable** | unchanged (§3 table applies) |
 
 **`not_applicable` is not `unknown`.** A measurement, an action receipt, a research step or
@@ -235,7 +235,7 @@ limit in §6.
 The membrane is defined on the premise node's regime, not on the relation, so it needs no
 list of relations to stay correct. Two concrete routes exist today:
 
-- `method_links.py:75` — an `etalon-research-step/1` record with `operation ==
+- `method_links.py:75` — an `moldarwin-research-step/1` record with `operation ==
   "evaluation"` emits `add([detail["evaluation_ref"]], "evaluation_result")`, and
   `evaluation_result` is `relied_on` with basis `declared_relation`
   (`admission_view.py:26`; `ADMISSION_PROPAGATION.md` §3). This is the edge from an
@@ -286,9 +286,9 @@ Each must be held by a test. Numbering continues `ADMISSION_PROPAGATION.md` §7 
   `view_version`.
 - **I15 — the diagnostic node keeps its own value.** In I13's fixture, the
   `MethodEvaluation` node's own derived `admission` is unchanged by the membrane.
-- **I16 — scope.** A graph containing no `etalon-method-evaluation/1` node produces a view
+- **I16 — scope.** A graph containing no `moldarwin-method-evaluation/1` node produces a view
   byte-identical (modulo `view_version`) to the pre-change one. No node schema other than
-  `etalon-method-evaluation/1` is demoted by regime.
+  `moldarwin-method-evaluation/1` is demoted by regime.
 - **I17 — pair resolution order.** Two `relied_on` edges between the same owner and the
   same `diagnostic` premise resolve to `used` with basis `regime_cannot_settle`, not to
   `relied_on`.
@@ -351,7 +351,7 @@ identifiers.**
 A stricter `independent_validation` path invites hosts to record everything as
 `diagnostic`. The architecture review judged this should be reported rather than prevented,
 because `diagnostic` is a legitimate role and forcing the stronger one would make the
-record less honest, not more (`etalon-architecture-review.md:209-213`). That judgement is
+record less honest, not more (`moldarwin-architecture-review.md:209-213`). That judgement is
 correct and this design keeps it: nothing here refuses a `diagnostic` record.
 
 With the membrane, the route around is self-defeating without being blocked. A conclusion
@@ -361,7 +361,7 @@ denominator, not the numerator (`ADMISSION_PROPAGATION_DECISIONS.md:61-68`). Rec
 everything as `diagnostic` therefore earns nothing instead of earning warrant cheaply.
 
 The ratio of `independent_validation` to `diagnostic` records per window is still worth
-reporting (`etalon-architecture-review.md:223-226`), now as an observation about how the
+reporting (`moldarwin-architecture-review.md:223-226`), now as an observation about how the
 lanes are used rather than as the detector of a loophole.
 
 ## 5. Decision 4 — the promotion ritual
@@ -446,7 +446,7 @@ rather than two.
 ## 6. Limits, and what this record does not decide
 
 - **Reliance that does not pass through an evaluation node is not covered.** The membrane
-  is scoped to `etalon-method-evaluation/1` premises (§3.2). A decision relying directly on
+  is scoped to `moldarwin-method-evaluation/1` premises (§3.2). A decision relying directly on
   a measurement is unaffected by regime, because a measurement has no regime to declare.
   Whether some reliance paths should be regime-bearing is open and is not decided here.
 - **The membrane does not make the view non-empty.** Over existing records every node is
@@ -462,7 +462,7 @@ rather than two.
   the membrane on exactly the same edges as the base facet. No separate rule.
 - **Whether `independent_validation` should become the default is not decided and should
   not be.** The review raised it as the alternative to this design if `diagnostic` had been
-  an accretion (`etalon-architecture-review.md:626-629`). It was not. With explicit entry
+  an accretion (`moldarwin-architecture-review.md:626-629`). It was not. With explicit entry
   (§2) there is no default to argue about.
 - **No reward figure.** The decisions file's single critical-path instruction stands: do
   not report any reward number before the dispatch link exists
@@ -501,7 +501,7 @@ instrument, and that is the whole of the answer.** §1's lane buys exactly what 
 needs — no predeclaration, reuse of seen bytes, cheap proxies, no comparator pairing — and
 costs exactly what such a judge must be made to cost: it structurally cannot be relied on.
 So the design requires **no new record type, no new regime value, and no new refusal.** A
-judge verdict recorded as an `etalon-method-evaluation/1` with
+judge verdict recorded as an `moldarwin-method-evaluation/1` with
 `assessment_role: "diagnostic"` is handled by the membrane as built.
 
 This is the use case that makes the `diagnostic` lane load-bearing rather than theoretical,
@@ -517,7 +517,7 @@ drawn for.
 
 A loose judge's verdicts do not stay verdicts. An RSI loop consolidates them into lessons,
 and §12 of `ADMISSION_PROPAGATION.md` records what was found when that path was traced: an
-`etalon-method-experience/1` was **outside the membrane's scope** while being a legal
+`moldarwin-method-experience/1` was **outside the membrane's scope** while being a legal
 premise ref, and a human label on a `supports` edge from one could promote it to
 `relied_on` with nothing to stop it. So the lesson route was how a loose judge's verdicts
 would have become premises.

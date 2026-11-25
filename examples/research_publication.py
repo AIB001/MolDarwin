@@ -1,6 +1,6 @@
 """Archive existing outputs; inspect/resume an interrupted publication.
 
-Run with ETALON installed. Prepare consumes a JSON object containing the explicit
+Run with MolDarwin installed. Prepare consumes a JSON object containing the explicit
 prepare_publication keyword arguments (including expected_entry_identity).
 No command starts scientific computation or supplies execution authority.
 """
@@ -10,7 +10,7 @@ import argparse
 import json
 from pathlib import Path
 
-from etalon.research.publication import (
+from moldarwin.research.publication import (
     discover_publications, inspect_publication, prepare_publication, prepare_result_publication, resume_publication,
 )
 

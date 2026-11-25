@@ -1,4 +1,4 @@
-# 动作契约：etalon-action/1
+# 动作契约：moldarwin-action/1
 
 状态：后端、MCP 与 CLI 已实现；实际验收范围见 DELIVERY_A/I/V，不由本文定义推断通过。原则与源码基线见 [README](README.md)，用例见 [ACCEPTANCE](ACCEPTANCE.md)。
 
@@ -6,13 +6,13 @@
 
 动作请求表达“当前决定执行哪个已支持操作”。不要求完整研究 DAG、数值策略评分、必选 skill 或后继节点。它不是宿主全部行为的统一拦截层。
 
-新增 `ActionRequest` 是公共封装；既有 [active/schema.py](../../src/etalon/active/schema.py) 中的 `Action` 继续表示分子—端点执行。准备、导入、筛选等操作不伪造分子端点或模型特征来套用 `Action`。
+新增 `ActionRequest` 是公共封装；既有 [active/schema.py](../../src/moldarwin/active/schema.py) 中的 `Action` 继续表示分子—端点执行。准备、导入、筛选等操作不伪造分子端点或模型特征来套用 `Action`。
 
 ## 2. 请求字段
 
 | 字段 | 类型／必需性 | 语义 |
 | --- | --- | --- |
-| `schema` | string，必需 | 固定为 `etalon-action/1` |
+| `schema` | string，必需 | 固定为 `moldarwin-action/1` |
 | `request_id` | string，必需 | 宿主生成，沿用 runtime 的 identifier 校验；在目标 workspace 内唯一 |
 | `operation` | string，必需 | 已安装操作名称；首要新增操作为 `active.evaluate` |
 | `arguments` | object，必需 | 按操作自己的参数契约校验，禁止未知参数悄悄改变行为 |
@@ -27,7 +27,7 @@
 
 ```json
 {
-  "schema": "etalon-action/1",
+  "schema": "moldarwin-action/1",
   "request_id": "assess-C1-001",
   "operation": "active.evaluate",
   "arguments": {
@@ -46,7 +46,7 @@
 
 ## 3. 最小公共接口与生产消费关系
 
-以下 SDK 位于 `etalon.runtime.api`，由 A 实现后端，I 提供 MCP 薄封装；没有新增 SDK 包。
+以下 SDK 位于 `moldarwin.runtime.api`，由 A 实现后端，I 提供 MCP 薄封装；没有新增 SDK 包。
 
 | 接口 | 返回／用途 | 生产端 → 消费端 |
 | --- | --- | --- |
@@ -54,7 +54,7 @@
 | `submit_action(request, *, workspace, plan_id)` | `ActionHandle`，提交或返回同一已存在执行 | A → 宿主、C、I、V |
 | `read_action_result(handle)` | [ActionResult](RESULT_CONTRACT.md) | A，使用 B 的科学准入解释 → 宿主、C、V |
 
-MCP 对应目标名称为 `etalon_action_prepare`、`etalon_action_submit`、`etalon_action_result`。状态、产物读取、cancel、reconcile 优先返回并复用现有 workflow／screen 操作句柄；不要再复制一套恢复状态机。
+MCP 对应目标名称为 `moldarwin_action_prepare`、`moldarwin_action_submit`、`moldarwin_action_result`。状态、产物读取、cancel、reconcile 优先返回并复用现有 workflow／screen 操作句柄；不要再复制一套恢复状态机。
 
 `PreparedAction` 至少返回：
 
@@ -82,12 +82,12 @@ prepare 和 submit 可在已有授权内连续调用，不要求用户逐步确�
 
 | 当前文件／接口 | 直接复用 | 必须新增或拆开 |
 | --- | --- | --- |
-| [runtime/operations.py](../../src/etalon/runtime/operations.py) | 参数、input_hashes、preflight、execute、verify、accounting、recover | 增加实际支持的 `active.evaluate` 适配；结果视图 |
-| [runtime/api.py](../../src/etalon/runtime/api.py)、[service.py](../../src/etalon/runtime/service.py) | 单节点 durable job、计划绑定、重放与恢复 | prepare/submit/read facade；不向宿主强制暴露 DAG |
-| [active/runner.py](../../src/etalon/active/runner.py) | 执行器、检查、收据和准入过程，`ExecutionPending` | 分离选择与执行；新入口不调用 `choose()`，不伪造 GP 模型 |
-| [active/store.py](../../src/etalon/active/store.py) | reserve/start/resolve、成本去重、协议配额 | 复用事务约束；无关方法事件不使宿主动作过期 |
-| [mcp/runtime.py](../../src/etalon/mcp/runtime.py) | executor prepare/register、status/artifact/cancel/reconcile | I 接新后端；旧 `active.run` 和 `workflow_advance` 保持含义 |
-| [runtime/executors.py](../../src/etalon/runtime/executors.py) | 实际执行器支持边界及版本绑定 | 不把当前 bounded bridge 宣称为任意分子通用执行 |
+| [runtime/operations.py](../../src/moldarwin/runtime/operations.py) | 参数、input_hashes、preflight、execute、verify、accounting、recover | 增加实际支持的 `active.evaluate` 适配；结果视图 |
+| [runtime/api.py](../../src/moldarwin/runtime/api.py)、[service.py](../../src/moldarwin/runtime/service.py) | 单节点 durable job、计划绑定、重放与恢复 | prepare/submit/read facade；不向宿主强制暴露 DAG |
+| [active/runner.py](../../src/moldarwin/active/runner.py) | 执行器、检查、收据和准入过程，`ExecutionPending` | 分离选择与执行；新入口不调用 `choose()`，不伪造 GP 模型 |
+| [active/store.py](../../src/moldarwin/active/store.py) | reserve/start/resolve、成本去重、协议配额 | 复用事务约束；无关方法事件不使宿主动作过期 |
+| [mcp/runtime.py](../../src/moldarwin/mcp/runtime.py) | executor prepare/register、status/artifact/cancel/reconcile | I 接新后端；旧 `active.run` 和 `workflow_advance` 保持含义 |
+| [runtime/executors.py](../../src/moldarwin/runtime/executors.py) | 实际执行器支持边界及版本绑定 | 不把当前 bounded bridge 宣称为任意分子通用执行 |
 
 旧数值路径可以继续记录 round/model；宿主路径使用现有存储时可保留真实执行分组，但不可要求虚构模型或训练记录。
 

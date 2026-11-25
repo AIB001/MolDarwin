@@ -1,4 +1,4 @@
-"""Real CPU ONNX export and MolCascade inference, using synthetic training targets.
+"""Real CPU ONNX export and MolCat inference, using synthetic training targets.
 
 These tests verify serialization, feature identity and prediction parity, not molecular
 accuracy. Missing optional export/runtime dependencies produce explicit pytest skips.
@@ -13,9 +13,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from etalon.boundary.infra import load
-from etalon.learn.bundle import MANIFEST_FILENAME, MODEL_FILENAME, BundleError, export
-from etalon.learn.surrogate import Surrogate, featurize
+from moldarwin.boundary.infra import load
+from moldarwin.learn.bundle import MANIFEST_FILENAME, MODEL_FILENAME, BundleError, export
+from moldarwin.learn.surrogate import Surrogate, featurize
 
 
 @pytest.fixture
@@ -23,16 +23,16 @@ def roundtrip(tmp_path):
     for module in ("numpy", "sklearn", "rdkit", "pyarrow", "yaml", "skl2onnx", "onnxruntime"):
         pytest.importorskip(module, reason="real CPU ONNX roundtrip needs optional model dependencies")
     pytest.importorskip("pydantic", minversion="2.10")
-    load("molcascade")
+    load("molcat")
 
     import numpy as np
     import pyarrow as pa
     import pyarrow.parquet as pq
     import yaml
-    from molcascade.artifacts.models import ArtifactDatasetRef
-    from molcascade.contracts import PARENT_V1
-    from molcascade.plugins.api import StageContext, StageInput, StageRequest
-    from molcascade.plugins.builtin.custom_model import (
+    from molcat.artifacts.models import ArtifactDatasetRef
+    from molcat.contracts import PARENT_V1
+    from molcat.plugins.api import StageContext, StageInput, StageRequest
+    from molcat.plugins.builtin.custom_model import (
         CustomModelPredictorPlugin,
         inspect_model_bundle,
     )
@@ -85,8 +85,8 @@ def _write_manifest(case):
 def test_real_forest_roundtrips_through_public_consumer_cpu_plugin(roundtrip):
     import numpy as np
     import pyarrow.parquet as pq
-    from molcascade.chemistry.featurizers import Featurizer
-    from molcascade.plugins.builtin.custom_model import ModelBundleManifest
+    from molcat.chemistry.featurizers import Featurizer
+    from molcat.plugins.builtin.custom_model import ModelBundleManifest
 
     case = roundtrip
     manifest = ModelBundleManifest.model_validate(case.manifest)
@@ -126,8 +126,8 @@ def test_real_forest_roundtrips_through_public_consumer_cpu_plugin(roundtrip):
 
 
 def test_wrong_expected_digest_is_refused_before_loading_onnx(roundtrip, monkeypatch):
-    from molcascade.errors import PluginError
-    from molcascade.plugins.builtin import custom_model
+    from molcat.errors import PluginError
+    from molcat.plugins.builtin import custom_model
 
     case = roundtrip
     monkeypatch.setattr(custom_model, "_load_onnx_session", lambda *args, **kwargs: pytest.fail("loaded unpinned graph"))
@@ -139,7 +139,7 @@ def test_wrong_expected_digest_is_refused_before_loading_onnx(roundtrip, monkeyp
 
 
 def test_modified_onnx_bytes_are_refused_by_real_consumer(roundtrip):
-    from molcascade.errors import PluginError
+    from molcat.errors import PluginError
 
     case = roundtrip
     model_path = case.bundle.directory / MODEL_FILENAME
@@ -152,8 +152,8 @@ def test_modified_onnx_bytes_are_refused_by_real_consumer(roundtrip):
 
 @pytest.mark.parametrize("change", ["morgan_radius", "descriptor_order"])
 def test_same_width_feature_changes_cannot_reuse_pinned_bundle_identity(roundtrip, change):
-    from molcascade.errors import PluginError
-    from molcascade.plugins.builtin.custom_model import inspect_model_bundle
+    from molcat.errors import PluginError
+    from molcat.plugins.builtin.custom_model import inspect_model_bundle
 
     case = roundtrip
     blocks = case.manifest["representation"]["blocks"]
@@ -173,8 +173,8 @@ def test_same_width_feature_changes_cannot_reuse_pinned_bundle_identity(roundtri
 
 
 def test_declared_feature_width_must_agree_with_manifest(roundtrip):
-    from molcascade.errors import PluginError
-    from molcascade.plugins.builtin.custom_model import inspect_model_bundle
+    from molcat.errors import PluginError
+    from molcat.plugins.builtin.custom_model import inspect_model_bundle
 
     case = roundtrip
     case.manifest["representation"]["blocks"][0]["names"].pop()
@@ -185,8 +185,8 @@ def test_declared_feature_width_must_agree_with_manifest(roundtrip):
 
 
 def test_actual_onnx_input_width_is_checked_even_after_repinning_manifest(roundtrip):
-    from molcascade.errors import PluginError
-    from molcascade.plugins.builtin.custom_model import inspect_model_bundle
+    from molcat.errors import PluginError
+    from molcat.plugins.builtin.custom_model import inspect_model_bundle
 
     case = roundtrip
     case.manifest["representation"]["blocks"][0]["names"].pop()

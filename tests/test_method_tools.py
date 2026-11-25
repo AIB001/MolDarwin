@@ -1,7 +1,7 @@
 """Optional mechanics preserve the author's decisions and withhold evaluation labels."""
 import pytest
 
-from etalon.research.method_tools import (
+from moldarwin.research.method_tools import (
     bounded_acquisition, crossfit_predictions, observation_records,
 )
 

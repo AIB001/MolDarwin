@@ -3,9 +3,9 @@ import json
 
 import pytest
 
-from etalon.research.notes import read_current, save_progress
-from etalon.research.result_semantics import build_result_profile, bind_scientific_result, profile_definitions
-from etalon.research.research_context import build_research_context
+from moldarwin.research.notes import read_current, save_progress
+from moldarwin.research.result_semantics import build_result_profile, bind_scientific_result, profile_definitions
+from moldarwin.research.research_context import build_research_context
 from test_research_notes import case as notes_case
 from test_research_publication import case as publication_case
 
@@ -48,9 +48,9 @@ def test_typed_result_cannot_be_published_under_another_metric_meaning(notes_cas
 
 
 def test_published_workset_follows_note_but_old_meaning_does_not_activate(notes_case, publication_case, tmp_path):
-    from etalon.research.meta_context import (
+    from moldarwin.research.meta_context import (
         describe_resource, index_resources, make_task_profile, build_task_workset, publish_task_workset)
-    from etalon.research.publication import resume_publication
+    from moldarwin.research.publication import resume_publication
     from test_meta_context import setup, part, review
     workspace, resources = setup(publication_case)
     meanings = {"metric:retained": "a" * 64}

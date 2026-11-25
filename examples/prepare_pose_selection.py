@@ -4,8 +4,8 @@ from pathlib import Path
 from rdkit import Chem, DataStructs
 from rdkit.Chem import AllChem, rdFingerprintGenerator
 from rdkit.Chem.Scaffolds import MurckoScaffold
-from etalon.research.publication import _save
-from etalon.research.evidence_refs import file_identity
+from moldarwin.research.publication import _save
+from moldarwin.research.evidence_refs import file_identity
 
 
 def sequences(path):
@@ -29,7 +29,7 @@ def prepare(old,root):
         m=Chem.MolFromSmiles(r['smiles']);fingerprints.append(generator.GetFingerprint(m));scaffolds.add(r['scaffold'])
         seqs.extend(sequences(old/'inputs'/r['id']/'receptor.pdb'))
     rows=[];rejected=[]
-    for caseid in sorted(ids,key=lambda x:hashlib.sha256(('etalon-selection-independent-v1:'+x).encode()).hexdigest()):
+    for caseid in sorted(ids,key=lambda x:hashlib.sha256(('moldarwin-selection-independent-v1:'+x).encode()).hexdigest()):
         if caseid in oldids:rejected.append({'id':caseid,'reason':'already seen'});continue
         matches=list(raw.rglob(caseid))
         if not matches:rejected.append({'id':caseid,'reason':'archive directory missing'});continue
@@ -68,7 +68,7 @@ def prepare(old,root):
         fingerprints.append(fp);scaffolds.add(scaffold);seqs.extend(current_sequences)
         if len(rows)==24:break
     if len(rows)!=24:raise ValueError('insufficient eligible independent inputs: '+str(len(rows)))
-    _save(root/'cases.json',{'schema':'etalon-posebusters-panel/1','cases':rows,'rejected':rejected,'seeds':[41,137],
+    _save(root/'cases.json',{'schema':'moldarwin-posebusters-panel/1','cases':rows,'rejected':rejected,'seeds':[41,137],
         'development_panel':file_identity(old/'cases.json'),'archive':file_identity(old/'downloads/posebusters_paper_data.zip'),
         'members':file_identity(old/'downloads/final308.txt'),
         'selection':'fixed hash order; exclude all old IDs/scaffolds; Morgan radius2 Tanimoto <0.5; chain string similarity <0.5 against seen and new panel',

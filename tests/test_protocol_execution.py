@@ -10,11 +10,11 @@ from dataclasses import replace
 
 import pytest
 
-from etalon.active.cascade import CascadeExecutor, CascadeRecipe, Readout
-from etalon.active.graph import inspect_recipe
-from etalon.active.schema import Action, Candidate
-from etalon.boundary.screen import Screen
-from etalon.campaign.design import component, compose
+from moldarwin.active.cascade import CascadeExecutor, CascadeRecipe, Readout
+from moldarwin.active.graph import inspect_recipe
+from moldarwin.active.schema import Action, Candidate
+from moldarwin.boundary.screen import Screen
+from moldarwin.campaign.design import component, compose
 
 
 @pytest.fixture
@@ -159,7 +159,7 @@ def test_plan_mismatch_is_blocked_before_the_scientific_runner(execution_case, m
         if part == "revision":
             return replace(plan, revision_id="0" * 64)
         if part == "pipeline":
-            from molcascade.config.models import PipelineConfig
+            from molcat.config.models import PipelineConfig
 
             config = plan._internal["pipeline"].model_dump(mode="json")
             config["stages"][-1]["config"]["include_sa_score"] = True
@@ -225,7 +225,7 @@ def test_real_success_links_action_candidate_verified_plan_and_evidence_graph(ex
     assert result.value == pytest.approx(Descriptors.MolWt(Chem.MolFromSmiles(case["candidate"].smiles)))
     assert result.cost == case["endpoint"].cost
     provenance = result.provenance
-    assert provenance["mode"] == "live_molcascade"
+    assert provenance["mode"] == "live_molcat"
     assert provenance["action_id"] == case["action"].id
     assert provenance["candidate_id"] == result.candidate_id == case["candidate"].id
     assert provenance["protocol_id"] == case["recipe"].protocol_id

@@ -12,12 +12,12 @@ V 已在实现结果前冻结本轮判据 SHA256 `da100aeb4ba05280acc8330730dd00
 
 本节优先于下方历史归属。用户明确授权 I2 接手、subagents 并行实施；R 继续审查，REQUEST/COORDINATION 仅 R 写。原 I 已收尾。共同 main checkout 不切换、不暂存；1196 文件完整基线位于 workspace `integration/thin-harness-skills-20261021/i/baseline.zip`，SHA256 `781095cb26f291feda07ccf27c3938f3bed8f576a0d1fbe63ec40699d00c922d`，暂存差异为空。旧科学 dirty/untracked、原件和 R4b 暂停保留。
 
-| 当前唯一写入者 | 本轮拥有路径（相对 ETALON） |
+| 当前唯一写入者 | 本轮拥有路径（相对 MolDarwin） |
 | --- | --- |
-| I2 `/root` | `src/etalon/skills.py`、`host.py`、所有 `mcp/` 共享封装、`pyproject.toml`；本目录 README/WORKSTREAMS/ACCEPTANCE/三个契约/DELIVERY_I；注册导出测试 `tests/test_skill_library_integration.py`；本地 `.agents/skills/life-healthy-contract-refactor/`。公共包装、安装及最终来源由 I2 单写 |
-| A `/root/a_data_operations` | `.claude/skills/etalon-data-design/`（新增）；现有 screening-sweep/gate-calibration/generation-planning/campaign-monitoring/install 五目录；`asset/molquarry/skills/` 保留原内容，非必要不改；`examples/data_design_methods.py`、`tests/test_data_design_methods.py`；`src/etalon/data/design.py` 仅复现实际接缝后修复；DELIVERY_A |
-| B `/root/b_research` | `.claude/skills/etalon-campaign/`、新增 `.claude/skills/etalon-research/`；`src/etalon/research/` 必要接缝（不重写算法）；`examples/research_methods.py`、`tests/test_research_skill_methods.py`；DELIVERY_B |
-| C `/root/c_usage_improvement` | `src/etalon/HOST.md`、`HOST_SETUP.md`；新增 `.claude/skills/etalon-skill-improvement/`；`examples/skill_improvement.py`、`tests/test_skill_improvement.py`；DELIVERY_C。不得写 skills.py/host.py/MCP |
+| I2 `/root` | `src/moldarwin/skills.py`、`host.py`、所有 `mcp/` 共享封装、`pyproject.toml`；本目录 README/WORKSTREAMS/ACCEPTANCE/三个契约/DELIVERY_I；注册导出测试 `tests/test_skill_library_integration.py`；本地 `.agents/skills/life-healthy-contract-refactor/`。公共包装、安装及最终来源由 I2 单写 |
+| A `/root/a_data_operations` | `.claude/skills/moldarwin-data-design/`（新增）；现有 screening-sweep/gate-calibration/generation-planning/campaign-monitoring/install 五目录；`asset/molorigin/skills/` 保留原内容，非必要不改；`examples/data_design_methods.py`、`tests/test_data_design_methods.py`；`src/moldarwin/data/design.py` 仅复现实际接缝后修复；DELIVERY_A |
+| B `/root/b_research` | `.claude/skills/moldarwin-campaign/`、新增 `.claude/skills/moldarwin-research/`；`src/moldarwin/research/` 必要接缝（不重写算法）；`examples/research_methods.py`、`tests/test_research_skill_methods.py`；DELIVERY_B |
+| C `/root/c_usage_improvement` | `src/moldarwin/HOST.md`、`HOST_SETUP.md`；新增 `.claude/skills/moldarwin-skill-improvement/`；`examples/skill_improvement.py`、`tests/test_skill_improvement.py`；DELIVERY_C。不得写 skills.py/host.py/MCP |
 | V `/root/v_acceptance` | `tests/test_thin_harness_skill_library.py`、`tests/fixtures/thin_harness/skill_library_acceptance_20261021.json`；DELIVERY_V；不改被测实现 |
 
 各线原件只写 workspace `integration/thin-harness-skills-20261021/{i,a,b,c,v}/` 对应目录。新路径先与 I2 登记；A/B/C 分别提供能力族映射和真实可运行例，由 I2 汇入既有 README，不建第二套 registry。工程 skill 和产品方法库分别统计。无科学评分、封存标签读取、旧恢复、共享升级、commit/push。原生新增验证先固定少量区分性案例，最多 6 次，每次 300 秒/24 次 shell 或 MCP/400000 input/8000 output，累计 1800000 input/36000 output；失败保留，不补跑到通过。
@@ -43,22 +43,22 @@ I 记录实际 chat／分支／工作树和归属接续；用户已指定的工�
 
 ## 2. 文件唯一归属
 
-路径相对 ETALON 仓库。明确列出的例外优先于目录规则；未列入的文件不因“顺手修复”取得所有权，应由 I 先登记唯一归属。各线可读全部相关文件，写入限于归属范围。
+路径相对 MolDarwin 仓库。明确列出的例外优先于目录规则；未列入的文件不因“顺手修复”取得所有权，应由 I 先登记唯一归属。各线可读全部相关文件，写入限于归属范围。
 
 | 唯一写入方 | 文件／范围 | 边界 |
 | --- | --- | --- |
-| A | `src/etalon/active/runner.py`、`store.py`、`schema.py`、`prism.py`、`budget.py`、`protocols.py`、`setup.py` | `runner.py` 必须合并 main 预算修复与本地 pending；不改数值方法含义 |
-| A | `src/etalon/runtime/api.py`、`schema.py`、`operations.py`、`service.py`、`store.py`、`executors.py`、`cli.py`、`README.md` | action/result/events 后端；不得修改 I 所有的 MCP 封装 |
-| A | `src/etalon/boundary/prism_v1.py`、`screen.py`；`src/etalon/data/design.py`、`data/contracts/`；`src/etalon/faults/preflight.py`；`src/etalon/screening.py` | 消费端契约和科学输入边界；PRISM 生产端另有唯一负责人 |
-| A | `src/etalon/campaign/generation.py`、`supervisor.py`、`sweep.py`、`drivers.py` | 吸收上游可靠执行修复；调度策略可供 skill 选择，不重建主循环 |
-| A | 五个已有修改的 `asset/molcascade/src/molcascade/{cli.py,io/molecules.py,io/parquet.py,runtime/cache.py,runtime/runner.py}` | 优先原样保留；不借本次任务重构资产目录 |
+| A | `src/moldarwin/active/runner.py`、`store.py`、`schema.py`、`prism.py`、`budget.py`、`protocols.py`、`setup.py` | `runner.py` 必须合并 main 预算修复与本地 pending；不改数值方法含义 |
+| A | `src/moldarwin/runtime/api.py`、`schema.py`、`operations.py`、`service.py`、`store.py`、`executors.py`、`cli.py`、`README.md` | action/result/events 后端；不得修改 I 所有的 MCP 封装 |
+| A | `src/moldarwin/boundary/prism_v1.py`、`screen.py`；`src/moldarwin/data/design.py`、`data/contracts/`；`src/moldarwin/faults/preflight.py`；`src/moldarwin/screening.py` | 消费端契约和科学输入边界；PRISM 生产端另有唯一负责人 |
+| A | `src/moldarwin/campaign/generation.py`、`supervisor.py`、`sweep.py`、`drivers.py` | 吸收上游可靠执行修复；调度策略可供 skill 选择，不重建主循环 |
+| A | 五个已有修改的 `asset/molcat/src/molcat/{cli.py,io/molecules.py,io/parquet.py,runtime/cache.py,runtime/runner.py}` | 优先原样保留；不借本次任务重构资产目录 |
 | A | `tests/test_active.py`、`test_runtime_*.py`（**排除 `test_runtime_mcp.py`**）、`test_prism_v1.py`、`test_design_import.py`、`test_local_windows_cpu_io.py`、`test_pose_driver_interpreter.py`、`test_screening_service.py`、`test_sweep.py`、`test_campaign.py`、`test_campaign_integrity.py`；已有 PRISM design fixture | B/C 的模块需求由 A 修改这些测试；新增执行用例也归 A |
-| B | `src/etalon/research/` 全部模块，及 `src/etalon/campaign/calibrate.py` | journal/schema 只由 B 写；历史 R3/R4/R4b 文档和冻结意义保持不变 |
+| B | `src/moldarwin/research/` 全部模块，及 `src/moldarwin/campaign/calibrate.py` | journal/schema 只由 B 写；历史 R3/R4/R4b 文档和冻结意义保持不变 |
 | B | `tests/test_research_*.py`；必要的科学／方法记录单元用例 | 不修改 V 的独立评价 fixture；不通过更改评价结果使候选通过 |
-| C | `.claude/skills/` 产品 skill 源及 references/scripts；后续新增方法改进 skill | 正确监控目录名为 `etalon-campaign-monitoring`；不另存一套平行源 |
-| C | 薄分支中的 `src/etalon/skills.py`、`host.py`、`HOST.md`、`HOST_SETUP.md`、`mcp/host.py` | 可选使用、版本、导出、开放 bundle 与宿主适配；调用 B 的记录接口 |
+| C | `.claude/skills/` 产品 skill 源及 references/scripts；后续新增方法改进 skill | 正确监控目录名为 `moldarwin-campaign-monitoring`；不另存一套平行源 |
+| C | 薄分支中的 `src/moldarwin/skills.py`、`host.py`、`HOST.md`、`HOST_SETUP.md`、`mcp/host.py` | 可选使用、版本、导出、开放 bundle 与宿主适配；调用 B 的记录接口 |
 | C | `tests/test_host_capabilities.py` 及必要的 bundle／使用／hook 消费用例 | 真实宿主端到端结论由 V 核验；不用配置存在代替调用 |
-| I | `src/etalon/mcp/server.py`、`runtime.py`、`_common.py`、`active.py`、`execution.py`、`governance.py`、`sweep.py` 及其他共享 MCP 注册文件，**排除 C 的 `mcp/host.py`** | 一个工具注册源、统一错误和费用分类；仅调用 A/B/C 后端 |
+| I | `src/moldarwin/mcp/server.py`、`runtime.py`、`_common.py`、`active.py`、`execution.py`、`governance.py`、`sweep.py` 及其他共享 MCP 注册文件，**排除 C 的 `mcp/host.py`** | 一个工具注册源、统一错误和费用分类；仅调用 A/B/C 后端 |
 | I | `pyproject.toml`、根 `README.md`、`.gitattributes`、`.gitignore`、必要时一个公共 SDK 导出文件 | 同时保留本地科学依赖、薄分支 skill 资源和公共契约的跟踪例外；不新建 SDK 框架 |
 | I | main 中本轮只需保留的 `active/decision.py`、`authority/__init__.py`、`council/{__init__,ballot,convene}.py`、`doctor.py`、`learn/admissible.py` | 合入已有修复；额外功能改动需先明确归属与目的 |
 | I | `tests/test_mcp.py`、`test_runtime_mcp.py`、`test_council.py`；共享接口集成用例 | 旧测试中强制 campaign 路由的假设需改为契约行为，不能删掉正确性断言 |
@@ -105,7 +105,7 @@ I 维护契约与跨线语义，V 独立检查 F01—F10；常规工程不等待
 
 ### A：动作执行与结果内核
 
-> 请作为 ETALON 薄 harness 的 A 工作线实施动作、结果和事件读取后端。先读仓库指引及 docs/thin-harness/README.md、ACTION_CONTRACT.md、RESULT_CONTRACT.md、WORKSTREAMS.md、ACCEPTANCE.md。核对 I 给出的共同来源基线和当前文件写入者，保留本地科学源码与 main 修复。
+> 请作为 MolDarwin 薄 harness 的 A 工作线实施动作、结果和事件读取后端。先读仓库指引及 docs/thin-harness/README.md、ACTION_CONTRACT.md、RESULT_CONTRACT.md、WORKSTREAMS.md、ACCEPTANCE.md。核对 I 给出的共同来源基线和当前文件写入者，保留本地科学源码与 main 修复。
 >
 > 只写所有权表中 A 文件。把宿主已选动作与数值策略选动作分开，复用同一预留、执行、收据、准入和恢复实现。提供 prepare_action、submit_action、read_action_result、read_events 语义；首要新增 active.evaluate。method_use_refs 允许为空，不要求完整 workflow，不伪造模型；保留 ExecutionPending、实际失败费用和原生执行支持范围。结果 observer 仍是恢复收据，普通 hook 只消费提交后的事件。
 >
@@ -129,7 +129,7 @@ I 维护契约与跨线语义，V 独立检查 F01—F10；常规工程不等待
 
 ### I：共同基线与集成
 
-> 请作为 I 工作线负责 ETALON 薄 harness 的来源整合与共享接口。先读 docs/thin-harness 全部入口及本地协作指引。核对 main、薄分支、本地 dirty/untracked 三来源，形成可恢复共同起点和实际 chat／分支／文件归属，保留旧源码及科学证据。
+> 请作为 I 工作线负责 MolDarwin 薄 harness 的来源整合与共享接口。先读 docs/thin-harness 全部入口及本地协作指引。核对 main、薄分支、本地 dirty/untracked 三来源，形成可恢复共同起点和实际 chat／分支／文件归属，保留旧源码及科学证据。
 >
 > 你独占 WORKSTREAMS 表中的 MCP 注册／封装、pyproject、共享测试和公共导出；A/B/C 自己合并拥有文件内的领域行为。连接 action/result/events 和方法记录接口，保持一个工具注册源、完整费用分类及一致错误语义；不要在 MCP 再实现后端验证。
 >
@@ -137,7 +137,7 @@ I 维护契约与跨线语义，V 独立检查 F01—F10；常规工程不等待
 
 ### V：独立验收
 
-> 请作为 V 工作线独立验收 ETALON 薄 harness 契约。先读 docs/thin-harness/README、三个契约、WORKSTREAMS 和 ACCEPTANCE。只写 V 的验收文件与 DELIVERY_V.md，不修改被测实现或其他线已有测试来让它通过。
+> 请作为 V 工作线独立验收 MolDarwin 薄 harness 契约。先读 docs/thin-harness/README、三个契约、WORKSTREAMS 和 ACCEPTANCE。只写 V 的验收文件与 DELIVERY_V.md，不修改被测实现或其他线已有测试来让它通过。
 >
 > 在实现推进时准备反例与固定夹具：无 skill 合法动作、动态新步骤、skill 原地改动后的旧版本绑定、未知执行、重复派发、无关备注与相关 stale、零命中、不适用、费用同源去重、hook 重放。真实宿主验证须实际加载／调用并保留可观测证据，SDK fixture 不替代它。
 >
@@ -157,7 +157,7 @@ V 可读代码与证据、提出具体问题；公共文档由 I 维护，被测
 
 ## 本次现场启动与新增归属（2026-10-21）
 
-共同 checkout 为本地 main（未切分支），HEAD `5927aceb346475a6f97550f561e7eb3b291611da`；本机 origin/main `0af4297fb7de435d858d54195561883a21526d5e`、origin/codex/refactor-thin-harness `d3889e6c0600605f018fb81ce3df1b420d6dcbf9`。这些是现场本机 refs，未声称查询了远端最新值。起始暂存为空；未发现 ETALON 相关活动进程。
+共同 checkout 为本地 main（未切分支），HEAD `5927aceb346475a6f97550f561e7eb3b291611da`；本机 origin/main `0af4297fb7de435d858d54195561883a21526d5e`、origin/codex/refactor-thin-harness `d3889e6c0600605f018fb81ce3df1b420d6dcbf9`。这些是现场本机 refs，未声称查询了远端最新值。起始暂存为空；未发现 MolDarwin 相关活动进程。
 
 可恢复基线在 workspace integration/thin-harness-engineering-20261020：baseline.zip 包含 1121 个 tracked/nonignored-untracked 文件（39016246 bytes），逐项 SHA 验证；sources.bundle 保存三个来源；working.patch、staged.patch、refs.txt、status.txt 保存 Git 状态。ZIP SHA256 `0149945f75ff9b6c9e0ed8f388b1e343c0a3f4c399d1a2e1af45540dfa51dcc0`。既有 ignored 科学证据、环境与本地指引原地保留，不属这次改动范围。
 
@@ -168,9 +168,9 @@ V 可读代码与证据、提出具体问题；公共文档由 I 维护，被测
 - A：`tests/test_runtime_actions.py`。
 - B：`tests/test_research_methods.py`。
 - C：`tests/test_host_bundles_hooks.py`。
-- I：`src/etalon/mcp/methods.py`、`tests/test_thin_harness_integration.py`；本地受保护 `.agents/skills/life-healthy-contract-refactor/` 与工程记录目录。该工程 skill 不进入产品注册。
+- I：`src/moldarwin/mcp/methods.py`、`tests/test_thin_harness_integration.py`；本地受保护 `.agents/skills/life-healthy-contract-refactor/` 与工程记录目录。该工程 skill 不进入产品注册。
 
-本机 Python 为 `.venv/Scripts/python.exe`（3.13.12），etalon 实际导入 checkout/src/etalon。R4b 继续遵循 PAUSED，未部署、未恢复科学计算、未提交或推送。
+本机 Python 为 `.venv/Scripts/python.exe`（3.13.12），moldarwin 实际导入 checkout/src/moldarwin。R4b 继续遵循 PAUSED，未部署、未恢复科学计算、未提交或推送。
 
 最终接续：A/B/C 完成各自 DELIVERY，V 由 `/root/v_final` 完成 16 项独立反例和最终非 editable 包复核；I 完成 158 项冻结组合与材料收尾。所有实现文件保持未提交，后续改动继续按本表唯一所有者或显式登记交接。
 
@@ -208,15 +208,15 @@ B 已实际接续，新 `tests/test_research_function_methods.py` 归 B；I 新 
 
 只在实际发现强制依赖或缺陷时修改领域实现；已有接口已满足则补具体方法内容和证据。普通查询、合法动作不增加方法门槛，旧数值策略仍可选。原 parents=[] 方法记录不得回写；新案例可追加真实父引用，但无父的新方法仍合法。工程重构 skill 只由 I 维护于本地保护路径，不进入产品库。R4b 继续暂停，不新增真实 PRISM 评分/CRO、旧计算恢复、共享部署覆盖或自动提交/推送。
 
-只读接缝补充归属：`asset/molcascade/src/molcascade/artifacts/store.py` 本轮归 A，限复用现有校验的 `create=False` 构造支持；与 A 原持有的 runner/cache/Screen 组成读取已有工作区能力。I 将校准/授权 MCP 接到该读取入口，校准算法仍归 B 且保持原实现。该有意变更必须在最终受保护来源差异表列出，不能沿用上一轮“全部字节不变”的结论。
+只读接缝补充归属：`asset/molcat/src/molcat/artifacts/store.py` 本轮归 A，限复用现有校验的 `create=False` 构造支持；与 A 原持有的 runner/cache/Screen 组成读取已有工作区能力。I 将校准/授权 MCP 接到该读取入口，校准算法仍归 B 且保持原实现。该有意变更必须在最终受保护来源差异表列出，不能沿用上一轮“全部字节不变”的结论。
 
-真实原生产率调用首次 120 秒超时及 I 冷 MCP 诊断复现后，B 以独立进程核查数值依赖接缝并释放槽给 A。确认 `src/etalon/generate/audit.py`、`tests/test_generation_audit.py` 由 A 唯一维护，限 Wilson 同公式的标准库替代及明确 confidence 定义域；不升级共享依赖或改其他生成策略。V 新增 `v-functions-cold-contract.json` 只细化原验收 ID，首个协议、原生失败、固定源和候选包均保留，修复另封新 snapshot 后由 C 原生复测。
+真实原生产率调用首次 120 秒超时及 I 冷 MCP 诊断复现后，B 以独立进程核查数值依赖接缝并释放槽给 A。确认 `src/moldarwin/generate/audit.py`、`tests/test_generation_audit.py` 由 A 唯一维护，限 Wilson 同公式的标准库替代及明确 confidence 定义域；不升级共享依赖或改其他生成策略。V 新增 `v-functions-cold-contract.json` 只细化原验收 ID，首个协议、原生失败、固定源和候选包均保留，修复另封新 snapshot 后由 C 原生复测。
 
 本轮已完成：A/B/C 各自 DELIVERY 稳定，I 集成接缝/文档/新包，V 7 个独立反例及最终包冷 MCP、三种成功原生行为独立核验。C 首次产率超时保留，成功复测绑定新 source-v2；监控和 lineage 仍绑定原 source-v1。所有仓库内写入结束后 I 生成新的最终全文件 snapshot/manifest/receipt，V 仅向 workspace 工程证据目录写最终一致性检查，不为检查再改被封源码。README 继续归 I 唯一维护；未提交或推送。
 
 ## 接续：更多 research 方法与旧策略可选性（2026-10-21）
 
-用户明确授权继续 README 剩余重构，优先补有用 research 方法及核查 Campaign/Supervisor/propose 的真实强制依赖。入口核验 1170 文件与前轮最终 manifest 全部相同、无新非 ignored 路径、index 为空，local refs 未变且未 fetch。新完整基线 `integration/thin-harness-research-20261021/baseline.zip` SHA256 `aab89b2d5a82571569a87e3e4ddae518f2d74f070d1e119084ec2f95232d31f2`；旧归档不覆盖。相关活动 Python 属于 PRISM_review，未重启或终止，未发现 ETALON 当前写入者。
+用户明确授权继续 README 剩余重构，优先补有用 research 方法及核查 Campaign/Supervisor/propose 的真实强制依赖。入口核验 1170 文件与前轮最终 manifest 全部相同、无新非 ignored 路径、index 为空，local refs 未变且未 fetch。新完整基线 `integration/thin-harness-research-20261021/baseline.zip` SHA256 `aab89b2d5a82571569a87e3e4ddae518f2d74f070d1e119084ec2f95232d31f2`；旧归档不覆盖。相关活动 Python 属于 PRISM_review，未重启或终止，未发现 MolDarwin 当前写入者。
 
 实际并行启动 A `/root/a_policy`、B `/root/b_research`、V `/root/v_final`；V 先冻结反例后释放槽给 C，随后 V 再独立核最终组合。原唯一文件表继续有效。本轮 A 明确增加 `campaign/loop.py`、`propose.py`、`pipeline.py` 和 `tests/test_optional_campaign_methods.py`；B 增加 `tests/test_research_optional_methods.py`，仅 B 可改 research 后端；C 维护产品 skill/reference、host 相关文件；I 独占共享 MCP、打包、公共文档和本地工程 skill。V 增加 `tests/test_thin_harness_research_optional.py`、`tests/fixtures/thin_harness/research_optional_acceptance_20261021.json`、`v-research-*.json`。新外部证据目录 a/b/c/v 分别归各线，各自 DELIVERY 只追加。
 
@@ -228,7 +228,7 @@ V 早期协议已冻结，SHA256 `bd346f1093b9d2cff097b885c41b0fb7ac142f19264dd0
 
 ## 接续：research 实际使用接缝（2026-10-21）
 
-用户授权继续有用方法，优先真实使用缺口，不为凑齐 skill 重写算法。新证据目录 `integration/thin-harness-research-use-20261021/`；完整 baseline.zip SHA256 `089c4589259232649bc6659e296441efb3578c4bcff2c93da7754eb15e9459e2`，1178 文件与前轮 final 全部相同，index 为空，local refs 未变/未 fetch。现存 34 个 PRISM_review Python 进程未动，没有发现 ETALON 路径的活动执行者。旧 raw、archive、失败和 local 科学实现全保留。
+用户授权继续有用方法，优先真实使用缺口，不为凑齐 skill 重写算法。新证据目录 `integration/thin-harness-research-use-20261021/`；完整 baseline.zip SHA256 `089c4589259232649bc6659e296441efb3578c4bcff2c93da7754eb15e9459e2`，1178 文件与前轮 final 全部相同，index 为空，local refs 未变/未 fetch。现存 34 个 PRISM_review Python 进程未动，没有发现 MolDarwin 路径的活动执行者。旧 raw、archive、失败和 local 科学实现全保留。
 
 A `/root/a_policy`、B `/root/b_research_use`、V `/root/v_final` 实际并行开始；V 先独立固定反例再交槽给 C，后续回场验收。文件表继续有效：B 独占 research 源码（含 runtime.py/calibration.py）及新增 `tests/test_research_use_methods.py`；A 从执行消费端审查/验证，仅新增 `tests/test_research_execution_seams.py`，发现 research 缺陷交 B 修；C 独占产品 skill/reference 与原 host 文件；I 独占共享 MCP/打包/公共文档与本地工程 skill；V 新增 `tests/test_thin_harness_research_use.py`、`tests/fixtures/thin_harness/research_use_acceptance_20261021.json`、`v-research-use-*.json`，不改实现。各线各自维护本轮外部 a/b/c/v 及 DELIVERY 追加节。
 

@@ -3,12 +3,12 @@ import argparse
 import json
 from pathlib import Path
 import time
-from etalon.active import CampaignStore
-from etalon.active.schema import canonical
-from etalon.boundary.prism_v1 import file_identity
-from etalon.research import ResearchJournal
-from etalon.research.rows import assemble_rows
-from etalon.research.transfer import load_policy
+from moldarwin.active import CampaignStore
+from moldarwin.active.schema import canonical
+from moldarwin.boundary.prism_v1 import file_identity
+from moldarwin.research import ResearchJournal
+from moldarwin.research.rows import assemble_rows
+from moldarwin.research.transfer import load_policy
 
 
 def main():

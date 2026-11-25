@@ -13,11 +13,11 @@ import sqlite3
 import sys
 import time
 from types import SimpleNamespace
-from etalon.active import CampaignStore
-from etalon.active.schema import canonical
-from etalon.boundary.prism_v1 import CLITransport,file_identity
-from etalon.research import ResearchJournal
-from etalon.research.pose import PoseClient,execute
+from moldarwin.active import CampaignStore
+from moldarwin.active.schema import canonical
+from moldarwin.boundary.prism_v1 import CLITransport,file_identity
+from moldarwin.research import ResearchJournal
+from moldarwin.research.pose import PoseClient,execute
 
 
 class ReadReceiptsOnly(PoseClient):
@@ -71,7 +71,7 @@ def main():
     assert all(after.get(k)==v for k,v in before.items())
     assert metadata(a.database)==before and file_identity(a.database)==before_database
     assert journal.store.balance()==balance
-    result={'schema':'etalon-consumer-legacy-replay/1','python':sys.executable,
+    result={'schema':'moldarwin-consumer-legacy-replay/1','python':sys.executable,
         'consumer_import':sys.modules[execute.__module__].__file__,
         'original_database':{'path':str(a.database.resolve()),**before_database},
         'original_metadata_preserved':len(before),'new_metadata_records':sorted(set(after)-set(before)),

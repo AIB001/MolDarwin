@@ -7,17 +7,17 @@
   },
   "fixed_source_sha256": "e88a7ba697bdb0f61e9f7fe9e9bd00415f5dba889e72b76c81d4e3b1ad5604ea",
   "fixed_source_files": 1175,
-  "python": "F:\\life_healthy\\ETALON\\.venv\\Scripts\\python.exe",
+  "python": "F:\\life_healthy\\MolDarwin\\.venv\\Scripts\\python.exe",
   "sdk_source": "F:\\life_healthy\\integration\\thin-harness-research-20261021\\c\\fixed-source\\src",
   "mcp": [
     {
       "line": 11,
-      "tool": "etalon_capabilities",
+      "tool": "moldarwin_capabilities",
       "arguments": {}
     },
     {
       "line": 16,
-      "tool": "etalon_skill_read",
+      "tool": "moldarwin_skill_read",
       "arguments": {
         "slug": "campaign",
         "member": "references/finite-diagnostics.md"
@@ -41,7 +41,7 @@
   ],
   "actual_result": {
     "execution_channel": "native-host shell to SDK",
-    "python": "F:\\life_healthy\\ETALON\\.venv\\Scripts\\python.exe",
+    "python": "F:\\life_healthy\\MolDarwin\\.venv\\Scripts\\python.exe",
     "observation": {
       "evidence": [
         "artifact-d692e549db8c1d60bf8f1d439fd8667c6f8e56c627d325735715eb463e0e0e66"
@@ -54,7 +54,7 @@
       "values": {}
     },
     "bound": {
-      "schema": "etalon-recorded-probe-outcome/1",
+      "schema": "moldarwin-recorded-probe-outcome/1",
       "observation_id": "observation-429320c5f3ed041b693e0d97d16c08a08f44286115291f3340c9aec95b15f016",
       "probe_id": "x",
       "task_id": "fixture-task",

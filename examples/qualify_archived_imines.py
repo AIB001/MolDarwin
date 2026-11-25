@@ -12,10 +12,10 @@ import sqlite3
 import sys
 import time
 
-from etalon.active.schema import canonical
-from etalon.research.evidence_refs import make_ref
-from etalon.research.input_qualification import POLICY, read_input_qualification, write_input_qualification
-from etalon.research.scientific_input import SCHEMA, identity
+from moldarwin.active.schema import canonical
+from moldarwin.research.evidence_refs import make_ref
+from moldarwin.research.input_qualification import POLICY, read_input_qualification, write_input_qualification
+from moldarwin.research.scientific_input import SCHEMA, identity
 
 
 def save(path, value):
@@ -33,7 +33,7 @@ def run(archive, diagnosis, output):
     output.mkdir(parents=True, exist_ok=True)
     anchors = output / "anchors"
     anchors.mkdir(exist_ok=True)
-    publication = diagnosis / "harness/.etalon/publications/27bb53f739b1c07bd3e44550"
+    publication = diagnosis / "harness/.moldarwin/publications/27bb53f739b1c07bd3e44550"
     snapshot = publication / "snapshot.sqlite"
     snapshot_pin = identity(snapshot)
     source_id = "publication-3baa2eb5a3a02a8b9873"
@@ -58,7 +58,7 @@ def run(archive, diagnosis, output):
         cases[cid] = (report, make_ref(source_id, rid, body))
         pins[str(report_path)] = report_pin
     workspace = output / "workspace.json"
-    save(workspace, {"schema": "etalon-evidence-workspace/1", "workspace_id": "archived-imine-input-qualification/1",
+    save(workspace, {"schema": "moldarwin-evidence-workspace/1", "workspace_id": "archived-imine-input-qualification/1",
                     "sources": [{"source_id": source_id, "kind": "journal", "location": str(snapshot),
                                  "identity": {"kind": "snapshot_sha256", "value": snapshot_pin["sha256"]}}],
                     "location_map": mapping})
@@ -95,9 +95,9 @@ def run(archive, diagnosis, output):
                         "source_ref": ref, "source_diagnostic_identity": identity(diagnosis / (cid + "-diagnostic.json"))}
     assert identity(snapshot) == snapshot_pin
     assert all(identity(path) == pin for path, pin in pins.items())
-    import etalon.research.input_qualification as implementation
+    import moldarwin.research.input_qualification as implementation
     from rdkit import Chem, rdBase
-    receipt = {"schema": "etalon-input-qualification-demo/1", "cases": summary,
+    receipt = {"schema": "moldarwin-input-qualification-demo/1", "cases": summary,
                "original_files_verified_before_and_after": pins, "journal_snapshot": {"path": str(snapshot), **snapshot_pin},
                "executable": sys.executable, "python": sys.version, "implementation": {"path": implementation.__file__, **identity(implementation.__file__)},
                "rdkit": {"version": rdBase.rdkitVersion, "module_path": Chem.__file__},

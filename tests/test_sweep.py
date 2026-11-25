@@ -15,17 +15,17 @@ from pathlib import Path
 
 import pytest
 
-from etalon.authority.gate import (
+from moldarwin.authority.gate import (
     GateAuthorization,
     authorize_gate,
     calibration_digest,
     require_gate,
     unauthorized_gate,
 )
-from etalon.authority.grant import NotAuthorized
-from etalon.boundary.infra import etalon_revision
-from etalon.boundary.screen import Screen, ScreenResult, StageOutcome
-from etalon.campaign.calibrate import (
+from moldarwin.authority.grant import NotAuthorized
+from moldarwin.boundary.infra import moldarwin_revision
+from moldarwin.boundary.screen import Screen, ScreenResult, StageOutcome
+from moldarwin.campaign.calibrate import (
     Calibration,
     calibrate,
     HIGHER_STRONGER,
@@ -36,9 +36,9 @@ from etalon.campaign.calibrate import (
     TierVerdict,
     separation,
 )
-from etalon.campaign.ledger import Ledger
-from etalon.campaign.sweep import Sweep, SweepError, library_rows
-from etalon.generate.productivity import Chunk, Productivity, allocate, window
+from moldarwin.campaign.ledger import Ledger
+from moldarwin.campaign.sweep import Sweep, SweepError, library_rows
+from moldarwin.generate.productivity import Chunk, Productivity, allocate, window
 
 # -- the real SND1 calibration panel, measured 2026-09-25 ---------------------
 #
@@ -90,7 +90,7 @@ class FakeScreen:
         return self.runs.get(run_id)
 
     def provenance(self) -> dict[str, object]:
-        return {"name": "molcascade", "tree_sha256": "deadbeef", "pinned": True}
+        return {"name": "molcat", "tree_sha256": "deadbeef", "pinned": True}
 
 
 def calibration(*, deleted: tuple[str, ...] = (), revision: str = "rev-1") -> Calibration:
@@ -121,7 +121,7 @@ def calibration(*, deleted: tuple[str, ...] = (), revision: str = "rev-1") -> Ca
 def keyed(monkeypatch: pytest.MonkeyPatch) -> None:
     """A fixed signing key, so a token minted in one test verifies in the same test."""
 
-    monkeypatch.setenv("ETALON_AUTHORITY_KEY", "test-key")
+    monkeypatch.setenv("MOLDARWIN_AUTHORITY_KEY", "test-key")
 
 
 @pytest.fixture()
@@ -259,7 +259,7 @@ def test_exhausted_run_still_reports_its_committed_stages() -> None:
 
 
 def test_shipped_defaults_are_refused_on_the_real_panel() -> None:
-    # MolCascade's defaults delete all five known actives including both co-crystal ligands.
+    # MolCat's defaults delete all five known actives including both co-crystal ligands.
     everything = tuple(m.parent_id for m in PANEL if m.known_active)
     verdict = calibration(deleted=everything)
     assert not verdict.admissible
@@ -462,7 +462,7 @@ def test_one_engine_with_two_conventions_is_unevaluable() -> None:
 
 
 class ScoredScreen(FakeScreen):
-    """A screen carrying one engine's scores, keyed the way MolCascade really keys them.
+    """A screen carrying one engine's scores, keyed the way MolCat really keys them.
 
     Every downstream contract keys on a digest of the standardised molecule. The panel declares the
     library's own identifiers. ``calibrate`` used to test one against the other directly, so nothing
@@ -688,7 +688,7 @@ def test_a_partly_unorderable_engine_reports_the_panel_it_shrank() -> None:
 def test_a_calibration_carrying_an_unorderable_score_is_still_json() -> None:
     """``NaN`` is a bare token in Python's JSON output and no JSON parser accepts it.
 
-    ``Calibration.as_dict`` goes through ``etalon.mcp._common.dumps`` straight into a tool
+    ``Calibration.as_dict`` goes through ``moldarwin.mcp._common.dumps`` straight into a tool
     response, so one NaN made the whole response unparseable to the client reading it.
     """
 
@@ -766,7 +766,7 @@ def test_a_panel_whose_molecules_are_all_present_is_not_withheld() -> None:
 
 
 def test_a_run_that_registered_nothing_has_no_recall() -> None:
-    """MolCascade's own end-to-end retention is null here and this reported 1.0.
+    """MolCat's own end-to-end retention is null here and this reported 1.0.
 
     ``TierRecall.retention`` nulls on ``entering == 0``, and its ``registered and not names``
     refusal cannot fire on an empty set.
@@ -827,7 +827,7 @@ _KARMADOCK_V7 = (
 
 
 def _docking_rows(values, *, engine, kind, direction, poses=1):
-    """``docking_score/v1`` rows as MolCascade writes them, every field the contract requires."""
+    """``docking_score/v1`` rows as MolCat writes them, every field the contract requires."""
 
     return [
         {
@@ -853,7 +853,7 @@ class MetricScreen(Screen):
     """
 
     def __init__(self, workspace, tables) -> None:  # noqa: ANN001
-        super().__init__(workspace, infra=SimpleNamespace(name="molcascade"))
+        super().__init__(workspace, infra=SimpleNamespace(name="molcat"))
         #: ``artifact_id -> (contract_id, rows)``.
         self.tables = dict(tables)
 
@@ -1066,7 +1066,7 @@ def test_a_refused_comparator_makes_a_round_that_measures_without_learning(tmp_p
 
     import inspect
 
-    from etalon.campaign import loop
+    from moldarwin.campaign import loop
 
     source = inspect.getsource(loop)
     assert "except (ValueError, KeyError) as no_comparator" in source
@@ -1198,7 +1198,7 @@ def test_the_readable_shapes_of_a_sweep_are_json(tmp_path, sweep: Sweep) -> None
 
     import json as json_module
 
-    from etalon.campaign.sweep import as_json
+    from moldarwin.campaign.sweep import as_json
 
     sweep.admit([(f"K{i}", f"C{i}", "f") for i in range(5)])
     report = sweep.admit([("K0", "C0", "f")])
@@ -1362,7 +1362,7 @@ def test_a_batch_keeps_the_revision_it_was_emitted_under(sweep: Sweep) -> None:
 def test_a_drifted_configuration_is_refused_before_the_batch_runs(tmp_path) -> None:
     """Where the revision guard lives now: in front of the screen, not behind it."""
 
-    from etalon.campaign.drivers import MolCascadeScreening, RevisionChanged
+    from moldarwin.campaign.drivers import MolCatScreening, RevisionChanged
 
     class Compiles:
         def __init__(self, revision: str) -> None:
@@ -1374,7 +1374,7 @@ def test_a_drifted_configuration_is_refused_before_the_batch_runs(tmp_path) -> N
         def state(self, run_id: str):  # noqa: ARG002
             return None
 
-    driver = MolCascadeScreening(
+    driver = MolCatScreening(
         screen=Compiles("rev-EDITED"),
         config_path=tmp_path / "c.json",
         revision_id="rev-1",
@@ -1450,7 +1450,7 @@ def test_an_unfinished_run_is_not_recorded_as_a_measurement(sweep: Sweep) -> Non
 def test_two_recorders_cannot_both_file_an_outcome(sweep: Sweep) -> None:
     """The append-only guard is a read, the write is a separate statement, and that is a window.
 
-    Both a supervisor's ``recover`` and an operator's MCP ``etalon_sweep_record`` reach the same
+    Both a supervisor's ``recover`` and an operator's MCP ``moldarwin_sweep_record`` reach the same
     pool, and both check ``recorded`` before writing. Two that interleave both pass the check, and
     the second overwrote the first's measurement -- including overwriting ``committed`` with
     ``failed`` from a retry that should never have been dispatched. ``claim`` already took the
@@ -1673,33 +1673,33 @@ def test_more_than_one_revision_marks_the_batches_incomparable(sweep: Sweep) -> 
     assert sweep.state()["comparable"] is False
 
 
-def test_a_claimed_batch_carries_the_etalon_revision_that_will_screen_it(sweep: Sweep) -> None:
-    """Every provenance block named the three packages ETALON drives and never ETALON.
+def test_a_claimed_batch_carries_the_moldarwin_revision_that_will_screen_it(sweep: Sweep) -> None:
+    """Every provenance block named the three packages MolDarwin drives and never MolDarwin.
 
-    Measured: ``grep -c etalon ledger_v7.json`` returns 0 across 27 batch lines, whose single shared
-    ``infrastructure`` block names ``molcascade`` and nothing else. Establishing which ETALON had
+    Measured: ``grep -c moldarwin ledger_v7.json`` returns 0 across 27 batch lines, whose single shared
+    ``infrastructure`` block names ``molcat`` and nothing else. Establishing which MolDarwin had
     screened them meant cross-checking 27 ledger timestamps against ``git log`` by hand, and the next
     commit landed 9m50s after the last batch was recorded.
     """
 
     sweep.admit([(f"K{i}", f"C{i}", "f") for i in range(10)])
     sweep.emit(revision_id="rev-1")
-    assert sweep.batch("batch_0001").etalon is None, "nothing claimed it yet"
+    assert sweep.batch("batch_0001").moldarwin is None, "nothing claimed it yet"
 
     claimed = sweep.claim("batch_0001", by="gpu5")
-    assert claimed.etalon == etalon_revision()
-    assert claimed.etalon, "this checkout is a git repository, so the revision is evaluable here"
+    assert claimed.moldarwin == moldarwin_revision()
+    assert claimed.moldarwin, "this checkout is a git repository, so the revision is evaluable here"
 
     sweep.record(
         "batch_0001",
         ScreenResult("batch_0001", "rev-1", "SUCCEEDED", (stage("s", "SUCCEEDED", artifact="a"),)),
     )
     line = [e for e in sweep.ledger.entries() if e.kind == "batch"][-1]
-    assert line.body["etalon"] == claimed.etalon
-    assert sweep.state()["etalon_revisions"] == [claimed.etalon]
+    assert line.body["moldarwin"] == claimed.moldarwin
+    assert sweep.state()["moldarwin_revisions"] == [claimed.moldarwin]
 
 
-def test_a_requeued_batch_is_attributed_to_the_etalon_that_rescreened_it(sweep: Sweep) -> None:
+def test_a_requeued_batch_is_attributed_to_the_moldarwin_that_rescreened_it(sweep: Sweep) -> None:
     # The gate has this shape already: the recorder is not always the claimer. A batch requeued by
     # recovery and taken by a newer process was screened by the newer code, and says so.
     sweep.admit([(f"K{i}", f"C{i}", "f") for i in range(10)])
@@ -1712,15 +1712,15 @@ def test_a_requeued_batch_is_attributed_to_the_etalon_that_rescreened_it(sweep: 
         "batch_0001",
         ScreenResult("batch_0001", "rev-1", "SUCCEEDED", (stage("s", "SUCCEEDED", artifact="a"),)),
     )
-    assert sweep.batch("batch_0001").etalon == etalon_revision()
+    assert sweep.batch("batch_0001").moldarwin == moldarwin_revision()
 
 
-def test_two_etalon_revisions_mark_one_funnel_s_batches_incomparable(sweep: Sweep) -> None:
+def test_two_moldarwin_revisions_mark_one_funnel_s_batches_incomparable(sweep: Sweep) -> None:
     """The funnel can be byte-identical while the code driving it is not.
 
     This is the case ``comparable`` could not see. ``revision_id`` is ``rev-1`` throughout, so the
     old reading called these batches comparable, and the enrichment computed across them was
-    attributed to a funnel that two different ETALONs had fed and read back.
+    attributed to a funnel that two different MolDarwins had fed and read back.
     """
 
     sweep.admit([(f"K{i}", f"C{i}", "f") for i in range(20)])
@@ -1734,19 +1734,19 @@ def test_two_etalon_revisions_mark_one_funnel_s_batches_incomparable(sweep: Swee
     assert sweep.state()["comparable"] is True
     assert sweep.state()["revisions"] == ["rev-1"]
 
-    # Rewrite one row's ETALON revision: a batch screened by a different commit of this repo, which
+    # Rewrite one row's MolDarwin revision: a batch screened by a different commit of this repo, which
     # is what a campaign restarted after a fix really looks like.
     import sqlite3
 
     with sqlite3.connect(sweep.pool) as db:
-        db.execute("UPDATE batch SET etalon = ? WHERE batch_id = ?", ("deadbeefcafe", "batch_0001"))
+        db.execute("UPDATE batch SET moldarwin = ? WHERE batch_id = ?", ("deadbeefcafe", "batch_0001"))
     reading = sweep.state()
     assert reading["revisions"] == ["rev-1"], "one funnel"
-    assert len(reading["etalon_revisions"]) == 2
+    assert len(reading["moldarwin_revisions"]) == 2
     assert reading["comparable"] is False
 
 
-def test_a_pool_carved_before_the_etalon_column_opens_and_migrates(tmp_path, keyed) -> None:
+def test_a_pool_carved_before_the_moldarwin_column_opens_and_migrates(tmp_path, keyed) -> None:
     # `CREATE TABLE IF NOT EXISTS` is a no-op on an existing table, so a column added to the schema
     # never reaches a campaign already on disk -- and the campaign already on disk is the one with
     # batches in it. Measured on the gate column, which is why `_MIGRATIONS` exists at all.
@@ -1779,25 +1779,25 @@ def test_a_pool_carved_before_the_etalon_column_opens_and_migrates(tmp_path, key
         gate=authorize_gate(calibration(), provenance=screen.provenance()),
     )
     old = sweep.batch("batch_0001")
-    assert old is not None and old.etalon is None and old.gate is None
-    assert sweep.state()["etalon_revisions"] == [], "an unrecorded batch contributes no revision"
-    assert sweep.claim("batch_0001", by="gpu5").etalon == etalon_revision()
+    assert old is not None and old.moldarwin is None and old.gate is None
+    assert sweep.state()["moldarwin_revisions"] == [], "an unrecorded batch contributes no revision"
+    assert sweep.claim("batch_0001", by="gpu5").moldarwin == moldarwin_revision()
 
 
 def test_a_tree_without_git_says_so_instead_of_reporting_a_clean_commit(tmp_path, monkeypatch) -> None:
     # A wheel install has no .git. "Could not tell" and "told you it was clean" are different
     # claims, and the one this project refuses to make is the second.
-    import etalon.boundary.infra as infra
+    import moldarwin.boundary.infra as infra
 
     monkeypatch.setattr(infra, "__file__", str(tmp_path / "a" / "b" / "c" / "infra.py"))
-    infra.etalon_provenance.cache_clear()
+    infra.moldarwin_provenance.cache_clear()
     try:
-        record = infra.etalon_provenance()
+        record = infra.moldarwin_provenance()
         assert "problem" in record and "unevaluable" in record["problem"]
         assert "commit" not in record and "dirty" not in record
-        assert infra.etalon_revision() == "", "empty, not a plausible-looking digest"
+        assert infra.moldarwin_revision() == "", "empty, not a plausible-looking digest"
     finally:
-        infra.etalon_provenance.cache_clear()
+        infra.moldarwin_provenance.cache_clear()
 
 
 def test_library_rows_always_write_an_id_column(sweep: Sweep, tmp_path) -> None:
@@ -1813,7 +1813,7 @@ def test_library_rows_always_write_an_id_column(sweep: Sweep, tmp_path) -> None:
 def test_two_campaigns_over_the_same_molecules_write_one_library_file(tmp_path, keyed) -> None:
     """The library's *name* is in the screen's cache key, so a name per batch is a cache miss per batch.
 
-    MolCascade's source stage carries the library's absolute path in its stage config and
+    MolCat's source stage carries the library's absolute path in its stage config and
     `stage_cache_key` hashes that config. A caller-chosen name therefore makes the entry stage's key
     unique, republishes its output under a new digest, and changes every downstream stage's input
     digest with it -- the whole funnel re-runs.
@@ -2024,7 +2024,7 @@ def test_one_unreadable_csv_does_not_abort_library_writing(tmp_path, keyed, monk
 
 
 def _claim_tool():  # noqa: ANN202 -- mirrors the SDK's untyped decorator factory
-    from etalon.mcp import sweep as mcp_sweep
+    from moldarwin.mcp import sweep as mcp_sweep
 
     class Collector:
         def __init__(self) -> None:
@@ -2045,14 +2045,14 @@ def _claim_tool():  # noqa: ANN202 -- mirrors the SDK's untyped decorator factor
 
     collector = Collector()
     mcp_sweep.register(collector)
-    return collector.tools["etalon_sweep_claim"]
+    return collector.tools["moldarwin_sweep_claim"]
 
 
 def test_the_mcp_claim_tool_can_write_a_content_addressed_library(tmp_path, keyed) -> None:
     """The content-addressed form existed but only the in-process supervisor could reach it.
 
     An MCP-driven campaign got a file named after the batch, which is the exact cache defeat the
-    content-addressed form was written for: MolCascade's source stage carries the library path in
+    content-addressed form was written for: MolCat's source stage carries the library path in
     its stage config and `stage_cache_key` hashes that config, so every downstream key changes with
     the name. Measured on ALK2: byte-identical 20,000-molecule libraries under `batch_0001.csv` and
     `v7_batch_0001.csv`, same md5, all 43 stages re-run, docking included, for identical scores.
@@ -2217,7 +2217,7 @@ def test_a_chunk_that_delivered_nothing_reaches_the_viability_measurement(tmp_pa
     exactly the case ``viable`` exists to catch, and it was being filtered out of its input.
     """
 
-    from etalon.campaign.generation import ChunkResult, chunk_measurements
+    from moldarwin.campaign.generation import ChunkResult, chunk_measurements
 
     generator = _generator(tmp_path)
     results = [
@@ -2241,7 +2241,7 @@ def test_a_mixed_loop_keeps_its_empty_chunks_in_the_denominator(tmp_path) -> Non
     273. Dropping its three empty chunks moved the delivery rate in the one direction that matters.
     """
 
-    from etalon.campaign.generation import ChunkResult, chunk_measurements
+    from moldarwin.campaign.generation import ChunkResult, chunk_measurements
 
     generator = _generator(tmp_path)
     delivered = [273, 0, 190, 0, 240]
@@ -2275,7 +2275,7 @@ def test_one_barren_chunk_does_not_hide_a_generator_from_productivity(tmp_path, 
     tag = next(iter(supervisor.generators))
 
     # One barren chunk, ingested the way a real one is.
-    import etalon.campaign.generation as generation_module
+    import moldarwin.campaign.generation as generation_module
 
     monkeypatch.setattr(generation_module, "read_chunk", lambda path, tag=None: [])
     supervisor._start_generation([])
@@ -2306,7 +2306,7 @@ def test_a_generator_skipped_from_the_productivity_reading_says_why(tmp_path, ke
     supervisor, sweep, _ = _campaign(tmp_path, keyed, monkeypatch)
     tag = next(iter(supervisor.generators))
 
-    from etalon.campaign.generation import ChunkResult
+    from moldarwin.campaign.generation import ChunkResult
 
     supervisor.chunks[tag] = [
         ChunkResult(tag, 1, tmp_path / "c1", 5000, 4800, 600.0, 0),
@@ -2343,9 +2343,9 @@ def _campaign(
 
     import json
 
-    from etalon.campaign.generation import ChunkResult, Generator, Pocket
-    from etalon.campaign.supervisor import Supervisor
-    import etalon.campaign.generation as generation_module
+    from moldarwin.campaign.generation import ChunkResult, Generator, Pocket
+    from moldarwin.campaign.supervisor import Supervisor
+    import moldarwin.campaign.generation as generation_module
 
     screen = FakeScreen()
     sweep = Sweep(
@@ -2467,7 +2467,7 @@ def test_generators_with_separate_output_roots_are_refused(tmp_path, keyed, monk
     """
 
 
-    from etalon.campaign.supervisor import Supervisor
+    from moldarwin.campaign.supervisor import Supervisor
 
     supervisor, sweep, _ = _campaign(tmp_path, keyed, monkeypatch, generator_devices=("cuda:0", "cuda:1"))
     generators = list(supervisor.generators.values())
@@ -2520,7 +2520,7 @@ def test_a_pass_whose_only_product_is_a_note_is_not_quiet() -> None:
     nothing. The channel was repaired; the gate in front of it was not.
     """
 
-    from etalon.campaign.supervisor import TickReport
+    from moldarwin.campaign.supervisor import TickReport
 
     assert not TickReport(notes=("v7_batch_0003: screen raised FileNotFoundError",)).quiet
     assert TickReport().quiet
@@ -2535,7 +2535,7 @@ def test_recovery_that_left_a_batch_alone_is_a_quiet_pass() -> None:
     hides a note exactly as well as a log that prints nothing.
     """
 
-    from etalon.campaign.supervisor import TickReport
+    from moldarwin.campaign.supervisor import TickReport
 
     left_alone = TickReport(
         recovered=({"batch_id": "v7_batch_0001", "action": "running"},) * 16
@@ -2775,7 +2775,7 @@ def test_a_campaign_is_not_complete_while_anything_is_in_flight(tmp_path, keyed,
 def test_a_generator_that_met_its_target_is_retired(tmp_path, keyed, monkeypatch) -> None:
     """``_exhausted_target`` is the stop condition for a loop that delivered what it was asked."""
 
-    from etalon.campaign.generation import ChunkResult
+    from moldarwin.campaign.generation import ChunkResult
 
     supervisor, _sweep, _ = _campaign(tmp_path, keyed, monkeypatch, chunk=8, total=8, batch_size=10)
     tag = next(iter(supervisor.generators))
@@ -2858,7 +2858,7 @@ def test_a_slot_is_not_counted_twice_for_one_batch(tmp_path, keyed, monkeypatch)
     ],
 )
 def test_a_supervisor_refuses_a_configuration_it_cannot_drive(tmp_path, kwargs, message) -> None:
-    from etalon.campaign.supervisor import Supervisor
+    from moldarwin.campaign.supervisor import Supervisor
 
     screen = FakeScreen()
     sweep = Sweep(screen, Ledger(tmp_path / "l.jsonl"), tmp_path / "p.sqlite", batch_size=10)
@@ -2950,9 +2950,9 @@ def test_consecutive_barren_chunks_stop_a_loop_but_one_does_not(tmp_path, keyed,
 
     import json
 
-    from etalon.campaign.generation import BARREN_LIMIT, ChunkResult, Generator, Pocket
-    from etalon.campaign.supervisor import Supervisor
-    import etalon.campaign.generation as generation_module
+    from moldarwin.campaign.generation import BARREN_LIMIT, ChunkResult, Generator, Pocket
+    from moldarwin.campaign.supervisor import Supervisor
+    import moldarwin.campaign.generation as generation_module
 
     screen = FakeScreen()
     sweep = Sweep(
@@ -3014,8 +3014,8 @@ def test_a_library_that_cannot_be_written_does_not_strand_the_claimed_batch(tmp_
     record does not exist, so containment is enough -- but only if the tick survives to reach it.
     """
 
-    import etalon.campaign.supervisor as supervisor_module
-    from etalon.campaign.supervisor import Supervisor
+    import moldarwin.campaign.supervisor as supervisor_module
+    from moldarwin.campaign.supervisor import Supervisor
 
     screen = FakeScreen()
     sweep = Sweep(
@@ -3065,13 +3065,13 @@ def test_a_library_that_cannot_be_written_does_not_strand_the_claimed_batch(tmp_
 def test_the_screen_driver_refuses_an_edited_cascade() -> None:
     """A configuration edited mid-campaign is caught before it produces an incomparable batch."""
 
-    from etalon.campaign.drivers import MolCascadeScreening, RevisionChanged
+    from moldarwin.campaign.drivers import MolCatScreening, RevisionChanged
 
     class Compiles:
         def plan(self, *_a, **_k):
             return type("P", (), {"revision_id": "rev-EDITED"})()
 
-    driver = MolCascadeScreening(
+    driver = MolCatScreening(
         screen=Compiles(), config_path=Path("cascade.json"), revision_id="rev-1"
     )
     with pytest.raises(RevisionChanged, match="not comparable"):
@@ -3081,7 +3081,7 @@ def test_the_screen_driver_refuses_an_edited_cascade() -> None:
 def test_a_chunk_is_finished_only_when_its_manifest_exists(tmp_path) -> None:
     """Per-molecule SDFs on disk with no manifest is a chunk mid-consolidation, not a finished one."""
 
-    from etalon.campaign.generation import finished_chunks
+    from moldarwin.campaign.generation import finished_chunks
 
     root = tmp_path / "gen"
     (root / "flowr" / "chunk_001" / "models").mkdir(parents=True)
@@ -3093,7 +3093,7 @@ def test_a_chunk_is_finished_only_when_its_manifest_exists(tmp_path) -> None:
 def test_a_failed_chunk_reads_as_empty_rather_than_raising(tmp_path) -> None:
     """A manifest beside a zero-byte candidates file took one collector down for twelve hours."""
 
-    from etalon.campaign.generation import read_chunk
+    from moldarwin.campaign.generation import read_chunk
 
     chunk = tmp_path / "flowr" / "chunk_001"
     chunk.mkdir(parents=True)
@@ -3119,7 +3119,7 @@ def test_a_chunk_the_reader_cannot_parse_is_barren_rather_than_fatal(tmp_path, m
 
     from rdkit import Chem
 
-    from etalon.campaign.generation import read_chunk
+    from moldarwin.campaign.generation import read_chunk
 
     chunk = tmp_path / "flowr" / "chunk_001"
     chunk.mkdir(parents=True)
@@ -3145,7 +3145,7 @@ def test_reading_a_chunk_does_not_retire_it(tmp_path) -> None:
 
     import json
 
-    from etalon.campaign.generation import Ingest
+    from moldarwin.campaign.generation import Ingest
 
     root = tmp_path / "gen"
     chunk = root / "flowr" / "chunk_001"
@@ -3248,7 +3248,7 @@ def test_a_chunk_row_is_keyed_on_the_smiles_it_ships(tmp_path) -> None:
     pytest.importorskip("rdkit")
     from rdkit import Chem, RDLogger
 
-    from etalon.campaign.generation import read_chunk
+    from moldarwin.campaign.generation import read_chunk
 
     RDLogger.DisableLog("rdApp.*")
     chunk = tmp_path / "pocketxmol" / "chunk_001"
@@ -3268,7 +3268,7 @@ def test_a_chunk_row_is_keyed_on_the_smiles_it_ships(tmp_path) -> None:
 
 
 def test_a_generator_resumes_at_the_first_unwritten_chunk(tmp_path) -> None:
-    from etalon.campaign.generation import Generator, Pocket
+    from moldarwin.campaign.generation import Generator, Pocket
 
     generator = Generator(
         tag="flowr",
@@ -3334,7 +3334,7 @@ $$$$
 
 
 def _generator(tmp_path):
-    from etalon.campaign.generation import Generator, Pocket
+    from moldarwin.campaign.generation import Generator, Pocket
 
     return Generator(
         tag="flowr",
@@ -3391,7 +3391,7 @@ def test_a_resumed_generator_does_not_write_into_a_finished_chunk(tmp_path) -> N
 def test_a_pocket_that_is_not_a_reference_ligand_passes_its_kind_through(tmp_path) -> None:
     """``center`` and ``residues`` take ``--pocket-kind``; only ``reference`` takes a ligand."""
 
-    from etalon.campaign.generation import Pocket
+    from moldarwin.campaign.generation import Pocket
 
     centre = Pocket("A22", "center", tmp_path / "box.yaml")
     assert centre.arguments() == ["--pocket", str(tmp_path / "box.yaml"), "--pocket-kind", "center"]
@@ -3418,7 +3418,7 @@ def test_a_pocket_that_is_not_a_reference_ligand_passes_its_kind_through(tmp_pat
 def test_a_generator_refuses_a_configuration_it_cannot_run(tmp_path, kwargs, message) -> None:
     """A tagless generator cannot be told apart from another, and a zero chunk never finishes."""
 
-    from etalon.campaign.generation import Generator, Pocket
+    from moldarwin.campaign.generation import Generator, Pocket
 
     fields = {
         "tag": "flowr",
@@ -3470,7 +3470,7 @@ def test_a_record_rdkit_yields_none_for_is_skipped_not_fatal(tmp_path) -> None:
 
     from rdkit import Chem
 
-    from etalon.campaign.generation import read_chunk
+    from moldarwin.campaign.generation import read_chunk
 
     chunk = tmp_path / "flowr" / "chunk_001"
     chunk.mkdir(parents=True)
@@ -3491,7 +3491,7 @@ def test_chunk_measurements_refuses_counts_it_cannot_pair(tmp_path) -> None:
     guard behind that report: a silently mis-paired count would attribute one chunk's uniqueness to
     another chunk's delivery."""
 
-    from etalon.campaign.generation import ChunkResult, chunk_measurements
+    from moldarwin.campaign.generation import ChunkResult, chunk_measurements
 
     generator = _generator(tmp_path)
     results = [
@@ -3507,7 +3507,7 @@ def test_a_molecule_rdkit_cannot_key_does_not_lose_the_chunk(tmp_path, monkeypat
 
     from rdkit import Chem
 
-    from etalon.campaign.generation import read_chunk
+    from moldarwin.campaign.generation import read_chunk
 
     chunk = tmp_path / "flowr" / "chunk_001"
     chunk.mkdir(parents=True)
@@ -3537,7 +3537,7 @@ def test_a_generation_chunk_that_timed_out_is_barren_with_its_reason(tmp_path, m
 
     import subprocess as subprocess_module
 
-    from etalon.campaign.generation import PrismGeneration
+    from moldarwin.campaign.generation import PrismGeneration
 
     generator = _generator(tmp_path)
 
@@ -3557,7 +3557,7 @@ def test_prism_missing_from_the_path_is_a_barren_chunk_not_a_crash(tmp_path, mon
 
     import subprocess as subprocess_module
 
-    from etalon.campaign.generation import PrismGeneration
+    from moldarwin.campaign.generation import PrismGeneration
 
     def missing(*_a, **_k):
         raise FileNotFoundError(2, "No such file or directory: 'prism'")
@@ -3574,7 +3574,7 @@ def test_a_manifest_that_will_not_parse_is_a_barren_chunk(tmp_path, monkeypatch)
 
     import subprocess as subprocess_module
 
-    from etalon.campaign.generation import PrismGeneration
+    from moldarwin.campaign.generation import PrismGeneration
 
     generator = _generator(tmp_path)
 
@@ -3596,7 +3596,7 @@ def test_a_finished_chunk_reports_what_its_manifest_says(tmp_path, monkeypatch) 
     import json as json_module
     import subprocess as subprocess_module
 
-    from etalon.campaign.generation import PrismGeneration
+    from moldarwin.campaign.generation import PrismGeneration
 
     generator = _generator(tmp_path)
 
@@ -3620,7 +3620,7 @@ def test_a_finished_chunk_reports_what_its_manifest_says(tmp_path, monkeypatch) 
 def test_the_generation_command_sets_no_cuda_mask() -> None:
     """PRISM's wrappers disagree about the mask, so the only correct choice is to set neither."""
 
-    from etalon.campaign.generation import Generator, Pocket
+    from moldarwin.campaign.generation import Generator, Pocket
 
     generator = Generator(
         tag="flowr",
@@ -3661,7 +3661,7 @@ def test_the_generation_seed_is_the_same_seed_in_the_next_process(tmp_path) -> N
 
     program = (
         "from pathlib import Path;"
-        "from etalon.campaign.generation import Generator, Pocket;"
+        "from moldarwin.campaign.generation import Generator, Pocket;"
         "g = Generator(tag='flowr_g0', model='flowr',"
         " pocket=Pocket('A', 'reference', Path('/r.sdf')), device='cuda:0',"
         " protein=Path('/p.pdb'), output_root=Path('/gen'),"
@@ -3688,7 +3688,7 @@ def test_the_generation_seed_is_the_same_seed_in_the_next_process(tmp_path) -> N
     # And the seed reaches the record, so the molecules in a chunk are attributable to one. It used
     # to live only in that process's argv: ChunkResult carried tag, index, delivered and seconds,
     # and nothing afterwards could say what the generator had been seeded with.
-    from etalon.campaign.generation import ChunkResult, Generator, Pocket
+    from moldarwin.campaign.generation import ChunkResult, Generator, Pocket
 
     generator = Generator(
         tag="flowr_g0",
@@ -3843,7 +3843,7 @@ def _sweep_tool(name, **arguments):
 
     import json
 
-    from etalon.mcp import sweep
+    from moldarwin.mcp import sweep
 
     class Collector:
         def __init__(self):
@@ -3865,7 +3865,7 @@ def test_the_planner_reproduces_the_campaign_it_was_measured_on() -> None:
     """5 generation loops against 6 screen workers, which sat generation-limited by 3.7x."""
 
     plan = _sweep_tool(
-        "etalon_campaign_plan", pool_size=1_056_280, screen_devices=6, generation_devices=5
+        "moldarwin_campaign_plan", pool_size=1_056_280, screen_devices=6, generation_devices=5
     )
     assert plan["ok"]
     assert plan["capacity_ratio"] == 3.7
@@ -3883,7 +3883,7 @@ def test_the_advised_move_is_the_one_the_operator_actually_made() -> None:
     """
 
     advised = _sweep_tool(
-        "etalon_campaign_plan", pool_size=1_056_280, screen_devices=6, generation_devices=5
+        "moldarwin_campaign_plan", pool_size=1_056_280, screen_devices=6, generation_devices=5
     )
     assert advised["recommended_split"] == {
         "total_devices": 11, "generation": 8, "screening": 3, "basis": "declared",
@@ -3892,10 +3892,10 @@ def test_the_advised_move_is_the_one_the_operator_actually_made() -> None:
 
     # The split it names is balanced; the move the old formula named is not.
     balanced = _sweep_tool(
-        "etalon_campaign_plan", pool_size=1_056_280, screen_devices=3, generation_devices=8
+        "moldarwin_campaign_plan", pool_size=1_056_280, screen_devices=3, generation_devices=8
     )
     overshot = _sweep_tool(
-        "etalon_campaign_plan", pool_size=1_056_280, screen_devices=2, generation_devices=9
+        "moldarwin_campaign_plan", pool_size=1_056_280, screen_devices=2, generation_devices=9
     )
     assert 0.67 <= balanced["capacity_ratio"] <= 1.5, balanced["capacity_ratio"]
     assert abs(balanced["capacity_ratio"] - 1.0) < abs(overshot["capacity_ratio"] - 1.0), (
@@ -3910,11 +3910,11 @@ def test_a_plan_may_not_ask_for_more_devices_than_the_host_has() -> None:
     The refusal has to name both numbers, because "8 requested, 1 detected" is the whole diagnosis.
     """
 
-    detected = _sweep_tool("etalon_devices")
+    detected = _sweep_tool("moldarwin_devices")
     assert detected["ok"]
     asked_screen = detected["total"] + 4
     result = _sweep_tool(
-        "etalon_campaign_plan",
+        "moldarwin_campaign_plan",
         pool_size=1000,
         screen_devices=asked_screen,
         generation_devices=4,
@@ -3928,18 +3928,18 @@ def test_a_plan_may_not_ask_for_more_devices_than_the_host_has() -> None:
 
 
 def test_detection_names_the_pinned_commit_it_measured_through() -> None:
-    """A reading that cannot say which MolCascade produced it cannot be cited later.
+    """A reading that cannot say which MolCat produced it cannot be cited later.
 
     An editable install shadowing the vendored tree is silent, so the commit is reported beside the
     measurement rather than assumed from the manifest.
     """
 
-    from etalon.boundary.infra import load
+    from moldarwin.boundary.infra import load
 
-    reading = _sweep_tool("etalon_devices")
+    reading = _sweep_tool("moldarwin_devices")
     assert reading["ok"]
-    assert reading["measured_by"]["source_commit"] == load("molcascade").source_commit
-    assert reading["measured_by"]["function"] == "molcascade.environment.detect_environment"
+    assert reading["measured_by"]["source_commit"] == load("molcat").source_commit
+    assert reading["measured_by"]["function"] == "molcat.environment.detect_environment"
     # Detection must not invent an accelerator, and must not omit the count.
     assert reading["total"] == len(reading["devices"])
     assert (reading["accelerator"] == "none") == (reading["total"] == 0)
@@ -3952,14 +3952,14 @@ def test_the_plan_says_which_of_its_numbers_are_borrowed() -> None:
     say so rather than leaving it in a docstring the caller did not read.
     """
 
-    borrowed = _sweep_tool("etalon_campaign_plan", pool_size=1000)
+    borrowed = _sweep_tool("moldarwin_campaign_plan", pool_size=1000)
     assert "default" in borrowed["basis"]["minutes_per_batch"]
     assert "no device recorded" in borrowed["basis"]["minutes_per_batch"]
     assert "no device recorded" in borrowed["basis"]["unique_per_generator_hour"]
     assert borrowed["basis"]["devices"] == "declared by the caller"
 
     supplied = _sweep_tool(
-        "etalon_campaign_plan", pool_size=1000, minutes_per_batch=42.0, unique_per_generator_hour=900.0
+        "moldarwin_campaign_plan", pool_size=1000, minutes_per_batch=42.0, unique_per_generator_hour=900.0
     )
     assert supplied["basis"]["minutes_per_batch"] == "caller"
     assert supplied["basis"]["unique_per_generator_hour"] == "caller"
@@ -3969,7 +3969,7 @@ def test_one_device_is_reported_as_unsplittable_rather_than_split() -> None:
     """Half a GPU is not a lane. Generating and screening on one card is sequential, not a ratio."""
 
     plan = _sweep_tool(
-        "etalon_campaign_plan", pool_size=1000, screen_devices=1, generation_devices=0
+        "moldarwin_campaign_plan", pool_size=1000, screen_devices=1, generation_devices=0
     )
     assert plan["ok"]
     assert plan["recommended_split"]["total_devices"] == 1
@@ -3977,7 +3977,7 @@ def test_one_device_is_reported_as_unsplittable_rather_than_split() -> None:
 
 
 def test_a_batch_is_not_resumed_before_it_exists(tmp_path) -> None:
-    """``--resume`` on a run that never started is MolCascade's RUN_NOT_FOUND, not a no-op.
+    """``--resume`` on a run that never started is MolCat's RUN_NOT_FOUND, not a no-op.
 
     Both screen drivers had this, and it is the same one line in each: the committed-stage cache is
     always safe to reuse, but the run record it is keyed on has to exist first. Measured on ALK2:
@@ -3985,7 +3985,7 @@ def test_a_batch_is_not_resumed_before_it_exists(tmp_path) -> None:
     driver and once again through the CLI after the first fix, because the flag was hardcoded.
     """
 
-    from etalon.campaign.drivers import MolCascadeProcessScreening
+    from moldarwin.campaign.drivers import MolCatProcessScreening
 
     class Records:
         def __init__(self, known: set[str]) -> None:
@@ -3994,7 +3994,7 @@ def test_a_batch_is_not_resumed_before_it_exists(tmp_path) -> None:
         def state(self, run_id: str):
             return object() if run_id in self.known else None
 
-    driver = MolCascadeProcessScreening(
+    driver = MolCatProcessScreening(
         screen=Records({"batch_old"}),
         config_path=tmp_path / "c.json",
         workspace=tmp_path / "ws",
@@ -4010,7 +4010,7 @@ def test_a_batch_is_not_resumed_before_it_exists(tmp_path) -> None:
 
 # -- a run record that exists is not the same as a screen that finished ------
 #
-# Both drivers established "the screen is over" by asking whether a run record exists. MolCascade
+# Both drivers established "the screen is over" by asking whether a run record exists. MolCat
 # writes the record when the run *starts*, so a subprocess killed by the OOM killer, cut off by the
 # driver's own timeout, or stopped with its host leaves a record in RUNNING -- and that was returned
 # as the batch's result.
@@ -4044,7 +4044,7 @@ def test_a_batch_is_not_resumed_before_it_exists(tmp_path) -> None:
 
 # -- a run record that exists is not the same as a screen that finished ------
 #
-# Both drivers established "the screen is over" by asking whether a run record exists. MolCascade
+# Both drivers established "the screen is over" by asking whether a run record exists. MolCat
 # writes the record when the run *starts*, so a subprocess killed by the OOM killer, cut off by the
 # driver's own timeout, or stopped with its host leaves a record in RUNNING -- and that was returned
 # as the batch's result.
@@ -4062,7 +4062,7 @@ def test_an_unfinished_run_record_is_not_returned_as_a_batch_result(tmp_path, mo
 
     import subprocess as subprocess_module
 
-    from etalon.campaign.drivers import MolCascadeProcessScreening
+    from moldarwin.campaign.drivers import MolCatProcessScreening
 
     record = ScreenResult(
         "batch_0001", "rev-1", status, (stage("source", "SUCCEEDED", artifact="a"),)
@@ -4076,7 +4076,7 @@ def test_an_unfinished_run_record_is_not_returned_as_a_batch_result(tmp_path, mo
 
     monkeypatch.setattr(subprocess_module, "run", fake_run)
 
-    driver = MolCascadeProcessScreening(
+    driver = MolCatProcessScreening(
         screen=SimpleNamespace(state=lambda run_id: record),
         config_path=tmp_path / "c.json",
         workspace=tmp_path / "ws",
@@ -4094,7 +4094,7 @@ def test_a_finished_run_is_returned_whichever_way_it_finished(tmp_path, monkeypa
 
     import subprocess as subprocess_module
 
-    from etalon.campaign.drivers import MolCascadeProcessScreening
+    from moldarwin.campaign.drivers import MolCatProcessScreening
 
     record = ScreenResult(
         "batch_0001", "per-library-digest", status,
@@ -4108,7 +4108,7 @@ def test_a_finished_run_is_returned_whichever_way_it_finished(tmp_path, monkeypa
 
     monkeypatch.setattr(subprocess_module, "run", fake_run)
 
-    driver = MolCascadeProcessScreening(
+    driver = MolCatProcessScreening(
         screen=SimpleNamespace(state=lambda run_id: record),
         config_path=tmp_path / "c.json",
         workspace=tmp_path / "ws",
@@ -4124,7 +4124,7 @@ def test_a_finished_run_is_returned_whichever_way_it_finished(tmp_path, monkeypa
 def test_the_in_process_driver_also_refuses_an_unfinished_run(tmp_path) -> None:
     """One fix in each driver, because the fault is in each driver. It has been so twice before."""
 
-    from etalon.campaign.drivers import MolCascadeScreening
+    from moldarwin.campaign.drivers import MolCatScreening
 
     class Runs:
         def plan(self, _config, _library, target=None):
@@ -4136,7 +4136,7 @@ def test_the_in_process_driver_also_refuses_an_unfinished_run(tmp_path) -> None:
         def run(self, _plan, *, run_id, resume, workers, devices):
             return ScreenResult(run_id, "rev-1", "RUNNING", ())
 
-    driver = MolCascadeScreening(
+    driver = MolCatScreening(
         screen=Runs(), config_path=tmp_path / "c.json", revision_id="rev-1"
     )
     with pytest.raises(RuntimeError, match="not a terminal state"):
@@ -4146,14 +4146,14 @@ def test_the_in_process_driver_also_refuses_an_unfinished_run(tmp_path) -> None:
 def test_terminal_is_defined_once_and_progress_reads_it(tmp_path) -> None:
     """`progress`'s `terminal` key had the set inline while the drivers had no notion of it."""
 
-    from etalon.boundary.screen import TERMINAL_RUN_STATUSES
+    from moldarwin.boundary.screen import TERMINAL_RUN_STATUSES
 
     assert set(TERMINAL_RUN_STATUSES) == {"SUCCEEDED", "FAILED"}
     assert ScreenResult("r", "rev", "SUCCEEDED", ()).terminal
     assert ScreenResult("r", "rev", "FAILED", ()).terminal
     assert not ScreenResult("r", "rev", "RUNNING", ()).terminal
 
-    from etalon.boundary.screen import Screen
+    from moldarwin.boundary.screen import Screen
 
     def reading(record):
         class OneRun(Screen):
@@ -4170,9 +4170,9 @@ def test_terminal_is_defined_once_and_progress_reads_it(tmp_path) -> None:
 
 
 def _process_driver(tmp_path, screen):
-    from etalon.campaign.drivers import MolCascadeProcessScreening
+    from moldarwin.campaign.drivers import MolCatProcessScreening
 
-    return MolCascadeProcessScreening(
+    return MolCatProcessScreening(
         screen=screen,
         config_path=tmp_path / "c.json",
         workspace=tmp_path / "ws",
@@ -4192,7 +4192,7 @@ def test_a_cascade_that_will_not_compile_is_refused_before_the_batch_runs(tmp_pa
 
     import subprocess as subprocess_module
 
-    from etalon.campaign.drivers import RevisionChanged
+    from moldarwin.campaign.drivers import RevisionChanged
 
     monkeypatch.setattr(
         subprocess_module,
@@ -4215,7 +4215,7 @@ def test_a_configuration_edited_mid_campaign_is_refused_by_the_process_driver(tm
 
     import subprocess as subprocess_module
 
-    from etalon.campaign.drivers import RevisionChanged
+    from moldarwin.campaign.drivers import RevisionChanged
 
     monkeypatch.setattr(
         subprocess_module,
@@ -4248,7 +4248,7 @@ def test_a_screen_that_left_no_run_record_is_not_a_result(tmp_path, monkeypatch)
 def test_the_in_process_driver_returns_a_result_unchanged_without_a_reference_library(tmp_path) -> None:
     """The plain path, which no test entered: no reference library, so no digest to rewrite."""
 
-    from etalon.campaign.drivers import MolCascadeScreening
+    from moldarwin.campaign.drivers import MolCatScreening
 
     class Runs:
         def __init__(self) -> None:
@@ -4267,7 +4267,7 @@ def test_the_in_process_driver_returns_a_result_unchanged_without_a_reference_li
             )
 
     runs = Runs()
-    driver = MolCascadeScreening(screen=runs, config_path=tmp_path / "c.json", revision_id="rev-1")
+    driver = MolCatScreening(screen=runs, config_path=tmp_path / "c.json", revision_id="rev-1")
     result = driver("batch_0001", tmp_path / "b.csv", "cuda:0")
     assert result.revision_id == "rev-1"
     assert result.run_id == "batch_0001"
@@ -4284,7 +4284,7 @@ def test_the_in_process_driver_reports_the_funnel_not_the_per_library_digest(tmp
     compiled to five digests from one unchanged config file.
     """
 
-    from etalon.campaign.drivers import MolCascadeScreening
+    from moldarwin.campaign.drivers import MolCatScreening
 
     reference = tmp_path / "panel.csv"
 
@@ -4303,7 +4303,7 @@ def test_the_in_process_driver_reports_the_funnel_not_the_per_library_digest(tmp
                 (stage("shortlist", "SUCCEEDED", artifact="a"),),
             )
 
-    driver = MolCascadeScreening(
+    driver = MolCatScreening(
         screen=Runs(),
         config_path=tmp_path / "c.json",
         revision_id="rev-1",
@@ -4321,9 +4321,9 @@ def test_the_identity_probe_compiles_the_reference_library(tmp_path) -> None:
     whose answer is different for every batch and equal to the campaign's for none of them.
     """
 
-    from etalon.campaign.drivers import MolCascadeProcessScreening
+    from moldarwin.campaign.drivers import MolCatProcessScreening
 
-    driver = MolCascadeProcessScreening(
+    driver = MolCatProcessScreening(
         screen=None,
         config_path=tmp_path / "c.json",
         workspace=tmp_path / "ws",
@@ -4346,7 +4346,7 @@ def test_progress_counts_a_cached_stage_as_reached(tmp_path) -> None:
     when deciding whether to intervene -- and the opposite of the truth.
     """
 
-    from etalon.boundary.screen import Screen
+    from moldarwin.boundary.screen import Screen
 
     result = ScreenResult(
         run_id="batch_0001",
@@ -4378,20 +4378,20 @@ def test_progress_counts_a_cached_stage_as_reached(tmp_path) -> None:
 def test_the_device_goes_in_the_argv_not_the_environment(tmp_path) -> None:
     """CUDA_VISIBLE_DEVICES does not compose, so setting it here would defeat itself.
 
-    MolCascade pins each shard with ``os.environ["CUDA_VISIBLE_DEVICES"] = device[5:]``, and that
+    MolCat pins each shard with ``os.environ["CUDA_VISIBLE_DEVICES"] = device[5:]``, and that
     value indexes the machine's devices rather than the subset the process can see. A screen
     launched under ``CUDA_VISIBLE_DEVICES=3`` sees one card, names it ``cuda:0``, and pins its
     shards to "0" -- physical card zero. Measured on ALK2: eight screens with eight distinct values,
     and every Uni-Dock child on the same physical GPU, 63 GB on card 0 while seven cards idled.
     """
 
-    from etalon.campaign.drivers import MolCascadeProcessScreening
+    from moldarwin.campaign.drivers import MolCatProcessScreening
 
     class NoRuns:
         def state(self, run_id: str):  # noqa: ARG002
             return None
 
-    driver = MolCascadeProcessScreening(
+    driver = MolCatProcessScreening(
         screen=NoRuns(),
         config_path=tmp_path / "c.json",
         workspace=tmp_path / "ws",
@@ -4415,7 +4415,7 @@ def test_one_batch_per_device_unless_told_otherwise(tmp_path, keyed, monkeypatch
     each 96 GB card. One per device was rationing the resource that was spare.
     """
 
-    from etalon.campaign.supervisor import Supervisor
+    from moldarwin.campaign.supervisor import Supervisor
 
     supervisor, sweep, _ = _campaign(tmp_path, keyed, monkeypatch)
     devices = ("cuda:5", "cuda:6")
@@ -4439,7 +4439,7 @@ def test_one_batch_per_device_unless_told_otherwise(tmp_path, keyed, monkeypatch
 def test_a_device_with_a_batch_on_it_offers_one_fewer_slot(tmp_path, keyed, monkeypatch) -> None:
     """Occupancy is counted per device, not treated as a boolean."""
 
-    from etalon.campaign.supervisor import Supervisor, _Job
+    from moldarwin.campaign.supervisor import Supervisor, _Job
 
     supervisor, sweep, _ = _campaign(tmp_path, keyed, monkeypatch)
     two = Supervisor(
@@ -4463,7 +4463,7 @@ def test_a_device_with_a_batch_on_it_offers_one_fewer_slot(tmp_path, keyed, monk
 def test_a_batch_already_screening_here_is_not_handed_to_a_second_device(tmp_path, keyed, monkeypatch) -> None:
     """``recover`` releases a claim with no run record, and a screen that just started has none.
 
-    A screen subprocess has to start, import MolCascade and compile the funnel before it writes a
+    A screen subprocess has to start, import MolCat and compile the funnel before it writes a
     run record -- seconds on a loaded host. ``Sweep.recover`` runs at the top of every tick and
     releases the claim of any claimed batch whose run record does not exist, which is right for a
     crash and wrong for a launch: the batch is back in ``pending()`` on the very next tick while
@@ -4509,7 +4509,7 @@ def test_a_restarted_supervisor_does_not_dispatch_on_top_of_live_screens(tmp_pat
     dispatched a second full set of batches on top of the first.
     """
 
-    from etalon.campaign.supervisor import Supervisor
+    from moldarwin.campaign.supervisor import Supervisor
 
     _, sweep, screen = _campaign(tmp_path, keyed, monkeypatch, batch_size=5)
     sweep.admit([(f"K{i}", f"C{i}", "f") for i in range(15)])
@@ -4568,7 +4568,7 @@ def _pool(engine: str, values, direction: str = "LOWER_STRONGER", *, parents=Non
 
 
 def test_a_score_threshold_is_a_percentile_nobody_measured(tmp_path) -> None:  # noqa: ARG001
-    from etalon.campaign.calibrate import enrichment
+    from moldarwin.campaign.calibrate import enrichment
 
     panel = (
         PanelMember("strong", True, "co-crystal"),
@@ -4595,7 +4595,7 @@ def test_a_score_threshold_is_a_percentile_nobody_measured(tmp_path) -> None:  #
 
 
 def test_the_percentile_becomes_the_number_a_cascade_gate_takes() -> None:
-    from etalon.campaign.calibrate import HIGHER_STRONGER, percentile_threshold
+    from moldarwin.campaign.calibrate import HIGHER_STRONGER, percentile_threshold
 
     # Lower-is-stronger: the best 10% of a descending ramp.
     assert percentile_threshold(_POPULATION, 0.10) == pytest.approx(-9.6, abs=0.01)
@@ -4607,7 +4607,7 @@ def test_the_percentile_becomes_the_number_a_cascade_gate_takes() -> None:
 
 
 def test_a_score_that_orders_neither_class_is_not_informative() -> None:
-    from etalon.campaign.calibrate import enrichment
+    from moldarwin.campaign.calibrate import enrichment
 
     panel = (
         PanelMember("a1", True),
@@ -4640,7 +4640,7 @@ def test_the_population_is_collapsed_per_molecule_not_per_pose() -> None:
     committed one.
     """
 
-    from etalon.campaign.calibrate import enrichment
+    from moldarwin.campaign.calibrate import enrichment
 
     panel = (PanelMember("a1", True), PanelMember("i1", False))
     scores = (
@@ -4666,7 +4666,7 @@ def test_the_population_is_collapsed_per_molecule_not_per_pose() -> None:
 
 
 def test_a_population_value_that_cannot_be_ordered_is_not_counted() -> None:
-    from etalon.campaign.calibrate import enrichment
+    from moldarwin.campaign.calibrate import enrichment
 
     panel = (PanelMember("a1", True),)
     scores = ({"parent_id": "a1", "engine_id": "e", "score": -9.0, "direction": "LOWER_STRONGER"},)
@@ -4685,7 +4685,7 @@ def test_a_threshold_is_refused_for_a_direction_that_is_no_convention() -> None:
     stopped gating would have been recorded as a 2% gate.
     """
 
-    from etalon.campaign.calibrate import percentile_threshold
+    from moldarwin.campaign.calibrate import percentile_threshold
 
     rising = tuple(-v for v in _POPULATION)
     assert percentile_threshold(rising, 0.10, MIXED) is None
@@ -4701,7 +4701,7 @@ def test_a_threshold_is_refused_for_a_direction_that_is_no_convention() -> None:
 def test_a_direction_nobody_recognises_is_mixed_not_the_default() -> None:
     """A declared direction that is neither convention fell through to the fail-open default.
 
-    `etalon.active.schema` validates an endpoint's direction against `{"minimize", "maximize"}` and
+    `moldarwin.active.schema` validates an endpoint's direction against `{"minimize", "maximize"}` and
     has no MIXED at all, while this module declares LOWER_STRONGER / HIGHER_STRONGER / MIXED. Two
     vocabularies for one concept in one repository with no translation, so a row arriving from the
     active side declared its convention in words this module did not know, and was treated as
@@ -4717,7 +4717,7 @@ def test_a_direction_nobody_recognises_is_mixed_not_the_default() -> None:
     purpose is to fail closed, and read it as LOWER_STRONGER.
     """
 
-    from etalon.campaign.calibrate import _direction
+    from moldarwin.campaign.calibrate import _direction
 
     # The two conventions, verbatim.
     assert _direction({"direction": "LOWER_STRONGER"}) == LOWER_STRONGER
@@ -4786,7 +4786,7 @@ def test_a_mixed_direction_engine_publishes_no_percentiles() -> None:
     ``"actives": 0`` for a panel that declares six of them.
     """
 
-    from etalon.campaign.calibrate import enrichment
+    from moldarwin.campaign.calibrate import enrichment
 
     panel = (PanelMember("a1", True), PanelMember("a2", True), PanelMember("i1", False))
     scores = (
@@ -4960,7 +4960,7 @@ def test_a_claim_whose_library_cannot_be_written_names_the_reservation_it_is_hol
         first call   NotADirectoryError, retryable=true, "calling again is reasonable once"
         the retry    SweepError "batch_0001 is not claimable", hinted as a defect to report
 
-    Meanwhile `state()["batches"]` read `outstanding: 1` and one `etalon_sweep_recover` would have
+    Meanwhile `state()["batches"]` read `outstanding: 1` and one `moldarwin_sweep_recover` would have
     released it.
     """
 
@@ -4992,7 +4992,7 @@ def test_a_claim_whose_library_cannot_be_written_names_the_reservation_it_is_hol
     assert answer["ok"] is False
     assert answer["error"]["code"] == "LibraryNotWritten"
     assert answer["error"]["retryable"] is False, "claiming it again cannot succeed"
-    assert "etalon_sweep_recover" in answer["error"]["hint"], "the remedy is named"
+    assert "moldarwin_sweep_recover" in answer["error"]["hint"], "the remedy is named"
     assert answer["error"]["context"]["batch_id"] == "batch_0001"
     assert answer["error"]["context"]["claimed_by"] == "cuda:0"
 
@@ -5009,18 +5009,18 @@ def test_an_unreadable_run_state_is_not_reported_as_an_absent_run(tmp_path) -> N
     """`Screen.state` swallowed every exception and returned None for all of them.
 
     The reasoning was that RUN_NOT_FOUND and an unreadable state are both "no answer", and for the
-    caller that matters they are opposite answers. MolCascade raises `PipelineError` with
+    caller that matters they are opposite answers. MolCat raises `PipelineError` with
     `code="RUN_NOT_FOUND"` only for a run that genuinely does not exist, and something else for a
     state file that exists and will not parse, is over its size limit, or fails validation.
     """
 
-    from etalon.boundary.screen import Screen
+    from moldarwin.boundary.screen import Screen
 
     screen = Screen(tmp_path / "ws")
     assert screen.state("batch_0001") is None, "an absent run must still read as absent"
 
-    from molcascade.plugins import create_builtin_registry
-    from molcascade.runtime import LocalRunner
+    from molcat.plugins import create_builtin_registry
+    from molcat.runtime import LocalRunner
 
     runner = LocalRunner(tmp_path / "ws", plugins=create_builtin_registry())
     state_file = runner.runs_root / "batch_0002.json"
@@ -5109,9 +5109,9 @@ def test_the_terminal_status_set_is_defined_once() -> None:
 
     import inspect
 
-    import etalon.campaign.sweep as campaign_sweep
-    import etalon.mcp.sweep as mcp_sweep
-    from etalon.boundary.screen import TERMINAL_RUN_STATUSES
+    import moldarwin.campaign.sweep as campaign_sweep
+    import moldarwin.mcp.sweep as mcp_sweep
+    from moldarwin.boundary.screen import TERMINAL_RUN_STATUSES
 
     assert set(TERMINAL_RUN_STATUSES) == {"SUCCEEDED", "FAILED"}
     for module in (campaign_sweep, mcp_sweep):
@@ -5125,7 +5125,7 @@ def test_the_terminal_status_set_is_defined_once() -> None:
 
 
 def _revision_file(workspace, revision_id, tiers, stages):
-    """One run's recorded revision, in the shape MolCascade writes."""
+    """One run's recorded revision, in the shape MolCat writes."""
 
     import json
 
@@ -5152,7 +5152,7 @@ def test_a_pose_tier_is_recognised_by_its_backend_not_its_name(tmp_path) -> None
     and a legitimate rename is all it took.
     """
 
-    from etalon.campaign.calibrate import STRUCTURAL_BACKENDS, structural_tiers
+    from moldarwin.campaign.calibrate import STRUCTURAL_BACKENDS, structural_tiers
 
     assert "docking.redock_consistency" in STRUCTURAL_BACKENDS
     assert "derived.pose_strain" in STRUCTURAL_BACKENDS
@@ -5199,7 +5199,7 @@ def test_a_criterion_gate_also_makes_its_tier_structural(tmp_path) -> None:
     backend sits only on the gate stage is still a pose tier.
     """
 
-    from etalon.campaign.calibrate import structural_tiers
+    from moldarwin.campaign.calibrate import structural_tiers
 
     revision = "rev-gate"
     _revision_file(
@@ -5218,7 +5218,7 @@ def test_a_criterion_gate_also_makes_its_tier_structural(tmp_path) -> None:
 def test_a_version_bump_does_not_turn_the_guard_off(tmp_path) -> None:
     """Matched on the plugin id before `@`, so `@0.2.0` is still the same backend."""
 
-    from etalon.campaign.calibrate import structural_tiers
+    from moldarwin.campaign.calibrate import structural_tiers
 
     revision = "rev-bump"
     _revision_file(
@@ -5239,7 +5239,7 @@ def test_an_unreadable_revision_says_so_rather_than_answering_no(tmp_path) -> No
     this whole check exists to prevent.
     """
 
-    from etalon.campaign.calibrate import structural_tiers
+    from moldarwin.campaign.calibrate import structural_tiers
 
     screen = SimpleNamespace(workspace=tmp_path)
     found, why_not = structural_tiers(screen, ScreenResult("p", "absent", "SUCCEEDED", ()))
@@ -5261,7 +5261,7 @@ def test_a_consistency_check_is_not_an_accuracy_check(tmp_path) -> None:
     fixed-frame pose consistency, never pose accuracy", calls the 2 Angstrom cutoff "an
     engineering default here, not a validation", and stamps
     `"interpretation": "prediction_consistency_not_crystal_pose_accuracy"` into every row it
-    emits.  ETALON read that metric, classified its tier as pose-judging -- which it is -- and
+    emits.  MolDarwin read that metric, classified its tier as pose-judging -- which it is -- and
     then told the operator the docking had placed the molecule badly.
 
     Measured on SND1 pocket_A_w401 with two co-crystal ligands in the panel: C26A2_QOY scored
@@ -5272,7 +5272,7 @@ def test_a_consistency_check_is_not_an_accuracy_check(tmp_path) -> None:
     the operator to inspect two poses that were right.
     """
 
-    from etalon.campaign.calibrate import (
+    from moldarwin.campaign.calibrate import (
         ACCURACY,
         CONSISTENCY,
         CONSISTENCY_BACKENDS,
@@ -5328,7 +5328,7 @@ def test_a_consistency_check_is_not_an_accuracy_check(tmp_path) -> None:
 def test_the_consistency_refusal_names_the_search_and_not_the_pose() -> None:
     """Three refusals, not two, and the middle one is the one SND1 and CRBN both needed."""
 
-    from etalon.campaign.calibrate import ACCURACY, CONSISTENCY, Calibration, TierVerdict
+    from moldarwin.campaign.calibrate import ACCURACY, CONSISTENCY, Calibration, TierVerdict
 
     def refusal(measures: str | None, structural: bool) -> str:
         tier = TierVerdict(
@@ -5370,7 +5370,7 @@ def test_the_consistency_refusal_names_the_search_and_not_the_pose() -> None:
 def test_a_stored_calibration_says_which_kind_of_pose_check_refused_it() -> None:
     """Without the field a re-read of a stored verdict cannot tell the two refusals apart."""
 
-    from etalon.campaign.calibrate import CONSISTENCY, TierVerdict
+    from moldarwin.campaign.calibrate import CONSISTENCY, TierVerdict
 
     plain = TierVerdict("d2", "physchem", 8, 8, (), ())
     pose = TierVerdict("t9", "redock", 8, 3, ("QOY",), (), structural=True, measures=CONSISTENCY)
@@ -5389,7 +5389,7 @@ def test_the_shipped_fallback_knows_which_of_its_two_pose_tiers_is_which(tmp_pat
     the wrong refusal for `t9_redock`, which is the shipped name of the consistency tier.
     """
 
-    from etalon.campaign.calibrate import (
+    from moldarwin.campaign.calibrate import (
         ACCURACY,
         CONSISTENCY,
         LEGACY_STRUCTURAL_TIERS,
@@ -5409,7 +5409,7 @@ def test_calibrate_carries_the_pose_measure_all_the_way_to_the_refusal(tmp_path)
     reversion that stops `_verdict` passing `measures` broke nothing.
     """
 
-    from etalon.campaign.calibrate import CONSISTENCY, calibrate
+    from moldarwin.campaign.calibrate import CONSISTENCY, calibrate
 
     revision = "rev-wired"
     _revision_file(
@@ -5455,7 +5455,7 @@ def test_calibrate_carries_the_pose_measure_all_the_way_to_the_refusal(tmp_path)
 def test_two_cuda_laned_runs_in_one_process_are_refused() -> None:
     """A thread per card in one process silently destroys both runs.
 
-    MolCascade pins a shard's device with two pieces of process-global state:
+    MolCat pins a shard's device with two pieces of process-global state:
     `shards._WORKER_DEVICE`, a module variable, and `CUDA_VISIBLE_DEVICES` via
     `devices.pinned_device`, whose own docstring says it restores the previous value "so an
     in-process single-lane run does not leak its pinning into the rest of the program". One run
@@ -5476,7 +5476,7 @@ def test_two_cuda_laned_runs_in_one_process_are_refused() -> None:
     afterwards as the only run in its own process went straight through docking to stage 16.
     """
 
-    from etalon.boundary.screen import (
+    from moldarwin.boundary.screen import (
         _IN_FLIGHT_LANES,
         ConcurrentLanesRefused,
         _claim_lanes,
@@ -5515,7 +5515,7 @@ def test_concurrent_cpu_runs_are_left_alone() -> None:
     process collide over nothing.
     """
 
-    from etalon.boundary.screen import _IN_FLIGHT_LANES, _claim_lanes, _release_lanes
+    from moldarwin.boundary.screen import _IN_FLIGHT_LANES, _claim_lanes, _release_lanes
 
     _IN_FLIGHT_LANES.clear()
     try:
@@ -5541,7 +5541,7 @@ def test_a_failing_run_releases_its_lanes() -> None:
     screen again in that process, and the supervisor's own retry is the first thing it breaks.
     """
 
-    from etalon.boundary.screen import _IN_FLIGHT_LANES, _claim_lanes, _release_lanes
+    from moldarwin.boundary.screen import _IN_FLIGHT_LANES, _claim_lanes, _release_lanes
 
     _IN_FLIGHT_LANES.clear()
     try:
@@ -5572,7 +5572,7 @@ def test_screen_run_claims_lanes_around_the_runner(tmp_path) -> None:
 
     import threading
 
-    from etalon.boundary.screen import _IN_FLIGHT_LANES, ConcurrentLanesRefused, Screen
+    from moldarwin.boundary.screen import _IN_FLIGHT_LANES, ConcurrentLanesRefused, Screen
 
     entered = threading.Event()
     release = threading.Event()
@@ -5596,9 +5596,9 @@ def test_screen_run_claims_lanes_around_the_runner(tmp_path) -> None:
     )
 
     _IN_FLIGHT_LANES.clear()
-    from etalon.boundary.infra import load
-    load("molcascade")
-    import molcascade.runtime as runtime
+    from moldarwin.boundary.infra import load
+    load("molcat")
+    import molcat.runtime as runtime
 
     real_runner = runtime.LocalRunner
     runtime.LocalRunner = SlowRunner

@@ -2,12 +2,12 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "ETALON · 既有 Skills 与科学 SDK 能力对应",
+    "title": "MolDarwin · 既有 Skills 与科学 SDK 能力对应",
     "locale": "zh-CN",
-    "output": ".archify/architecture-etalon-memory-20261021-232732/capabilities/capabilities.html",
+    "output": ".archify/architecture-moldarwin-memory-20261021-232732/capabilities/capabilities.html",
     "quality_profile": "showcase",
     "repository": {
-      "url": "https://github.com/AIB001/ETALON.git",
+      "url": "https://github.com/AIB001/MolDarwin.git",
       "revision": "fc570d6fca85f4c7be9defd04756c581cff07158",
       "link_mode": "web"
     }
@@ -17,7 +17,7 @@
       "id": "dataSkill",
       "type": "frontend",
       "label": "外部搜索与数据接入",
-      "sublabel": "data-design + 6 MolQuarry",
+      "sublabel": "data-design + 6 MolOrigin",
       "pos": [
         40,
         40
@@ -28,7 +28,7 @@
       ],
       "sources": [
         {
-          "path": ".claude/skills/etalon-data-design/SKILL.md",
+          "path": ".claude/skills/moldarwin-data-design/SKILL.md",
           "line": 1,
           "end_line": 25
         }
@@ -49,7 +49,7 @@
       ],
       "sources": [
         {
-          "path": "src/etalon/mcp/data.py",
+          "path": "src/moldarwin/mcp/data.py",
           "line": 14,
           "end_line": 106
         }
@@ -70,7 +70,7 @@
       ],
       "sources": [
         {
-          "path": ".claude/skills/etalon-screening-sweep/SKILL.md",
+          "path": ".claude/skills/moldarwin-screening-sweep/SKILL.md",
           "line": 1,
           "end_line": 25
         }
@@ -112,7 +112,7 @@
       ],
       "sources": [
         {
-          "path": ".claude/skills/etalon-gate-calibration/SKILL.md",
+          "path": ".claude/skills/moldarwin-gate-calibration/SKILL.md",
           "line": 1,
           "end_line": 25
         }
@@ -154,7 +154,7 @@
       ],
       "sources": [
         {
-          "path": ".claude/skills/etalon-generation-planning/SKILL.md",
+          "path": ".claude/skills/moldarwin-generation-planning/SKILL.md",
           "line": 1,
           "end_line": 25
         }
@@ -175,7 +175,7 @@
       ],
       "sources": [
         {
-          "path": "src/etalon/mcp/planning.py",
+          "path": "src/moldarwin/mcp/planning.py",
           "line": 65,
           "end_line": 91
         }
@@ -196,7 +196,7 @@
       ],
       "sources": [
         {
-          "path": ".claude/skills/etalon-campaign/SKILL.md",
+          "path": ".claude/skills/moldarwin-campaign/SKILL.md",
           "line": 1,
           "end_line": 25
         }
@@ -238,7 +238,7 @@
       ],
       "sources": [
         {
-          "path": ".claude/skills/etalon-research/SKILL.md",
+          "path": ".claude/skills/moldarwin-research/SKILL.md",
           "line": 1,
           "end_line": 25
         }
@@ -280,7 +280,7 @@
       ],
       "sources": [
         {
-          "path": ".claude/skills/etalon-campaign-monitoring/SKILL.md",
+          "path": ".claude/skills/moldarwin-campaign-monitoring/SKILL.md",
           "line": 1,
           "end_line": 25
         }
@@ -322,7 +322,7 @@
       ],
       "sources": [
         {
-          "path": ".claude/skills/etalon-skill-improvement/SKILL.md",
+          "path": ".claude/skills/moldarwin-skill-improvement/SKILL.md",
           "line": 1,
           "end_line": 25
         }
@@ -343,7 +343,7 @@
       ],
       "sources": [
         {
-          "path": "src/etalon/mcp/methods.py",
+          "path": "src/moldarwin/mcp/methods.py",
           "line": 12,
           "end_line": 37
         }
@@ -364,7 +364,7 @@
       ],
       "sources": [
         {
-          "path": ".claude/skills/etalon-install/SKILL.md",
+          "path": ".claude/skills/moldarwin-install/SKILL.md",
           "line": 1,
           "end_line": 25
         }
@@ -453,7 +453,7 @@
       "dot": "cyan",
       "title": "如何读这张能力图",
       "items": [
-        "15 个已注册 Skills：9 个 ETALON + 6 个 MolQuarry。左上组含 7 个，其余每组 1 个。",
+        "15 个已注册 Skills：9 个 MolDarwin + 6 个 MolOrigin。左上组含 7 个，其余每组 1 个。",
         "每对框展示主要对应关系，并非必经顺序或独占模块。campaign / research 共享诊断与 Journal；其他方法也可直接调用这些 SDK。",
         "SDK 可独立调用；Skills 提供适用条件、输入输出、解释和停止方式。发现或阅读不代表实际采用。"
       ]
@@ -503,9 +503,9 @@
       "title": "Memory：已有实现",
       "items": [
         "原始证据：data snapshots、Artifacts、Experiment/Observation、CampaignStore 与 ResearchJournal；RuntimeStore 管执行状态。",
-        "结论内容：etalon-research-claim/1，区分 extracted_report / hypothesis / interpretation，保留条件、局限、support_refs、counter_refs、supersedes。",
+        "结论内容：moldarwin-research-claim/1，区分 extracted_report / hypothesis / interpretation，保留条件、局限、support_refs、counter_refs、supersedes。",
         "方法记忆：完整 bundle 与 MethodVersion / MethodUse / MethodEvaluation；模型 M/科学策略 φ 不等于文本记忆。",
-        "发布与读取：etalon-workspace.json、EvidenceRef、location_map、query_evidence / read_evidence；当前查询为结构化过滤与文本匹配。"
+        "发布与读取：moldarwin-workspace.json、EvidenceRef、location_map、query_evidence / read_evidence；当前查询为结构化过滤与文本匹配。"
       ]
     },
     {
@@ -524,7 +524,7 @@
       "items": [
         "证据综合：宿主结合原文/测定/反例形成 claim 和可区分假设；SDK 保存来源并计算已适用的对比，不自动判定结论为真。",
         "化学合成：当前 sourcing 有目录匹配、SA/BRICS 启发式；未建立完整路线规划→合成执行→批次QC链。",
-        "计算实验：已有 MolCascade / PRISM 受限执行和专项驱动；物理化学条件与端点必须明确。",
+        "计算实验：已有 MolCat / PRISM 受限执行和专项驱动；物理化学条件与端点必须明确。",
         "湿实验：可审阅导入已有 assay；未据此建立 CRO 下单、实物交付、板级结果和实验回传闭环。"
       ]
     },

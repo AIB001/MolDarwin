@@ -1,8 +1,8 @@
 """Counterexamples: selection never learns from held-out seeds or hidden labels."""
 import copy
 import pytest
-from etalon.research.pose_selection import FEATURES, fit_rule, grouped_diagnostics, select_with_policy
-from etalon.research.pose_task import select_pose_branch
+from moldarwin.research.pose_selection import FEATURES, fit_rule, grouped_diagnostics, select_with_policy
+from moldarwin.research.pose_task import select_pose_branch
 
 
 def rows():
@@ -51,7 +51,7 @@ def test_supersession_not_timestamp_resolves_conflict_but_never_missing_history(
 
 def test_input_features_ignore_coordinates_and_sdf_score_properties(tmp_path):
     Chem=pytest.importorskip('rdkit.Chem')
-    from etalon.research.pose_selection import input_features
+    from moldarwin.research.pose_selection import input_features
     m=Chem.MolFromSmiles('CCO');c=Chem.Conformer(m.GetNumAtoms());m.AddConformer(c)
     path=tmp_path/'conditioning.sdf'
     with Chem.SDWriter(str(path)) as w:w.write(m)

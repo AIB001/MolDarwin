@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from etalon.data.artifacts import status
+from moldarwin.data.artifacts import status
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -54,4 +54,4 @@ def test_configuration_stops_at_caller_selected_plan(tmp_path):
     assert result["execution"] == "not_run"
     assert result["plan"]["plan_id"]
     assert result["plan"]["request"]["library"] == str(library)
-    assert not list(tmp_path.rglob("etalon-screen-jobs.sqlite"))
+    assert not list(tmp_path.rglob("moldarwin-screen-jobs.sqlite"))

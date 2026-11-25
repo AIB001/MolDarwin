@@ -7,7 +7,7 @@ from dataclasses import replace
 
 import pytest
 
-from etalon.active import (
+from moldarwin.active import (
     BudgetExhausted,
     CampaignSpec,
     CampaignStore,
@@ -16,13 +16,13 @@ from etalon.active import (
     Evaluation,
     StateError,
 )
-from etalon.active.budget import affordable_capacity, fits_budget
-from etalon.active.cascade import CascadeRecipe, Readout
-from etalon.active.mutations import DesignSpace
-from etalon.active.protocols import ProtocolRegistry, ProtocolUnavailable, TrialPolicy
-from etalon.active.schema import canonical, digest, finite
-from etalon.campaign.design import component, compose
-from etalon.faults.attribution import Observation
+from moldarwin.active.budget import affordable_capacity, fits_budget
+from moldarwin.active.cascade import CascadeRecipe, Readout
+from moldarwin.active.mutations import DesignSpace
+from moldarwin.active.protocols import ProtocolRegistry, ProtocolUnavailable, TrialPolicy
+from moldarwin.active.schema import canonical, digest, finite
+from moldarwin.campaign.design import component, compose
+from moldarwin.faults.attribution import Observation
 
 
 def journal(tmp_path, *, budget=20.0, cost=2.0):
@@ -417,7 +417,7 @@ def test_concurrent_identical_import_is_idempotent_including_its_charge(tmp_path
 
 
 def test_overflowing_accounting_fails_closed_without_erasing_finite_actual_charges(tmp_path):
-    from etalon.active.protocols import _counts
+    from moldarwin.active.protocols import _counts
 
     store = journal(tmp_path, budget=1e308)
     for identifier in ("m0", "m1"):

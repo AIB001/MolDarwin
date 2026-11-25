@@ -8,12 +8,12 @@ import sys
 import time
 
 import pytest
-from etalon.active import CampaignStore, CampaignSpec, Endpoint
-from etalon.research import ResearchJournal
-from etalon.research.notes import read_entry, save_progress, patch_progress, original
-from etalon.research.resource_catalog import build_resource_catalog
-from etalon.research.saved_methods import publish_method, resolve_saved_method
-from etalon.runtime.api import submit_action, read_action_result
+from moldarwin.active import CampaignStore, CampaignSpec, Endpoint
+from moldarwin.research import ResearchJournal
+from moldarwin.research.notes import read_entry, save_progress, patch_progress, original
+from moldarwin.research.resource_catalog import build_resource_catalog
+from moldarwin.research.saved_methods import publish_method, resolve_saved_method
+from moldarwin.runtime.api import submit_action, read_action_result
 
 
 @pytest.fixture
@@ -34,7 +34,7 @@ from pathlib import Path
 p=argparse.ArgumentParser();p.add_argument('--request');p.add_argument('--result');a=p.parse_args()
 r=json.loads(Path(a.request).read_text())
 weight=json.loads(Path(r['inputs']['weights_path']).read_text())['weight']
-Path(a.result).write_text(json.dumps({'schema':'etalon-method-result/1','summary':'Software fixture',
+Path(a.result).write_text(json.dumps({'schema':'moldarwin-method-result/1','summary':'Software fixture',
 'outputs':{'value':sum(r['inputs']['values'])*r['inputs']['factor']*weight}}))
 ''')
     weights = tmp_path / 'weights.json'; weights.write_text('{"weight":1}')
@@ -50,7 +50,7 @@ def test_published_method_is_discoverable_callable_and_versioned(saved):
     entry, script, args, published = saved
     items = build_resource_catalog(entry=entry, kinds=["method"])["items"]
     assert len(items) == 1
-    assert items[0]["resolve"]["tool"] == "etalon_method_resolve"
+    assert items[0]["resolve"]["tool"] == "moldarwin_method_resolve"
     selected = items[0]["resolve"]["arguments"]
     resolved = resolve_saved_method(**selected, invocation={"request_id": "compute", "limits": {"wall_second": 30},
                                                           "inputs": {"factor": 4}})
@@ -75,37 +75,37 @@ def test_published_method_is_discoverable_callable_and_versioned(saved):
 
 def test_mcp_cli_share_the_exact_callable_contract(saved, tmp_path):
     from mcp.server.fastmcp import FastMCP
-    from etalon.mcp.methods import register
-    from etalon.mcp.evidence import register as register_evidence
+    from moldarwin.mcp.methods import register
+    from moldarwin.mcp.evidence import register as register_evidence
     entry, _, args, _ = saved
     server = FastMCP("saved-methods")
     register(server)
     register_evidence(server)
     invocation = {"request_id": "same-call", "limits": {"wall_second": 30}}
-    raw = asyncio.run(server.call_tool("etalon_method_resolve", {
+    raw = asyncio.run(server.call_tool("moldarwin_method_resolve", {
         "entry": str(entry), "pointer": "/resources/sum", "invocation": invocation}))
     # FastMCP versions may provide a structured envelope alongside text.
     blocks = raw[0] if isinstance(raw, tuple) else raw
     body = json.loads(blocks[0].text)
     assert body["ok"] and body["plan_id"]
     call = tmp_path / "call.json"; call.write_text(json.dumps(invocation))
-    cli = subprocess.run([sys.executable, "-m", "etalon", "research", "method", "--entry", str(entry),
+    cli = subprocess.run([sys.executable, "-m", "moldarwin", "research", "method", "--entry", str(entry),
         "--pointer", "/resources/sum", "--invocation", str(call)], capture_output=True, text=True)
     assert cli.returncode == 0, cli.stderr + cli.stdout
     assert json.loads(cli.stdout)["request"] == body["request"]
-    raw = asyncio.run(server.call_tool("etalon_method_publish", {
+    raw = asyncio.run(server.call_tool("moldarwin_method_publish", {
         "entry": str(entry), "resource_id": "second", "arguments": args,
         "summary": "Same executable, explicit second resource", "conditions": {"objective": "fixture"}}))
     assert "second" in read_entry(entry)["note"]["resources"], raw
     update = {"entry":str(entry), "patch":{"summary":"Method used; retain scope"},
               "publication_id":"native-review", "resources":{"decision":{"kind":"experience","summary":"No new science inferred"}}}
-    asyncio.run(server.call_tool('etalon_research_progress', update))
+    asyncio.run(server.call_tool('moldarwin_research_progress', update))
     rid = read_entry(entry)['record_id']
-    asyncio.run(server.call_tool('etalon_research_progress', update))
+    asyncio.run(server.call_tool('moldarwin_research_progress', update))
     note = read_entry(entry)
     assert note['record_id'] == rid and len(note['note']['counterevidence']) == 1
     assert {'sum','second','lesson','decision'} <= note['note']['resources'].keys()
-    raw = asyncio.run(server.call_tool('etalon_research_progress', {
+    raw = asyncio.run(server.call_tool('moldarwin_research_progress', {
         'entry':str(entry), 'patch':{'knowledge':{'summary':'A domain finding'}}}))
     blocks = raw[0] if isinstance(raw, tuple) else raw
     effects = json.loads(blocks[0].text)
@@ -114,7 +114,7 @@ def test_mcp_cli_share_the_exact_callable_contract(saved, tmp_path):
 
 
 def test_method_sources_survive_entry_handoff(saved, tmp_path):
-    from etalon.research.handoff import plan_research_handoff, export_research_handoff
+    from moldarwin.research.handoff import plan_research_handoff, export_research_handoff
     entry, script, args, _ = saved
     target = tmp_path / "handoff"
     receipt = export_research_handoff(plan_research_handoff(entry), target)
@@ -151,7 +151,7 @@ def test_saved_method_executes_once_and_new_reader_recovers(saved, tmp_path):
     assert again["job_id"] == handle["job_id"]
     handle_path = tmp_path / "handle.json"; handle_path.write_text(json.dumps(handle))
     read = subprocess.run([sys.executable, "-c",
-        "import json,sys;from etalon.runtime.api import read_action_result;print(json.dumps(read_action_result(json.load(open(sys.argv[1])))))",
+        "import json,sys;from moldarwin.runtime.api import read_action_result;print(json.dumps(read_action_result(json.load(open(sys.argv[1])))))",
         str(handle_path)], capture_output=True, text=True)
     assert read.returncode == 0, read.stderr
     assert json.loads(read.stdout)["outputs"] == result["outputs"]
@@ -159,8 +159,8 @@ def test_saved_method_executes_once_and_new_reader_recovers(saved, tmp_path):
 
 def _queued_invocation(saved, tmp_path, monkeypatch):
     """Real action store; keep the controller in-process in this portable test."""
-    from etalon.runtime import service
-    from etalon.research.saved_methods import call_saved_method
+    from moldarwin.runtime import service
+    from moldarwin.research.saved_methods import call_saved_method
     launches = []
     monkeypatch.setattr(service, "_launch", lambda runtime, job: launches.append(job))
     entry = saved[0]
@@ -171,9 +171,9 @@ def _queued_invocation(saved, tmp_path, monkeypatch):
 
 
 def test_optional_call_collect_executes_real_nonempty_abi_and_preserves_host_progress(saved, tmp_path, monkeypatch):
-    from etalon.runtime import service
-    from etalon.runtime.store import RuntimeStore
-    from etalon.research.saved_methods import call_saved_method, collect_saved_method
+    from moldarwin.runtime import service
+    from moldarwin.runtime.store import RuntimeStore
+    from moldarwin.research.saved_methods import call_saved_method, collect_saved_method
     call, invocation, launches = _queued_invocation(saved, tmp_path, monkeypatch)
     entry = saved[0]
     assert call["note_publication"]["state"] == "recorded"
@@ -214,8 +214,8 @@ def test_optional_call_collect_executes_real_nonempty_abi_and_preserves_host_pro
 
 
 def test_collect_recovers_committed_submit_without_resubmission(saved, tmp_path, monkeypatch):
-    from etalon.research import method_invocations
-    from etalon.research.saved_methods import collect_saved_method
+    from moldarwin.research import method_invocations
+    from moldarwin.research.saved_methods import collect_saved_method
     original_save = method_invocations._save
     def crash_after_submit(path, value, **kwargs):
         if Path(path).name == "handle.json":
@@ -234,8 +234,8 @@ def test_collect_recovers_committed_submit_without_resubmission(saved, tmp_path,
 
 
 def test_publication_failure_does_not_hide_handle_or_overwrite_later_judgment(saved, tmp_path, monkeypatch):
-    from etalon.research import method_invocations
-    from etalon.research.saved_methods import collect_saved_method
+    from moldarwin.research import method_invocations
+    from moldarwin.research.saved_methods import collect_saved_method
     original_save = method_invocations._save
     def crash_after_publication(path, value, **kwargs):
         if Path(path).name.endswith(".published.json"):
@@ -256,7 +256,7 @@ def test_publication_failure_does_not_hide_handle_or_overwrite_later_judgment(sa
 
 
 def test_changed_invocation_is_not_a_retry_and_collection_does_not_write_another_task(saved, tmp_path, monkeypatch):
-    from etalon.research.saved_methods import call_saved_method, collect_saved_method
+    from moldarwin.research.saved_methods import call_saved_method, collect_saved_method
     call, invocation, launches = _queued_invocation(saved, tmp_path, monkeypatch)
     with pytest.raises(ValueError, match="different method invocation"):
         call_saved_method(saved[0], "/resources/sum", invocation={**invocation, "inputs": {"factor": 9}},
@@ -290,8 +290,8 @@ def test_saved_invocation_explicit_data_dependencies_and_duration(saved, tmp_pat
 
 def test_mcp_optional_call_and_collect_use_the_same_saved_state(saved, tmp_path, monkeypatch):
     from mcp.server.fastmcp import FastMCP
-    from etalon.mcp.methods import register
-    from etalon.runtime import service
+    from moldarwin.mcp.methods import register
+    from moldarwin.runtime import service
     launches = []
     monkeypatch.setattr(service, "_launch", lambda runtime, job: launches.append(job))
     server = FastMCP("saved-method-convenience")
@@ -300,19 +300,19 @@ def test_mcp_optional_call_and_collect_use_the_same_saved_state(saved, tmp_path,
         raw = asyncio.run(server.call_tool(name, arguments))
         blocks = raw[0] if isinstance(raw, tuple) else raw
         return json.loads(blocks[0].text)
-    call = tool("etalon_method_call", {"entry": str(saved[0]), "pointer": "/resources/sum",
+    call = tool("moldarwin_method_call", {"entry": str(saved[0]), "pointer": "/resources/sum",
         "invocation": {"request_id": "mcp-once", "limits": {"wall_second": 30}},
         "workspace": str(tmp_path / "mcp-runtime")})
     assert call["ok"] and call["note_publication"]["state"] == "recorded"
-    collected = tool("etalon_method_collect", {"invocation_path": call["invocation_path"]})
+    collected = tool("moldarwin_method_collect", {"invocation_path": call["invocation_path"]})
     assert collected["ok"] and collected["handle"] == call["handle"]
     assert collected["execution_performed"] is False and launches == ["mcp-once"]
 
 
 def test_failed_callable_retains_real_cost_and_failure_without_reexecution(saved, tmp_path, monkeypatch):
-    from etalon.research.saved_methods import call_saved_method, collect_saved_method
-    from etalon.runtime import service
-    from etalon.runtime.store import RuntimeStore
+    from moldarwin.research.saved_methods import call_saved_method, collect_saved_method
+    from moldarwin.runtime import service
+    from moldarwin.runtime.store import RuntimeStore
     script = tmp_path / "failed-method.py"
     script.write_text("raise RuntimeError('synthetic method failure after launch')\n")
     args = {"method_id": "failure-fixture/v1", "command": [sys.executable, str(script)],
@@ -341,8 +341,8 @@ def test_failed_callable_retains_real_cost_and_failure_without_reexecution(saved
 
 
 def test_unsubmitted_invocation_does_not_dispatch_after_note_changes_task(saved, tmp_path, monkeypatch):
-    from etalon.research.saved_methods import call_saved_method, collect_saved_method
-    from etalon.runtime import api
+    from moldarwin.research.saved_methods import call_saved_method, collect_saved_method
+    from moldarwin.runtime import api
     submissions = []
     def interrupted(request, **kwargs):
         submissions.append(request["request_id"])
@@ -362,8 +362,8 @@ def test_unsubmitted_invocation_does_not_dispatch_after_note_changes_task(saved,
 
 @pytest.mark.parametrize("host_advanced", [False, True])
 def test_journal_only_publication_is_resumed_or_merged_without_losing_handle(saved, tmp_path, monkeypatch, host_advanced):
-    from etalon.research import notes
-    from etalon.research.saved_methods import collect_saved_method
+    from moldarwin.research import notes
+    from moldarwin.research.saved_methods import collect_saved_method
     original_publish = notes.publish_note
     stranded = []
     def fail_between_record_and_entry(entry, journal, record_id, **kwargs):

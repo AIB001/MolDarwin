@@ -6,7 +6,7 @@ from dataclasses import replace
 
 import pytest
 
-from etalon.active import (
+from moldarwin.active import (
     ActiveCampaign,
     CampaignSpec,
     CampaignStore,

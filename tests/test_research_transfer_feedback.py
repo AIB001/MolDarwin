@@ -3,11 +3,11 @@ import json
 from contextlib import contextmanager
 from copy import deepcopy
 import pytest
-from etalon.active.schema import canonical,digest
-from etalon.active.store import StateError
-from etalon.boundary.prism_v1 import file_identity
-from etalon.research.feedback import attach_transfer_feedback
-from etalon.research.online import execute_visible_task
+from moldarwin.active.schema import canonical,digest
+from moldarwin.active.store import StateError
+from moldarwin.boundary.prism_v1 import file_identity
+from moldarwin.research.feedback import attach_transfer_feedback
+from moldarwin.research.online import execute_visible_task
 from test_research_online import policy_fixture,callbacks
 
 
@@ -30,12 +30,12 @@ def test_feedback_binds_online_choice_and_release_without_promoting(tmp_path,mon
         cost_evidence={k:['fixture'] for k in ('r0','r1','r2')})
     rows=write('rows.json',[row]);cal=write('cal.json',{'final_policy_sha256':policy['policy_sha256']});seen=write('seen.json',{'groups':{}})
     dataset={'rows_sha256':digest([row]),'scientific_assessment':{'t5':{'fixed_pool_vinardo':{'candidate_scores':prediction['candidate_scores']}}}}
-    monkeypatch.setattr('etalon.research.feedback.verify_dataset',lambda *a,**k:dataset)
+    monkeypatch.setattr('moldarwin.research.feedback.verify_dataset',lambda *a,**k:dataset)
     artifact_roles={}
     def artifact(j,p,**kwargs):
         artifact_roles[str(p)]=kwargs.get('role','diagnostic')
         return 'fixture-artifact-'+digest(str(p))
-    monkeypatch.setattr('etalon.research.feedback._file_artifact',artifact)
+    monkeypatch.setattr('moldarwin.research.feedback._file_artifact',artifact)
     class Store:
         def balance(self):return {'budget':1200,'spent':.3,'reserved':0}
         @contextmanager

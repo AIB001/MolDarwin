@@ -7,8 +7,8 @@ import json
 
 import pytest
 
-from etalon.judgment.advisor import AdvisorError, Scripted
-from etalon.runtime.controller import ControllerError, decide, observation
+from moldarwin.judgment.advisor import AdvisorError, Scripted
+from moldarwin.runtime.controller import ControllerError, decide, observation
 
 
 def node(key, *, state="waiting", dependencies=(), result=None, arguments=None):

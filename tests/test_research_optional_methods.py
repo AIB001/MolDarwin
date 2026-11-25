@@ -6,14 +6,14 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.schema import digest
-from etalon.active.store import StateError
-from etalon.boundary.prism_v1 import file_identity
-from etalon.research import Artifact, Coupling, Experiment, Observation, ResearchJournal
-from etalon.research.calibration import OutcomeRule, bind_outcome
-from etalon.research.diagnostics import JointModel, Probe, Resource, World, condition, exact_program
-from etalon.research.runtime import record_program
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.schema import digest
+from moldarwin.active.store import StateError
+from moldarwin.boundary.prism_v1 import file_identity
+from moldarwin.research import Artifact, Coupling, Experiment, Observation, ResearchJournal
+from moldarwin.research.calibration import OutcomeRule, bind_outcome
+from moldarwin.research.diagnostics import JointModel, Probe, Resource, World, condition, exact_program
+from moldarwin.research.runtime import record_program
 
 
 def build_optional_fixture(root: Path):

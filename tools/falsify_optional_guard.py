@@ -13,13 +13,13 @@ already use: it exits nonzero when the property fails.
 Three probes, each stating what it establishes and what it does not.
 
 **A. The gated screen.** Compile a cascade that declares a threshold, mint a gate authorization for
-a panel-compiled revision, and drive ``etalon_screen_submit`` three ways: with no token, with a
+a panel-compiled revision, and drive ``moldarwin_screen_submit`` three ways: with no token, with a
 token for a different revision, and with the right token. The first two must refuse and the third
 must pass the gate check. Before the change the tool had no such parameter, so all three
 transcripts were identical and all three proceeded -- which is why the count this probe moves is
 also recorded mechanically by ``tools/count_unguarded_spends.py``.
 
-**B. The empty observation list.** Call ``etalon_rule_admissible`` with ``observations: []`` and
+**B. The empty observation list.** Call ``moldarwin_rule_admissible`` with ``observations: []`` and
 assert the response now reports the gap. This is the non-breaking half of the change: the ruling is
 *unchanged* -- an empty observation list still produces an admitted ruling -- and what changed is
 that the response says twenty catalogue causes were unexamined. A probe that asserted the admission
@@ -60,7 +60,7 @@ class _Plan:
     """A stand-in for one compiled plan, used only to drive the scan's fail-closed branch.
 
     Deliberately minimal and deliberately not a mock of ``Screen``: the property under test is what
-    :func:`etalon.mcp.screen_gate.declared_gates` does with a pipeline it cannot read, and a real
+    :func:`moldarwin.mcp.screen_gate.declared_gates` does with a pipeline it cannot read, and a real
     compile cannot produce that case on demand. Everything else in probe A is taken from the real
     registration index.
     """
@@ -70,14 +70,14 @@ class _Plan:
 
 
 def probe_a() -> dict:
-    """``etalon_screen_submit`` must accept an authorization, and must fail closed when it cannot
+    """``moldarwin_screen_submit`` must accept an authorization, and must fail closed when it cannot
     establish that a funnel is ungated."""
 
     try:
         import inspect
 
-        from etalon.mcp import screen_gate
-        from etalon.mcp.execution import register
+        from moldarwin.mcp import screen_gate
+        from moldarwin.mcp.execution import register
     except Exception as error:  # noqa: BLE001
         return {"probe": "A", "status": "not_taken", "reason": f"{type(error).__name__}: {error}"}
 
@@ -92,11 +92,11 @@ def probe_a() -> dict:
             return decorate
 
     register(Collector())
-    parameters = tuple(inspect.signature(tools["etalon_screen_submit"]).parameters)
+    parameters = tuple(inspect.signature(tools["moldarwin_screen_submit"]).parameters)
 
     findings = [
         {
-            "assertion": "etalon_screen_submit accepts a gate authorization",
+            "assertion": "moldarwin_screen_submit accepts a gate authorization",
             "parameters": list(parameters),
             "passed": "gate_json" in parameters and "gate_reference_library" in parameters,
             "note": (
@@ -134,7 +134,7 @@ def probe_a() -> dict:
         ),
         "does_not_establish": (
             "the full three-transcript sequence against a real gated cascade, which needs "
-            "MolCascade's compiler and a panel run. Nor does it establish that any other screening "
+            "MolCat's compiler and a panel run. Nor does it establish that any other screening "
             "entry point is guarded: runtime/operations.py's screen.run path compiles the same "
             "config and takes no token."
         ),
@@ -145,9 +145,9 @@ def probe_b() -> dict:
     """An empty observation list must be reported as unexamined rather than as clean."""
 
     try:
-        from etalon.faults.taxonomy import FAULTS
-        from etalon.mcp import coverage as coverage_module
-        from etalon.mcp.governance import register
+        from moldarwin.faults.taxonomy import FAULTS
+        from moldarwin.mcp import coverage as coverage_module
+        from moldarwin.mcp.governance import register
     except Exception as error:  # noqa: BLE001
         return {"probe": "B", "status": "not_taken", "reason": f"{type(error).__name__}: {error}"}
 
@@ -162,7 +162,7 @@ def probe_b() -> dict:
             return decorate
 
     register(Collector())
-    rule_admissible = tools["etalon_rule_admissible"]
+    rule_admissible = tools["moldarwin_rule_admissible"]
 
     measurements = json.dumps(
         [{"parent_id": "m1", "cheap_value": -9.1, "expensive_value": -10.4, "observations": []}]
@@ -268,10 +268,10 @@ def probe_c() -> dict:
     """A complete honest observation set must rule byte-identically through both paths."""
 
     try:
-        from etalon.faults.attribution import Observation
-        from etalon.faults.taxonomy import FAULTS
-        from etalon.learn.admissible import Measurement, rule
-        from etalon.mcp.governance import register
+        from moldarwin.faults.attribution import Observation
+        from moldarwin.faults.taxonomy import FAULTS
+        from moldarwin.learn.admissible import Measurement, rule
+        from moldarwin.mcp.governance import register
     except Exception as error:  # noqa: BLE001
         return {"probe": "C", "status": "not_taken", "reason": f"{type(error).__name__}: {error}"}
 
@@ -301,7 +301,7 @@ def probe_c() -> dict:
             }
         ]
     )
-    through_tool = _call(tools["etalon_rule_admissible"](payload))["report"]["rulings"][0]
+    through_tool = _call(tools["moldarwin_rule_admissible"](payload))["report"]["rulings"][0]
     direct = rule(
         Measurement(
             parent_id="complete",

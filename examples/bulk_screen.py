@@ -1,7 +1,7 @@
 """Submit a real, small CPU filtering cascade. No target affinity is measured.
 
 python examples/bulk_screen.py --workspace runs/bulk-screen
-python -m etalon screen status --workspace runs/bulk-screen --run-id cpu-example
+python -m moldarwin screen status --workspace runs/bulk-screen --run-id cpu-example
 
 Supply --library for your own CSV with id,smiles columns. Review these illustrative
 property bounds before using them for any scientific selection.
@@ -13,8 +13,8 @@ import argparse
 import json
 from pathlib import Path
 
-from etalon.campaign.design import component, compose
-from etalon.screening import plan_screen, submit_screen
+from moldarwin.campaign.design import component, compose
+from moldarwin.screening import plan_screen, submit_screen
 
 
 def write_once(path: Path, content: str) -> None:

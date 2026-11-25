@@ -17,8 +17,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from etalon.judgment.advisor import AdvisorError, Advisory, Scripted
-from etalon.judgment.proposal import (
+from moldarwin.judgment.advisor import AdvisorError, Advisory, Scripted
+from moldarwin.judgment.proposal import (
     AUTONOMY,
     Act,
     Advisor,
@@ -28,7 +28,7 @@ from etalon.judgment.proposal import (
     Proposal,
     refuse_if_not_an_advisors_decision,
 )
-from etalon.judgment.waiver import Waiver, WaiverError
+from moldarwin.judgment.waiver import Waiver, WaiverError
 
 _REASON = (
     "Ligands are screened at pH 7.4 and the ligand state is accepted as the standardizer's "

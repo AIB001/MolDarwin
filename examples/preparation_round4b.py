@@ -1,10 +1,10 @@
 """Original-ledger preparation reservation/receipt admission; no new budget."""
 import argparse,json,subprocess
 from pathlib import Path
-from etalon.active import CampaignStore
-from etalon.active.schema import canonical
-from etalon.research import ResearchJournal
-from etalon.research.preparation import admit_preparation
+from moldarwin.active import CampaignStore
+from moldarwin.active.schema import canonical
+from moldarwin.research import ResearchJournal
+from moldarwin.research.preparation import admit_preparation
 
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__)

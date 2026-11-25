@@ -9,10 +9,10 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from etalon.active.store import StateError
-from etalon.runtime import operations
-from etalon.runtime.schema import workflow
-from etalon.runtime.service import (
+from moldarwin.active.store import StateError
+from moldarwin.runtime import operations
+from moldarwin.runtime.schema import workflow
+from moldarwin.runtime.service import (
     advance,
     cancel,
     observe,
@@ -22,11 +22,11 @@ from etalon.runtime.service import (
     status,
     submit,
 )
-from etalon.runtime.store import RuntimeStore
+from moldarwin.runtime.store import RuntimeStore
 
 
 def setup_spec(mode="ordered"):
-    return {"schema": "etalon-workflow/1", "objective": "Initialize an explicit historical campaign",
+    return {"schema": "moldarwin-workflow/1", "objective": "Initialize an explicit historical campaign",
         "limits": {}, "controller": {"mode": mode}, "max_seconds": 30,
         "nodes": [{"id": "campaign", "operation": "campaign.create", "arguments": {
             "spec": {"objective": "kd", "budget": 0, "cost_unit": "fixture", "representation": "fixture"},
@@ -126,7 +126,7 @@ def test_plan_pins_nested_receptor_and_catalog_bytes(tmp_path):
     config.write_text(json.dumps({"target": {"receptor_path": str(receptor)}}))
     library = tmp_path / "library.csv"
     library.write_text("id,smiles\nx,CCO\n")
-    spec = {"schema": "etalon-workflow/1", "objective": "Bind explicit screen inputs", "limits": {"quote": 1},
+    spec = {"schema": "moldarwin-workflow/1", "objective": "Bind explicit screen inputs", "limits": {"quote": 1},
             "nodes": [{"id": "screen", "operation": "screen.run", "resources": {"quote": 1},
                        "arguments": {"config_path": str(config), "library_path": str(library)}}]}
     first = plan(spec)
@@ -137,9 +137,9 @@ def test_plan_pins_nested_receptor_and_catalog_bytes(tmp_path):
 
 
 def test_receipt_write_failure_leaves_experimental_reservation_pending(tmp_path):
-    from etalon.active import ActiveCampaign, CampaignSpec
-    from etalon.active.schema import Candidate, Endpoint, Evaluation
-    from etalon.active.store import CampaignStore
+    from moldarwin.active import ActiveCampaign, CampaignSpec
+    from moldarwin.active.schema import Candidate, Endpoint, Evaluation
+    from moldarwin.active.store import CampaignStore
 
     store = CampaignStore(tmp_path / "active.sqlite")
     endpoint = Endpoint("score", "fixture", "score", "u", "fixture", 1, requires_handoff=False)
@@ -168,7 +168,7 @@ def test_stale_worker_cannot_publish_receipts_or_outcomes(tmp_path):
 
 
 def test_completed_receipt_recovers_without_executing_again(tmp_path, monkeypatch):
-    from etalon.runtime.service import Context
+    from moldarwin.runtime.service import Context
 
     store = RuntimeStore(tmp_path, create=True)
     spec = setup_spec()

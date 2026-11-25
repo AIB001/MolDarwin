@@ -5,15 +5,15 @@ import runpy
 from pathlib import Path
 
 import pytest
-from molcascade.plugins.registry import create_builtin_registry
-from molcascade.runtime.runner import LocalRunner
-from etalon.boundary.screen import Screen
-from etalon.screening import plan_screen
+from molcat.plugins.registry import create_builtin_registry
+from molcat.runtime.runner import LocalRunner
+from moldarwin.boundary.screen import Screen
+from moldarwin.screening import plan_screen
 
 
 def original(tmp_path, monkeypatch=None):
     if monkeypatch is not None:
-        import molcascade.plugins.builtin.docking.ligand_prep as prep
+        import molcat.plugins.builtin.docking.ligand_prep as prep
         real = prep._conformer_rows
         def partly_failed(**kw):
             if kw['smiles']=='CCC':
@@ -36,7 +36,7 @@ def original(tmp_path, monkeypatch=None):
 
 def test_subset_reuses_exact_geometry_including_failed_outcomes(tmp_path,monkeypatch):
     workspace,runner,state=original(tmp_path,monkeypatch)
-    import molcascade.plugins.builtin.docking.ligand_prep as prep
+    import molcat.plugins.builtin.docking.ligand_prep as prep
     monkeypatch.setattr(prep,'_conformer_rows',lambda **kw:pytest.fail('reuse must not embed'))
     old=Screen(workspace)
     aid=state.output_ref.artifact_id
@@ -63,7 +63,7 @@ def test_subset_reuses_exact_geometry_including_failed_outcomes(tmp_path,monkeyp
     assert metadata['geometry_rows_computed']==0
     # Changing the requested preparation seed must not reuse the old geometry.
     stages[-1]['config']['seed']=123
-    from molcascade.errors import PluginError
+    from molcat.errors import PluginError
     with pytest.raises(PluginError) as failure:
         new_runner.run({'schema_version':1,'name':'changed','stages':stages},run_id='changed')
     assert failure.value.code=='CONFORMER_REUSE_METHOD_MISMATCH'
@@ -76,7 +76,7 @@ def test_completed_run_prepares_existing_cascade_and_plan_binds_both_bundles(tmp
         'standardize':{'id':'standardize','backend':'chemistry.rdkit_standardize@0.1.0','settings':{}},
         'finalize':{'steps':[{'id':'conformers','backend':'docking.rdkit_conformers@0.1.0','settings':{}},
                              {'id':'properties','backend':'features.rdkit_properties@0.1.0'}]}}))
-    script=Path(__file__).parents[1]/'.claude/skills/etalon-execution-tuning/scripts/prepare_screen_continuation.py'
+    script=Path(__file__).parents[1]/'.claude/skills/moldarwin-execution-tuning/scripts/prepare_screen_continuation.py'
     prepare=runpy.run_path(str(script))['prepare']
     result=prepare(workspace,'original',template,tmp_path/'handoff')
     assert result==prepare(workspace,'original',template,tmp_path/'handoff')
@@ -99,7 +99,7 @@ def test_completed_run_prepares_existing_cascade_and_plan_binds_both_bundles(tmp
 
 
 def test_handoff_keeps_backend_unless_caller_selects_a_version(tmp_path):
-    from etalon.screening_handoff import prepare_screen_continuation
+    from moldarwin.screening_handoff import prepare_screen_continuation
     workspace, _, _ = original(tmp_path)
     template = tmp_path/'next.json'
     template.write_text(json.dumps({'kind':'cascade','name':'next',
@@ -114,10 +114,10 @@ def test_handoff_keeps_backend_unless_caller_selects_a_version(tmp_path):
     assert chosen['docking_backend_override'] == 'docking.unidock@0.4.0'
     import asyncio
     from mcp.server.fastmcp import FastMCP
-    from etalon.mcp.execution import register
+    from moldarwin.mcp.execution import register
     server = FastMCP('continuation-test')
     register(server)
-    result = asyncio.run(server.call_tool('etalon_screen_prepare_continuation', {
+    result = asyncio.run(server.call_tool('moldarwin_screen_prepare_continuation', {
         'workspace': str(workspace), 'completed_run': 'original',
         'next_config': str(template), 'output_dir': str(tmp_path/'mcp')}))
     assert (tmp_path/'mcp'/'cascade.json').is_file(), result
@@ -125,20 +125,20 @@ def test_handoff_keeps_backend_unless_caller_selects_a_version(tmp_path):
 
 
 def test_receptor_branches_share_committed_prefix_while_source_continues(tmp_path, monkeypatch):
-    from etalon.screening_handoff import prepare_screen_continuation
+    from moldarwin.screening_handoff import prepare_screen_continuation
     workspace, _, state = original(tmp_path)
     state_path = workspace/'runs/original.json'
     pending = json.loads(state_path.read_text())
     pending['status'] = 'RUNNING'
     pending['stages'].append({'stage_id':'dock-a','plugin_key':'docking.unidock@0.4.0',
                              'status':'RUNNING','output_ref':None})
-    from molcascade.runtime.runner import RunState, canonical_json_bytes
+    from molcat.runtime.runner import RunState, canonical_json_bytes
     state_path.write_bytes(canonical_json_bytes(RunState.model_validate_json(json.dumps(pending))))
     frozen_state = state_path.read_bytes()
     progress = Screen.read_progress(workspace, 'original')
     assert progress['preparation_reuse']['arguments']['through_stage'] == 'conformers'
     assert progress['rsi_review'] is None
-    import molcascade.plugins.builtin.docking.ligand_prep as prep
+    import molcat.plugins.builtin.docking.ligand_prep as prep
     monkeypatch.setattr(prep, '_conformer_rows', lambda **kw: pytest.fail('must reuse geometry'))
     expected = Screen(workspace).read(state.output_ref.artifact_id, contract_id='ligand_conformer/v1')
     for name in ('receptor-b', 'receptor-c'):

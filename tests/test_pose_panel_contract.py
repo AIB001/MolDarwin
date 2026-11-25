@@ -2,7 +2,7 @@
 import importlib.util,json
 from pathlib import Path
 import pytest
-from etalon.research.evidence_refs import file_identity
+from moldarwin.research.evidence_refs import file_identity
 
 
 def test_panel_requires_the_original_conditioning_bytes(tmp_path):

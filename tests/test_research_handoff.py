@@ -4,16 +4,16 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active.schema import digest
-from etalon.research.continuation import read_content, resume_research
-from etalon.research.entry import resolve_entry
-from etalon.research.evidence import read_evidence
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research.handoff import (
+from moldarwin.active.schema import digest
+from moldarwin.research.continuation import read_content, resume_research
+from moldarwin.research.entry import resolve_entry
+from moldarwin.research.evidence import read_evidence
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research.handoff import (
     export_research_handoff, plan_research_handoff, relocate_research_handoff, verify_research_handoff,
 )
-from etalon.research.publication import close_publication, discover_publications, prepare_publication, resume_publication
-from etalon.research.research_context import build_research_context
+from moldarwin.research.publication import close_publication, discover_publications, prepare_publication, resume_publication
+from moldarwin.research.research_context import build_research_context
 from test_research_graph_memory import graph_case
 from test_research_publication import case as publication_case
 
@@ -57,8 +57,8 @@ def test_physical_relocation_needs_no_old_source_paths(graph_case, tmp_path):
 
 
 def test_guard_also_recorded_as_artifact_has_one_relocatable_location(graph_case, tmp_path):
-    from etalon.research import Artifact
-    from etalon.research.evidence_refs import make_ref
+    from moldarwin.research import Artifact
+    from moldarwin.research.evidence_refs import make_ref
     c = graph_case
     path = tmp_path / "STATUS.md"
     item = Artifact(str(path), **file_identity(path), source_kind="fixture", role="diagnostic", bindings={})
@@ -189,8 +189,8 @@ def test_canonical_targets_cannot_escape_even_with_recomputed_plan_digest(graph_
 
 
 def test_skill_snapshot_supporting_files_relocate_with_method_version(graph_case, tmp_path):
-    from etalon.research.schema import MethodVersion
-    from etalon.skills import persist_snapshot
+    from moldarwin.research.schema import MethodVersion
+    from moldarwin.skills import persist_snapshot
     content = persist_snapshot("research-context", tmp_path / "skill")
     graph_case["journal"].record(MethodVersion("fixture", ("research",), content))
     graph_case["publish"]()
@@ -202,13 +202,13 @@ def test_skill_snapshot_supporting_files_relocate_with_method_version(graph_case
 
 
 def test_data_snapshot_members_keep_original_record_identity(graph_case, tmp_path):
-    from etalon.data.artifacts import digest as snapshot_digest
-    from etalon.research.evidence_refs import make_ref
+    from moldarwin.data.artifacts import digest as snapshot_digest
+    from moldarwin.research.evidence_refs import make_ref
     data = tmp_path / "data"
     data.mkdir()
     member = data / "measurement.bin"
     member.write_bytes(b"real bytes of a synthetic measurement")
-    document = {"schema": "etalon-data-snapshot/1", "files": {member.name: file_identity(member)}}
+    document = {"schema": "moldarwin-data-snapshot/1", "files": {member.name: file_identity(member)}}
     document["snapshot_id"] = snapshot_digest(document)
     source = data / "data.json"
     source.write_text(json.dumps(document))
@@ -227,14 +227,14 @@ def test_data_snapshot_members_keep_original_record_identity(graph_case, tmp_pat
 
 
 def test_existing_foreign_mapping_is_explicit_and_preserves_artifact_record(graph_case, tmp_path):
-    from etalon.research import Artifact
-    from etalon.research.evidence_refs import make_ref
+    from moldarwin.research import Artifact
+    from moldarwin.research.evidence_refs import make_ref
     original = "/unavailable-server/negative.bin"
     path = tmp_path / "negative.bin"
     path.write_bytes(b"counterexample from foreign server, frozen locally")
     artifact = Artifact(original, **file_identity(path), source_kind="fixture", role="diagnostic", bindings={})
     foreign = tmp_path / "foreign.json"
-    foreign.write_text(json.dumps({"schema": "etalon-artifact-manifest/1", "records": [
+    foreign.write_text(json.dumps({"schema": "moldarwin-artifact-manifest/1", "records": [
         {"record_id": artifact.id, "record_type": "artifact", "record": artifact.as_dict(), "visibility": "released"}]}))
     ws = json.loads(graph_case["workspace"].read_text())
     ws["sources"].append({"source_id": "foreign", "kind": "artifact_manifest", "location": str(foreign),
@@ -260,11 +260,11 @@ def test_active_authority_cannot_be_frozen_into_new_execution_permission(graph_c
 
 
 def test_legacy_archive_repack_does_not_follow_foreign_requests(graph_case, tmp_path, monkeypatch):
-    from etalon.research import handoff
+    from moldarwin.research import handoff
     archived = tmp_path / "legacy-history"
     archived.mkdir()
     intent = archived / "intent.json"
-    intent.write_text(json.dumps({"schema": "etalon-research-publication/1", "request": {
+    intent.write_text(json.dumps({"schema": "moldarwin-research-publication/1", "request": {
         "operation_id": "old-withdrawn", "entry": "Z:/unavailable-original/entry.json",
         "parent_entry": "Z:/unavailable-original/parent.json"}}))
     (archived / "disposition.json").write_text('{"disposition":"withdrawn"}')
@@ -321,8 +321,8 @@ def test_entry_symlink_is_a_pinned_selector_not_an_archived_redirect(graph_case,
 @pytest.fixture
 def pinned_workset(graph_case, tmp_path, monkeypatch):
     """A published bare slug/hash whose installed current skill later changes."""
-    from etalon import skills
-    from etalon.research.meta_context import (
+    from moldarwin import skills
+    from moldarwin.research.meta_context import (
         build_task_workset, describe_resource, index_resources, make_task_profile,
         prepare_adaptation_context, publish_task_workset, review_adaptation,
     )
@@ -330,7 +330,7 @@ def pinned_workset(graph_case, tmp_path, monkeypatch):
     old, current = tmp_path / "old-bundle", tmp_path / "current-bundle"
     for root, label in ((old, "ORIGINAL"), (current, "CHANGED_CURRENT")):
         (root / "references").mkdir(parents=True)
-        (root / "SKILL.md").write_text("---\nname: etalon-research-index\ndescription: fixture exact version\n---\n" + label,
+        (root / "SKILL.md").write_text("---\nname: moldarwin-research-index\ndescription: fixture exact version\n---\n" + label,
                                        encoding="utf-8")
         (root / "references" / "detail.md").write_text(label + " supporting member", encoding="utf-8")
     monkeypatch.setattr(skills, "bundle_root", lambda slug: old)
@@ -360,8 +360,8 @@ def pinned_workset(graph_case, tmp_path, monkeypatch):
 
 
 def test_old_workset_skill_is_complete_offline_after_current_library_changes(pinned_workset, tmp_path):
-    from etalon import skills
-    from etalon.research.meta_context import read_task_workset, selected_skill_members
+    from moldarwin import skills
+    from moldarwin.research.meta_context import read_task_workset, selected_skill_members
     c = pinned_workset
     with pytest.raises(EvidenceError, match="required skill bundle version unavailable"):
         plan_research_handoff(c["entry"])
@@ -397,7 +397,7 @@ def test_existing_skill_map_is_carried_without_current_library_fallback(pinned_w
 
 
 def test_corrupt_or_wrong_skill_bundle_cannot_be_replaced_with_current(pinned_workset, tmp_path):
-    from etalon.research.skill_sources import resolve_skill_bundle
+    from moldarwin.research.skill_sources import resolve_skill_bundle
     c = pinned_workset
     with pytest.raises(EvidenceError, match="required skill bundle version unavailable"):
         plan_research_handoff(c["entry"], skill_bundles=[{**c["pin"], "root": str(c["current"])}])
@@ -422,7 +422,7 @@ def test_bundle_membership_change_after_plan_invalidates_original_pin(pinned_wor
 
 
 def test_old_incomplete_package_is_not_claimed_as_full_workset_handoff(pinned_workset, tmp_path):
-    from etalon.research.handoff import BUNDLE, _documents
+    from moldarwin.research.handoff import BUNDLE, _documents
     c = pinned_workset
     target = tmp_path / "portable"
     plan = plan_research_handoff(c["entry"], skill_bundles=[c["override"]])
@@ -441,15 +441,15 @@ def test_old_incomplete_package_is_not_claimed_as_full_workset_handoff(pinned_wo
 
 
 def test_saved_method_snapshot_supplies_exact_old_workset_skill(pinned_workset, tmp_path):
-    from etalon.research.evidence_refs import _local, load_workspace
-    from etalon.research.schema import MethodVersion
-    from etalon.skills import persist_snapshot
+    from moldarwin.research.evidence_refs import _local, load_workspace
+    from moldarwin.research.schema import MethodVersion
+    from moldarwin.skills import persist_snapshot
     c = pinned_workset
     content = persist_snapshot(c["pin"]["slug"], tmp_path / "saved-skill",
         bundle_ref={"root": str(c["old"]), "manifest_sha256": c["pin"]["manifest_sha256"]})
     method = MethodVersion("saved original", ("research",), content)
     source = tmp_path / "saved-method.json"
-    source.write_text(json.dumps({"schema": "etalon-artifact-manifest/1", "records": [
+    source.write_text(json.dumps({"schema": "moldarwin-artifact-manifest/1", "records": [
         {"record_id": method.id, "record_type": "method_version", "record": method.as_dict(), "visibility": "released"}]}))
     original_workspace, cp, _, _ = resolve_entry(c["entry"])
     ws = load_workspace(original_workspace)

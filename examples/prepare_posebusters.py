@@ -4,8 +4,8 @@ from pathlib import Path
 from rdkit import Chem
 from rdkit.Chem import AllChem, Descriptors, rdMolDescriptors
 from rdkit.Chem.Scaffolds import MurckoScaffold
-from etalon.research.publication import _save
-from etalon.research.evidence_refs import file_identity
+from moldarwin.research.publication import _save
+from moldarwin.research.evidence_refs import file_identity
 
 root=Path(sys.argv[1]); archive=root/'downloads/posebusters_paper_data.zip'
 assert hashlib.md5(archive.read_bytes()).hexdigest()=='f004ac7c4e68317b5348497d2bb6bee6'
@@ -18,7 +18,7 @@ with zipfile.ZipFile(archive) as z:
 print('archive files',list(raw.rglob('*.sdf'))[:4],flush=True)
 ids=(root/'downloads/final308.txt').read_text().split(); assert len(ids)==308
 rows=[]; rejected=[]; seqs=[]; scaffolds=set()
-for caseid in sorted(ids,key=lambda x:hashlib.sha256(('etalon-pb24-v1:'+x).encode()).hexdigest()):
+for caseid in sorted(ids,key=lambda x:hashlib.sha256(('moldarwin-pb24-v1:'+x).encode()).hexdigest()):
     matches=list(raw.rglob(caseid))
     if not matches: rejected.append({'id':caseid,'reason':'archive directory missing'}); continue
     folder=matches[0]
@@ -59,7 +59,7 @@ for caseid in sorted(ids,key=lambda x:hashlib.sha256(('etalon-pb24-v1:'+x).encod
     rows.append(row);scaffolds.add(scaffold);seqs.append(seq)
     if len(rows)==24:break
 if len(rows)!=24: raise RuntimeError('not enough eligible new cases: '+str(len(rows)))
-_save(root/'cases.json',{'schema':'etalon-posebusters-panel/1','cases':rows,'rejected':rejected,
+_save(root/'cases.json',{'schema':'moldarwin-posebusters-panel/1','cases':rows,'rejected':rejected,
     'archive':file_identity(archive),'members':file_identity(root/'downloads/final308.txt'),
     'selection':'Deterministic hash order; molecular input compatibility; distinct scaffolds and sequence heuristic. No prediction or truth score used.',
     'scope':'24 new local research tasks, not proof of absence from model pretraining or remote structural homology.',

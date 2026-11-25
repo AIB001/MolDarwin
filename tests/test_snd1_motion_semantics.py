@@ -7,8 +7,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "examples"))
 import snd1_motion_diagnosis as producer
-from etalon.research.result_semantics import bind_scientific_result, validate_result_binding
-from etalon.rescore import motion
+from moldarwin.research.result_semantics import bind_scientific_result, validate_result_binding
+from moldarwin.rescore import motion
 
 
 def coordinates():

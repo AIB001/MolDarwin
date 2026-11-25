@@ -3,10 +3,10 @@ from pathlib import Path
 
 import pytest
 
-from etalon.research import evidence, read_scope
-from etalon.research.evidence import StaleCursorError
-from etalon.research.evidence_refs import EvidenceError
-from etalon.research.graph_memory import build_research_graph
+from moldarwin.research import evidence, read_scope
+from moldarwin.research.evidence import StaleCursorError
+from moldarwin.research.evidence_refs import EvidenceError
+from moldarwin.research.graph_memory import build_research_graph
 from test_frozen_check_deferral import _hash_calls
 from test_research_graph_memory import graph_case
 from test_verified_read_scope import _same_size_change
@@ -59,7 +59,7 @@ def test_same_size_same_mtime_damage_between_pages_is_not_hidden(graph_case, dam
 def test_new_reverse_counter_changes_projection_instead_of_reusing_old_closure(graph_case):
     c = graph_case
     first = page(c)
-    counter = c["save"]({"schema": "etalon-research-claim/1", "question": "New fixture counter?",
+    counter = c["save"]({"schema": "moldarwin-research-claim/1", "question": "New fixture counter?",
         "statement": "new negative fixture", "epistemic_status": "interpretation",
         "subjects": ["fixture"], "conditions": [], "limitations": ["synthetic"],
         "support_refs": [], "counter_refs": [c["claim"]], "method_refs": [], "supersedes": []})
@@ -104,7 +104,7 @@ def test_optional_cache_miss_is_ordinary_read_without_lost_counter_or_cursor(gra
 
 
 def test_final_location_check_is_fresh_even_after_validation_path_reuse(tmp_path, monkeypatch):
-    from etalon.research import evidence_refs
+    from moldarwin.research import evidence_refs
     original = tmp_path / "original"
     replacement = tmp_path / "replacement"
     original.write_text("same bytes")
@@ -129,7 +129,7 @@ def test_final_location_check_is_fresh_even_after_validation_path_reuse(tmp_path
 
 
 def test_paths_refused_by_read_budget_do_not_acquire_unchecked_validation_cache(tmp_path, monkeypatch):
-    from etalon.research import evidence_refs
+    from moldarwin.research import evidence_refs
     original, replacement = tmp_path / "original", tmp_path / "replacement"
     original.write_text("same bytes")
     replacement.write_text("same bytes")

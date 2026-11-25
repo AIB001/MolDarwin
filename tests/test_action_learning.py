@@ -6,9 +6,9 @@ import copy
 
 import pytest
 
-from etalon.research.action_learning import gather_action_basis, compare_action_feedback
-from etalon.research.composition import node_step
-from etalon.research.evidence_refs import EvidenceError
+from moldarwin.research.action_learning import gather_action_basis, compare_action_feedback
+from moldarwin.research.composition import node_step
+from moldarwin.research.evidence_refs import EvidenceError
 from test_research_continuation import case, publish, save
 from test_research_decision import prepared, build, store, observed
 
@@ -134,7 +134,7 @@ def test_selected_rule_scope_and_negative_unknown_experience_are_preserved(case,
     p = prepared
     rule = p["artifact"]({"scope": "retained fixture routes only", "conditions": {"stock": "fixed"},
         "counter_refs": [case[1]], "rules": [{"statement": "A catalog listing is not a lab synthesis"}]})
-    experience = dict(schema="etalon-method-experience/1", task_id="case", scope="fixture only",
+    experience = dict(schema="moldarwin-method-experience/1", task_id="case", scope="fixture only",
         conditions={"stock": "older", "runtime": "fixed"}, method_refs=p["args"]["method_refs"], supersedes=[],
         patch_ref=case[1], evaluation_ref=None, resolution_ref=None, outcome="unresolved",
         lesson="More iterations did not resolve missing stock in this fixture", invalid_when="A new reaction branch is available",

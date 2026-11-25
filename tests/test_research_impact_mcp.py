@@ -4,17 +4,17 @@ import json
 
 import pytest
 
-from etalon import research_hooks
-from etalon.research.evidence_refs import file_identity
+from moldarwin import research_hooks
+from moldarwin.research.evidence_refs import file_identity
 from test_mcp import Collector
 from test_research_graph_memory import graph_case
 
 
 def reader():
-    from etalon.mcp.evidence import register
+    from moldarwin.mcp.evidence import register
     collector = Collector()
     register(collector)
-    return collector.tools['etalon_research_context']
+    return collector.tools['moldarwin_research_context']
 
 
 def test_impact_reuses_tool_and_retains_counter_direction(graph_case):
@@ -23,7 +23,7 @@ def test_impact_reuses_tool_and_retains_counter_direction(graph_case):
     value = json.loads(reader()(str(c['entry']), view='impact',
         view_options={'changed_refs': [c['counter']]}))
     assert value['ok'], value
-    assert value['schema'] == 'etalon-research-impact/1'
+    assert value['schema'] == 'moldarwin-research-impact/1'
     assert not value['automatic_retry'] and not value['rsi_triggered']
     assert value['execution_permission'] == 'not_granted'
     assert c['claim']['record_id'] in json.dumps(value)

@@ -8,11 +8,11 @@ import sys
 
 import pytest
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.adapters import MOLECULAR_REPRESENTATION
-from etalon.active.schema import canonical, digest
-from etalon.data.design import SCHEMA_SHA256, design_index, import_bundle, read_bundle, verify_import
-from etalon.runtime import operations
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.adapters import MOLECULAR_REPRESENTATION
+from moldarwin.active.schema import canonical, digest
+from moldarwin.data.design import SCHEMA_SHA256, design_index, import_bundle, read_bundle, verify_import
+from moldarwin.runtime import operations
 
 FIXTURE = Path(__file__).parent / 'fixtures/prism_design_bundle_v1'
 
@@ -77,7 +77,7 @@ def test_index_only_can_later_promote_without_rewriting_source_identity(tmp_path
 
 
 def test_two_fixture_origins_with_same_slot_names_keep_distinct_actions(tmp_path):
-    from etalon.boundary.prism_v1 import file_identity
+    from moldarwin.boundary.prism_v1 import file_identity
     path = bundle_copy(tmp_path)
     first = read_bundle(path)['bundle']
     second = deepcopy(first)
@@ -152,7 +152,7 @@ def test_runtime_operation_freezes_refs_and_verifies_import_receipt(tmp_path):
 
 def test_public_cli_reads_portable_fixture_and_diagnostics(tmp_path):
     store = campaign(tmp_path, representation='index-only-test')
-    command = [sys.executable, '-m', 'etalon', 'design', 'import', '--bundle', str(FIXTURE / 'bundle.json'),
+    command = [sys.executable, '-m', 'moldarwin', 'design', 'import', '--bundle', str(FIXTURE / 'bundle.json'),
                '--database', str(store.path), '--mode', 'index_only']
     result = subprocess.run(command, capture_output=True, text=True, check=True)
     assert json.loads(result.stdout)['indexed_slots'] == 4

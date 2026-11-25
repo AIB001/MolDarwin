@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from etalon import research_hooks as hooks
+from moldarwin import research_hooks as hooks
 
 
 @pytest.fixture
@@ -26,7 +26,7 @@ def context(monkeypatch):
 def call(tmp_path, event_id, name="PreToolUse", session="A", **kwargs):
     event = {"hook_event_name": name, "session_id": session, "event_id": event_id}
     if name == "PreToolUse":
-        event.update(tool_name="mcp__etalon__research_context", tool_use_id=event_id, tool_input={})
+        event.update(tool_name="mcp__moldarwin__research_context", tool_use_id=event_id, tool_input={})
     return hooks.handle_event(tmp_path / "entry.json", event, host="codex",
                               state_dir=tmp_path / "receipts", **kwargs)
 
@@ -203,7 +203,7 @@ def test_unknown_publication_index_requires_attention_and_never_unchanged(tmp_pa
 def test_weak_tool_identity_after_compaction_does_not_reuse_old_delta(tmp_path, context):
     call(tmp_path, "start", "SessionStart")
     event = {"hook_event_name": "PreToolUse", "session_id": "A",
-             "tool_name": "mcp__etalon__research_context", "tool_input": {}}
+             "tool_name": "mcp__moldarwin__research_context", "tool_input": {}}
     def weak():
         return hooks.handle_event(tmp_path / "entry.json", event, host="codex",
                                   state_dir=tmp_path / "receipts")
@@ -290,9 +290,9 @@ def test_declared_note_scope_changes_require_baseline(tmp_path, context, field, 
 
 @pytest.fixture
 def note_entry(tmp_path):
-    from etalon.active import CampaignStore, CampaignSpec, Endpoint
-    from etalon.research import ResearchJournal
-    from etalon.research.notes import original, save_progress
+    from moldarwin.active import CampaignStore, CampaignSpec, Endpoint
+    from moldarwin.research import ResearchJournal
+    from moldarwin.research.notes import original, save_progress
     store = CampaignStore(tmp_path / "research.sqlite")
     store.configure(CampaignSpec("fixture", 0, "wall_second", "fixture"),
         [Endpoint("fixture", "diagnostic", "recorded", "count", "fixture/1", 0, queryable=False)])

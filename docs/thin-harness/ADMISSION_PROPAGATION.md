@@ -18,7 +18,7 @@ All counts below were taken on 2026-11-05 from the working tree at `origin/main`
 
 ### 0.1 Reward bandwidth: `exactness` × `consequence`
 
-Counted by parsing `FAULTS` in `src/etalon/faults/taxonomy.py` (AST, not import).
+Counted by parsing `FAULTS` in `src/moldarwin/faults/taxonomy.py` (AST, not import).
 Evidence: `measured_here`. Denominator: 20 faults.
 
 |             | wrong_subject | wrong_size | unverifiable | total |
@@ -31,7 +31,7 @@ The same parse reproduces the marginals already on record (consequence 14/2/4, p
 10/10, evidence convention 10 / measured_here 8 / measured_in_an_asset 1 / literature 1,
 unbounded 18).
 
-`rule()` (`src/etalon/learn/admissible.py:151`) withholds only on an unwaived
+`rule()` (`src/moldarwin/learn/admissible.py:151`) withholds only on an unwaived
 `WRONG_SUBJECT` fault; `WRONG_SIZE` lands in `bounded` and `UNVERIFIABLE` in
 `unverifiable`, and neither withholds. So the faults that both block admission and
 cannot be moved by a threshold are the 11 `EXACT ∧ WRONG_SUBJECT` entries:
@@ -49,7 +49,7 @@ a catalogue entry that nothing emits. That is a reference check, not a firing ch
 **Not taken: firing incidence.** How often each of the 11 actually fires on recorded
 campaigns needs `CampaignStore.observations.ruling` rows. No campaign store, journal or
 published workspace exists on this machine (`/runs/` and `/findings/` are gitignored and
-absent; a home-directory search found no ETALON sqlite store). The catalogue count is a
+absent; a home-directory search found no MolDarwin sqlite store). The catalogue count is a
 ceiling on the reward's width, not its width.
 
 Bandwidth judgement: 11 of 20 is not the "two or three" case, so the catalogue does not
@@ -124,7 +124,7 @@ Two further facts make "automatically decidable" weaker than it sounds:
   (`measured_result`, `evaluation_result`, `selection_basis`) and for inputs
   (`input_refs`, workflow data links, most `method_links`). The view must classify on
   `(kind, relation)`. Relation-less `depends_on` comes from `input_refs`, workflow data
-  links and the duplicate decision `basis_refs` edge. For `etalon-research-step/1`
+  links and the duplicate decision `basis_refs` edge. For `moldarwin-research-step/1`
   decision records the last is emitted alongside a `selection_basis`-labelled edge
   between the same pair (both read `detail.basis_refs`), so classifying relation-less
   `depends_on` as `used` loses nothing for those records provided classification is
@@ -158,17 +158,17 @@ compare_views(a, b) -> dict           # raises on mismatch
 catalogue_digest() -> str
 ```
 
-in a new module `src/etalon/learn/admission_view.py`.
+in a new module `src/moldarwin/learn/admission_view.py`.
 
 - `graph`: a research graph dict as returned by `build_research_graph` (schema
-  `etalon-research-graph/1`). Validated with `validate_research_graph` before use. A
+  `moldarwin-research-graph/1`). Validated with `validate_research_graph` before use. A
   graph with `truncated: true` is **refused**: missing premises would make a derived
   admission look better than it is.
 - `bindings`: list of leaf admission bindings (§2).
 - `labels`: optional human labels for edges in the human-label class (§3).
 
-Output schema `etalon-admission-view/1`, carrying `view_version`
-(`"etalon-admission-view/1"`), `catalogue_digest`, `graph_view_id` (the graph's
+Output schema `moldarwin-admission-view/1`, carrying `view_version`
+(`"moldarwin-admission-view/1"`), `catalogue_digest`, `graph_view_id` (the graph's
 `view_id`), and per-node and per-edge results. The output carries its own `view_id`
 (`"admission-view-" + digest(rest)`), following the graph's convention.
 
@@ -227,7 +227,7 @@ Rules:
 - The two human-label sites default to `relied_on`. That default is a **convention**,
   chosen in the conservative direction of `admissible.py`'s asymmetry: treating a
   corroborating support as a premise can only lower a derived admission, never raise
-  it. `etalon-step-corpus` already collects premises "along `relied_on` and `support`",
+  it. `moldarwin-step-corpus` already collects premises "along `relied_on` and `support`",
   which this default matches. Every node whose value depended on an unlabelled default
   carries `premise_basis: "includes_convention"`.
   **Refuted in review (2026-11-05):** the "can only lower" claim is false under §4's
@@ -309,7 +309,7 @@ is immutable and identified by its `view_id`. The view does not recompute past s
 - otherwise returns, per node present in both, the pair of admissions and whether it
   moved, plus the node ids present in only one side.
 
-`catalogue_digest()` is `digest(...)` (from `etalon.active.schema`) over the list, in
+`catalogue_digest()` is `digest(...)` (from `moldarwin.active.schema`) over the list, in
 `FAULTS` order, of each fault's semantic fields: `code`, `phase`, `exactness`,
 `consequence`, `lower_kcal_mol`, `upper_kcal_mol`, `evidence`. Prose fields (`summary`,
 `observable`, `source`, `remedy`) are excluded so a wording fix does not refuse a
@@ -364,7 +364,7 @@ Each must be held by a test.
 
 Source: `ADMISSION_PROPAGATION_DECISIONS.md` (decisions D1–D8, U1–U3, and the
 implementation notes in its second part). Where this section and §1–§8 disagree, this
-section wins. `view_version` becomes `"etalon-admission-view/2"`.
+section wins. `view_version` becomes `"moldarwin-admission-view/2"`.
 
 ### 10.1 Bindings (extends §2; D7)
 
@@ -440,7 +440,7 @@ exists).
 `graph_completeness.asserted` is `true` only when all of these hold:
 - `graph["truncated"] is False` and `graph["issues"] == []`;
 - `graph["scope_receipt"]` exists, with:
-  - `schema == "etalon-research-graph-scope/1"`;
+  - `schema == "moldarwin-research-graph-scope/1"`;
   - `traversal_complete is True` and `reference_coverage_complete is True`;
   - `deliberate_boundary_refs == []` and `boundary_relations == []`;
   - `issues == []`.
@@ -505,7 +505,7 @@ that node attains the minimum.
 
 ## 11. v3: the assessment-regime membrane
 
-`view_version` becomes `"etalon-admission-view/3"`. The basis strings below are new
+`view_version` becomes `"moldarwin-admission-view/3"`. The basis strings below are new
 `class_basis` values and the output's `view_id` is a digest of its own content, so the
 version must move or stored digests collide across two different classifications.
 
@@ -544,7 +544,7 @@ restores what the membrane removed — the optional-guard shape ADR 0006 names. 
 
 ### 11.3 Scope: `not_applicable` is not `unknown`
 
-Only `etalon-method-evaluation/1` records carry an assessment role, projected into
+Only `moldarwin-method-evaluation/1` records carry an assessment role, projected into
 `node["evaluation"]` by `research/graph_memory._project_node`. `regime_of_node` returns
 `None` for every other node — an artifact, a receipt, a step — and those edges are
 untouched, reported as `NOT_APPLICABLE`.
@@ -581,7 +581,7 @@ derived value"; what holds is that it never raises one **above** `not_recorded`.
 
 ### 11.6 Invariants (amends §7 and §10.8)
 
-- **I16 — scope.** A graph with no `etalon-method-evaluation/1` node produces a view
+- **I16 — scope.** A graph with no `moldarwin-method-evaluation/1` node produces a view
   byte-identical to the pre-change one modulo `view_version`. No other node schema is
   demoted by regime.
 - **I17 — pair resolution order.** Two `relied_on` edges between the same owner and the
@@ -609,7 +609,7 @@ derived value"; what holds is that it never raises one **above** `not_recorded`.
 
 ## 12. v4: a lesson is not an assessment
 
-`view_version` becomes `"etalon-admission-view/4"`. One new `class_basis`, so the version
+`view_version` becomes `"moldarwin-admission-view/4"`. One new `class_basis`, so the version
 must move or stored digests collide across two different classifications; views are rebuilt,
 not migrated (§11.3).
 
@@ -619,7 +619,7 @@ Design record: `ASSESSMENT_REGIMES.md` §7, which is normative on the semantics.
 
 `regime_of_node` now answers for a second node shape. A projected node carrying an
 `experience` block — written by `graph_memory._project_node` for exactly
-`etalon-method-experience/1` — returns a regime of `not_an_assessment` with
+`moldarwin-method-experience/1` — returns a regime of `not_an_assessment` with
 `permits_reliance = False` and `degrade_basis = "lesson_cannot_settle"`. The membrane rule
 of §11.1 is unchanged; it simply now has a premise regime to read where it previously had
 `None`.
@@ -633,7 +633,7 @@ got the first.
 
 ### 12.2 The two routes this closes, and why one of them contradicted §11
 
-`etalon-method-experience/1` is a full `CONTENT_SCHEMAS` member (`evidence_refs.py:23`), so
+`moldarwin-method-experience/1` is a full `CONTENT_SCHEMAS` member (`evidence_refs.py:23`), so
 an experience ref is legal wherever a ref is legal. Two edges reached `relied_on`:
 
 1. a decision **step** whose `detail["basis_refs"]` is emitted with relation

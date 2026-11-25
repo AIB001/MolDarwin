@@ -1,8 +1,8 @@
 """Context receipt, bounded selection and continuation contract tests."""
-from etalon.active.schema import canonical
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research.graph_memory import node_identity
-from etalon.research.research_context import build_research_context
+from moldarwin.active.schema import canonical
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research.graph_memory import node_identity
+from moldarwin.research.research_context import build_research_context
 import pytest
 
 from test_research_graph_memory import graph_case
@@ -58,14 +58,14 @@ def test_unknown_node_not_silently_replaced(graph_case):
 
 
 def test_pending_handle_is_observed_without_resubmit(graph_case, monkeypatch):
-    import etalon.runtime.api as runtime
+    import moldarwin.runtime.api as runtime
     c = graph_case
     calls = []
     def read(handle):
         calls.append(handle)
         return {"execution_state": "running", "verification": {}, "recovery": {}, "accounting_refs": []}
     monkeypatch.setattr(runtime, "read_action_result", read)
-    handle = {"schema": "etalon-action-handle/1", "backend": "runtime", "workspace": str(c["entry"].parent),
+    handle = {"schema": "moldarwin-action-handle/1", "backend": "runtime", "workspace": str(c["entry"].parent),
               "request_id": "fixture-request", "job_id": "fixture-job", "plan_id": "fixture-plan", "node_id": "action"}
     cp = c["save"]({**c["checkpoint_content"], "pending_handles": [handle], "supersedes": [c["checkpoint"]]})
     result = build_research_context({"workspace": c["publish"](), "checkpoint_ref": cp})
@@ -75,7 +75,7 @@ def test_pending_handle_is_observed_without_resubmit(graph_case, monkeypatch):
 
 def test_reverse_counter_context_preserves_direction_and_reports_budget_gap(graph_case):
     c = graph_case
-    other = c["save"]({"schema": "etalon-research-claim/1", "question": "Which route?",
+    other = c["save"]({"schema": "moldarwin-research-claim/1", "question": "Which route?",
         "statement": "A second claim whose declared counter is the current claim",
         "epistemic_status": "interpretation", "subjects": ["SND1-fixture"], "conditions": ["fixture protocol"],
         "limitations": [], "support_refs": [c["counter"]], "counter_refs": [c["claim"]], "method_refs": [], "supersedes": []})

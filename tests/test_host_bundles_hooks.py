@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from etalon import host, skills
-from etalon.runtime import api
+from moldarwin import host, skills
+from moldarwin.runtime import api
 
 
 def bundle(tmp_path):
@@ -105,8 +105,8 @@ def test_hook_submit_then_cursor_failure_replays_stable_request(tmp_path, monkey
 
 
 def test_research_hook_requires_type_filter_and_does_not_trigger_on_own_version(tmp_path, monkeypatch):
-    facts = [{"sequence": 1, "kind": "research_recorded", "body": {"record": {"schema": "etalon-method-evaluation/1"}}},
-             {"sequence": 2, "kind": "research_recorded", "body": {"record": {"schema": "etalon-method-version/1"}}}]
+    facts = [{"sequence": 1, "kind": "research_recorded", "body": {"record": {"schema": "moldarwin-method-evaluation/1"}}},
+             {"sequence": 2, "kind": "research_recorded", "body": {"record": {"schema": "moldarwin-method-version/1"}}}]
     fixture_events(monkeypatch, facts)
     seen = []
     params = dict(log_ref={"kind": "campaign", "database": "fixture-A"}, state_path=tmp_path / "cursor.json",
@@ -114,10 +114,10 @@ def test_research_hook_requires_type_filter_and_does_not_trigger_on_own_version(
                   event_types=["research_recorded"])
     with pytest.raises(ValueError, match="schema filters"):
         host.consume_events(**params)
-    result = host.consume_events(**params, record_types=["etalon-method-evaluation/1"])
+    result = host.consume_events(**params, record_types=["moldarwin-method-evaluation/1"])
     assert seen == [1] and len(result["skipped"]) == 1
     assert result["next_cursor"]["after_sequence"] == 2
-    assert host.consume_events(**params, record_types=["etalon-method-evaluation/1"])["handled"] == []
+    assert host.consume_events(**params, record_types=["moldarwin-method-evaluation/1"])["handled"] == []
 
 
 def test_hook_empty_page_does_not_skip_future_and_can_skip_all(tmp_path, monkeypatch):
@@ -131,7 +131,7 @@ def test_hook_empty_page_does_not_skip_future_and_can_skip_all(tmp_path, monkeyp
 
 
 def test_content_snapshot_and_partial_use_record_in_existing_journal(tmp_path):
-    from etalon.research import MethodVersion
+    from moldarwin.research import MethodVersion
     from test_research_journal import setup
     store, journal, _ = setup(tmp_path)
     _, ref = bundle(tmp_path)

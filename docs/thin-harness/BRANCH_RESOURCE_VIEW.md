@@ -1,12 +1,12 @@
 # Branch resource and experience view
 
-`etalon.research.branch_context.build_branch_context` reads an exact branch of a
+`moldarwin.research.branch_context.build_branch_context` reads an exact branch of a
 published checkpoint. It reuses the graph, evidence reader, task workset and
 resource usage verifier. It creates no database, activation, decision, execution
 or retry. A read cannot resume a paused task.
 
 ```python
-from etalon.research.branch_context import build_branch_context
+from moldarwin.research.branch_context import build_branch_context
 
 view = build_branch_context(
     entry, branch_id="panel", conditions={"target": "PoseBusters"},
@@ -32,7 +32,7 @@ changed. `conditions` are explicit strings, never guessed from a branch name.
 `as_of` has the graph reader's frozen-source semantics; it does not reconstruct
 what an earlier host knew.
 
-The result schema is `etalon-branch-context/1`. `branch`, `checkpoint_ref`,
+The result schema is `moldarwin-branch-context/1`. `branch`, `checkpoint_ref`,
 `task_id`, `continuation`, `read_context`, `task_workset` and coverage receipts
 remain in every page. `items` contains these row types:
 
@@ -132,7 +132,7 @@ tampering, cross-task rejection and real discovery pagination over 51 synthetic
 usage Artifacts. Fixtures establish engineering behavior only.
 
 Real archival acceptance is recorded under
-`integration/etalon-resource-branches-20261024/branches/attempts/`. It reads the
+`integration/moldarwin-resource-branches-20261024/branches/attempts/`. It reads the
 preserved SND1/PoseBusters entries and resource usage archive through existing
 SDK readers, snapshots original dependencies before/after, and records actual
 interpreter/module paths and hashes. It creates no molecular computation or

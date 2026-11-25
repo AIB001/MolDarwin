@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from etalon import host, host_skills, skills
+from moldarwin import host, host_skills, skills
 
 
 def test_selected_real_bundles_preserve_settings_and_repeat_without_writes(tmp_path):
@@ -17,7 +17,7 @@ def test_selected_real_bundles_preserve_settings_and_repeat_without_writes(tmp_p
         path.write_bytes(content)
     original = {path: path.read_bytes() for path in (instructions, settings, other)}
     result = host.install_skills(root, selected_skills=["research", "method-optimization", "skill-improvement"])
-    assert result["verified"] and "etalon-research-decision" in result["skills"]
+    assert result["verified"] and "moldarwin-research-decision" in result["skills"]
     for name in result["skills"]:
         _, members = skills.snapshot(name)
         for member, data in members.items():
@@ -34,7 +34,7 @@ def test_selected_real_bundles_preserve_settings_and_repeat_without_writes(tmp_p
 def local_bundle(tmp_path, monkeypatch):
     source = tmp_path / "source"
     source.mkdir()
-    (source / "SKILL.md").write_text("---\nname: etalon-research\ndescription: fixture\n---\nOriginal guidance\n")
+    (source / "SKILL.md").write_text("---\nname: moldarwin-research\ndescription: fixture\n---\nOriginal guidance\n")
     (source / "old.txt").write_text("original helper")
     monkeypatch.setattr(skills, "bundle_root", lambda slug: source)
     return source, tmp_path / "target"
@@ -50,14 +50,14 @@ def test_update_removes_only_owned_obsolete_members_and_preserves_unselected(loc
     (source / "new.txt").write_text("new helper")
     result = host.install_skills(root, selected_skills=["research"])
     assert result["removed_files"] == result["written_files"] == 1
-    assert not (root / ".agents/skills/etalon-research/old.txt").exists()
+    assert not (root / ".agents/skills/moldarwin-research/old.txt").exists()
     assert unrelated.read_text() == "unrelated"
 
 
 def test_local_edit_conflict_is_detected_before_any_other_file_changes(local_bundle):
     source, root = local_bundle
     host.install_skills(root, selected_skills=["research"])
-    edited = root / ".agents/skills/etalon-research/SKILL.md"
+    edited = root / ".agents/skills/moldarwin-research/SKILL.md"
     edited.write_text("user edit")
     record = (root / host_skills.MANIFEST).read_bytes()
     (source / "new.txt").write_text("new helper")
@@ -85,7 +85,7 @@ def test_interrupted_initial_copy_can_be_retried(local_bundle, monkeypatch):
     monkeypatch.setattr(host_skills, "_write", original)
     result = host.install_skills(root, selected_skills=["research"])
     assert result["verified"]
-    assert (root / ".agents/skills/etalon-research/old.txt").read_bytes() == (source / "old.txt").read_bytes()
+    assert (root / ".agents/skills/moldarwin-research/old.txt").read_bytes() == (source / "old.txt").read_bytes()
 
 
 def test_owned_inventory_cannot_remove_project_instructions(local_bundle):
@@ -95,7 +95,7 @@ def test_owned_inventory_cannot_remove_project_instructions(local_bundle):
     record = json.loads(record_path.read_bytes())
     instructions = root / "AGENTS.md"
     instructions.write_text("keep")
-    record["bundles"]["etalon-research"]["files"]["AGENTS.md"] = skills.sha256(b"keep")
+    record["bundles"]["moldarwin-research"]["files"]["AGENTS.md"] = skills.sha256(b"keep")
     record_path.write_text(json.dumps(record))
     with pytest.raises(ValueError, match="outside its bundle"):
         host.install_skills(root, selected_skills=["research"])

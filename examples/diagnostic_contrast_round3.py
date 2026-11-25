@@ -9,9 +9,9 @@ import argparse
 import json
 from pathlib import Path
 
-from etalon.active import CampaignStore
-from etalon.active.schema import canonical,digest
-from etalon.research import ResearchJournal,Experiment,Observation,Contrast,Coupling
+from moldarwin.active import CampaignStore
+from moldarwin.active.schema import canonical,digest
+from moldarwin.research import ResearchJournal,Experiment,Observation,Contrast,Coupling
 
 
 def freeze(database: Path, admissions: list[Path], output: Path, *, task_id: str, added_atom_map: int):
@@ -67,7 +67,7 @@ def freeze(database: Path, admissions: list[Path], output: Path, *, task_id: str
         'status':'proposed_unresolved_not_promoted','executable_requests':configs,
         'request_configuration_sha256':digest(configs),
         'reason':'geometry differences alone do not identify design/preparation/evaluator cause or establish improved independent loss'}
-    report={'schema':'etalon-round3-diagnostic-freeze/1','task_id':task_id,'molecule_id':next(iter(molecules)),
+    report={'schema':'moldarwin-round3-diagnostic-freeze/1','task_id':task_id,'molecule_id':next(iter(molecules)),
         'preparation_conditions':summaries,'contrast':journal.factorial(contrast.id),'contrast_id':contrast.id,
         'axes':{'D0':'phenol original graph (not measured here)','D1':'same catechol chemical graph in both measured cells',
                 'E0_E1':'declared attachment/core mapping and preparation condition; not two chemical designs'},

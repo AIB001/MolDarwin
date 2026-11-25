@@ -4,11 +4,11 @@ from copy import deepcopy
 
 import pytest
 
-from etalon.active.runner import ExecutionPending
-from etalon.active.schema import CampaignSpec, Candidate, Endpoint, Evaluation, canonical, digest
-from etalon.active.store import CampaignStore, StateError
-from etalon.runtime import api, executors, operations, service
-from etalon.runtime.store import RuntimeStore
+from moldarwin.active.runner import ExecutionPending
+from moldarwin.active.schema import CampaignSpec, Candidate, Endpoint, Evaluation, canonical, digest
+from moldarwin.active.store import CampaignStore, StateError
+from moldarwin.runtime import api, executors, operations, service
+from moldarwin.runtime.store import RuntimeStore
 
 
 def fixture_action(tmp_path, monkeypatch, *, outcome="ok"):
@@ -17,7 +17,7 @@ def fixture_action(tmp_path, monkeypatch, *, outcome="ok"):
                         requires_handoff=False, max_replicates=3)
     store.configure(CampaignSpec("score", 6, "fixture-cost", "fixture/1"), [endpoint])
     store.add_candidates([Candidate("one", "C", (1,)), Candidate("two", "CC", (2,))])
-    record = {"schema": "etalon-executor/1", "kind": "test_fixture", "endpoint": endpoint.as_dict(),
+    record = {"schema": "moldarwin-executor/1", "kind": "test_fixture", "endpoint": endpoint.as_dict(),
               "configuration": {}, "inputs": {}, "executor_id": "fixture-version-1"}
     registry = {"score": record}
     monkeypatch.setattr(executors, "registered_executors", lambda database: deepcopy(registry))
@@ -46,7 +46,7 @@ def fixture_action(tmp_path, monkeypatch, *, outcome="ok"):
             runtime.set_state(job_id, 0, state, error=str(exc))
 
     monkeypatch.setattr(service, "_launch", launch)
-    request = {"schema": "etalon-action/1", "request_id": "first", "operation": "active.evaluate",
+    request = {"schema": "moldarwin-action/1", "request_id": "first", "operation": "active.evaluate",
                "arguments": {"database": str(store.path), "candidate_id": "one", "endpoint_id": "score"},
                "limits": {"campaign:fixture-cost": 2}, "method_use_refs": []}
     return store, request, calls, registry
@@ -142,7 +142,7 @@ def test_full_event_pagination_empty_page_append_and_cross_log_cursor(tmp_path, 
     store, request, _, _ = fixture_action(tmp_path, monkeypatch)
     if kind == "runtime":
         runtime = RuntimeStore(tmp_path / "runtime", create=True)
-        plan = service.plan({"schema": "etalon-workflow/1", "objective": "fixture", "limits": {},
+        plan = service.plan({"schema": "moldarwin-workflow/1", "objective": "fixture", "limits": {},
                              "nodes": [{"id": "one", "operation": "screen.export",
                                         "arguments": {"workspace": str(tmp_path), "run_id": "fixture"}}]})
         runtime.create("test-job", plan)
@@ -176,7 +176,7 @@ def test_empty_runtime_log_identity_does_not_change_on_first_append(tmp_path):
     runtime = RuntimeStore(tmp_path, create=True)
     log_ref = {"kind": "runtime", "workspace": str(tmp_path)}
     empty = api.read_events(log_ref)
-    spec = {"schema": "etalon-workflow/1", "objective": "fixture", "limits": {}, "nodes": [
+    spec = {"schema": "moldarwin-workflow/1", "objective": "fixture", "limits": {}, "nodes": [
         {"id": "one", "operation": "screen.export", "arguments": {"workspace": str(tmp_path), "run_id": "none"}}]}
     runtime.create("first", service.plan(spec))
     assert len(api.read_events(log_ref, after_sequence=empty["next_cursor"])["events"]) == 1
@@ -217,8 +217,8 @@ def test_recovery_uses_pre_admission_receipt_without_executing_again(tmp_path, m
 
 
 def test_host_selection_retains_confirmation_budget_commitment(tmp_path):
-    from etalon.active.runner import ActiveCampaign
-    from etalon.active.store import BudgetExhausted
+    from moldarwin.active.runner import ActiveCampaign
+    from moldarwin.active.store import BudgetExhausted
     store = CampaignStore(tmp_path / "budget.sqlite")
     endpoints = [Endpoint("objective", "fixture", "score", "u", "fixture/1", 4, requires_handoff=False),
                  Endpoint("proxy", "fixture", "score", "u", "fixture/1", 2, requires_handoff=False)]
@@ -231,7 +231,7 @@ def test_host_selection_retains_confirmation_budget_commitment(tmp_path):
 
 
 def test_zero_hit_screen_is_a_valid_native_outcome_but_unrelated_failure_is_not(tmp_path, monkeypatch):
-    from etalon.boundary.screen import Screen, ScreenResult, StageOutcome
+    from moldarwin.boundary.screen import Screen, ScreenResult, StageOutcome
     exhausted = StageOutcome("gate", "fixture@1", "FAILED", 1, None,
                              {"code": "EVIDENCE_GATE_EMPTY_PARENT_INPUT"})
     native = ScreenResult("zero", "fixture-revision", "FAILED", (exhausted,))

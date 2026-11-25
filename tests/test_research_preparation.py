@@ -2,13 +2,13 @@
 import json
 from pathlib import Path
 import pytest
-from etalon.active import CampaignSpec,CampaignStore,Endpoint
-from etalon.active.schema import canonical,digest
-from etalon.active.store import StateError
-from etalon.active.runner import ExecutionPending
-from etalon.boundary.prism_v1 import file_identity
-from etalon.research import ResearchJournal
-from etalon.research.preparation import admit_preparation,paid_preparation
+from moldarwin.active import CampaignSpec,CampaignStore,Endpoint
+from moldarwin.active.schema import canonical,digest
+from moldarwin.active.store import StateError
+from moldarwin.active.runner import ExecutionPending
+from moldarwin.boundary.prism_v1 import file_identity
+from moldarwin.research import ResearchJournal
+from moldarwin.research.preparation import admit_preparation,paid_preparation
 
 
 def setup_case(tmp_path,status):
@@ -90,7 +90,7 @@ def certification_case(journal,req,path,result,tmp_path,*,name='cert',change=Non
 
 
 def test_certification_adds_native_cost_once_preserves_old_admission_and_replays(tmp_path):
-    from etalon.research.preparation import preparation_cost_attribution
+    from moldarwin.research.preparation import preparation_cost_attribution
     j,q,p,r=setup_case(tmp_path,'PREPARED')
     old=admit_preparation(j,request_path=q,result_path=p,reservation=120,invoke=lambda q,p:p.write_text(canonical(r)))
     before=canonical(j.get(old['id']))
@@ -128,7 +128,7 @@ def test_certification_rejects_incompatible_or_cyclic_reuse(tmp_path,mismatch):
 
 def test_scientific_parent_is_not_same_resource_cost_lineage(tmp_path):
     from copy import deepcopy
-    from etalon.research.preparation import preparation_cost_attribution
+    from moldarwin.research.preparation import preparation_cost_attribution
     j,q,p,r=setup_case(tmp_path,'PREPARED')
     old=admit_preparation(j,request_path=q,result_path=p,reservation=120,invoke=lambda q,p:p.write_text(canonical(r)))
     rq=json.loads(q.read_text());rq['execution_id']='execution-child-native';rq['state_key']='P-child'

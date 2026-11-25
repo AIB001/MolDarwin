@@ -8,29 +8,29 @@ automatic RSI loop. Existing direct SDK calls remain valid.
 
 | Owner | Existing producer/consumer | New read-to-memory seam | Boundary |
 | --- | --- | --- | --- |
-| MolQuarry | `data.service.plan_data/run_data`; sealed `data.artifacts.read_snapshot` | `inspect_component("molquarry.data", snapshot)` → original files, coverage, usage, source identity | Query/collect/download/catalog/sourcing/bundle; sourcing is not procurement or synthesis execution |
-| ETALON | `data.library.prepare_library/import_candidates` | `inspect_component("etalon.library", snapshot)` → source/candidate mapping | This conversion belongs to the host integration, not a second MolQuarry implementation |
-| MolCascade | `Screen.plan/run/read/recall/metrics/export_shortlist/handoff` | `inspect_component("molcascade.screen", workspace, run_id=...)` → native run status and verified committed manifests/files | Completed, exhausted, failed and nonterminal states remain distinguishable; no new run |
+| MolOrigin | `data.service.plan_data/run_data`; sealed `data.artifacts.read_snapshot` | `inspect_component("molorigin.data", snapshot)` → original files, coverage, usage, source identity | Query/collect/download/catalog/sourcing/bundle; sourcing is not procurement or synthesis execution |
+| MolDarwin | `data.library.prepare_library/import_candidates` | `inspect_component("moldarwin.library", snapshot)` → source/candidate mapping | This conversion belongs to the host integration, not a second MolOrigin implementation |
+| MolCat | `Screen.plan/run/read/recall/metrics/export_shortlist/handoff` | `inspect_component("molcat.screen", workspace, run_id=...)` → native run status and verified committed manifests/files | Completed, exhausted, failed and nonterminal states remain distinguishable; no new run |
 | PRISM | Producer-owned `prism-design-candidate-bundle/1`; consumer `data.design.read_bundle/import_bundle/verify_import` | `inspect_component("prism.design", bundle_json)` → all slots, raw/processed provenance, molecule/state/pose identities | Reads producer evidence; no generation, QC rerun, affinity label or scientific admission |
 | PRISM execution | Existing restricted `prism_bridge_v1`, fixed-pool/preparation consumers and runtime action handles | Explicit node refs can point to their original handles and receipts | No new dispatch adapter; contact-count bridge, fixed-pool and old MM-PBSA semantics are not unified; general FEP/lab remains disconnected |
 
 `components.capabilities()` is a bounded installed catalog. It names owners,
 entrypoints, skills and integration limitations; availability in the current
 execution environment must still be checked through the relevant component.
-Only three component readers plus the ETALON library reader are added here.
+Only three component readers plus the MolDarwin library reader are added here.
 No upstream wire schema changes; PRISM production remains in its own repository.
 
 ## Files → node → memory
 
 ```python
-from etalon.research.components import inspect_component, record_component_step
+from moldarwin.research.components import inspect_component, record_component_step
 
 # Pure read: returns native evidence and identity checks, creates nothing.
-inspection = inspect_component("molcascade.screen", screen_workspace, run_id=run_id)
+inspection = inspect_component("molcat.screen", screen_workspace, run_id=run_id)
 
 # Explicit append to an existing ResearchJournal; never calls Screen.run.
 recorded = record_component_step(
-    journal, capability_id="molcascade.screen", location=screen_workspace,
+    journal, capability_id="molcat.screen", location=screen_workspace,
     run_id=run_id, directory=memory_directory, source_id="research",
     source_kind="existing_real_artifact", task_id=task_id, question=question,
     branch_id=branch_id, node_id="screen", reason="Existing run already answers this step",
@@ -46,7 +46,7 @@ Changed inputs yield a new record or a verification failure, never overwrite.
 Files and Journal records are separate commits: an interrupted append can leave
 verified intermediate Artifacts; replay completes the append idempotently.
 
-MolCascade's mutable status file is copied as exact bytes to an immutable
+MolCat's mutable status file is copied as exact bytes to an immutable
 content-addressed snapshot. Its original path/hash and historical-state meaning
 are preserved. Committed immutable payloads remain references to original
 files. A historical waiting state is not a heartbeat; live status still uses the
@@ -66,9 +66,9 @@ continuation verifies their hashes without decoding arbitrary result schemas.
 ## Methods and workflow nodes
 
 Reuse `MethodVersion`, complete `skills.persist_snapshot/verify_snapshot`,
-`MethodUse`, and `ResearchJournal.record`. The six native MolQuarry bundles stay
-under MolQuarry. Cross-component selection/composition instructions belong to
-ETALON. Pure SDK functions need no extra SKILL file.
+`MethodUse`, and `ResearchJournal.record`. The six native MolOrigin bundles stay
+under MolOrigin. Cross-component selection/composition instructions belong to
+MolDarwin. Pure SDK functions need no extra SKILL file.
 
 Availability, selection, reading and use are distinct. A node's `method_refs`
 declare exact methods; `detail.use_refs` refer to existing MethodUse records.
@@ -77,7 +77,7 @@ must include the node's task. Partial adoption uses the existing selected-method
 scope. Empty methods are valid. `tool_observed` remains rejected without actual
 telemetry; this layer does not invent stronger attribution.
 
-`etalon-research-workflow/1` is ordinary immutable JSON with:
+`moldarwin-research-workflow/1` is ordinary immutable JSON with:
 
 - `name`, `scope`, `method_refs`, `supersedes`;
 - `nodes`: `node_id`, `capability_id` (or null for host work), `method_refs`,
@@ -101,7 +101,7 @@ basis refs and reconsideration condition.
 
 ## Scoped retrieval and new chats
 
-Existing `query_evidence` and `etalon_evidence_query` accept `branch_ids`,
+Existing `query_evidence` and `moldarwin_evidence_query` accept `branch_ids`,
 `node_ids`, `capability_ids`, `workflow_refs` (record IDs), `evaluation_targets`
 and node `statuses`, alongside existing source/task/method filters. Filtering
 does not expand the requested source scope except for necessary explicit

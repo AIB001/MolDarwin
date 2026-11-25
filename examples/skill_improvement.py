@@ -1,6 +1,6 @@
 """Bounded synthetic skill/usage revision; no native host or science benefit claim.
 
-Run with the actual ETALON interpreter and a new output directory:
+Run with the actual MolDarwin interpreter and a new output directory:
     python examples/skill_improvement.py /absolute/new-directory
 Uses existing snapshots, journal and one-page hook. No new registry or service.
 """
@@ -11,11 +11,11 @@ from pathlib import Path
 import sys
 import time
 
-from etalon import host, skills
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.boundary.prism_v1 import file_identity
-from etalon.research import Artifact, MethodEvaluation, MethodVersion, ResearchJournal, TaskSplit
-from etalon.research.method_revision import build_method_revision, journal_ref, record_method_revision
+from moldarwin import host, skills
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.boundary.prism_v1 import file_identity
+from moldarwin.research import Artifact, MethodEvaluation, MethodVersion, ResearchJournal, TaskSplit
+from moldarwin.research.method_revision import build_method_revision, journal_ref, record_method_revision
 
 
 def run(directory: str | Path) -> dict:
@@ -124,7 +124,7 @@ def run(directory: str | Path) -> dict:
         state_path=directory / "cursor.json", handler_method_version="example-bounded-handler-v1",
         handler=lambda event, request_id: decisions.append({"event": event["event_ref"],
             "request_id": request_id, "decision": "stop; keep both versions pending independent evidence"}),
-        event_types=["research_recorded"], record_types=["etalon-method-evaluation/1"], limit=100)
+        event_types=["research_recorded"], record_types=["moldarwin-method-evaluation/1"], limit=100)
     hook = host.consume_events(**params)
     replay = host.consume_events(**params)
     stop = host.record_method_use(journal,

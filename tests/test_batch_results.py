@@ -8,16 +8,16 @@ import sys
 
 import pytest
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.store import StateError
-from etalon.research import ResearchJournal
-from etalon.research.schema import Coupling, Experiment
-from etalon.research import batch_results as batch
-from etalon.research.continuation import CHECKPOINT, read_content, record_content, resume_research
-from etalon.research.evidence_refs import EvidenceError, file_identity, make_ref
-from etalon.research.evaluation_contract import build_evaluation_contract, evaluate_contract
-from etalon.research.publication import prepare_publication, resume_publication
-from etalon.research.evidence import query_evidence, read_evidence
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.store import StateError
+from moldarwin.research import ResearchJournal
+from moldarwin.research.schema import Coupling, Experiment
+from moldarwin.research import batch_results as batch
+from moldarwin.research.continuation import CHECKPOINT, read_content, record_content, resume_research
+from moldarwin.research.evidence_refs import EvidenceError, file_identity, make_ref
+from moldarwin.research.evaluation_contract import build_evaluation_contract, evaluate_contract
+from moldarwin.research.publication import prepare_publication, resume_publication
+from moldarwin.research.evidence import query_evidence, read_evidence
 
 
 @pytest.fixture
@@ -149,9 +149,9 @@ def test_real_process_death_after_originals_saved_recovers_without_producer_or_r
     input_file.write_text(json.dumps(data), encoding="utf-8")
     code = """
 import json,os,sys
-from etalon.active import CampaignStore
-from etalon.research import ResearchJournal
-from etalon.research import batch_results as b
+from moldarwin.active import CampaignStore
+from moldarwin.research import ResearchJournal
+from moldarwin.research import batch_results as b
 original=b._archive
 count=0
 def crash(*args,**kwargs):
@@ -215,7 +215,7 @@ def test_archived_block_connects_existing_checkpoint_publication_evaluation_and_
     with journal.store.connection() as db, sqlite3.connect(snapshot) as target:
         db.backup(target)
     workspace = root / "workspace.json"
-    workspace.write_text(json.dumps({"schema": "etalon-evidence-workspace/1", "workspace_id": "batch-fixture",
+    workspace.write_text(json.dumps({"schema": "moldarwin-evidence-workspace/1", "workspace_id": "batch-fixture",
         "sources": [{"source_id": "batch", "kind": "journal", "location": str(snapshot),
             "identity": {"kind": "snapshot_sha256", "value": file_identity(snapshot)["sha256"]}}],
         "status_refs": [str(authority)], "location_map": []}), encoding="utf-8")
@@ -268,7 +268,7 @@ def test_confirmation_role_survives_ingestion_and_seals_derived_counts_from_deve
             journal.record(Experiment("development", "file_audit", {}, (record_id,),
                 "fixture", "trial", ("score",), Coupling()))
     workspace = root / "development-workspace.json"
-    workspace.write_text(json.dumps({"schema": "etalon-evidence-workspace/1", "workspace_id": "development",
+    workspace.write_text(json.dumps({"schema": "moldarwin-evidence-workspace/1", "workspace_id": "development",
         "sources": [{"source_id": "batch", "kind": "journal", "location": str(journal.store.path),
             "identity": {"kind": "snapshot_sha256", "value": file_identity(journal.store.path)["sha256"]}}],
         "location_map": []}), encoding="utf-8")

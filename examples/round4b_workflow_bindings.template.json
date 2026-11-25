@@ -1,5 +1,5 @@
 {
-  "schema": "etalon-r4b-config-extension-template/1",
+  "schema": "moldarwin-r4b-config-extension-template/1",
   "scope": "NOT A SCIENTIFIC FREEZE; add these keys to root config; candidate state/input freeze remains unchanged",
   "evaluation_cost_weight": 0.001,
   "support_guard": {

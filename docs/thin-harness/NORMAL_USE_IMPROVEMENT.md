@@ -1,6 +1,6 @@
 # Evidence-driven changes during ordinary research
 
-`etalon.research.improvement` connects existing research memory to optional
+`moldarwin.research.improvement` connects existing research memory to optional
 method/workflow revision. The host initiates it for a concrete problem; it has
 no scheduler, mandatory probe rollout, implicit model call or resource allocator.
 

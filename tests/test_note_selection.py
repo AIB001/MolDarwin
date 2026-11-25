@@ -6,8 +6,8 @@ import sys
 
 import pytest
 
-from etalon.active.schema import canonical
-from etalon.research.notes import read_entry, save_progress
+from moldarwin.active.schema import canonical
+from moldarwin.research.notes import read_entry, save_progress
 from test_research_notes import case
 
 
@@ -208,8 +208,8 @@ def test_long_pointer_batch_reserves_its_continuation_and_atomic_limit_is_explic
 
 
 def test_context_mcp_and_cli_expose_the_same_pinned_selectors(case, tmp_path):
-    from etalon.mcp.evidence import register
-    from etalon.research.research_context import build_research_context
+    from moldarwin.mcp.evidence import register
+    from moldarwin.research.research_context import build_research_context
     class Collector:
         def __init__(self): self.tools = {}
         def tool(self):
@@ -218,7 +218,7 @@ def test_context_mcp_and_cli_expose_the_same_pinned_selectors(case, tmp_path):
     journal, note, _, entry, rid = _publish(case, tmp_path)
     direct = build_research_context(entry, view='index', max_bytes=4096)
     collector = Collector(); register(collector)
-    read = collector.tools['etalon_research_context']
+    read = collector.tools['moldarwin_research_context']
     indexed = json.loads(read(str(entry), view='summary', max_bytes=4096, view_options={'note_view': 'index'}))
     assert indexed['ok'] and indexed['details'] == direct['details']
     selected = json.loads(read(indexed['details'], view='summary', view_options={
@@ -241,7 +241,7 @@ def test_context_mcp_and_cli_expose_the_same_pinned_selectors(case, tmp_path):
 
 def test_cli_budget_includes_unicode_argv_and_counter_pages(case, tmp_path, monkeypatch):
     from examples.read_research_work import read
-    from etalon.runtime.files import file_identity
+    from moldarwin.runtime.files import file_identity
     journal, note, original = case
     note['counterevidence'] = [{**note['evidence'][0], 'context': f'反证 {i} '+('受条件约束'*16)} for i in range(10)]
     note['decision'] = '保留普通对照'
@@ -275,7 +275,7 @@ def test_cli_budget_includes_unicode_argv_and_counter_pages(case, tmp_path, monk
 
 
 def test_current_brief_retains_limits_read_recipes_and_pinned_definitions(case,tmp_path):
-    from etalon.research.notes import read_current, find_notes
+    from moldarwin.research.notes import read_current, find_notes
     journal,note,_ = case
     note.update(lesson='Useful only at this condition', limits=['No independent stability evidence'],
         knowledge='扩展观测'*10000, state='paused',
@@ -307,8 +307,8 @@ def test_current_brief_retains_limits_read_recipes_and_pinned_definitions(case,t
 
 def test_current_explicit_entry_recipe_is_shared_by_cli_and_mcp(case,tmp_path):
     from examples.read_research_work import read
-    from etalon.research.notes import read_current
-    from etalon.mcp.evidence import register
+    from moldarwin.research.notes import read_current
+    from moldarwin.mcp.evidence import register
     class Collector:
         def __init__(self): self.tools={}
         def tool(self):
@@ -321,7 +321,7 @@ def test_current_explicit_entry_recipe_is_shared_by_cli_and_mcp(case,tmp_path):
     sdk=read_current(entry,max_bytes=4096)
     cli=read(entry,'anchor',max_bytes=4096)
     collector=Collector();register(collector)
-    mcp=json.loads(collector.tools['etalon_research_context'](str(entry),view='summary',max_bytes=4096))
+    mcp=json.loads(collector.tools['moldarwin_research_context'](str(entry),view='summary',max_bytes=4096))
     assert sdk['selected']==cli['selected']==mcp['selected']
     assert sdk['details']==cli['details']==mcp['details']
 

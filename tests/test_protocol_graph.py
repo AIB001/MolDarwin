@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active.cascade import CascadeRecipe, Readout
-from etalon.active.graph import execution_lineage, inspect_recipe, verify_execution_plan
-from etalon.active.schema import canonical, digest
-from etalon.boundary.screen import ScreenPlan, StageOutcome
-from etalon.campaign.design import component, compose
+from moldarwin.active.cascade import CascadeRecipe, Readout
+from moldarwin.active.graph import execution_lineage, inspect_recipe, verify_execution_plan
+from moldarwin.active.schema import canonical, digest
+from moldarwin.boundary.screen import ScreenPlan, StageOutcome
+from moldarwin.campaign.design import component, compose
 
 
 def _recipe(*, backend="features.rdkit_properties@0.1.0", readout=None, settings=None):
@@ -31,8 +31,8 @@ def _outcomes(manifest):
 def test_inspection_compiles_only_requested_components_without_execution_or_output(monkeypatch, tmp_path):
     recipe = _recipe()
 
-    from molcascade.plugins import create_builtin_registry
-    from molcascade.runtime.runner import LocalRunner
+    from molcat.plugins import create_builtin_registry
+    from molcat.runtime.runner import LocalRunner
 
     def forbidden(*args, **kwargs):
         raise AssertionError("compile-only inspection attempted execution or filesystem mutation")
@@ -233,10 +233,10 @@ def test_graph_rejects_inconsistent_dependencies_even_if_hash_was_recomputed():
 
 
 def _execution_plan(recipe, library):
-    from molcascade.cascade.lower import lower_cascade
-    from molcascade.cascade.models import CascadeConfig
-    from molcascade.pipeline import PipelineCompiler
-    from molcascade.plugins import create_builtin_registry
+    from molcat.cascade.lower import lower_cascade
+    from molcat.cascade.models import CascadeConfig
+    from molcat.pipeline import PipelineCompiler
+    from molcat.plugins import create_builtin_registry
 
     registry = create_builtin_registry()
     pipeline = lower_cascade(CascadeConfig.model_validate_json(recipe.configuration), registry=registry,
@@ -306,7 +306,7 @@ def test_execution_plan_rejects_display_revision_mismatch_and_different_library(
 def test_execution_plan_checks_the_pipeline_that_screen_will_actually_run(tmp_path):
     recipe = _recipe()
 
-    from molcascade.config.models import PipelineConfig
+    from molcat.config.models import PipelineConfig
 
     manifest = inspect_recipe(recipe)
     library = tmp_path / "selected.csv"

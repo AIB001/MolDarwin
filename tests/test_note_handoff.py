@@ -5,12 +5,12 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.research import ResearchJournal
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research.handoff import (export_research_handoff, plan_research_handoff,
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.research import ResearchJournal
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research.handoff import (export_research_handoff, plan_research_handoff,
     relocate_research_handoff, verify_research_handoff)
-from etalon.research.notes import (entry_journal, entry_value, find_notes, original,
+from moldarwin.research.notes import (entry_journal, entry_value, find_notes, original,
     read_entry, read_note, record_note, save_progress)
 from test_research_graph_memory import graph_case
 from test_research_handoff import pinned_workset
@@ -82,7 +82,7 @@ def test_note_handoff_survives_originals_and_first_bundle_disappearing(notes_cas
 
 def test_note_handoff_one_hop_and_no_graph_requirement(notes_case, tmp_path, monkeypatch):
     c = notes_case
-    import etalon.research.handoff as handoff
+    import moldarwin.research.handoff as handoff
     monkeypatch.setattr(handoff, "resume_research", lambda *a, **kw: pytest.fail("notes require no checkpoint"))
     locator = c["root"] / "CURRENT.json"
     locator.write_text(json.dumps({"entry": "entry.json"}))
@@ -91,7 +91,7 @@ def test_note_handoff_one_hop_and_no_graph_requirement(notes_case, tmp_path, mon
 
 
 def test_existing_mcp_handoff_and_context_read_ordinary_notes(notes_case, tmp_path):
-    from etalon.mcp.evidence import register
+    from moldarwin.mcp.evidence import register
     class Collector:
         def __init__(self):
             self.tools = {}
@@ -103,11 +103,11 @@ def test_existing_mcp_handoff_and_context_read_ordinary_notes(notes_case, tmp_pa
     collector = Collector()
     register(collector)
     target = tmp_path / "mcp-copy"
-    result = json.loads(collector.tools["etalon_research_handoff"](str(notes_case["entry"]), str(target)))
+    result = json.loads(collector.tools["moldarwin_research_handoff"](str(notes_case["entry"]), str(target)))
     assert result["ok"] and result["status"] == "verified"
     notes_case["root"].rename(tmp_path / "mcp-origin-unavailable")
-    verified = json.loads(collector.tools["etalon_research_handoff_verify"](str(target), verify_originals=False))
-    read = json.loads(collector.tools["etalon_research_context"](str(target / "entry.json")))
+    verified = json.loads(collector.tools["moldarwin_research_handoff_verify"](str(target), verify_originals=False))
+    read = json.loads(collector.tools["moldarwin_research_context"](str(target / "entry.json")))
     assert verified["ok"] and read["ok"] and read["record_id"] == notes_case["other"]
 
 
@@ -163,8 +163,8 @@ def test_note_handoff_missing_original_conflict_and_bundle_rewrite(notes_case, t
 
 
 def test_note_optional_published_workset_keeps_exact_old_skill(pinned_workset, notes_case, graph_case, tmp_path, monkeypatch):
-    from etalon import skills
-    from etalon.research.entry import resolve_entry
+    from moldarwin import skills
+    from moldarwin.research.entry import resolve_entry
     c = notes_case
     work = pinned_workset
     note = {**c["note"], "task_id": "snd1-fixture", "conditions": {"target": "fixture"},
@@ -202,8 +202,8 @@ def test_note_optional_published_workset_keeps_exact_old_skill(pinned_workset, n
 
 
 def test_note_saved_skill_reference_moves_without_workset(notes_case, tmp_path, monkeypatch):
-    from etalon import skills
-    from etalon.research.evidence_refs import EvidenceResolver
+    from moldarwin import skills
+    from moldarwin.research.evidence_refs import EvidenceResolver
     c = notes_case
     content_ref = skills.persist_snapshot("research-context", c["root"] / "saved-skill")
     note = {**c["note"], "branch_id": "method", "method_choices": [{"content_ref": content_ref, "adoption": "unknown"}]}
@@ -221,7 +221,7 @@ def test_note_saved_skill_reference_moves_without_workset(notes_case, tmp_path, 
 
 
 def test_note_missing_explicit_reference_is_reported(notes_case, tmp_path):
-    from etalon.research.evidence_refs import make_ref
+    from moldarwin.research.evidence_refs import make_ref
     c = notes_case
     ref = make_ref("missing-source", c["old"], c["journal"].get(c["old"]))
     save_progress(c["journal"], c["entry"], {**c["note"], "basis_refs": [ref]})
@@ -245,7 +245,7 @@ def test_relocated_note_can_continue_without_changing_sealed_archive(notes_case,
     result.write_text('{"new_observation":"also_negative"}', encoding="utf-8")
     rid = save_progress(journal, entry, {**c["note"], "summary": "Additional negative progress after relocation",
         "evidence": [original(result)], "counterevidence": c["note"]["counterevidence"]})
-    code = "from etalon.research.notes import *; import sys; e=sys.argv[1]; r=read_current(e); assert r['record_id']==sys.argv[2]; j=entry_journal(entry_value(e),read_only=False); assert read_note(j,sys.argv[3])['note']['summary']=='The original negative result'; n=read_note(j,sys.argv[2])['note']; n.pop('supersedes',None); n['summary']='Second process continued'; new=save_progress(j,e,n); assert read_current(e)['record_id']==new"
+    code = "from moldarwin.research.notes import *; import sys; e=sys.argv[1]; r=read_current(e); assert r['record_id']==sys.argv[2]; j=entry_journal(entry_value(e),read_only=False); assert read_note(j,sys.argv[3])['note']['summary']=='The original negative result'; n=read_note(j,sys.argv[2])['note']; n.pop('supersedes',None); n['summary']='Second process continued'; new=save_progress(j,e,n); assert read_current(e)['record_id']==new"
     subprocess.run([sys.executable, "-c", code, str(entry), rid, c["old"]], check=True, capture_output=True, text=True)
     assert before == {p: file_identity(p) for p in before}
     assert archived == {p: file_identity(p) for p in archived}

@@ -15,7 +15,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from etalon.generate.audit import GeneratorYield, audit, compare, wilson
+from moldarwin.generate.audit import GeneratorYield, audit, compare, wilson
 
 STAGES = ("qc_passed", "docking_top", "mmgbsa", "final")
 

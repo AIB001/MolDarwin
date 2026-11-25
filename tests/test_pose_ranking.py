@@ -1,7 +1,7 @@
 import copy
 import pytest
 
-from etalon.research.pose_ranking import order_features
+from moldarwin.research.pose_ranking import order_features
 
 
 def row(i, energy, polar=0, drop=0):
@@ -49,8 +49,8 @@ def test_relaxation_penalty_and_stable_tie_break():
 def test_real_rdkit_features_preserve_the_native_pool(tmp_path):
     Chem = pytest.importorskip('rdkit.Chem')
     from rdkit.Chem import AllChem
-    from etalon.research.pose_ranking import rank_pool
-    from etalon.research.scientific_input import identity
+    from moldarwin.research.pose_ranking import rank_pool
+    from moldarwin.research.scientific_input import identity
     mol = Chem.AddHs(Chem.MolFromSmiles('CCO'))
     assert AllChem.EmbedMolecule(mol, randomSeed=41) == 0
     mol.SetProp('minimizedAffinity','-4.0')

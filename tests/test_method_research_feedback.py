@@ -6,13 +6,13 @@ import time
 
 import pytest
 
-from etalon.active import CampaignStore, CampaignSpec, Endpoint
-from etalon.research import ResearchJournal
-from etalon.research.notes import save_progress
-from etalon.research.saved_methods import publish_method, call_saved_method, collect_saved_method
-from etalon.research.method_tools import crossfit_predictions
-from etalon.runtime import api, service
-from etalon.runtime.store import RuntimeStore
+from moldarwin.active import CampaignStore, CampaignSpec, Endpoint
+from moldarwin.research import ResearchJournal
+from moldarwin.research.notes import save_progress
+from moldarwin.research.saved_methods import publish_method, call_saved_method, collect_saved_method
+from moldarwin.research.method_tools import crossfit_predictions
+from moldarwin.runtime import api, service
+from moldarwin.runtime.store import RuntimeStore
 
 
 def execute_method(tmp_path, monkeypatch, code):
@@ -64,7 +64,7 @@ def test_bulk_result_keeps_summary_and_feedback_without_resending_arrays(tmp_pat
     call, runtime, launches = execute_method(tmp_path, monkeypatch, '''import argparse,json
 from pathlib import Path
 p=argparse.ArgumentParser();p.add_argument('--request');p.add_argument('--result');a=p.parse_args()
-Path(a.result).write_text(json.dumps({'schema':'etalon-method-result/1',
+Path(a.result).write_text(json.dumps({'schema':'moldarwin-method-result/1',
 'summary':'Selection is unchanged; the remaining ambiguity concerns calibration.',
 'outputs':{'scores':list(range(20000))},
 'feedback':{'selected':['candidate-b'],'uncertainty':'not calibrated'}}),encoding='utf-8')
@@ -76,7 +76,7 @@ Path(a.result).write_text(json.dumps({'schema':'etalon-method-result/1',
     assert preview["summary"]["feedback"] == {"selected": ["candidate-b"], "uncertainty": "not calibrated"}
     assert "scores" not in json.dumps(preview)
     assert len(json.dumps(result).encode()) < 12000
-    assert preview["read"]["tool"] == "etalon_workflow_artifact"
+    assert preview["read"]["tool"] == "moldarwin_workflow_artifact"
     full = api.read_action_result(call["handle"])
     assert len(full["outputs"][0]["result"]["outputs"]["scores"]) == 20000
     compact = api.read_action_result(call["handle"], view="summary")

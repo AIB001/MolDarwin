@@ -11,19 +11,19 @@ import argparse
 import json
 from pathlib import Path
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.schema import canonical, digest
-from etalon.research import Artifact, MethodVersion, MethodUse, ResearchJournal, TaskSplit
-from etalon.research import improvement as imp
-from etalon.research.components import record_json
-from etalon.research.composition import node_step, record_evaluation
-from etalon.research.continuation import STEP, CHECKPOINT, record_content
-from etalon.research.evaluation_contract import build_evaluation_contract, evaluate_contract
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research.method_revision import (journal_ref, build_method_revision,
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.schema import canonical, digest
+from moldarwin.research import Artifact, MethodVersion, MethodUse, ResearchJournal, TaskSplit
+from moldarwin.research import improvement as imp
+from moldarwin.research.components import record_json
+from moldarwin.research.composition import node_step, record_evaluation
+from moldarwin.research.continuation import STEP, CHECKPOINT, record_content
+from moldarwin.research.evaluation_contract import build_evaluation_contract, evaluate_contract
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research.method_revision import (journal_ref, build_method_revision,
     record_method_revision, resolve_method_revision)
-from etalon.research.opportunity_state import build_opportunity_disposition, resolve_opportunity_state
-from etalon.research.publication import _save
+from moldarwin.research.opportunity_state import build_opportunity_disposition, resolve_opportunity_state
+from moldarwin.research.publication import _save
 
 
 def load(path):
@@ -40,7 +40,7 @@ def verify(pin):
 def run(root, manifest_path, *, stop_after=None):
     root, manifest_path = Path(root).absolute(), Path(manifest_path).absolute()
     manifest = load(manifest_path)
-    if manifest['schema'] != 'etalon-discovery-publication/1':
+    if manifest['schema'] != 'moldarwin-discovery-publication/1':
         raise EvidenceError('Expected an explicit real execution manifest')
     root.mkdir(parents=True, exist_ok=True)
     request = dict(manifest=dict(path=str(manifest_path),**file_identity(manifest_path)),
@@ -64,7 +64,7 @@ def run(root, manifest_path, *, stop_after=None):
         return ref(record_content(journal,value,directory,source_id=sid,source_kind='new_execution'))
     def publish():
         path = root/'workspace.json'
-        _save(path,dict(schema='etalon-evidence-workspace/1',workspace_id=task,
+        _save(path,dict(schema='moldarwin-evidence-workspace/1',workspace_id=task,
             sources=[dict(source_id=sid,kind='journal',location=str(store.path),
                 identity=dict(kind='snapshot_sha256',value=file_identity(store.path)['sha256']))],
             status_refs=[],location_map=[]),replace=True)
@@ -228,7 +228,7 @@ def run(root, manifest_path, *, stop_after=None):
         [plan,*evaluation_steps,resolution['step_ref']],previous=[pending])
     entry = dict(workspace=str(publish()),checkpoint_ref=final)
     _save(root/'entry.json',entry)
-    report = dict(schema='etalon-discovery-publication-result/1',request_digest=digest(request),status='complete',
+    report = dict(schema='moldarwin-discovery-publication-result/1',request_digest=digest(request),status='complete',
         entry=str(root/'entry.json'),task_id=task,source_id=sid,conditions=conditions,outcome=outcome,
         context_ref=context,opportunity_ref=opportunity['opportunity_ref'],patch_ref=patch,revision_ref=revision,
         comparison_ref=comparison,cost_ref=cost,related_product_refs=products,normal_node_refs=nodes,

@@ -4,11 +4,11 @@ import json
 
 import pytest
 
-from etalon.active.schema import canonical, digest
-from etalon.research.evidence import read_evidence
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research.graph_memory import node_identity
-from etalon.research.research_context import build_research_context
+from moldarwin.active.schema import canonical, digest
+from moldarwin.research.evidence import read_evidence
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research.graph_memory import node_identity
+from moldarwin.research.research_context import build_research_context
 
 from test_research_graph_memory import graph_case
 
@@ -90,8 +90,8 @@ def test_summary_keeps_checkpoint_tail_when_old_step_details_fill_graph_bound(gr
 
 
 def test_summary_fails_explicitly_if_tail_was_omitted_from_projection(graph_case, monkeypatch):
-    import etalon.research.research_context as module
-    from etalon.research.graph_memory import build_research_graph
+    import moldarwin.research.research_context as module
+    from moldarwin.research.graph_memory import build_research_graph
     c = graph_case
     graph = build_research_graph(c["workspace"], checkpoint_ref=c["checkpoint"])
     graph["nodes"] = [n for n in graph["nodes"] if n["ref"] != c["decision"]]
@@ -167,8 +167,8 @@ def test_views_keep_experience_conditions_and_reject_assumed_transfer(graph_case
     # This test injects an explicitly synthetic experience projection, testing
     # delivery selection only. It does not manufacture a validated RSI record.
     import copy
-    import etalon.research.research_context as module
-    from etalon.research.graph_memory import build_research_graph
+    import moldarwin.research.research_context as module
+    from moldarwin.research.graph_memory import build_research_graph
     c = graph_case
     graph = build_research_graph(c["workspace"], checkpoint_ref=c["checkpoint"])
     node = next(n for n in graph["nodes"] if n["ref"] == c["decision"])
@@ -189,19 +189,19 @@ def test_views_keep_experience_conditions_and_reject_assumed_transfer(graph_case
 
 def test_mcp_declares_bounds_and_rejects_oversized_read():
     from mcp.server.fastmcp import FastMCP
-    from etalon.mcp.evidence import register
+    from moldarwin.mcp.evidence import register
     server = FastMCP("context-contract-fixture")
     register(server)
     listed = {item.name: item.inputSchema for item in asyncio.run(server.list_tools())}
-    context = listed["etalon_research_context"]["properties"]
+    context = listed["moldarwin_research_context"]["properties"]
     assert context["view"]["enum"] == ["summary", "node", "full", "resources", "branch", "card", "manifest", "reading", "impact"]
     assert context["view"]["default"] == "full"
     assert (context["max_bytes"]["minimum"], context["max_bytes"]["maximum"]) == (4096, 65536)
-    evidence = listed["etalon_evidence_read"]["properties"]
+    evidence = listed["moldarwin_evidence_read"]["properties"]
     assert (evidence["limit"]["minimum"], evidence["limit"]["maximum"]) == (1, 32768)
-    assert listed["etalon_research_graph"]["properties"]["max_nodes"]["maximum"] == 128
+    assert listed["moldarwin_research_graph"]["properties"]["max_nodes"]["maximum"] == 128
     with pytest.raises(Exception, match="32768"):
-        asyncio.run(server.call_tool("etalon_evidence_read", {"workspace": "F:/missing-workspace.json", "ref": {}, "limit": 40000}))
+        asyncio.run(server.call_tool("moldarwin_evidence_read", {"workspace": "F:/missing-workspace.json", "ref": {}, "limit": 40000}))
 
 
 @pytest.mark.parametrize("value", [0, 4095, 65537, True])

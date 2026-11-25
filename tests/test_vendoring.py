@@ -1,6 +1,6 @@
 """The guard that stops the asset manifest from recording something untrue.
 
-ETALON's every later claim rests on the manifest: the fault taxonomy cites measurements
+MolDarwin's every later claim rests on the manifest: the fault taxonomy cites measurements
 taken against the vendored trees, and the determinism ADR names the commit it probed. So
 the one thing the vendoring tool must not do is record a commit hash beside bytes that
 commit never contained. That is not a hypothetical -- the tool copied from the working
@@ -120,7 +120,7 @@ def test_targeted_refresh_preserves_other_pins_and_reference_without_their_sourc
                 "reference": {"panel": {"sha256": "keep"}}}
     manifest = assets / "MANIFEST.json"
     manifest.write_text(json.dumps(previous))
-    monkeypatch.setattr(vendor_assets, "ETALON", tmp_path)
+    monkeypatch.setattr(vendor_assets, "MolDarwin", tmp_path)
     monkeypatch.setattr(vendor_assets, "ASSET", assets)
     monkeypatch.setattr(vendor_assets, "SOURCES", {"probe": source, "existing": tmp_path / "unavailable"})
     monkeypatch.setattr(sys, "argv", ["vendor_assets.py", "--write", "--asset", "probe"])
@@ -159,7 +159,7 @@ def test_the_asset_readme_names_the_commits_the_manifest_pins() -> None:
 
 #: The three vendored distributions. A bare ``from <one of these> import ...`` resolves through
 #: ``sys.path``, which an editable install can own.
-_VENDORED = frozenset({"molcascade", "molquarry", "prism"})
+_VENDORED = frozenset({"molcat", "molorigin", "prism"})
 
 
 def _vendored_imports(tree: ast.AST) -> set[str]:
@@ -198,14 +198,14 @@ def test_every_module_reaching_a_vendored_package_pins_it_first() -> None:
 
     This is ADR 0006's shape once more. ``load`` checks ``sys.modules``, checks the resolved path
     and refuses an editable install that has taken the name, and a module that imports
-    ``molcascade`` without calling it gets none of that: the import succeeds, the version looks
+    ``molcat`` without calling it gets none of that: the import succeeds, the version looks
     right, and every number afterwards cites a commit that did not produce it.
 
     Four modules did exactly that -- ``learn/surrogate.py``, ``learn/bundle.py``,
     ``data/service.py`` and ``runtime/operations.py``, none of which contained the word ``load``.
     Two were pinned in practice by a ``Quarry`` or ``Screen`` constructed earlier in the same
     function; two were not pinned by anything, and one of those is the featuriser whose entire
-    argument is that training and inference share MolCascade's own code.
+    argument is that training and inference share MolCat's own code.
 
     What this test does not establish: ordering. A module that pins in one function and imports
     bare in another satisfies it. That is a weaker property than the one wanted, and it is the
@@ -213,7 +213,7 @@ def test_every_module_reaching_a_vendored_package_pins_it_first() -> None:
     own adapters, which legitimately pin once in ``__init__`` and import in twenty methods.
     """
 
-    root = Path(__file__).resolve().parent.parent / "src" / "etalon"
+    root = Path(__file__).resolve().parent.parent / "src" / "moldarwin"
     unpinned: list[str] = []
     reaching = 0
     for path in sorted(root.rglob("*.py")):

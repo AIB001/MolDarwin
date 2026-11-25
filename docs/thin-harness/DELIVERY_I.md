@@ -6,7 +6,7 @@
 
 ### 内容、接缝与兼容
 
-主库现在包含全部原12项产品skill（旧主目录6项和原MolQuarry6项），加data-design、research、skill-improvement，共15项。MolQuarry10个源文件原样复用，`skills.bundle_root` 从原asset/安装_assets目录定位，旧 `etalon://skills/molquarry[/…]` 与主发现/按需读取绑定相同内容。注册只扩现有WORKFLOWS；完整版本、双宿主导出复用已有host实现，不新增router或强制workflow。
+主库现在包含全部原12项产品skill（旧主目录6项和原MolOrigin6项），加data-design、research、skill-improvement，共15项。MolOrigin10个源文件原样复用，`skills.bundle_root` 从原asset/安装_assets目录定位，旧 `moldarwin://skills/molorigin[/…]` 与主发现/按需读取绑定相同内容。注册只扩现有WORKFLOWS；完整版本、双宿主导出复用已有host实现，不新增router或强制workflow。
 
 新方法覆盖九项data工具及design导入、transfer/validation/feedback/pose/preparation/fixed_pool/online与相关公开族；campaign增加治理/FEP方法，已有finite/paired/factorial算法和原reference保留。筛选/生成/校准/安装增加真实局部SDK例，monitoring既有内容复用。完整位置与副作用见README的“全量能力族覆盖”，A/B/C各DELIVERY记录具体用法。旧历史协议绑定的retained_baseline未被包装成新任务通用API。
 
@@ -16,11 +16,11 @@ HOST增加准确SDK/module/member指针；新增改进方法把内容S与使用�
 
 入口1196文件与上一轮final manifest完全一致，完整保全基线SHA256 `781095cb26f291feda07ccf27c3938f3bed8f576a0d1fbe63ec40699d00c922d`。main/两个本地origin refs和index保留，未fetch、暂存、commit/push。受测固定源 `i/tested-source-v1.zip` 含1223文件，SHA256 `1101f873e2938570bd035781dc94f119ab3dbcd2d4cd7b5a9335f786f54edafc`；后追加DELIVERY与V新测试只属于最终收尾源，不冒称在该受测源内。
 
-wheel `i/dist-v1/etalon-0.1.0-py3-none-any.whl` 为7423336 bytes，SHA256 `4c04e2b318b2d97542070073a2f4c1aa258f07bca5158469ab3dd2669d75498b`。pip隔离构建后 `--no-deps --target i/installed-v1` 非editable安装，无共享依赖升级。945个源/wheel/install条目完全一致；仓库外实际解释器仍为 `F:/life_healthy/ETALON/.venv/Scripts/python.exe` 3.13.12，12个实际模块均从installed-v1导入。15bundles/65tools、双宿主完整导出、stdio与全部旧MolQuarry资源通过；见 `i/wheel-check-v1.json`、`installed-check-v1/RESULT.json`。
+wheel `i/dist-v1/moldarwin-0.1.0-py3-none-any.whl` 为7423336 bytes，SHA256 `4c04e2b318b2d97542070073a2f4c1aa258f07bca5158469ab3dd2669d75498b`。pip隔离构建后 `--no-deps --target i/installed-v1` 非editable安装，无共享依赖升级。945个源/wheel/install条目完全一致；仓库外实际解释器仍为 `F:/life_healthy/MolDarwin/.venv/Scripts/python.exe` 3.13.12，12个实际模块均从installed-v1导入。15bundles/65tools、双宿主完整导出、stdio与全部旧MolOrigin资源通过；见 `i/wheel-check-v1.json`、`installed-check-v1/RESULT.json`。
 
 | 检查 | 实际结果／边界 |
 | --- | --- |
-| I共享兼容、发现、MCP和新MolQuarry检查 | 68 passed；`i/shared-tests-01.xml` |
+| I共享兼容、发现、MCP和新MolOrigin检查 | 68 passed；`i/shared-tests-01.xml` |
 | 原host完整导出、快照/hook与范围行为 | 29 passed、1 skipped；hatchling未装在runtime，wheel另经真实隔离构建/安装验证，不把skip写为通过 |
 | 全部产品格式与本地工程skill | 15产品quick_validate通过，本地工程skill另验通过；不代表方法采用 |
 | A data/design与现有数据边界 | 72 passed、1 failed、1 skipped；失败是Windows symlink创建WinError1314，尚未进入产品断言；skip为可选gemmi缺失。原件保留，不变更系统权限/共享依赖 |
@@ -28,7 +28,7 @@ wheel `i/dist-v1/etalon-0.1.0-py3-none-any.whl` 为7423336 bytes，SHA256 `4c04e
 | C改版/使用/评价与hook | 13 passed，首次TaskSplit夹具缺transfer失败保留后修正；诊断例不冒称独立评价 |
 | 新安装下SDK示例 | data/design、exported research脚本、改进例全部实际完成；另以 `-S` 标准库环境读取MQ/research目录通过。`i/installed-examples-v1/RESULT.json`，不把本地SDK当原生模型行为 |
 
-各测试集合有重叠，不累加成全仓通过数字。保全审计 `i/preservation.json` 确认901个基线src/asset文件（除两共享注册入口和HOST文档）全部未变，原1196路径无缺失、index及refs不变。A/B分别核对MolQuarry和research原件。辅助命令失败在各线原件和 `i/HELPER_FAILURES.md` 保留。
+各测试集合有重叠，不累加成全仓通过数字。保全审计 `i/preservation.json` 确认901个基线src/asset文件（除两共享注册入口和HOST文档）全部未变，原1196路径无缺失、index及refs不变。A/B分别核对MolOrigin和research原件。辅助命令失败在各线原件和 `i/HELPER_FAILURES.md` 保留。
 
 ### 原生与最终独立结果
 
@@ -61,7 +61,7 @@ wheel `i/dist-v1/etalon-0.1.0-py3-none-any.whl` 为7423336 bytes，SHA256 `4c04e
 - `sources.bundle`、`refs.txt`、`working.patch`、`staged.patch`、`status.txt`：三个源码来源和原 Git 状态。忽略的环境、历史科学证据和本地指引原地保留，未改写。
 - `integration-merge-record.json`：I 逐文件来源。A/B/C 各自合并领域修复，I 没有替代领域线串行改写。
 
-起始与复核暂存区均为空。相关进程检查没有发现 ETALON 活动科学任务；未操作其他 PRISM/optics 进程。molcascade 144 个 Python 文件与起始快照逐字节一致。
+起始与复核暂存区均为空。相关进程检查没有发现 MolDarwin 活动科学任务；未操作其他 PRISM/optics 进程。molcat 144 个 Python 文件与起始快照逐字节一致。
 
 ## 共享实现
 
@@ -81,7 +81,7 @@ I 按 skill-creator 制作本地 `.agents/skills/life-healthy-contract-refactor/
 
 ## 已运行证据
 
-实际解释器为 `F:/life_healthy/ETALON/.venv/Scripts/python.exe`，Python 3.13.12。开发模块从 `F:/life_healthy/ETALON/src/etalon/` 导入。以下均为本地工程测试，不使用 R4b 标签作为未知测试。
+实际解释器为 `F:/life_healthy/MolDarwin/.venv/Scripts/python.exe`，Python 3.13.12。开发模块从 `F:/life_healthy/MolDarwin/src/moldarwin/` 导入。以下均为本地工程测试，不使用 R4b 标签作为未知测试。
 
 | 命令/范围 | 状态与实际结果 |
 | --- | --- |
@@ -109,15 +109,15 @@ A 收尾发现旧 `_active_interval` 未计入同 campaign 非标量研究费用
 最终命令（同一解释器）与事实：
 
 ```text
-python -m pytest tests/test_runtime_actions.py tests/test_research_methods.py tests/test_host_capabilities.py tests/test_host_bundles_hooks.py tests/test_thin_harness_contracts.py tests/test_thin_harness_host.py tests/test_thin_harness_integration.py tests/test_mcp.py tests/test_council.py -q -k 'not wheel' --basetemp=F:/life_healthy/ETALON/.agent-local/i-final-20261021 --junitxml=F:/life_healthy/integration/thin-harness-engineering-20261020/final-contracts.xml --tb=short
+python -m pytest tests/test_runtime_actions.py tests/test_research_methods.py tests/test_host_capabilities.py tests/test_host_bundles_hooks.py tests/test_thin_harness_contracts.py tests/test_thin_harness_host.py tests/test_thin_harness_integration.py tests/test_mcp.py tests/test_council.py -q -k 'not wheel' --basetemp=F:/life_healthy/MolDarwin/.agent-local/i-final-20261021 --junitxml=F:/life_healthy/integration/thin-harness-engineering-20261020/final-contracts.xml --tb=short
 # 158 passed, 2 deselected in 73.67s
 ```
 
 两项按名称排除的 wheel 检查由下面实际构建/安装/内容校验替代；其中静态 force-include 表已在之前 93 项回归中通过。没有将 deselected 记为 passed。
 
-- 最终成品：`integration/thin-harness-engineering-20261020/dist-final-v2/etalon-0.1.0-py3-none-any.whl`，7355643 bytes，SHA256 `6b71961494f11ff0fdbdea692adea1f05f4d2c74712e389c663597656807c9f2`。前两个候选保留在 dist/、dist-final/，不冒充最终版本。
+- 最终成品：`integration/thin-harness-engineering-20261020/dist-final-v2/moldarwin-0.1.0-py3-none-any.whl`，7355643 bytes，SHA256 `6b71961494f11ff0fdbdea692adea1f05f4d2c74712e389c663597656807c9f2`。前两个候选保留在 dist/、dist-final/，不冒充最终版本。
 - 构建：`python -m pip wheel . --no-deps --wheel-dir <dist-final-v2>`；安装：`python -m pip install --no-deps --no-compile --target <install-final> <wheel>`。未升级共享依赖。
-- `verify_wheel_sources.py --repo <ETALON> --wheel <wheel> --output <wheel-source-final.json>`：325 个源码/完整bundle/molcascade文件逐字节匹配，0 差异，包含原未跟踪科学源码和本地 Windows 修复。
+- `verify_wheel_sources.py --repo <MolDarwin> --wheel <wheel> --output <wheel-source-final.json>`：325 个源码/完整bundle/molcat文件逐字节匹配，0 差异，包含原未跟踪科学源码和本地 Windows 修复。
 - 从 checkout 外 `integration/thin-harness-engineering-20261020` 运行 `verify_installed.py --installed <install-final> --output <installed-final.json>`：10 个模块路径全部在非 editable 安装内，6 个完整 bundle，65 个无重复且费用完整的工具，两种宿主配置导出和真实 stdio 请求 passed。不是原生宿主行为验证。
 - `git bundle verify <sources.bundle>`、`git diff --check` 和本地 pre-commit guard passed；index 未变。起始 1121 文件没有丢失；V 另核验 43 个关键原科学文件字节保持原样。
 
@@ -146,7 +146,7 @@ Codex `0.163.0-alpha.10.2` 使用官方 `codex.exe exec`，`--ignore-user-config
 
 - `c_host/codex-direct`：无 skill，真实 MCP 离线夹具执行后因 `F_BUILD_INCOMPLETE` 拒绝准入，保留 0.5 fixture-cost，宿主读取事件并停止。这是工程回放，不是独立科学试验或 Windows durable worker。
 - `c_host/codex-methods`：按需只读两个外部 bundle 的短入口，在 QC 反馈后加入费用审查并组合部分范围；通过真实 MCP 记录两个内容版本和一个 host_reported MethodUse。三个错误工具请求原样保留；只证明观测到的读取、声明和调用，不能推断读取了所有 reference 或方法优越。
-- `c_host/codex-linux`：真实 CPU MolCascade 分子量动作，乙醇 46.069 Da 完成/验证/准入成功后，宿主根据余额和结果自行提交苯 78.114 Da；两次 `method_use_refs=[]`，无预先完整 DAG。总计 2 declared_cost、reserved=0、remaining=0；报价费用不冒充实测计算时间。该运行绑定原第一阶段 Linux 源快照，未涉及后来修复的失败结算分支。
+- `c_host/codex-linux`：真实 CPU MolCat 分子量动作，乙醇 46.069 Da 完成/验证/准入成功后，宿主根据余额和结果自行提交苯 78.114 Da；两次 `method_use_refs=[]`，无预先完整 DAG。总计 2 declared_cost、reserved=0、remaining=0；报价费用不冒充实测计算时间。该运行绑定原第一阶段 Linux 源快照，未涉及后来修复的失败结算分支。
 - `c_host/codex-discovery`：在 I 工具说明修复后的原生只读复测，两个 MCP 读取成功，正确使用 campaign log，未伪造 runtime handle，继续区分成功执行与被拒准入。
 - `c_host/codex-discovery-isolated`：另用 SQLite backup 创建独立数据副本，按同一目标由原生 CLI 只读复测，26.86 秒、两个 MCP 查询成功。保留前一次输入复用记录，并验证新的副本隔离，未执行新动作。
 - `c_host/codex-revision`：在独立复制的夹具上修改本地 receipt-review 候选，原 manifest `7de1125e8e4e3c206f2e759ee61927a7748108d59988fc08f4a9bdee58fa006b` 与新 manifest `0d8090c65f60cad7970b9c51f6e6a0adfe13950f5aa2cbafd47410164a032880` 均有完整快照；真实 MCP 读取新内容、保存 MethodVersion/host_reported MethodUse，原观测不变。一次缺文件读取和一次方法证据引用类型错误保留，宿主自行纠正。只证明保存、修改和实际部分试用，未证明改进收益。
@@ -154,7 +154,7 @@ Codex `0.163.0-alpha.10.2` 使用官方 `codex.exe exec`，`--ignore-user-config
 
 revision 成功写入的新 MethodVersion 的 `parents=[]`，旧版本只在 change_summary 文本中引用；新旧内容快照和旧绑定均可核验，但本例没有证明结构化父版本关系写入成功。V 的原账本比较确认前 13 个事件和候选/动作/观测/余额不变，仅追加方法记录。
 
-本机 WSL 仍不可用，未安装。A 现场核验已有授权 Linux 主机身份及相关活动进程后，使用新目录 `/root/zx/prism-minimal-20261017/engineering/etalon-thin-native-20261021-01`，旧源码/依赖/科学账本未覆盖。Python 3.11.17 的独立工程 overlay 仅读取既有依赖，缺项仅安装于新环境。原快照与修复 source-v2 独立保存，实际路径和模块哈希见 A 证据。
+本机 WSL 仍不可用，未安装。A 现场核验已有授权 Linux 主机身份及相关活动进程后，使用新目录 `/root/zx/prism-minimal-20261017/engineering/moldarwin-thin-native-20261021-01`，旧源码/依赖/科学账本未覆盖。Python 3.11.17 的独立工程 overlay 仅读取既有依赖，缺项仅安装于新环境。原快照与修复 source-v2 独立保存，实际路径和模块哈希见 A 证据。
 
 Linux 首轮真实进程检查 3 passed / 1 failed 保留；它触发了上述费用结算修复。后续测试还保留观察到进程死亡但锁仍暂时不可取得时的真实拒绝，测试使用有界 OS 锁探测记录就绪状态，没有取消生产锁检查。最终真实进程、32 项旧失败逐 ID 归因以及独立结论见 DELIVERY_A/V。
 
@@ -164,16 +164,16 @@ B 原 5 项失败在三个来源均为同一源码，缺少已经声明的测试
 
 ### 最终组合、安装与保护
 
-Windows 解释器仍为 `F:/life_healthy/ETALON/.venv/Scripts/python.exe`，Python 3.13.12。实际源码从 checkout `src/etalon` 导入；安装验收从 checkout 外运行。没有把不同快照上的检查说成同一次运行。
+Windows 解释器仍为 `F:/life_healthy/MolDarwin/.venv/Scripts/python.exe`，Python 3.13.12。实际源码从 checkout `src/moldarwin` 导入；安装验收从 checkout 外运行。没有把不同快照上的检查说成同一次运行。
 
 ```text
-python -m pytest tests/test_runtime_actions.py tests/test_thin_harness_contracts.py tests/test_thin_harness_host.py tests/test_thin_harness_integration.py tests/test_mcp.py -q -k "not wheel" --basetemp=F:/life_healthy/ETALON/.agent-local/i-native-contracts-20261021 --junitxml=F:/life_healthy/integration/thin-harness-native-20261021/shared-contracts.xml --tb=short
+python -m pytest tests/test_runtime_actions.py tests/test_thin_harness_contracts.py tests/test_thin_harness_host.py tests/test_thin_harness_integration.py tests/test_mcp.py -q -k "not wheel" --basetemp=F:/life_healthy/MolDarwin/.agent-local/i-native-contracts-20261021 --junitxml=F:/life_healthy/integration/thin-harness-native-20261021/shared-contracts.xml --tb=short
 # 84 passed, 1 deselected in 74.82s
 ```
 
 该 wheel 项由实际新构建/安装检查替代，不记作 pytest passed：
 
-- 新 wheel：`dist/etalon-0.1.0-py3-none-any.whl`，7356017 bytes，SHA256 `194f6c97aff8c6ea7ffda19e142a41ab1e77652a36a1ba04fd33a810cdc70f3c`，包含本轮两项生产改动。
+- 新 wheel：`dist/moldarwin-0.1.0-py3-none-any.whl`，7356017 bytes，SHA256 `194f6c97aff8c6ea7ffda19e142a41ab1e77652a36a1ba04fd33a810cdc70f3c`，包含本轮两项生产改动。
 - `pip wheel . --no-deps` 后 `pip install --no-deps --no-compile --target <本轮install> <wheel>`；未覆盖第一阶段包或共享 site-packages。
 - 复用第一阶段 `verify_wheel_sources.py` 与 `verify_installed.py`：325 文件逐字节相符；10 模块均从非 editable install 导入；6 完整 bundle、65 工具、两种宿主导出、实际 MCP stdio 全部通过。原生行为另由 C 日志证明。
 - `git diff --check`、现有本地 pre-commit guard 通过，工程 skill 和依赖 overlay 的 ignore 保护仍有效。最终全文件快照/保护复核另见本轮 `FINAL_RECEIPT_V2.json`，不覆盖旧 receipt。
@@ -206,7 +206,7 @@ C 补足筛选、校准、产率、监控四个现有 skill 的具体适用范�
 
 ### 针对性检查与原失败
 
-本机仍为 `F:/life_healthy/ETALON/.venv/Scripts/python.exe` / Python 3.13.12。A 导入路径和哈希见 `a/final-v2-imports.json`，B 见 `b/RESULT.json`；原科学来源未升级或替换。各组有交集，不累加成总覆盖率。
+本机仍为 `F:/life_healthy/MolDarwin/.venv/Scripts/python.exe` / Python 3.13.12。A 导入路径和哈希见 `a/final-v2-imports.json`，B 见 `b/RESULT.json`；原科学来源未升级或替换。各组有交集，不累加成总覆盖率。
 
 - A：26 passed，真实 CPU 产物及零命中/未来版本、只读反例；最初发现的产品缺陷和新增测试自身字段错误均保留，详见 DELIVERY_A。
 - B：4 passed，实际 SDK 对人工 fixture 的校准/停用/revision guard、持久 factorial 完整/缺格/单位拒绝；39 个原研究/校准文件与基线相同。
@@ -238,9 +238,9 @@ monitor/lineage 仍绑定 v1，productivity 成功绑定 v2；两次源运行后
 
 ### 最终包与保全
 
-最终包为 `dist-final/etalon-0.1.0-py3-none-any.whl`，7365027 bytes，SHA256 `95ede2d138c18afc6ab4091be9527db31815de48b2074efeea6bee9058409f4c`。`wheel-source-final.json` 的 326 文件全部匹配；`installed-final.json` 记录 checkout 外非 editable 安装的实际 10 模块、6 bundles、65 工具、两种宿主导出和 stdio。V 另核最终包的冷调用，不拿候选包结果覆盖修复版本。
+最终包为 `dist-final/moldarwin-0.1.0-py3-none-any.whl`，7365027 bytes，SHA256 `95ede2d138c18afc6ab4091be9527db31815de48b2074efeea6bee9058409f4c`。`wheel-source-final.json` 的 326 文件全部匹配；`installed-final.json` 记录 checkout 外非 editable 安装的实际 10 模块、6 bundles、65 工具、两种宿主导出和 stdio。V 另核最终包的冷调用，不拿候选包结果覆盖修复版本。
 
-科学来源保护范围的 209 文件中 206 字节未变，三个有意改动是 molcascade 的 runner/cache/artifact-store 只读构造支持。原 Windows checkpoint 命名修复仍在；其差异及来源由 V 独立核对。不改 research、active/prism.py、boundary/prism_v1.py、data/design.py 或 PRISM 仓库。工程 skill 仍由本地 exclude/hook 保护，不在 registry/wheel/产品导出。
+科学来源保护范围的 209 文件中 206 字节未变，三个有意改动是 molcat 的 runner/cache/artifact-store 只读构造支持。原 Windows checkpoint 命名修复仍在；其差异及来源由 V 独立核对。不改 research、active/prism.py、boundary/prism_v1.py、data/design.py 或 PRISM 仓库。工程 skill 仍由本地 exclude/hook 保护，不在 registry/wheel/产品导出。
 
 最终完整源码、逐文件 manifest、三来源 refs、原基线无丢失和暂存区状态见本轮 `combined-source-final-v2.zip` / `combined-source-final-v2-manifest.json` / `FINAL_RECEIPT.json`；文件关闭后再 hash 并核验，不覆盖前两阶段或本轮 pre-native/candidate 归档。README/报告是后续交付文本，不能冒充原 native 快照内的文字。V 封口复核只写仓库外 `v-final-receipt-check.json`。
 
@@ -252,7 +252,7 @@ V 最终独立组为 **7 passed / 7.02 秒**（包含此前 5 项，不能相加
 
 ## 2026-10-21：更多 research 方法与旧策略可选性
 
-本轮按用户最新授权继续 FM-07/08/09。入口 1170 文件与前轮最终归档逐字节相同，local HEAD/main 和两个 origin refs 均未变化，未 fetch；index 为空。共同基线为 workspace `integration/thin-harness-research-20261021/baseline.zip`，SHA256 `aab89b2d5a82571569a87e3e4ddae518f2d74f070d1e119084ec2f95232d31f2`，完整包含 dirty/untracked。现场相关 Python 为 PRISM_review 任务，不是本轮 ETALON 写入者；未操作这些进程。
+本轮按用户最新授权继续 FM-07/08/09。入口 1170 文件与前轮最终归档逐字节相同，local HEAD/main 和两个 origin refs 均未变化，未 fetch；index 为空。共同基线为 workspace `integration/thin-harness-research-20261021/baseline.zip`，SHA256 `aab89b2d5a82571569a87e3e4ddae518f2d74f070d1e119084ec2f95232d31f2`，完整包含 dirty/untracked。现场相关 Python 为 PRISM_review 任务，不是本轮 MolDarwin 写入者；未操作这些进程。
 
 A/B/V 实际并行，V 先冻结反例并释放槽给 C，随后 V 独立核验。沿用 WORKSTREAMS 唯一归属；I 使用本地 contract-refactor skill 保全来源和衔接接口，不把它加入产品。新证据均在上述 research 目录，旧三轮归档、原始失败和科学账本不覆盖。
 
@@ -264,7 +264,7 @@ A/B/V 实际并行，V 先冻结反例并释放槽给 C，随后 V 独立核验�
 
 ### 测试、环境和原失败
 
-实际解释器为 `F:/life_healthy/ETALON/.venv/Scripts/python.exe` / Python 3.13.12；各线 JSON 保存真实模块路径和 SHA。下面各组按范围报告，不与前轮统计合并：
+实际解释器为 `F:/life_healthy/MolDarwin/.venv/Scripts/python.exe` / Python 3.13.12；各线 JSON 保存真实模块路径和 SHA。下面各组按范围报告，不与前轮统计合并：
 
 - A 首批 4 个新案例加 3 个既有精确节点 **7 passed**；追加非空 Acquisition **1 passed / 8.15 秒**，真实 36 行合成 SMILES/人工 affinity、6 scaffold、400-tree fit、五折校准和四选二后停止。仅该进程复用旧 `.agent-local/native-b-deps-20261021` sklearn overlay，`LOKY_MAX_CPU_COUNT=2`；不安装或升级共享依赖，事后共享环境仍无 sklearn。人工面板不是独立科学收益。
 - A 首个测试错误地期望 SweepError，实际 NotAuthorized 拒绝正确；原 1 failed 日志保留。第二次宽 `-k` 误选旧完整 round，在 Windows 缺 POSIX flock 再次失败，原件保留；改用精确节点没有把完整 round 标通过。本轮没有新 POSIX 运行。
@@ -286,9 +286,9 @@ fixture 的 spent=.25、reserved=2 是人工账本值，不是 CPU 实测费用�
 
 ### 包、来源与收尾
 
-新 wheel `dist/etalon-0.1.0-py3-none-any.whl` 为 7369337 bytes，SHA256 `70a64fa17fa08e9262183354a954bf532ea0462822c9420bd29c400ce5f131ba`。327 个源码/wheel/非 editable 安装文件一致；checkout 外检查实际 10 个模块、6 bundles、65 工具、两种宿主导出和真实 stdio。V 另外实际读取安装包的新 finite-diagnostics reference，不只检查旧 legacy。包验证不是原生行为的替代品。
+新 wheel `dist/moldarwin-0.1.0-py3-none-any.whl` 为 7369337 bytes，SHA256 `70a64fa17fa08e9262183354a954bf532ea0462822c9420bd29c400ce5f131ba`。327 个源码/wheel/非 editable 安装文件一致；checkout 外检查实际 10 个模块、6 bundles、65 工具、两种宿主导出和真实 stdio。V 另外实际读取安装包的新 finite-diagnostics reference，不只检查旧 legacy。包验证不是原生行为的替代品。
 
-209 个本轮保护文件（含既有 molcascade Windows/只读修复和 research）与共同基线逐字节不变；六份 legacy 及前轮 factorial reference 均保留。工程 skill 继续受本地 exclude/hook 保护，没有进入 registry、wheel 或产品导出。最终全源码、manifest 与 `FINAL_RECEIPT.json` 在本轮证据目录；各线完成仓库内写入后才封存，V 最终一致性检查只写仓库外。
+209 个本轮保护文件（含既有 molcat Windows/只读修复和 research）与共同基线逐字节不变；六份 legacy 及前轮 factorial reference 均保留。工程 skill 继续受本地 exclude/hook 保护，没有进入 registry、wheel 或产品导出。最终全源码、manifest 与 `FINAL_RECEIPT.json` 在本轮证据目录；各线完成仓库内写入后才封存，V 最终一致性检查只写仓库外。
 
 本轮增加三个有用方法对齐并验证上述旧策略可选范围，未把所有 research 方法或全部 Campaign 路径宣称完成。独立 S/φ/G 收益仍 not_run，真实科学任务仍未授权执行。R4b 暂停，未部署、升级共享环境、提交或推送。
 
@@ -321,9 +321,9 @@ B 最终组合 **27 passed / 6.63 秒**，包含 B 新 8、原 Journal/validatio
 
 原生使用前源码为 `pre-native-source.zip`，1183 文件，SHA256 `cd99711db238f5c57c1927cc40ff520da7f8a25cd6f798c3002a7a2059c30d5c`。C 按完整 manifest 解压核对，使用独立配置/导出/fixture；后续报告和 V 证据纳入最终归档，不宣称已包含在该原生快照中。
 
-新 wheel `dist/etalon-0.1.0-py3-none-any.whl`，7373554 bytes，SHA256 `dcf842dba633232534ce7aee1532e321ee26c33dcfa593569eb794858a897c14`。328 源码/wheel/非 editable 安装文件一致；checkout 外 10 模块、6 bundles、65 工具、两种宿主导出及真实 stdio 检查通过。V 另核安装包新 reference 与修复接缝，不能仅用旧包 smoke 代替。
+新 wheel `dist/moldarwin-0.1.0-py3-none-any.whl`，7373554 bytes，SHA256 `dcf842dba633232534ce7aee1532e321ee26c33dcfa593569eb794858a897c14`。328 源码/wheel/非 editable 安装文件一致；checkout 外 10 模块、6 bundles、65 工具、两种宿主导出及真实 stdio 检查通过。V 另核安装包新 reference 与修复接缝，不能仅用旧包 smoke 代替。
 
-本轮 209 个保护文件中 **207 未变**，仅 `research/runtime.py` 和其 README 为上述有意增量；molcascade 本地修复、PRISM 消费端、design 与其他科学源码均保留。六份 legacy 加前两份方法 reference 共八份旧内容逐字节不变；本地工程 skill 未进入产品注册、包或导出。
+本轮 209 个保护文件中 **207 未变**，仅 `research/runtime.py` 和其 README 为上述有意增量；molcat 本地修复、PRISM 消费端、design 与其他科学源码均保留。六份 legacy 加前两份方法 reference 共八份旧内容逐字节不变；本地工程 skill 未进入产品注册、包或导出。
 
 ### 原生结果与实际范围
 
@@ -355,7 +355,7 @@ I 从固定 G1 源启动两个全新真实 stdio 进程，各运行完整、局�
 
 `i/READY.json` 已通过真实 queue 主动通知 E，绑定 G0 1186 文件和 G1 1191 文件；G1 源 ZIP SHA256 `42052caadc6a4f733b1a4183a1ba7c168fa562a2a12d35569c8b552e50b99581`。G1 wheel SHA256 `2d5d314049bee845b7fca1a5e2844146e8e6577cf680cf96b375eb27e21d82b5`；G0 复用前轮经本轮重新核对的 wheel `dcf842dba633232534ce7aee1532e321ee26c33dcfa593569eb794858a897c14`，安装到两个新的独立 target。
 
-每组 **328 项源码/wheel/install 字节一致**，checkout 外实际 Python 为 `F:/life_healthy/ETALON/.venv/Scripts/python.exe` 3.13.12，10 模块真实路径及 hash、6 bundles、65 工具、Codex/Claude 两种导出和真实 MCP 核查已记录。这证明安装与协议，不等于 Claude 认证或原生行为通过。E 的正式协议选择各自固定源码的 `PYTHONPATH` 导入与新配置/输入，I 则另验非 editable 安装；两者等价文件已核对，不把 E 原生调用写成安装包调用。后追加报告不回写 G1 固定源。
+每组 **328 项源码/wheel/install 字节一致**，checkout 外实际 Python 为 `F:/life_healthy/MolDarwin/.venv/Scripts/python.exe` 3.13.12，10 模块真实路径及 hash、6 bundles、65 工具、Codex/Claude 两种导出和真实 MCP 核查已记录。这证明安装与协议，不等于 Claude 认证或原生行为通过。E 的正式协议选择各自固定源码的 `PYTHONPATH` 导入与新配置/输入，I 则另验非 editable 安装；两者等价文件已核对，不把 E 原生调用写成安装包调用。后追加报告不回写 G1 固定源。
 
 E 在 V 检查冻结的任务/输入角色/成功判据/预算/模型 runner 后才开始正式对照，READY 本身不是结果。频率、原生三组结果及其独立复核在本轮 E/V 原件中另记；不据组件通过推定模型收益。R4b 暂停，LEARN-01/02 独立科学收益仍未运行。
 

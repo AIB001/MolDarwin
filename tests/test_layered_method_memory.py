@@ -5,12 +5,12 @@ import sys
 
 import pytest
 
-from etalon.active import CampaignStore, CampaignSpec, Endpoint
-from etalon.research import ResearchJournal
-from etalon.research.notes import (entry_value, find_notes, fork_memory, original,
+from moldarwin.active import CampaignStore, CampaignSpec, Endpoint
+from moldarwin.research import ResearchJournal
+from moldarwin.research.notes import (entry_value, find_notes, fork_memory, original,
     patch_progress, read_current, read_entry, save_progress, resolve_method)
-from etalon.research.resource_catalog import build_resource_catalog
-from etalon import research_hooks, skills
+from moldarwin.research.resource_catalog import build_resource_catalog
+from moldarwin import research_hooks, skills
 
 
 @pytest.fixture
@@ -76,7 +76,7 @@ def test_private_hook_has_own_cursor_even_with_same_native_session(project, tmp_
 
 
 def test_handoff_discovers_only_its_entry_memory_scope(project, tmp_path):
-    from etalon.research.note_handoff import _note_records
+    from moldarwin.research.note_handoff import _note_records
     journal, main, _, _ = project
     advisor = tmp_path / "ADVISOR.json"
     fork_memory(main, advisor, memory_scope="advisor", question="Improve?")
@@ -119,7 +119,7 @@ def test_resource_discovery_preserves_definition_context(project):
 
 def test_fresh_process_and_skill_export_discover_usable_forms(project, tmp_path):
     _, entry, _, _ = project
-    done = subprocess.run([sys.executable, "-m", "etalon", "research", "resources", "--entry", str(entry), "--kind", "method"],
+    done = subprocess.run([sys.executable, "-m", "moldarwin", "research", "resources", "--entry", str(entry), "--kind", "method"],
         capture_output=True, text=True, check=True)
     assert json.loads(done.stdout)["items"][0]["form"] == "executable"
     manifest, contents = skills.snapshot("rsi-skill-creator")

@@ -2,12 +2,12 @@
 import argparse
 import json
 from pathlib import Path
-from etalon.active import CampaignStore
-from etalon.active.schema import canonical
-from etalon.research import ResearchJournal
-from etalon.research.rows import config_objects,verify_dataset
-from etalon.research.transfer import checked_rows
-from etalon.research.transfer_checks import outcome_improvement_diagnostic
+from moldarwin.active import CampaignStore
+from moldarwin.active.schema import canonical
+from moldarwin.research import ResearchJournal
+from moldarwin.research.rows import config_objects,verify_dataset
+from moldarwin.research.transfer import checked_rows
+from moldarwin.research.transfer_checks import outcome_improvement_diagnostic
 
 
 if __name__=='__main__':

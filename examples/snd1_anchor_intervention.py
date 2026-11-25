@@ -14,7 +14,7 @@ import sys
 import time
 import numpy as np
 
-PRIOR = Path('/home/zx/etalon/runs/etalon-task-learning-20261026/science')
+PRIOR = Path('/home/zx/moldarwin/runs/moldarwin-task-learning-20261026/science')
 PRIOR_SHA = '6ca722560fb46f276a05c0160913e569a50225da4f13a5f60feb012310277a1e'
 
 

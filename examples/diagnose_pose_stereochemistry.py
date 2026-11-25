@@ -216,6 +216,6 @@ def analyze_stages(stages):
                                 **correspondence(left[0 if len(left) == 1 else i], mol)})
     if any(identity(s["path"]) != {k: s[k] for k in ("sha256", "bytes")} for s in stages):
         raise ValueError("source changed during diagnostics")
-    return {"schema": "etalon-stereo-representation-diagnostic/1", "scope": "reanalysis; no pose acceptance, RMSD endpoint, repair, or native execution",
+    return {"schema": "moldarwin-stereo-representation-diagnostic/1", "scope": "reanalysis; no pose acceptance, RMSD endpoint, repair, or native execution",
             "index_convention": "all atom/bond/record indices zero-based; raw molfile indices one-based",
             "stages": output, "comparisons": comparisons, "originals_unchanged": True}

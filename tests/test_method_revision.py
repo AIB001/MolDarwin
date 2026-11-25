@@ -4,11 +4,11 @@ import json
 
 import pytest
 
-from etalon import host, skills
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.boundary.prism_v1 import file_identity
-from etalon.research import Artifact, MethodVersion, ResearchJournal
-from etalon.research.method_revision import build_method_revision, journal_ref, record_method_revision
+from moldarwin import host, skills
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.boundary.prism_v1 import file_identity
+from moldarwin.research import Artifact, MethodVersion, ResearchJournal
+from moldarwin.research.method_revision import build_method_revision, journal_ref, record_method_revision
 
 
 @pytest.fixture

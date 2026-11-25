@@ -7,9 +7,9 @@ import json
 import numpy as np
 import pytest
 
-from etalon.faults.attribution import Observation
-from etalon.faults.stability import Trajectory, check_stability
-from etalon.mcp.governance import register
+from moldarwin.faults.attribution import Observation
+from moldarwin.faults.stability import Trajectory, check_stability
+from moldarwin.mcp.governance import register
 
 
 class Collector:
@@ -28,7 +28,7 @@ def _admission(check):
     register(collector)
     row = {"parent_id": "m", "cheap_value": -1.0, "expensive_value": -2.0,
            "observations": [check]}
-    return json.loads(collector.tools["etalon_rule_admissible"](json.dumps([row])))
+    return json.loads(collector.tools["moldarwin_rule_admissible"](json.dumps([row])))
 
 
 @pytest.mark.parametrize("field", ["fired", "evaluable"])

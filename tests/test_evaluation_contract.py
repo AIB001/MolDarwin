@@ -3,14 +3,14 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active.schema import digest
-from etalon.research.components import record_json
-from etalon.research.evaluation_contract import (
+from moldarwin.active.schema import digest
+from moldarwin.research.components import record_json
+from moldarwin.research.evaluation_contract import (
     CONTRACT, build_evaluation_contract, evaluate_contract, record_evaluation_artifact,
     validate_evaluation_contract,
 )
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research.method_revision import journal_ref
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research.method_revision import journal_ref
 from test_research_continuation import case, publish
 
 
@@ -166,7 +166,7 @@ def test_paged_original_and_explicit_array_denominator(case):
 
 def test_sealed_original_is_not_read_through_explicit_reference(case):
     from dataclasses import replace
-    from etalon.research.schema import Artifact
+    from moldarwin.research.schema import Artifact
     contract, _ = setup(case)
     original = Artifact(**case[0].get(contract["inputs"][0]["ref"]["record_id"]))
     rid = case[0].record(replace(original, role="sealed_holdout"))
@@ -179,7 +179,7 @@ def test_sealed_original_is_not_read_through_explicit_reference(case):
 def test_composition_and_method_evaluation_binding_checks_exact_inputs(case):
     from test_research_composition import evaluation_plan
     from test_research_continuation import save
-    from etalon.research.composition import record_evaluation
+    from moldarwin.research.composition import record_evaluation
     contract, _ = setup(case)
     plan = evaluation_plan(case)
     d = plan["detail"]
@@ -199,8 +199,8 @@ def test_composition_and_method_evaluation_binding_checks_exact_inputs(case):
 
 
 def test_method_external_rule_digest_binding(case):
-    from etalon.research.method_contract import CONTRACT as METHOD_CONTRACT
-    from etalon.research.evaluation_contract import evaluation_rules_digest
+    from moldarwin.research.method_contract import CONTRACT as METHOD_CONTRACT
+    from moldarwin.research.evaluation_contract import evaluation_rules_digest
     contract, _ = setup(case)
     method = dict(schema=METHOD_CONTRACT, name="fixture declared method", parameters=[], required_checks=["execution"],
         evaluation={"schema": CONTRACT, "rules_digest": evaluation_rules_digest(contract)}, supersedes=[])

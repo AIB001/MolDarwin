@@ -1,4 +1,4 @@
-"""Offline MolQuarry -> MolCascade -> active campaign -> sourcing demonstration.
+"""Offline MolOrigin -> MolCat -> active campaign -> sourcing demonstration.
 
 Install .[cascade,quarry,active], then run in a new workspace:
     python examples/database_campaign.py --workspace runs/database-demo
@@ -13,15 +13,15 @@ import argparse
 import json
 from pathlib import Path
 
-from etalon.active import ActiveCampaign, CampaignSpec, CampaignStore
-from etalon.active.adapters import MOLECULAR_REPRESENTATION
-from etalon.active.cascade import CascadeExecutor, CascadeRecipe, Readout
-from etalon.boundary.quarry import DataBudget
-from etalon.boundary.screen import Screen
-from etalon.campaign.design import component, compose
-from etalon.data.artifacts import write_json
-from etalon.data.library import import_candidates, prepare_library
-from etalon.data.service import run_data
+from moldarwin.active import ActiveCampaign, CampaignSpec, CampaignStore
+from moldarwin.active.adapters import MOLECULAR_REPRESENTATION
+from moldarwin.active.cascade import CascadeExecutor, CascadeRecipe, Readout
+from moldarwin.boundary.quarry import DataBudget
+from moldarwin.boundary.screen import Screen
+from moldarwin.campaign.design import component, compose
+from moldarwin.data.artifacts import write_json
+from moldarwin.data.library import import_candidates, prepare_library
+from moldarwin.data.service import run_data
 
 
 def run(workspace: Path) -> dict:

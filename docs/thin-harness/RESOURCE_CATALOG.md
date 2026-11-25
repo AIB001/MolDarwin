@@ -1,13 +1,13 @@
 # Published resource inventory
 
-`etalon.research.resource_catalog.build_resource_catalog` discovers resources in
+`moldarwin.research.resource_catalog.build_resource_catalog` discovers resources in
 one explicitly published workspace, entry, or pinned read context. It also accepts
 an explicit selection of installed skill bundles. The result is a read-only
 inventory, not a selected workset, execution permission, or adoption decision.
 There is no catalog database, ambient filesystem search, or compulsory workflow.
 
 ```python
-from etalon.research.resource_catalog import build_resource_catalog
+from moldarwin.research.resource_catalog import build_resource_catalog
 
 page = build_resource_catalog(
     entry="/published/task/entry.json",
@@ -92,7 +92,7 @@ scientific applicability still need the task profile and review/evidence.
 
 ## Return structure and pagination
 
-The result schema is `etalon-resource-catalog/1`. Each `items` row contains:
+The result schema is `moldarwin-resource-catalog/1`. Each `items` row contains:
 
 - `catalog_id`, `kind`, `resource_id`, `content_ref`, and `origin_ref`;
 - `summary`, `parts`, `descriptor`, and `declared_scope`;
@@ -140,7 +140,7 @@ missing originals, stale cursors, bounded empty pages, byte pagination, and gaps
 that survive onto the final page. These are engineering fixtures.
 
 The local batch's frozen SND1/PoseBusters replay is recorded under
-`integration/etalon-resource-branches-20261024/catalog/` outside this repository.
+`integration/moldarwin-resource-branches-20261024/catalog/` outside this repository.
 Its pages, original-file hashes, interpreter, and actual imported module paths
 support read-only inventory acceptance. Reading prior results does not establish
 independent transfer, scientific benefit, adoption, or newly observed consumption.

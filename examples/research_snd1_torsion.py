@@ -5,13 +5,13 @@ import research_snd1_improvement as h
 import snd1_torsion_workflow as science
 import snd1_evidence_workflow as legacy
 from snd1_evidence_evaluation import evaluate
-from etalon.active.schema import CampaignSpec,Endpoint
-from etalon.research.schema import MethodVersion,MethodUse,TaskSplit
-from etalon.research import improvement as imp
-from etalon.research.continuation import STEP,CHECKPOINT,resume_research
-from etalon.research.composition import WORKFLOW,node_step,record_evaluation
-from etalon.research.method_revision import build_method_revision,record_method_revision,resolve_method_revision
-from etalon.research.scientific_input import compile_input,consumption_receipt
+from moldarwin.active.schema import CampaignSpec,Endpoint
+from moldarwin.research.schema import MethodVersion,MethodUse,TaskSplit
+from moldarwin.research import improvement as imp
+from moldarwin.research.continuation import STEP,CHECKPOINT,resume_research
+from moldarwin.research.composition import WORKFLOW,node_step,record_evaluation
+from moldarwin.research.method_revision import build_method_revision,record_method_revision,resolve_method_revision
+from moldarwin.research.scientific_input import compile_input,consumption_receipt
 
 TASK='snd1-specified-torsion-normal-refinement'
 QUESTION='Can specified torsions and chemically scoped directional proxies improve SND1 pose fidelity over fixed-core preparation?'
@@ -24,15 +24,15 @@ def configure(root):
     global ROOT,B5,B6,DIAG,AUTH
     ROOT=Path(root).absolute();B5=ROOT.parent/'batch5';B6=ROOT.parent/'batch6';DIAG=ROOT.parent/'batch6-diagnosis'
     AUTH=ROOT.parents[2]/'integration/round4b/PAUSED.md'
-    h.configure(root=ROOT,etalon_source=ROOT/'package/installed',prism_source=B5/'prism-source',authority=AUTH)
+    h.configure(root=ROOT,moldarwin_source=ROOT/'package/installed',prism_source=B5/'prism-source',authority=AUTH)
     h.SID='snd1-torsion';h.TASK=TASK;h.QUESTION=QUESTION
 
 
 def publish(j):
-    prior=h.read(DIAG/'chain-final/etalon-workspace.json')
+    prior=h.read(DIAG/'chain-final/moldarwin-workspace.json')
     prior.update(workspace_id=TASK,sources=[{'source_id':h.SID,'kind':'journal','location':str(j.store.path),
         'identity':{'kind':'snapshot_sha256','value':h.pin(j.store.path)['sha256']}},*prior['sources']])
-    path=h.CHAIN/'etalon-workspace.json';h.write(path,prior);return path
+    path=h.CHAIN/'moldarwin-workspace.json';h.write(path,prior);return path
 
 
 def checkpoint(s,basis):
@@ -48,7 +48,7 @@ def checkpoint(s,basis):
 
 
 def claim(j,statement,status,support,methods=()):
-    return h.save(j,{'schema':'etalon-research-claim/1','question':QUESTION,'statement':statement,'epistemic_status':status,
+    return h.save(j,{'schema':'moldarwin-research-claim/1','question':QUESTION,'statement':statement,'epistemic_status':status,
         'subjects':['SND1','QOV','QOY'],'conditions':COND,'limitations':['Previously seen structures; correlated slots','Constructed donor H is an assumption','No affinity or independent-transfer evidence'],
         'support_refs':support,'counter_refs':[],'method_refs':list(methods),'supersedes':[]})
 
@@ -78,7 +78,7 @@ def initialize():
     methods={}
     for key,name in [('base','fixed_core'),('candidate','torsion_directional'),('control','torsion_distance')]:
         content=h.art(j,{'name':name,'source_ref':h.file(j,Path(science.__file__),'frozen-method-source'),
-            'contract_ref':h.file(j,ROOT/'package/installed/etalon/research/geometry_input.py','domain-contract'),
+            'contract_ref':h.file(j,ROOT/'package/installed/moldarwin/research/geometry_input.py','domain-contract'),
             'protocol_ref':protocol,'procedure':'Reuse exact completed fixed-core output' if key=='base' else 'Bounded named graph rotations; rigid internal geometry; explicit soft/directional terms'})
         methods[key]=h.ref(j,j.record(MethodVersion('snd1-'+name,('domain_skill','usage_method'),{'artifact_ref':content['record_id']},
             parents=(methods['base']['record_id'],) if key!='base' else (),change_summary='Specify allowed mobility and directional chemical assumptions' if key!='base' else 'Retained baseline')))

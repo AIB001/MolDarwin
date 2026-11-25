@@ -3,8 +3,8 @@ import hashlib
 import json
 from pathlib import Path
 
-from etalon import skills
-from etalon.runtime import api
+from moldarwin import skills
+from moldarwin.runtime import api
 from test_local_sdk_batch import build_batch_fixture, example
 
 

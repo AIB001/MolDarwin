@@ -18,9 +18,9 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active.schema import canonical
-from etalon.runtime import operations, process, service
-from etalon.runtime.store import RuntimeStore
+from moldarwin.active.schema import canonical
+from moldarwin.runtime import operations, process, service
+from moldarwin.runtime.store import RuntimeStore
 
 pytestmark = pytest.mark.skipif(not sys.platform.startswith("linux"), reason="workers require Linux process identities")
 ROOT = Path(__file__).resolve().parents[1]
@@ -63,7 +63,7 @@ def _worker_entry(workspace, epoch, settings_path, gate_path):
             if reply == "finish":
                 return json.dumps({**choice, "node_id": "finish"})
             if reply == "transport-error":
-                from etalon.judgment.advisor import AdvisorError
+                from moldarwin.judgment.advisor import AdvisorError
 
                 raise AdvisorError("controlled transient transport failure", retryable=True)
             if reply == "wait":
@@ -79,7 +79,7 @@ def _worker_entry(workspace, epoch, settings_path, gate_path):
             ctx.receipt("fixture_started", {"status": "unknown outcome; deliberately held execution"})
             time.sleep(30)
         if behavior in {"over-budget", "over-budget-crash"}:
-            from etalon.data.artifacts import new_run, seal, write_json
+            from moldarwin.data.artifacts import new_run, seal, write_json
 
             root = new_run(ctx.root, "acquisition", arguments["request"])
             write_json(root / "records.json", [{"id": "fixture", "smiles": "CCO"}])
@@ -181,7 +181,7 @@ def campaigns(*, mode="advisor", max_calls=1, count=2, max_seconds=30):
     nodes = [copy.deepcopy(node) for _ in range(count)]
     for index, item in enumerate(nodes):
         item["id"] = f"step{index + 1}"
-    return {"schema": "etalon-workflow/1", "objective": "Create only the declared fixture journals",
+    return {"schema": "moldarwin-workflow/1", "objective": "Create only the declared fixture journals",
             "nodes": nodes, "limits": {"work_units": count}, "controller": {"mode": mode, "max_calls": max_calls},
             "max_seconds": max_seconds}
 
@@ -258,7 +258,7 @@ def test_verified_final_overrun_is_blocked_in_execution_and_recovery(workers, tm
     worker = workers(execution=execution)
     catalog = tmp_path / "catalog.csv"
     catalog.write_text("id,smiles\nfixture,CCO\n", encoding="utf-8")
-    spec = {"schema": "etalon-workflow/1", "objective": "Inspect an explicit sealed overrun fixture",
+    spec = {"schema": "moldarwin-workflow/1", "objective": "Inspect an explicit sealed overrun fixture",
         "controller": {"mode": "ordered"}, "limits": {"http_requests": 0, "http_bytes": 100},
         "nodes": [{"id": "acquire", "operation": "data.acquire", "arguments": {"request": {
             "kind": "import_catalog", "source": "chembl", "path": str(catalog),

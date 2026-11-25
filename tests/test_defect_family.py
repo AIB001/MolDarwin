@@ -5,14 +5,14 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.store import StateError
-from etalon.research import Artifact, ResearchJournal
-from etalon.research import defect_family as family
-from etalon.research import improvement
-from etalon.research.continuation import record_content
-from etalon.research.evidence_refs import EvidenceError, file_identity, make_ref
-from etalon.research.method_revision import journal_ref
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.store import StateError
+from moldarwin.research import Artifact, ResearchJournal
+from moldarwin.research import defect_family as family
+from moldarwin.research import improvement
+from moldarwin.research.continuation import record_content
+from moldarwin.research.evidence_refs import EvidenceError, file_identity, make_ref
+from moldarwin.research.method_revision import journal_ref
 
 
 @pytest.fixture
@@ -38,7 +38,7 @@ def case(tmp_path):
 
     def workspace():
         path = tmp_path / "workspace.json"
-        path.write_text(json.dumps({"schema": "etalon-evidence-workspace/1", "workspace_id": "synthetic",
+        path.write_text(json.dumps({"schema": "moldarwin-evidence-workspace/1", "workspace_id": "synthetic",
             "sources": [{"source_id": "research", "kind": "journal", "location": str(store.path),
                 "identity": {"kind": "snapshot_sha256", "value": file_identity(store.path)["sha256"]}},
                 *extra_sources],
@@ -66,7 +66,7 @@ def case(tmp_path):
 
     def build(members, **changes):
         options = dict(task_id="fixture-task", scope="synthetic-reader", conditions=conditions,
-            capability_id="etalon.synthetic.reader", target_ref=target,
+            capability_id="moldarwin.synthetic.reader", target_ref=target,
             mechanism_hypothesis="Synthetic hypothesis: typed reader rejects generic evidence", members=members)
         options.update(changes)
         return family.build_defect_family(workspace(), **options)
@@ -223,7 +223,7 @@ def test_external_members_use_selected_original_bytes_not_the_envelope_identity(
         members.append({"member": name, "path": str(path), **file_identity(path), "visibility": "released"})
     envelope = {"role": "diagnostic", "members": members, "fixture": "synthetic external envelope"}
     manifest = root / "external.json"
-    manifest.write_text(json.dumps({"schema": "etalon-artifact-manifest/1", "records": [{
+    manifest.write_text(json.dumps({"schema": "moldarwin-artifact-manifest/1", "records": [{
         "record_id": "envelope", "record_type": "data_snapshot", "visibility": "released", "record": envelope}]}),
         encoding="utf-8")
     case["extra_sources"].append({"source_id": "external", "kind": "artifact_manifest",

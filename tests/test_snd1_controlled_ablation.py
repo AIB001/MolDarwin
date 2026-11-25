@@ -68,11 +68,11 @@ def test_frozen_gate_has_scientific_and_cost_obligations():
 
 
 def check_bridge_fixture(valid=True):
-    from etalon.research.result_integrity import freeze_check_contract
+    from moldarwin.research.result_integrity import freeze_check_contract
     contract=freeze_check_contract({'modules':[{'name':'Synthetic','chosen_binary_test_output':['geometry','loaded']}]},
         version='fixture',implementation={'explicit_synthetic_fixture':{}})
     pin={'sha256':'a'*64,'bytes':1}
-    raw={'schema':'etalon-pose-verification/1','protocol':'fixed-receptor-frame-heavy-symmetry/1',
+    raw={'schema':'moldarwin-pose-verification/1','protocol':'fixed-receptor-frame-heavy-symmetry/1',
         'threshold_A':2.,'posebusters_version':'fixture','requested_slots':1,
         'inputs':{'predicted':pin,'reference':pin,'receptor':pin},
         'top1_success':valid,'any_success':valid,

@@ -4,13 +4,13 @@ import json
 
 import pytest
 
-from etalon.research import MethodVersion
-from etalon.research import candidate_brief as cb
-from etalon.research import improvement as imp
-from etalon.research.components import record_json
-from etalon.research.composition import node_step
-from etalon.research.evidence_refs import EvidenceError
-from etalon.research.method_revision import journal_ref
+from moldarwin.research import MethodVersion
+from moldarwin.research import candidate_brief as cb
+from moldarwin.research import improvement as imp
+from moldarwin.research.components import record_json
+from moldarwin.research.composition import node_step
+from moldarwin.research.evidence_refs import EvidenceError
+from moldarwin.research.method_revision import journal_ref
 from test_research_continuation import case, publish, save
 
 
@@ -229,9 +229,9 @@ def test_external_publication_requires_original_verification_workspace(case, pre
 
 
 def test_workflow_change_reuses_existing_workflow_schema(case, prepared):
-    from etalon.research.composition import WORKFLOW
+    from moldarwin.research.composition import WORKFLOW
     before = {"schema": WORKFLOW, "name": "fixture reader", "scope": "fixture readers", "nodes": [
-        {"node_id": "read", "capability_id": "etalon.evidence", "method_refs": [prepared["base"]], "views": ["E"],
+        {"node_id": "read", "capability_id": "moldarwin.evidence", "method_refs": [prepared["base"]], "views": ["E"],
          "purpose": "Read originals", "skip_when": "Already read"}], "edges": [],
         "method_refs": [prepared["base"]], "supersedes": []}
     before_ref = save(case, before)
@@ -272,7 +272,7 @@ def test_optional_existing_patch_and_negative_experience_are_attributed_not_adop
     counter = p["artifact"]({"fixture": True, "negative": "Earlier failure remains unresolved"})
     experience = imp.record_experience(p["journal"], patch_ref=patch_ref, outcome="unresolved",
         lesson="Need normal use to resolve the fixture hypothesis", invalid_when="Different reader protocol",
-        capability_id="etalon.evidence", support_refs=[case[1]], counter_refs=[counter],
+        capability_id="moldarwin.evidence", support_refs=[case[1]], counter_refs=[counter],
         directory=p["root"] / "content", source_id="research", source_kind="fixture")
     brief = build(case, p, patch_ref=patch_ref, experience_refs=[experience])
     assert brief["counter_refs"] == [counter]

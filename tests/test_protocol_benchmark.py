@@ -4,7 +4,7 @@ from copy import deepcopy
 
 import pytest
 
-from etalon.active.protocol_benchmark import (
+from moldarwin.active.protocol_benchmark import (
     GROUPS,
     SCENARIOS,
     _select,
@@ -80,7 +80,7 @@ def test_negative_utilities_are_charged_and_do_not_force_bad_recommendation():
 
 
 def test_changing_hidden_oracle_cannot_change_first_decision(monkeypatch):
-    module = importlib.import_module("etalon.active.protocol_benchmark")
+    module = importlib.import_module("moldarwin.active.protocol_benchmark")
     original = module._scenario
     first = protocol_benchmark(seeds=(7,), budget=1, max_trials=1)
 
@@ -98,7 +98,7 @@ def test_changing_hidden_oracle_cannot_change_first_decision(monkeypatch):
 
 
 def test_only_changed_acquired_reward_can_change_later_selection(monkeypatch):
-    module = importlib.import_module("etalon.active.protocol_benchmark")
+    module = importlib.import_module("moldarwin.active.protocol_benchmark")
     reward = [0.8]
 
     def fixture(seed, name):
@@ -131,7 +131,7 @@ def test_affordability_filter_retains_training_ids_and_fixed_feature_vocabulary(
 
 
 def test_training_snapshot_is_detached_and_replayable():
-    module = importlib.import_module("etalon.active.protocol_benchmark")
+    module = importlib.import_module("moldarwin.active.protocol_benchmark")
     row = protocol_benchmark(seeds=(0,), budget=3)["runs"][2]
     for step in row["trace"]:
         snap = step["snapshot"]
@@ -165,7 +165,7 @@ def test_training_snapshot_is_detached_and_replayable():
     ({"max_trials": True}, "positive integer"),
 ])
 def test_invalid_input_refused_before_any_scoring(monkeypatch, overrides, match):
-    module = importlib.import_module("etalon.active.protocol_benchmark")
+    module = importlib.import_module("moldarwin.active.protocol_benchmark")
 
     def forbidden(*args, **kwargs):
         raise AssertionError("invalid input reached synthetic oracle construction")

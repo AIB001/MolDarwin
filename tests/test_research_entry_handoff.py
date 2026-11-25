@@ -4,9 +4,9 @@ import json
 
 import pytest
 
-from etalon.research.evidence import query_evidence, read_evidence
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research.research_context import build_research_context
+from moldarwin.research.evidence import query_evidence, read_evidence
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research.research_context import build_research_context
 from test_research_graph_memory import graph_case
 
 
@@ -86,7 +86,7 @@ def test_source_policy_is_applied_once_and_retained_on_pinned_context(graph_case
 
 def test_mcp_locator_and_evidence_read_schema_and_runtime(graph_case):
     from mcp.server.fastmcp import FastMCP
-    from etalon.mcp.evidence import register
+    from moldarwin.mcp.evidence import register
     server = FastMCP("handoff-fixture")
     register(server)
 
@@ -96,9 +96,9 @@ def test_mcp_locator_and_evidence_read_schema_and_runtime(graph_case):
             if isinstance(result, tuple):
                 result = result[0]
             return json.loads(result[0].text)
-        context = await call("etalon_research_context", {"entry": {"entry": str(graph_case["entry"])}, "view": "summary"})
+        context = await call("moldarwin_research_context", {"entry": {"entry": str(graph_case["entry"])}, "view": "summary"})
         # The common MCP envelope is a contract; exercise the real decorated tool.
         data = context.get("data", context)
-        return await call("etalon_evidence_read", {"ref": graph_case["evidence"], "read_context": data["read_context"]})
+        return await call("moldarwin_evidence_read", {"ref": graph_case["evidence"], "read_context": data["read_context"]})
     result = asyncio.run(run())
     assert result.get("data", result)["availability"] == "available"

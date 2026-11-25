@@ -21,9 +21,9 @@ def fixture():
 
 
 def test_existing_curation_preserves_scope_and_exposes_knowledge_without_network(tmp_path,monkeypatch):
-    monkeypatch.syspath_prepend(str(Path(__file__).parents[1]/'asset/molquarry/src'))
-    from molquarry.workflows.review import Curation,integrate_review,knowledge_context
-    from molquarry.mcp_server import create_server
+    monkeypatch.syspath_prepend(str(Path(__file__).parents[1]/'asset/molorigin/src'))
+    from molorigin.workflows.review import Curation,integrate_review,knowledge_context
+    from molorigin.mcp_server import create_server
     dossier,curation=fixture()
     full=integrate_review(dossier,Curation.model_validate(curation))
     brief=knowledge_context(full)
@@ -32,7 +32,7 @@ def test_existing_curation_preserves_scope_and_exposes_knowledge_without_network
     assert brief['limitations'] and 'references' not in brief['knowledge'][0]
     assert full['knowledge'][0]['references']
     (tmp_path/'dossier.json').write_text(json.dumps(dossier))
-    monkeypatch.setenv('MOLQUARRY_WORKSPACE',str(tmp_path))
+    monkeypatch.setenv('MOLORIGIN_WORKSPACE',str(tmp_path))
     class NoNetwork:
         def __getattr__(self,name):raise AssertionError('knowledge synthesis must not query: '+name)
     server=create_server(NoNetwork())

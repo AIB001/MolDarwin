@@ -3,11 +3,11 @@ import json
 import subprocess
 import sys
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.research import ResearchJournal
-from etalon.research.notes import patch_progress, save_progress
-from etalon.research.resource_selection import record_resource_feedback
-from etalon.research.saved_methods import publish_method
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.research import ResearchJournal
+from moldarwin.research.notes import patch_progress, save_progress
+from moldarwin.research.resource_selection import record_resource_feedback
+from moldarwin.research.saved_methods import publish_method
 
 
 def test_feedback_pages_cross_cli_mcp_and_remain_pinned(tmp_path):
@@ -31,16 +31,16 @@ def test_feedback_pages_cross_cli_mcp_and_remain_pinned(tmp_path):
                 self.tools[function.__name__] = function
                 return function
             return add
-    from etalon.mcp.methods import register
+    from moldarwin.mcp.methods import register
     collector = Collector()
     register(collector)
-    page = json.loads(collector.tools["etalon_resource_feedback"](entry=str(entry), resource_id="rank"))
+    page = json.loads(collector.tools["moldarwin_resource_feedback"](entry=str(entry), resource_id="rank"))
     assert page["ok"], page
     assert "known failure" in json.dumps(page)
     pin = tmp_path / "pin.json"
     pin.write_text(json.dumps(page["content_ref"]))
     patch_progress(entry, {"summary": "head moved"})
-    result = subprocess.run([sys.executable, "-m", "etalon", "research", "feedback", "--entry", str(pin),
+    result = subprocess.run([sys.executable, "-m", "moldarwin", "research", "feedback", "--entry", str(pin),
         "--resource-id", "rank"], capture_output=True, text=True, timeout=30)
     assert result.returncode == 0, result.stderr + result.stdout
     cli = json.loads(result.stdout)

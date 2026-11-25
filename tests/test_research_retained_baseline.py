@@ -2,23 +2,23 @@
 from contextlib import contextmanager
 import json
 import pytest
-from etalon.active.schema import digest
-from etalon.active.store import StateError
-from etalon.research.retained_baseline import run_retained_baseline
+from moldarwin.active.schema import digest
+from moldarwin.active.store import StateError
+from moldarwin.research.retained_baseline import run_retained_baseline
 
 
 def test_retained_B_freezes_before_P_and_NA_never_becomes_success_or_zero_receipt(tmp_path,monkeypatch):
     tasks={t:{'role':role,'group':t,'family':t} for t,role in [('a','train'),('b','train'),('c','calibration'),('na','test'),('ready','test')]}
-    policy={'schema':'etalon-retained-baseline-policy/1','policy_sha256':'f'*64,'split_sha256':'e'*64,
+    policy={'schema':'moldarwin-retained-baseline-policy/1','policy_sha256':'f'*64,'split_sha256':'e'*64,
         'split':{'tasks':tasks,'grouping_evidence':'fixture','protocol_sha256':'0'*64},'baseline_admissions':{},
         'preparation_admissions':{t:{p:{'id':t+p} for p in ('p0','p1')} for t in ('na','ready')}}
     preparations={t+p:{'execution_id':'prep-'+t+p,'status':'NOT_APPLICABLE' if t=='na' and p=='p1' else 'PREPARED',
         'cost':{'wall_second':.01},'reason':None} for t in ('na','ready') for p in ('p0','p1')}
     requests={t:{r:{'idempotency_key':t+r,'inputs':{}} for r in (('r0',) if t=='na' else ('r0','r1','r2'))} for t in ('na','ready')}
     frozen={'tasks':{t:{'candidates':[{'id':f'c{i}'} for i in range(6)]} for t in ('na','ready')}}
-    monkeypatch.setattr('etalon.research.retained_baseline.freeze_retained_baseline',lambda *a,**k:(policy,'plan',requests,frozen))
-    monkeypatch.setattr('etalon.research.retained_baseline.paid_preparation',lambda j,i:preparations[i])
-    monkeypatch.setattr('etalon.research.retained_baseline.preparation_cost_attribution',lambda j,i:{'wall_second':2.,'execution_costs':[]})
+    monkeypatch.setattr('moldarwin.research.retained_baseline.freeze_retained_baseline',lambda *a,**k:(policy,'plan',requests,frozen))
+    monkeypatch.setattr('moldarwin.research.retained_baseline.paid_preparation',lambda j,i:preparations[i])
+    monkeypatch.setattr('moldarwin.research.retained_baseline.preparation_cost_attribution',lambda j,i:{'wall_second':2.,'execution_costs':[]})
     class Cursor:
         def __init__(self,value):self.value=value
         def fetchone(self):return self.value
@@ -47,7 +47,7 @@ def test_retained_B_freezes_before_P_and_NA_never_becomes_success_or_zero_receip
                 'slots':[{'candidate_id':f'c{i}','score':-float(i)} for i in indices]}
         j.records['pooladmission-'+digest([result['request_sha256'],result['result_sha256']])]=result
         return result
-    monkeypatch.setattr('etalon.research.retained_baseline.execute',execute)
+    monkeypatch.setattr('moldarwin.research.retained_baseline.execute',execute)
     args=dict(config_path=None,manifest_path=None,input_freeze_path=None,root=tmp_path/'jobs',output_dir=tmp_path/'out')
     with pytest.raises(StateError,match='freeze B'):run_retained_baseline(journal,None,**args,complete_counterfactual=True)
     prediction=run_retained_baseline(journal,None,**args)
@@ -65,9 +65,9 @@ def test_retained_B_freezes_before_P_and_NA_never_becomes_success_or_zero_receip
 
 
 def test_freeze_rejects_cross_protocol_preparation_and_missing_NA_group(tmp_path,monkeypatch):
-    from etalon.research.retained_baseline import freeze_retained_baseline
-    from etalon.active.schema import canonical
-    from etalon.boundary.prism_v1 import file_identity
+    from moldarwin.research.retained_baseline import freeze_retained_baseline
+    from moldarwin.active.schema import canonical
+    from moldarwin.boundary.prism_v1 import file_identity
     names=['hif2a','a','b','c','d','e','cal1','cal2','cal3','ca2','ar','mmp12']
     tasks={t:{'role':'train' if i<6 else 'calibration' if i<9 else 'test','group':t,'family':t} for i,t in enumerate(names)}
     def write(name,value):
@@ -81,7 +81,7 @@ def test_freeze_rejects_cross_protocol_preparation_and_missing_NA_group(tmp_path
     def paid(j,identifier):
         rid=identifier[-2:];task=identifier[:-2]
         return {'task_id':task,'resource_id':rid,'result_artifact_id':'original-preparation-artifact'}
-    monkeypatch.setattr('etalon.research.retained_baseline.paid_preparation',paid)
+    monkeypatch.setattr('moldarwin.research.retained_baseline.paid_preparation',paid)
     class Journal:
         def get(self,key):return {'path':str(bad_receipt)}
     args=dict(config_path=path,manifest_path=manifest,input_freeze_path=frozen)

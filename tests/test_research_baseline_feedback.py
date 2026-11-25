@@ -2,10 +2,10 @@
 from contextlib import contextmanager
 from pathlib import Path
 import pytest
-from etalon.active.schema import canonical,digest
-from etalon.active.store import StateError
-from etalon.boundary.prism_v1 import file_identity
-from etalon.research.baseline_feedback import evaluate_retained,attach_retained_feedback
+from moldarwin.active.schema import canonical,digest
+from moldarwin.active.store import StateError
+from moldarwin.boundary.prism_v1 import file_identity
+from moldarwin.research.baseline_feedback import evaluate_retained,attach_retained_feedback
 
 
 def test_NA_raw_loss_stays_unknown_but_effective_fallback_and_preparation_are_paid(tmp_path,monkeypatch):
@@ -25,12 +25,12 @@ def test_NA_raw_loss_stays_unknown_but_effective_fallback_and_preparation_are_pa
     scores={t+'r0':{'cost':{'wall_second':3.},'slots':[{'candidate_id':c,'score':v} for c,v in base_scores.items()]} for t in ('na','ready')}
     scores.update({rid:{'cost':{'wall_second':3.},'slots':[{'candidate_id':c,'score':p_scores[c]} for c in chars]}
                    for rid,chars in [('readyr1','abc'),('readyr2','def')]})
-    monkeypatch.setattr('etalon.research.baseline_feedback.paid_preparation',lambda j,i:preps[i])
-    monkeypatch.setattr('etalon.research.baseline_feedback.preparation_cost_attribution',lambda j,i:{'wall_second':2.,'execution_costs':[]})
-    monkeypatch.setattr('etalon.research.baseline_feedback.paid_score',lambda j,i:scores[i])
+    monkeypatch.setattr('moldarwin.research.baseline_feedback.paid_preparation',lambda j,i:preps[i])
+    monkeypatch.setattr('moldarwin.research.baseline_feedback.preparation_cost_attribution',lambda j,i:{'wall_second':2.,'execution_costs':[]})
+    monkeypatch.setattr('moldarwin.research.baseline_feedback.paid_score',lambda j,i:scores[i])
     roles={}
     def artifact(j,p,**kwargs):roles[p.name]=kwargs.get('role','diagnostic');return 'fixture-'+p.name
-    monkeypatch.setattr('etalon.research.baseline_feedback._file_artifact',artifact)
+    monkeypatch.setattr('moldarwin.research.baseline_feedback._file_artifact',artifact)
     class Journal:
         def __init__(self):
             self.store=self;self.records={'baselinepolicy-'+policy['policy_sha256']:policy,

@@ -1,13 +1,13 @@
 # Local research handoff
 
-`etalon.research.handoff` exports an explicitly published research entry into a
+`moldarwin.research.handoff` exports an explicitly published research entry into a
 new local directory. It reuses the existing entry, evidence workspace,
 `EvidenceResolver`, checkpoint and publication contracts. It does not connect
 to SSH, transfer files over a network, select resources, execute science, or
 resume a publication.
 
 ```python
-from etalon.research.handoff import (
+from moldarwin.research.handoff import (
     plan_research_handoff, export_research_handoff,
     verify_research_handoff, relocate_research_handoff,
 )
@@ -15,7 +15,7 @@ from etalon.research.handoff import (
 plan = plan_research_handoff("/published/task/entry.json",
     publication_intents=["/published/earlier-failure/intent.json"],
     skill_bundles=[{"slug": "research-index", "manifest_sha256": "<exact published SHA256>",
-                    "root": "/original-export/etalon-research-index"}],
+                    "root": "/original-export/moldarwin-research-index"}],
     limits={"max_files": 6000, "max_bytes": 128 * 1024 * 1024})
 # Review plan["counts"], plan["originals"], plan["publication_history"],
 # plan["continuation_at_export"] and plan["workspace"]["location_map"].

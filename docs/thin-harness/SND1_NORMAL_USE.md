@@ -4,10 +4,10 @@ The optional examples `snd1_pose_workflow.py` and `research_snd1_improvement.py`
 exercise normal-use improvement on real SND1 C26 structures. They add no core
 scheduler, required Probe stage, model call or global method default.
 
-MolQuarry supplies RCSB entry/polymer/CCD evidence. PRISM supplies map-neutral
+MolOrigin supplies RCSB entry/polymer/CCD evidence. PRISM supplies map-neutral
 chemical identity and original protein-frame geometry parsing. RDKit executes
 ETKDG and MMFF. This example does not call the full PRISM design producer,
-MolCascade docking, MD, MM-PBSA or an affinity endpoint.
+MolCat docking, MD, MM-PBSA or an affinity endpoint.
 
 The comparison uses a common experimental template and a target chemical graph:
 free conformer optimization followed by graph-core alignment versus a coordinate
@@ -23,15 +23,15 @@ Subsequent branches inspect graph applicability and retrieved dispositions befor
 selecting a method. The example host rule honors explicit supersession and stops
 for conflicting unsuperseded advice. Retrieval itself does not adopt a method.
 
-The preparation input layout is explicit: `PROTOCOL.md`, MolQuarry query snapshots
+The preparation input layout is explicit: `PROTOCOL.md`, MolOrigin query snapshots
 under `data/data/{entry-7knw,polymer-7knw,ccd-qoy,ccd-qov}`, and unmodified RCSB PDB
 representations under `data/originals/{7KNW,7KNX}.pdb`, each with its download receipt.
-Current MolQuarry downloads mmCIF; the example acquisition retains an explicit
+Current MolOrigin downloads mmCIF; the example acquisition retains an explicit
 official PDB-download receipt for that representation rather than claiming the
 adapter exposed it. Pose methods and the protocol must be frozen before outcomes.
 
-Use an interpreter with RDKit, NumPy, ETALON and PRISM's declared design
-dependencies. The driver takes explicit `--root`, `--etalon-source`,
+Use an interpreter with RDKit, NumPy, MolDarwin and PRISM's declared design
+dependencies. The driver takes explicit `--root`, `--moldarwin-source`,
 `--prism-source`, `--authority`, and optional `--installed` paths. Its stages are
 `init`, `compare`, and `followup`. These are example CLI commands, not compulsory
 research phases. Each owned generation batch is bounded and charged through the

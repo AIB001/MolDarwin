@@ -2,12 +2,12 @@
 import numpy as np
 import pytest
 
-from etalon.rescore.motion import (factorial_contacts, minimal_reset_summary,
+from moldarwin.rescore.motion import (factorial_contacts, minimal_reset_summary,
                                    reset_coordinates, reset_family, rigid_fit)
 
 
 def test_family_shares_fit_without_aliasing_or_changing_operations(monkeypatch):
-    import etalon.rescore.motion as motion
+    import moldarwin.rescore.motion as motion
     base, ligand, core, *_ = fixture()
     changed = base.copy()
     changed[ligand] += [.4, .2, .1]

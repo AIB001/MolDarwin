@@ -4,13 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active.schema import canonical
-from etalon.research import note_resources as resources
-from etalon.research.handoff import export_research_handoff, plan_research_handoff, relocate_research_handoff
-from etalon.research.notes import (entry_journal, entry_value, original, patch_progress,
+from moldarwin.active.schema import canonical
+from moldarwin.research import note_resources as resources
+from moldarwin.research.handoff import export_research_handoff, plan_research_handoff, relocate_research_handoff
+from moldarwin.research.notes import (entry_journal, entry_value, original, patch_progress,
     open_original, read_entry, read_note, resolve_method, save_progress)
-from etalon.research.schema import Artifact
-from etalon.runtime.files import _save, file_identity
+from moldarwin.research.schema import Artifact
+from moldarwin.runtime.files import _save, file_identity
 from test_research_notes import case
 
 
@@ -168,7 +168,7 @@ def test_resource_archive_and_originals_survive_two_handoff_locations(case, tmp_
 
 def test_legacy_inline_resources_read_and_migrate_without_rewriting_original(case, tmp_path):
     journal, note, _ = case
-    from etalon.research.notes import SCHEMA, publish_note
+    from moldarwin.research.notes import SCHEMA, publish_note
     body = {**note, "schema": SCHEMA, "resources": {"old/name": {"kind": "method", "summary": "legacy"}}}
     path = tmp_path / "legacy-note.json"
     _save(path, body)

@@ -1,7 +1,7 @@
 # Evidence windows and controlled outcome publication
 
-`etalon.research.evidence_window` adds ordinary `etalon-evidence-window/1` and
-`etalon-outcome-release/1` JSON Artifacts to the existing ResearchJournal. Each
+`moldarwin.research.evidence_window` adds ordinary `moldarwin-evidence-window/1` and
+`moldarwin-outcome-release/1` JSON Artifacts to the existing ResearchJournal. Each
 payload is limited to 16 KiB. It adds no store, scheduler, scientific promotion,
 mandatory host route, or execution budget. R4b remains paused.
 

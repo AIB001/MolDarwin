@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from etalon.research.continuation import read_content, resume_research
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research.publication import resume_publication
+from moldarwin.research.continuation import read_content, resume_research
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research.publication import resume_publication
 
 spec = importlib.util.spec_from_file_location("research_closeout_example", Path(__file__).parents[1] / "examples/research_closeout.py")
 closeout = importlib.util.module_from_spec(spec)
@@ -31,7 +31,7 @@ def packet_case(tmp_path):
         path = tmp_path / (category + ".json")
         path.write_text(json.dumps({"fixture": True, "category": category}), encoding="utf-8")
         files.append({"name": category, "path": str(path), **file_identity(path), "category": category})
-    packet = {"schema": "etalon-closeout-packet/1", "task_id": "fixture-closeout", "branch_id": "md",
+    packet = {"schema": "moldarwin-closeout-packet/1", "task_id": "fixture-closeout", "branch_id": "md",
         "as_of": "2026-01-01T01:00:00Z", "scope": "Fixture only", "node_state": "reused",
         "capability_id": None, "reason": "Archive fixture completed output",
         "reconsider_when": "Changed conditions", "branch_state": "resolved", "choice": "reuse", "files": files}

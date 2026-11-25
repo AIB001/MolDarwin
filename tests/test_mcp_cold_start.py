@@ -15,7 +15,7 @@ from datetime import timedelta
 
 import pytest
 
-from etalon.mcp import _common
+from moldarwin.mcp import _common
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -61,7 +61,7 @@ def test_idle_pipe_allows_cold_import_and_preserves_split_text_and_eof(tmp_path)
     code = f'''
 import json,os,sys,threading,time
 from pathlib import Path
-from etalon.mcp._common import stdio_input
+from moldarwin.mcp._common import stdio_input
 original=sys.stdin
 lines=[]
 with stdio_input():
@@ -129,7 +129,7 @@ def test_open_pipe_reader_stops_on_cancellation_and_exception():
     code = '''
 import sys,threading,time
 import anyio
-from etalon.mcp._common import stdio_input
+from moldarwin.mcp._common import stdio_input
 original=sys.stdin
 with stdio_input():
     async def run():
@@ -185,14 +185,14 @@ async def _probe(directory):
     # production transport lifecycle is exercised, including normal EOF exit.
     code = '''
 import json,sys
-from etalon.mcp import server
+from moldarwin.mcp import server
 build=server.build
 def observed_build():
     mcp=build()
     @mcp.tool()
     def test_import_snapshot() -> str:
         return json.dumps({name:getattr(sys.modules.get(name),'__file__',None)
-                           for name in ('numpy','pyarrow','etalon','mcp')})
+                           for name in ('numpy','pyarrow','moldarwin','mcp')})
     return mcp
 server.build=observed_build
 server.main()
@@ -200,42 +200,42 @@ server.main()
     server = StdioServerParameters(command=sys.executable, args=["-B", "-c", code],
                                    env={"PYTHONPATH": str(ROOT / "src")})
     manifest = directory / "memory-fixture.json"
-    manifest.write_text(json.dumps({"schema": "etalon-artifact-manifest/1", "records": [{
+    manifest.write_text(json.dumps({"schema": "moldarwin-artifact-manifest/1", "records": [{
         "record_id": "cold-start-fixture", "record_type": "observation", "visibility": "released",
         "record": {"task_id": "cold-start", "role": "diagnostic", "cost": None,
                    "statement": "Engineering fixture; no scientific conclusion"}}]}), encoding="utf-8")
     workspace = directory / "memory-workspace.json"
-    workspace.write_text(json.dumps({"schema": "etalon-evidence-workspace/1",
+    workspace.write_text(json.dumps({"schema": "moldarwin-evidence-workspace/1",
         "workspace_id": "cold-start-fixture", "sources": [{"source_id": "fixture",
         "kind": "artifact_manifest", "location": manifest.name,
         "identity": {"kind": "snapshot_sha256", "value": hashlib.sha256(manifest.read_bytes()).hexdigest()}}]}),
         encoding="utf-8")
-    design = {"schema": "etalon-cascade-design/1", "name": "cold-stdio-fixture",
+    design = {"schema": "moldarwin-cascade-design/1", "name": "cold-stdio-fixture",
               "tiers": [{"id": "measure", "title": "CPU property fixture", "criteria": [{"id": "properties",
                   "backend": "features.rdkit_properties@0.1.0", "settings": {"schema_version": 1}}]}]}
     async with (stdio_client(server) as (read, write),
                 ClientSession(read, write, read_timeout_seconds=timedelta(seconds=20)) as session):
         await session.initialize()
         await session.list_tools()
-        await session.read_resource("etalon://skills/research-context")
+        await session.read_resource("moldarwin://skills/research-context")
 
         async def call(name, arguments=None):
             result = await session.call_tool(name, arguments or {})
             assert not result.isError, result
             return json.loads(result.content[0].text)
 
-        memory = await call("etalon_evidence_query", {"workspace": str(workspace)})
+        memory = await call("moldarwin_evidence_query", {"workspace": str(workspace)})
         assert memory["ok"] and len(memory["items"]) == 1
         before = await call("test_import_snapshot")
         assert before["numpy"] is None and before["pyarrow"] is None, before
         start = time.monotonic()
-        first = await call("etalon_screen_configure", {
+        first = await call("moldarwin_screen_configure", {
             "workspace": str(directory / "first"), "configuration": design})
         elapsed = time.monotonic() - start
         after = await call("test_import_snapshot")
-        second = await call("etalon_screen_configure", {
+        second = await call("moldarwin_screen_configure", {
             "workspace": str(directory / "second"), "configuration": design})
-        assert (await call("etalon_workflow_capabilities"))["ok"]
+        assert (await call("moldarwin_workflow_capabilities"))["ok"]
         (directory / "cold-stdio.json").write_text(json.dumps({
             "before": before, "after": after, "configure_seconds": elapsed,
             "memory_items": len(memory["items"]),

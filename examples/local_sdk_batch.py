@@ -6,7 +6,7 @@ inspection, not a replacement for the evidence needed for scientific inference.
 
     python examples/local_sdk_batch.py --handles handles.json --output new-evidence
 
-The input is a JSON array of complete etalon-action-handle/1 objects returned by
+The input is a JSON array of complete moldarwin-action-handle/1 objects returned by
 submit_action, including schema/backend/workspace/request_id/job_id/plan_id/node_id.
 """
 from __future__ import annotations
@@ -16,7 +16,7 @@ import hashlib
 import json
 from pathlib import Path
 
-from etalon.runtime.api import read_action_result
+from moldarwin.runtime.api import read_action_result
 
 
 def read_action_results(handles: list[dict], output_directory: str | Path) -> list[dict]:

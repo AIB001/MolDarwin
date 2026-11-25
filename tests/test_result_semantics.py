@@ -3,7 +3,7 @@ from copy import deepcopy
 
 import pytest
 
-from etalon.research.result_semantics import (
+from moldarwin.research.result_semantics import (
     bind_scientific_result, build_result_profile, compare_result_context,
     profile_definitions, summarize_result_binding, validate_result_binding,
     validate_result_profile,

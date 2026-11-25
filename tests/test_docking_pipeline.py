@@ -7,9 +7,9 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from molcascade.parallel import StageResources, ShardTask, ShardOutcome
-from molcascade.parallel.shards import plan_shards, plan_batch_shards, iter_shard_batches, run_sharded
-from molcascade.parallel.progress import report_activity, stage_progress, write_progress
+from molcat.parallel import StageResources, ShardTask, ShardOutcome
+from molcat.parallel.shards import plan_shards, plan_batch_shards, iter_shard_batches, run_sharded
+from molcat.parallel.progress import report_activity, stage_progress, write_progress
 
 
 def producer(task):
@@ -78,7 +78,7 @@ def test_bounded_pipeline_checks_before_checkpoint_and_resumes(tmp_path):
 
 def test_stage_status_shows_inner_phase_without_promoting_results(tmp_path):
     from types import SimpleNamespace
-    from molcascade.runtime.cache import checkpoint_directory_name
+    from molcat.runtime.cache import checkpoint_directory_name
     key='cache:sha256:'+'a'*64;root=tmp_path/checkpoint_directory_name(key)
     activity=root/'activity'/'attempt1'
     task=ShardTask(0,(tmp_path/'input',),0,10,{'primary':tmp_path/'unused'},progress_dir=activity)
@@ -92,8 +92,8 @@ def test_stage_status_shows_inner_phase_without_promoting_results(tmp_path):
 
 
 def test_both_versions_registered_and_new_catalog_uses_pipeline():
-    from molcascade.plugins.registry import create_builtin_registry
-    from molcascade.backends.preflight import _BY_PLUGIN_REF
+    from molcat.plugins.registry import create_builtin_registry
+    from molcat.backends.preflight import _BY_PLUGIN_REF
     registry=create_builtin_registry()
     assert not registry.get('docking.unidock@0.2.0').pipelined
     assert registry.get('docking.unidock@0.3.0').pipelined
@@ -103,7 +103,7 @@ def test_both_versions_registered_and_new_catalog_uses_pipeline():
 
 def test_deep_activity_path_is_readable_without_shortening_workspace(tmp_path):
     from types import SimpleNamespace
-    from molcascade.runtime.cache import checkpoint_directory_name
+    from molcat.runtime.cache import checkpoint_directory_name
     checkpoints=tmp_path/('deep-'+'x'*100)/('y'*100)
     key='cache:sha256:'+'b'*64
     root=checkpoints/checkpoint_directory_name(key)

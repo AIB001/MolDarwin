@@ -4,12 +4,12 @@
 
 ## 来源与文件
 
-复用 `F:/life_healthy/ETALON` checkout，分支 `main`，HEAD 和本地 main 均为 `5927aceb346475a6f97550f561e7eb3b291611da`；现场 `origin/main` 为 `0af4297fb7de435d858d54195561883a21526d5e`。I 的共同归档位于 `integration/thin-harness-engineering-20261020/`，其中保留原有 dirty/untracked 科学源码。薄分支来源 pin 为 `d3889e6c0600605f018fb81ce3df1b420d6dcbf9`，B 没有覆盖其宿主实现。
+复用 `F:/life_healthy/MolDarwin` checkout，分支 `main`，HEAD 和本地 main 均为 `5927aceb346475a6f97550f561e7eb3b291611da`；现场 `origin/main` 为 `0af4297fb7de435d858d54195561883a21526d5e`。I 的共同归档位于 `integration/thin-harness-engineering-20261020/`，其中保留原有 dirty/untracked 科学源码。薄分支来源 pin 为 `d3889e6c0600605f018fb81ce3df1b420d6dcbf9`，B 没有覆盖其宿主实现。
 
 B 修改：
 
-- `src/etalon/research/schema.py`、`journal.py`、`__init__.py`：追加三个方法类型、严格字典解析和同账本校验。
-- `src/etalon/campaign/calibrate.py`：先按字节确认工作文件等于 HEAD，再单文件合入上述 origin/main 的方向、NaN/tie、空面板、分子级 enrichment 修复。没有该文件的本地 dirty 科学改动需要覆盖。
+- `src/moldarwin/research/schema.py`、`journal.py`、`__init__.py`：追加三个方法类型、严格字典解析和同账本校验。
+- `src/moldarwin/campaign/calibrate.py`：先按字节确认工作文件等于 HEAD，再单文件合入上述 origin/main 的方向、NaN/tie、空面板、分子级 enrichment 修复。没有该文件的本地 dirty 科学改动需要覆盖。
 - 新增 `tests/test_research_methods.py`，归属已由 I 登记。
 - 本交付文件。
 
@@ -18,8 +18,8 @@ B 修改：
 ## 公共调用与边界
 
 ```python
-from etalon.active import CampaignStore
-from etalon.research import ResearchJournal, MethodVersion, MethodUse, method_record_from_dict
+from moldarwin.active import CampaignStore
+from moldarwin.research import ResearchJournal, MethodVersion, MethodUse, method_record_from_dict
 
 journal = ResearchJournal(CampaignStore(database))
 version_id = journal.record(MethodVersion(
@@ -39,7 +39,7 @@ record_id = journal.record(method_record_from_dict(body))
 assert record_id == use_id
 ```
 
-`method_record_from_dict` 仅接受 `etalon-method-version/1`、`etalon-method-use/1`、`etalon-method-evaluation/1`，拒绝任意 metadata 和未知字段。对象的 `.as_dict()` 含 schema；ID 用既有完整记录 canonical/digest 规则，内容摘要保持 C 原有 bundle 算法。每次写入先快照并重新校验嵌套对象，追加不可变；同 payload 重放不新增事件。每个数据库 connection 自行关闭，不存在长期 journal 句柄需要 close。
+`method_record_from_dict` 仅接受 `moldarwin-method-version/1`、`moldarwin-method-use/1`、`moldarwin-method-evaluation/1`，拒绝任意 metadata 和未知字段。对象的 `.as_dict()` 含 schema；ID 用既有完整记录 canonical/digest 规则，内容摘要保持 C 原有 bundle 算法。每次写入先快照并重新校验嵌套对象，追加不可变；同 payload 重放不新增事件。每个数据库 connection 自行关闭，不存在长期 journal 句柄需要 close。
 
 `content_verified` 通过 C 的 `skills.verify_snapshot(content_ref)` 实际检查保存的文件清单、路径、大小和字节；`content_ref` 为 `persist_snapshot` 返回的 `{manifest_path, manifest_sha256}`。自报摘要仅支持 `host_reported`。读取旧记录保留“写入当时校验”的历史事实；需要确认当前快照仍在时再调用 verify_snapshot，不能把历史校验当作当前文件仍完好的保证。
 
@@ -60,12 +60,12 @@ assert record_id == use_id
 
 ## 实际验证
 
-解释器：`F:/life_healthy/ETALON/.venv/Scripts/python.exe`，Python 3.13.12。用 `importlib.import_module` 核验 `etalon.research`、`etalon.research.schema`、`etalon.research.journal`、`etalon.campaign.calibrate` 均从该 checkout 的 `src/etalon/` 导入。首次直接访问 `etalon.campaign.calibrate.__file__` 因包同名导出是函数而失败，已用 importlib 更正核验；没有隐藏这次检查失败。
+解释器：`F:/life_healthy/MolDarwin/.venv/Scripts/python.exe`，Python 3.13.12。用 `importlib.import_module` 核验 `moldarwin.research`、`moldarwin.research.schema`、`moldarwin.research.journal`、`moldarwin.campaign.calibrate` 均从该 checkout 的 `src/moldarwin/` 导入。首次直接访问 `moldarwin.campaign.calibrate.__file__` 因包同名导出是函数而失败，已用 importlib 更正核验；没有隐藏这次检查失败。
 
 | 检查 | 实际结果 | 证据范围 |
 | --- | --- | --- |
 | `.venv/Scripts/python.exe -m pytest tests/test_research_methods.py tests/test_research_journal.py tests/test_research_validation.py -q` | passed，20 tests | 方法幂等/不可变、空/组合/晚到使用、真实本地快照篡改、错误引用、事件身份、独立声明拒绝、冻结绑定、旧字节泄露、费用与未知；旧 journal/validation 兼容 |
-| 精确全部 `tests/test_research_*.py`：`$researchTests = @(rg --files tests \| Where-Object { $_ -match 'test_research_.*\.py$' }); & .venv/Scripts/python.exe -m pytest @researchTests -q -rs` | passed，84 passed / 5 skipped，23.72 s | 5 skips 为 producer 4 项、pose 1 项，要求显式 `ETALON_TEST_PRISM_SOURCE`/producer snapshot；没有擅自绑定 PRISM 或运行其真实计算 |
+| 精确全部 `tests/test_research_*.py`：`$researchTests = @(rg --files tests \| Where-Object { $_ -match 'test_research_.*\.py$' }); & .venv/Scripts/python.exe -m pytest @researchTests -q -rs` | passed，84 passed / 5 skipped，23.72 s | 5 skips 为 producer 4 项、pose 1 项，要求显式 `MOLDARWIN_TEST_PRISM_SOURCE`/producer snapshot；没有擅自绑定 PRISM 或运行其真实计算 |
 | `pytest tests -q -k 'research or calibrat'` 早期扩展检查 | failed：107 passed / 5 skipped / 5 failed | 5 失败全在现有 `test_learning_integrity.py`，`learn/conformal.py` 在拒绝非法参数前 import 缺失 sklearn；已报 I，B 不拥有该文件且未安装依赖 |
 | MET-01/03/04/05/06/07 记录后端、RES-08/LEARN-03 数据角色工程检查 | passed，对应上述夹具 | 不代表真实宿主选择能力、真实科学独立隔离或改进收益 |
 | HOST-01，真实 PRISM 贯通，LEARN-01/02 独立收益 | not_run | 本线没有实际宿主遥测、新独立任务授权或科学计算；由 V 单列判定 |
@@ -78,7 +78,7 @@ assert record_id == use_id
 
 现场逐字节确认：
 
-- `src/etalon/learn/conformal.py` SHA256 `b0fef0ed6ef7205c306e664bf1e2fa6f3b0c6154c105090908687dee2a6ce5dc`。
+- `src/moldarwin/learn/conformal.py` SHA256 `b0fef0ed6ef7205c306e664bf1e2fa6f3b0c6154c105090908687dee2a6ce5dc`。
 - `tests/test_learning_integrity.py` SHA256 `fbe05997be64e7d513af0da9c77b9df072ab2be70b0d1a60d8f6fa41fd10909d`。
 - 两个文件均与 HEAD、origin/main、origin/codex/refactor-thin-harness 完全相同。隔离检查前后哈希不变；故不能将这五个失败归因为本轮薄 harness 源码回归。
 
@@ -92,7 +92,7 @@ assert record_id == use_id
 
 原函数在校验参数之前 import sklearn，是三个来源共同已有的顺序；这解释了最小环境为何先抛 ModuleNotFoundError。测试环境依赖补齐后，原有禁止 `Surrogate.fit` 的断言不变，五种非法输入均正常在拟合前被拒绝。不需要修改源码或弱化测试。
 
-仅向 `ETALON/.agent-local/native-b-deps-20261021/` 执行 `pip --target --no-deps`，并在专用子进程中显式加入该 overlay。固定包为 scikit-learn 1.9.1、joblib 1.6.0、threadpoolctl 3.7.0、cloudpickle 3.1.2、narwhals 2.27.1；精确安装命令、下载 wheel 哈希和版本见 `install*-command.json`、`install*-report.json`、`requirements-isolated.txt`。继续使用原 `.venv` 的 numpy 2.5.4 / scipy 1.18.1 / pytest 9.1.1；`dependency-check.json` 确认当前 overlay 的全部生效运行依赖满足版本范围。
+仅向 `MolDarwin/.agent-local/native-b-deps-20261021/` 执行 `pip --target --no-deps`，并在专用子进程中显式加入该 overlay。固定包为 scikit-learn 1.9.1、joblib 1.6.0、threadpoolctl 3.7.0、cloudpickle 3.1.2、narwhals 2.27.1；精确安装命令、下载 wheel 哈希和版本见 `install*-command.json`、`install*-report.json`、`requirements-isolated.txt`。继续使用原 `.venv` 的 numpy 2.5.4 / scipy 1.18.1 / pytest 9.1.1；`dependency-check.json` 确认当前 overlay 的全部生效运行依赖满足版本范围。
 
 | 运行 | 实际结果 | 原件 |
 | --- | --- | --- |
@@ -101,14 +101,14 @@ assert record_id == use_id
 | 补齐隔离传递依赖后重复五个原用例 | passed，5 passed / 1.08 s pytest 时间 | `controls-02.log/.xml`、`controls-02-result.json` |
 | 必要回归：完整 `test_learning_integrity.py` 与 `test_learning.py` | passed，116 passed / 3.56 s pytest 时间 | `learning-01.log/.xml`、`learning-01-result.json` |
 
-116 已包含那五个用例，不能把两次结果相加称为 121 个独立覆盖。可复现命令（cwd 为 ETALON）：
+116 已包含那五个用例，不能把两次结果相加称为 121 个独立覆盖。可复现命令（cwd 为 MolDarwin）：
 
 ```powershell
 .venv/Scripts/python.exe ../integration/thin-harness-native-20261021/b/run_isolated.py controls --attempt 03
 .venv/Scripts/python.exe ../integration/thin-harness-native-20261021/b/run_isolated.py learning --attempt 02
 ```
 
-实际解释器仍为 `.venv/Scripts/python.exe` 3.13.12；ETALON 模块从当前 `src/etalon/learn/` 导入，新增依赖只从隔离 overlay 导入。`isolation-postcheck.json` 在不添加 overlay 的新进程中确认共享环境仍没有 sklearn/joblib/threadpoolctl/cloudpickle/narwhals，numpy/scipy 原路径和版本保留，暂存区为空。没有改共享依赖或永久 PYTHONPATH；默认 `.venv` 不带 overlay 时仍缺该可选依赖，因此本次交付是明确环境下的失败归因与验证，不是声称共享环境已修复。
+实际解释器仍为 `.venv/Scripts/python.exe` 3.13.12；MolDarwin 模块从当前 `src/moldarwin/learn/` 导入，新增依赖只从隔离 overlay 导入。`isolation-postcheck.json` 在不添加 overlay 的新进程中确认共享环境仍没有 sklearn/joblib/threadpoolctl/cloudpickle/narwhals，numpy/scipy 原路径和版本保留，暂存区为空。没有改共享依赖或永久 PYTHONPATH；默认 `.venv` 不带 overlay 时仍缺该可选依赖，因此本次交付是明确环境下的失败归因与验证，不是声称共享环境已修复。
 
 未运行整个 test extra、独立科学评价或 R4b；无新科学任务费用。安装和执行尝试的已知 wall time 分项留存，完整工程成本未知，不将未计量部分补为零。
 
@@ -116,7 +116,7 @@ assert record_id == use_id
 
 共同起点为 I 的 1157 文件 `thin-harness-functions-20261021/baseline.zip`（SHA256 `24b76668c45a72bd5c3517ffa6ef5bf9776f90e07a7f37b707bb36d32419cdc8`）。遵循 V 预冻结 `function_acceptance_20261021.json`（SHA256 `9ff39fe7c2471c8ba6ec6dc6b9d272f988fa39d3f3e2503eecee0ed3b31106f2`）及只读补充判据。B 新增已登记测试 `tests/test_research_function_methods.py`，追加本交付；没有改科学算法。现场对 39 个 research 文件与 campaign/calibrate.py 的合计来源逐项检查，运行前后均匹配共同基线。
 
-实际工程证据：[RESULT.json](../../../integration/thin-harness-functions-20261021/b/RESULT.json)、同目录 `run_evidence.py`、`function-run.log`、`targeted-tests.log/.xml`、命令 JSON，以及独立的 `factorial-fixture/` 输入数据库。解释器仍为 `.venv/Scripts/python.exe` 3.13.12，实际算法从本 checkout `src/etalon/` 导入；精确路径、源码摘要和 Python 签名写在 RESULT 中。本轮不需要上轮隔离 sklearn overlay。
+实际工程证据：[RESULT.json](../../../integration/thin-harness-functions-20261021/b/RESULT.json)、同目录 `run_evidence.py`、`function-run.log`、`targeted-tests.log/.xml`、命令 JSON，以及独立的 `factorial-fixture/` 输入数据库。解释器仍为 `.venv/Scripts/python.exe` 3.13.12，实际算法从本 checkout `src/moldarwin/` 导入；精确路径、源码摘要和 Python 签名写在 RESULT 中。本轮不需要上轮隔离 sklearn overlay。
 
 | 范围 | 结果与具体边界 |
 | --- | --- |
@@ -139,8 +139,8 @@ assert record_id == use_id
 B 与 C 选定的使用场景是已有 campaign skill 的按需“局部二因素描述性比较”reference，不新建 SDK 框架或第七个全局方法注册。fixture 构建函数 `build_research_fixture(new_root)` 只属工程测试，供 C 创建新的隔离输入；产品方法实际调用仍是上述公开 ResearchJournal。可重用的只读调用：
 
 ```python
-from etalon.active import CampaignStore
-from etalon.research import ResearchJournal
+from moldarwin.active import CampaignStore
+from moldarwin.research import ResearchJournal
 
 journal = ResearchJournal(CampaignStore(database, read_only=True))
 result = journal.factorial(contrast_id)
@@ -148,7 +148,7 @@ result = journal.factorial(contrast_id)
 
 输入为已存在的 Contrast，四格引用同任务、固定测量定义的 Observation；coupling 明示共享证据与相关性。结果 `uncertainty=None`、scope 明确“descriptive contrast; no independence or causal identification inferred”。缺格时停止定量交互结论或在另行授权下补证；单位/身份不一致先纠正绑定，不通过凑数继续。任何完整结果都不自动证明机制、因果、独立收益、模型更新或 RSI。
 
-B 另向 I 指出共享 `etalon_calibrate_gates` 仍构造 `Screen(workspace)` 的潜在只读副作用；MCP/Screen 接缝由 I/A 唯一所有者处理，不能用本节 SDK 成功覆盖其验收。R4b 暂停，未读取旧释放标签、派发 PRISM/CRO、恢复计算、修改共享依赖或提交推送。
+B 另向 I 指出共享 `moldarwin_calibrate_gates` 仍构造 `Screen(workspace)` 的潜在只读副作用；MCP/Screen 接缝由 I/A 唯一所有者处理，不能用本节 SDK 成功覆盖其验收。R4b 暂停，未读取旧释放标签、派发 PRISM/CRO、恢复计算、修改共享依赖或提交推送。
 
 ### 原生 generation timeout 的短依赖诊断
 
@@ -162,7 +162,7 @@ I/C 的真实 native timeout 及 raw MCP timeout 保留原件；B 只追加 `b/d
 
 ## 2026-10-21 后续 research 可选方法对齐（FM-09）
 
-本轮共同起点为 `integration/thin-harness-research-20261021/baseline.zip`，SHA256 `aab89b2d5a82571569a87e3e4ddae518f2d74f070d1e119084ec2f95232d31f2`，1170 文件。B 只新增 [test_research_optional_methods.py](../../tests/test_research_optional_methods.py) 并追加本节；研究生产算法没有改动，实际核对 38 个 `src/etalon/research/` 文件均与起点逐字节相同。原科学证据、前轮失败和当前暂存区保持原样。
+本轮共同起点为 `integration/thin-harness-research-20261021/baseline.zip`，SHA256 `aab89b2d5a82571569a87e3e4ddae518f2d74f070d1e119084ec2f95232d31f2`，1170 文件。B 只新增 [test_research_optional_methods.py](../../tests/test_research_optional_methods.py) 并追加本节；研究生产算法没有改动，实际核对 38 个 `src/moldarwin/research/` 文件均与起点逐字节相同。原科学证据、前轮失败和当前暂存区保持原样。
 
 本轮选择三个互补于 factorial 的真实现有函数，不要求宿主全部采用或遵循顺序：
 
@@ -228,7 +228,7 @@ I/C 的真实 native timeout 及 raw MCP timeout 保留原件；B 只追加 `b/d
 
 **2 passed in 0.56s**，原件为 `i/b/sdk-examples.log/.xml`。不是用文本字符串包含检查代替执行，也不要求共享环境安装新依赖。
 
-另有两次完整示例子进程记录 [RESULT.json](../../../integration/thin-harness-efficiency-20261021/i/b/RESULT.json)、`run_evidence.py` 与 `evidence-run.log`：实际 `.venv/Scripts/python.exe` 3.13.12，模块从 checkout/src/etalon/research 导入，精确路径/hash、命令、stdout、退出状态和片段 hash 保留；两进程 wall time 分别约 .491/.488 s，仅是局部工程测量，不能当作宿主端到端提速。SDK/runtime 源码不变；无原生宿主质量或 G0/G1/G2 收益声明，这些由 C/E/V 的实际运行单独判定。
+另有两次完整示例子进程记录 [RESULT.json](../../../integration/thin-harness-efficiency-20261021/i/b/RESULT.json)、`run_evidence.py` 与 `evidence-run.log`：实际 `.venv/Scripts/python.exe` 3.13.12，模块从 checkout/src/moldarwin/research 导入，精确路径/hash、命令、stdout、退出状态和片段 hash 保留；两进程 wall time 分别约 .491/.488 s，仅是局部工程测量，不能当作宿主端到端提速。SDK/runtime 源码不变；无原生宿主质量或 G0/G1/G2 收益声明，这些由 C/E/V 的实际运行单独判定。
 
 R4b 继续暂停；没有真实科学执行、新 PRISM/CRO、旧任务恢复、共享依赖升级、提交或推送。原始失败、未知、预算、证据和所有旧 DELIVERY 保留。
 
@@ -236,7 +236,7 @@ R4b 继续暂停；没有真实科学执行、新 PRISM/CRO、旧任务恢复、
 
 本轮 B `/root/b_research` 依据 REQUEST 与 I2 WORKSTREAMS 独占归属实施；应用 skill-creator 和本地 life-healthy-contract-refactor，二者不是产品科学方法。原件见 [b/RESULT.json](../../../integration/thin-harness-skills-20261021/b/RESULT.json)、[b/COVERAGE.md](../../../integration/thin-harness-skills-20261021/b/COVERAGE.md)。I2 共同基线为 `integration/thin-harness-skills-20261021/i/baseline.zip`。实际逐字节比对 **38 个 research 基线文件全部不变**，没有改算法、建路由器或恢复科学任务。
 
-新增 [etalon-research](../../.claude/skills/etalon-research/SKILL.md) 一个短入口，五份按需参考覆盖真实公开能力族：
+新增 [moldarwin-research](../../.claude/skills/moldarwin-research/SKILL.md) 一个短入口，五份按需参考覆盖真实公开能力族：
 
 - transfer：GroupSplit/Catalog、fit/calibrate/next_action/evaluate、概率评估、持久策略、联合支持和未知界；明确完整配对行、组/家族隔离、释放绑定与离线复用。
 - validation/feedback：冻结决定的释放比较、transfer 与 retained-baseline 反馈、原始角色与 seen 后续用途；附加记录不是模型更新或晋升，oracle 调用不是纯读。
@@ -244,13 +244,13 @@ R4b 继续暂停；没有真实科学执行、新 PRISM/CRO、旧任务恢复、
 - fixed_pool/online：paid-subset、可见 receipt、pool/rows/workflows、plan/run/额外 counterfactual acquisition；retained-baseline 明确只是原十二任务 R4b 布局与固定权重的兼容实现，不冒充通用新任务 API。
 - evidence/panel：Artifact/Experiment/Observation/TaskSplit、scientific revision、面板/选择/冻结预测及可选 finite controller；不会把历史轮次脚本升为必经顺序。
 
-原 campaign 的 factorial、finite、paired 三份方法未改，description 补真实 SDK 名称并链接新 research 能力；新增 [governance-and-fep](../../.claude/skills/etalon-campaign/references/governance-and-fep.md) 对齐八个现有 governance MCP 入口，包括 handoff、stability、admission、spend token、council reliability/adjudication、waiver recommendation 和 FEP network design。没有运行 MD/FEP；网络设计仅本地 RDKit 图计算，不可用分子仍保留 unreachable，缺实测 anchor 的组件只有相对差异。既有真实授权继续有效；没有额外常规审批门槛。
+原 campaign 的 factorial、finite、paired 三份方法未改，description 补真实 SDK 名称并链接新 research 能力；新增 [governance-and-fep](../../.claude/skills/moldarwin-campaign/references/governance-and-fep.md) 对齐八个现有 governance MCP 入口，包括 handoff、stability、admission、spend token、council reliability/adjudication、waiver recommendation 和 FEP network design。没有运行 MD/FEP；网络设计仅本地 RDKit 图计算，不可用分子仍保留 unreachable，缺实测 anchor 的组件只有相对差异。既有真实授权继续有效；没有额外常规审批门槛。
 
-实际可运行方法源是 skill 内 [scripts/research_methods.py](../../.claude/skills/etalon-research/scripts/research_methods.py)，随完整内容版本/导出携带，由 I2 纳入包验证。[examples/research_methods.py](../../examples/research_methods.py) 只作为源码 checkout 的便利调用，不声称 wheel 自带 examples 命令。脚本不打开科学数据/账本、不调用 producer，可 stdout 或独占创建显式 --output 文件；输出已存在时拒绝覆盖。可单独使用任何函数，不需要按完整脚本顺序采用。
+实际可运行方法源是 skill 内 [scripts/research_methods.py](../../.claude/skills/moldarwin-research/scripts/research_methods.py)，随完整内容版本/导出携带，由 I2 纳入包验证。[examples/research_methods.py](../../examples/research_methods.py) 只作为源码 checkout 的便利调用，不声称 wheel 自带 examples 命令。脚本不打开科学数据/账本、不调用 producer，可 stdout 或独占创建显式 --output 文件；输出已存在时拒绝覆盖。可单独使用任何函数，不需要按完整脚本顺序采用。
 
 实际首次运行输出 [example-first.json](../../../integration/thin-harness-skills-20261021/b/example-first.json)。它用明确合成任务调用现有 fit/calibrate/next_action/evaluate；calibration 比较不当独立 test；将 subset_rank_outcome 与 execute_visible_task 在一个局部脚本组合，正常路径只获取 r0/r1/r2 各一次，缺失评分的真实返回为 failed → unsupported_history/abstain，r2 未取，候选分数保持 null。fixture 路径 .3/.2 wall_second 是**合成 callback 声明成本，不是原生实测费用**，measured_scientific_cost 与 scientific_gain 均 null。pose 示例保留三次尝试与两次 admitted 的分母，最佳评分与最佳已知结构损失不同。
 
-实际解释器为 `F:/life_healthy/ETALON/.venv/Scripts/python.exe`，Python 3.13.12；13 个相关模块的实际 import 路径、SHA256、签名与 11 个交付文件身份在 RESULT。两项 quick_validate 均通过；它们仅是格式检查。
+实际解释器为 `F:/life_healthy/MolDarwin/.venv/Scripts/python.exe`，Python 3.13.12；13 个相关模块的实际 import 路径、SHA256、签名与 11 个交付文件身份在 RESULT。两项 quick_validate 均通过；它们仅是格式检查。
 
 工程行为测试为 [test_research_skill_methods.py](../../tests/test_research_skill_methods.py) 的六项：新版本但不伪造测试释放、可见顺序和终端费用、缺失返回停止、无 policy 的局部使用及未付子集拒绝、实际执行 reference 中 pose/council 示例、显式新输出且未知值保留。选测相关原 research 的 41 项和 FEP 的 2 项，共 **49 个不重复通过用例**。命令/原件：
 

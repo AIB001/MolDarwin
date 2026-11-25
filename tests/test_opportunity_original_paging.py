@@ -6,17 +6,17 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active.store import StateError
-from etalon.research import Artifact
-from etalon.research import opportunity_state as state
-from etalon.research import evidence
-from etalon.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.active.store import StateError
+from moldarwin.research import Artifact
+from moldarwin.research import opportunity_state as state
+from moldarwin.research import evidence
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
 from test_opportunity_state import SID, case, close, reopen, save
 
 
 def workspace(case):
     path = case["root"] / "paged-originals.json"
-    path.write_text(json.dumps({"schema": "etalon-evidence-workspace/1", "workspace_id": "paging-fixture",
+    path.write_text(json.dumps({"schema": "moldarwin-evidence-workspace/1", "workspace_id": "paging-fixture",
         "sources": [{"source_id": SID, "kind": "journal", "location": str(case["j"].store.path),
                      "identity": {"kind": "snapshot_sha256", "value": file_identity(case["j"].store.path)["sha256"]}}],
         "status_refs": [], "location_map": []}), encoding="utf-8")

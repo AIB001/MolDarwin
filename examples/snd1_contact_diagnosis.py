@@ -10,12 +10,12 @@ from pathlib import Path
 import sys
 import time
 import numpy as np
-from etalon.runtime.files import file_identity, _save
-from etalon.runtime.reuse import execute_or_reuse, request_identity
-from etalon.research.notes import entry_value, read_entry, save_progress, original
-from etalon.research import ResearchJournal
-from etalon.active import CampaignStore
-from etalon.rescore.contacts import geometry, diagnose
+from moldarwin.runtime.files import file_identity, _save
+from moldarwin.runtime.reuse import execute_or_reuse, request_identity
+from moldarwin.research.notes import entry_value, read_entry, save_progress, original
+from moldarwin.research import ResearchJournal
+from moldarwin.active import CampaignStore
+from moldarwin.rescore.contacts import geometry, diagnose
 
 
 def run(config, *, interrupt_after_result=False):
@@ -35,7 +35,7 @@ def run(config, *, interrupt_after_result=False):
     for row in successful:
         folder = Path(row['handle']).parent
         files += [folder/'em.gro',Path(row['handle'])/'md.xtc',folder/'CONTACTS.json']
-    implementation = [Path(__file__), Path(__file__).parents[1]/'src/etalon/rescore/contacts.py']
+    implementation = [Path(__file__), Path(__file__).parents[1]/'src/moldarwin/rescore/contacts.py']
     implementation += [Path(__file__).parent/name for name in (
         'snd1_feedback_experiment.py','snd1_anchor_intervention.py','snd1_contact_program.py',
         'snd1_feedback_search.py','snd1_paired_relaxation.py','snd1_task_learning.py')]
@@ -125,7 +125,7 @@ def run(config, *, interrupt_after_result=False):
         'counterevidence':prior_note.get('counterevidence',[]),
         'pending_handles':[], 'residuals':['The geometric categories do not identify causal force or long-time affinity.'],
         'next_action':{'operation':'choose_intervention_from_loss_geometry','automatic_recompute':False},
-        'method_choices':{'readout':'etalon.rescore.contacts.geometry','scope':'same triples and endpoint; see measured timing in details'},
+        'method_choices':{'readout':'moldarwin.rescore.contacts.geometry','scope':'same triples and endpoint; see measured timing in details'},
         'methods':{'request':request}}
     rid=save_progress(journal,entry,note,publication_id=request['request_digest']+':result')
     return {'entry':str(entry),'record_id':rid,'reused':execution['reused'],

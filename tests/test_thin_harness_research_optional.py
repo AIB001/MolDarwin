@@ -4,10 +4,10 @@ import copy
 
 import pytest
 
-from etalon.active.store import StateError
-from etalon.research import Observation
-from etalon.research.calibration import bind_outcome
-from etalon.research.diagnostics import condition, exact_program
+from moldarwin.active.store import StateError
+from moldarwin.research import Observation
+from moldarwin.research.calibration import bind_outcome
+from moldarwin.research.diagnostics import condition, exact_program
 from test_research_optional_methods import build_optional_fixture
 
 
@@ -85,10 +85,10 @@ def test_v_equality_rule_and_replay_revalidate_evidence_after_binding(tmp_path):
 
 def test_v_direct_suggestions_skip_unrelated_policy_and_enforce_probe_dependencies(tmp_path, monkeypatch):
     store, _, _, _, model = build_optional_fixture(tmp_path / 'direct')
-    from etalon.campaign.loop import Campaign
-    from etalon.campaign.supervisor import Supervisor
-    from etalon.research import transfer
-    from etalon.runtime import api
+    from moldarwin.campaign.loop import Campaign
+    from moldarwin.campaign.supervisor import Supervisor
+    from moldarwin.research import transfer
+    from moldarwin.runtime import api
 
     def forbidden(*args, **kwargs):
         pytest.fail('optional numerical method invoked orchestration or execution')
@@ -125,5 +125,5 @@ def test_v_failed_bind_keeps_unknown_and_no_method_gate_or_false_label(tmp_path)
     assert condition(model, observed)['status'] == 'model_challenge'
     assert not store.actions() and not store.observations()
     assert store.balance() == before_balance
-    assert all(not event['body'].get('record', {}).get('schema', '').startswith('etalon-method-')
+    assert all(not event['body'].get('record', {}).get('schema', '').startswith('moldarwin-method-')
                for event in store.events())

@@ -11,13 +11,13 @@ import json
 from pathlib import Path
 import sqlite3
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.research import ResearchJournal
-from etalon.research.components import record_json
-from etalon.research.continuation import CHECKPOINT, STEP, read_content, record_content
-from etalon.research.entry import resolve_entry
-from etalon.research.evidence_refs import EvidenceError, file_identity, make_ref
-from etalon.research.publication import _save, prepare_publication, resume_publication
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.research import ResearchJournal
+from moldarwin.research.components import record_json
+from moldarwin.research.continuation import CHECKPOINT, STEP, read_content, record_content
+from moldarwin.research.entry import resolve_entry
+from moldarwin.research.evidence_refs import EvidenceError, file_identity, make_ref
+from moldarwin.research.publication import _save, prepare_publication, resume_publication
 
 
 def read(path):
@@ -108,7 +108,7 @@ def bootstrap(root, config_path):
         with store.connection() as src, sqlite3.connect(snapshot) as dst:
             src.backup(dst)
     workspace = root / "workspace.json"
-    _save(workspace, {"schema": "etalon-evidence-workspace/1", "workspace_id": task,
+    _save(workspace, {"schema": "moldarwin-evidence-workspace/1", "workspace_id": task,
         "sources": [{"source_id": sid, "kind": "journal", "location": str(snapshot),
             "identity": {"kind": "snapshot_sha256", "value": file_identity(snapshot)["sha256"]}}],
         "status_refs": [str(authority)], "location_map": []})
@@ -137,7 +137,7 @@ def prepare_packet(entry, packet_path):
     packet, packet_pin = read(packet_path), file_identity(packet_path)
     required = {"schema", "task_id", "branch_id", "as_of", "scope", "node_state", "capability_id",
                 "reason", "reconsider_when", "branch_state", "choice", "files"}
-    if set(packet) != required or packet["schema"] != "etalon-closeout-packet/1":
+    if set(packet) != required or packet["schema"] != "moldarwin-closeout-packet/1":
         raise EvidenceError("invalid explicit closeout packet")
     if not isinstance(packet["as_of"], str) or not packet["as_of"] or not packet["scope"]:
         raise EvidenceError("progress needs an explicit observation time and scope")

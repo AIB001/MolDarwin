@@ -20,8 +20,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from etalon.mcp._common import Cost, absolute_path, fail, ok, tool
-from etalon.mcp.server import SKILL_RESOURCE, costs
+from moldarwin.mcp._common import Cost, absolute_path, fail, ok, tool
+from moldarwin.mcp.server import SKILL_RESOURCE, costs
 
 
 class Collector:
@@ -52,7 +52,7 @@ def _tools() -> dict[str, object]:
     copies of one wrong set and passed over 12 missing tools for as long as both lists agreed.
     """
 
-    from etalon.mcp.server import tool_modules
+    from moldarwin.mcp.server import tool_modules
 
     collector = Collector()
     for module in tool_modules():
@@ -60,7 +60,7 @@ def _tools() -> dict[str, object]:
     return collector.tools
 
 
-#: A handoff row of the kind MolCascade's shortlist exporter actually produces.
+#: A handoff row of the kind MolCat's shortlist exporter actually produces.
 FROM_A_DRAWING = {
     "parent_id": "p:drawing",
     "molblock": "(rebuilt from SMILES)",
@@ -151,42 +151,42 @@ def test_the_cost_classification_covers_every_module_the_server_registers() -> N
     """``costs()`` kept its own module list and it was missing one of the seven.
 
     It reported 45 of 57 tools and omitted every tool in ``mcp/sweep.py``, including
-    ``etalon_authorize_gates`` and ``etalon_sweep_emit`` -- the two that stand between a
+    ``moldarwin_authorize_gates`` and ``moldarwin_sweep_emit`` -- the two that stand between a
     calibration and a campaign's worth of GPU time. Both readers now walk one tuple, so this
     asserts the consequence rather than the mechanism: a namespace cannot go missing again.
     """
 
-    from etalon.mcp.server import tool_modules
+    from moldarwin.mcp.server import tool_modules
 
     classification = costs()
 
     modules = tool_modules()
     assert len(modules) == len(set(modules))
     assert {module.__name__ for module in modules} >= {
-        "etalon.mcp.sweep", "etalon.mcp.host", "etalon.mcp.methods",
+        "moldarwin.mcp.sweep", "moldarwin.mcp.host", "moldarwin.mcp.methods",
     }
     assert len(classification) >= 65
     for namespace in (
-        "etalon_sweep_", "etalon_data_", "etalon_workflow_", "etalon_active_",
-        "etalon_screen_", "etalon_executor_", "etalon_council_",
-        "etalon_action_", "etalon_method_", "etalon_events_",
+        "moldarwin_sweep_", "moldarwin_data_", "moldarwin_workflow_", "moldarwin_active_",
+        "moldarwin_screen_", "moldarwin_executor_", "moldarwin_council_",
+        "moldarwin_action_", "moldarwin_method_", "moldarwin_events_",
     ):
         assert any(name.startswith(namespace) for name in classification), namespace
     # The two the omission actually hid.
-    assert classification["etalon_authorize_gates"] == "free"
-    assert classification["etalon_sweep_emit"] == "cheap"
+    assert classification["moldarwin_authorize_gates"] == "free"
+    assert classification["moldarwin_sweep_emit"] == "cheap"
 
 
 def test_the_cost_a_tool_declares_is_the_one_its_description_shows() -> None:
     """The prefix a model reads is a hand-typed literal; nothing prepends it from the decorator.
 
-    ``tool(cost)`` only sets ``etalon_cost``, and its only reader is ``costs()``. So the
+    ``tool(cost)`` only sets ``moldarwin_cost``, and its only reader is ``costs()``. So the
     FREE/CHEAP/SPENDS/NEVER word at the start of every description is a convention, one typo away
     from telling a model that a spending tool is free. Asserted here for all 57 rather than
     trusted, which is what the decorator's own docstring used to claim the server did.
     """
 
-    from etalon.mcp._common import Cost
+    from moldarwin.mcp._common import Cost
 
     expected = {
         Cost.FREE: "FREE.",
@@ -196,7 +196,7 @@ def test_the_cost_a_tool_declares_is_the_one_its_description_shows() -> None:
     }
     wrong: list[str] = []
     for name, function in sorted(_tools().items()):
-        cost = getattr(function, "etalon_cost", None)
+        cost = getattr(function, "moldarwin_cost", None)
         assert cost is not None, f"{name} carries no cost"
         description = (function.__doc__ or "").strip()
         if not description.startswith(expected[cost]):
@@ -210,7 +210,7 @@ def test_the_planning_tools_are_all_free() -> None:
 
     classification = costs()
 
-    for name in ("etalon_plan_campaign", "etalon_tune_screen", "etalon_stages", "etalon_infrastructure"):
+    for name in ("moldarwin_plan_campaign", "moldarwin_tune_screen", "moldarwin_stages", "moldarwin_infrastructure"):
         assert classification[name] == "free", name
 
 
@@ -218,25 +218,25 @@ def test_the_waiver_tool_is_the_only_one_a_model_cannot_complete() -> None:
     classification = costs()
     never = [name for name, value in classification.items() if value == "never-by-a-model"]
 
-    assert never == ["etalon_recommend_waiver"]
+    assert never == ["moldarwin_recommend_waiver"]
 
 
 def test_active_inspection_does_not_create_a_journal(tmp_path):
     database = tmp_path / "absent.sqlite"
-    response = json.loads(_tools()["etalon_active_status"](str(database)))
+    response = json.loads(_tools()["moldarwin_active_status"](str(database)))
     assert response["ok"] is False
     assert not database.exists()
 
 
 def test_active_mcp_replay_and_plan_share_the_persisted_feedback(tmp_path):
-    from etalon.active.replay import synthetic_manifest
+    from moldarwin.active.replay import synthetic_manifest
 
     manifest = tmp_path / "oracle.json"
     manifest.write_text(json.dumps(synthetic_manifest(size=16)), encoding="utf-8")
     database = tmp_path / "journal.sqlite"
-    result = json.loads(_tools()["etalon_active_replay"](str(manifest), str(database), rounds=2))
+    result = json.loads(_tools()["moldarwin_active_replay"](str(manifest), str(database), rounds=2))
     assert result["ok"] and len(result["rounds"]) == 2
-    plan = json.loads(_tools()["etalon_active_plan"](str(database)))
+    plan = json.loads(_tools()["moldarwin_active_plan"](str(database)))
     assert plan["ok"] and plan["model"]["training_size"] == result["state"]["admitted"]
     assert all(c["evidence"]["model_hash"] == plan["model"]["training_hash"] for c in plan["choices"])
 
@@ -245,7 +245,7 @@ def test_active_mcp_replay_and_plan_share_the_persisted_feedback(tmp_path):
 
 
 def test_a_record_built_from_a_drawing_is_refused_and_the_remedy_is_not_a_waiver() -> None:
-    result = json.loads(_tools()["etalon_check_handoff"](json.dumps([FROM_A_DRAWING])))
+    result = json.loads(_tools()["moldarwin_check_handoff"](json.dumps([FROM_A_DRAWING])))
 
     assert result["may_spend"] == 0
     blocking = result["verdicts"][0]["blocking"]
@@ -264,7 +264,7 @@ def test_an_unchecked_check_is_reported_rather_than_counted_as_clean() -> None:
         "protonation_state_id": "propka:ph7.4",
     }
 
-    result = json.loads(_tools()["etalon_check_handoff"](json.dumps([clean])))
+    result = json.loads(_tools()["moldarwin_check_handoff"](json.dumps([clean])))
 
     assert result["may_spend"] == 1
     assert result["verdicts"][0]["could_not_be_checked"]
@@ -273,7 +273,7 @@ def test_an_unchecked_check_is_reported_rather_than_counted_as_clean() -> None:
 
 def test_the_waiver_tool_returns_a_recommendation_awaiting_a_person() -> None:
     result = json.loads(
-        _tools()["etalon_recommend_waiver"](
+        _tools()["moldarwin_recommend_waiver"](
             "F_PROTONATION_UNDECIDED",
             "Screened at pH 7.4 and the ligand is taken in the standardizer's neutral form.",
             "2099-01-01",
@@ -312,7 +312,7 @@ def test_a_bare_fault_code_is_refused_where_a_waiver_is_required() -> None:
     """The old shape, refused, with the remedy in the message rather than in the documentation."""
 
     result = json.loads(
-        _tools()["etalon_check_handoff"](
+        _tools()["moldarwin_check_handoff"](
             json.dumps([FROM_A_DRAWING]), waived="F_COORDINATES_ARE_A_DEPICTION,F_HYDROGENS_IMPLICIT"
         )
     )
@@ -320,7 +320,7 @@ def test_a_bare_fault_code_is_refused_where_a_waiver_is_required() -> None:
     assert result["ok"] is False
     assert result["error"]["retryable"] is False
     assert "granted waivers" in result["error"]["message"]
-    assert "etalon_recommend_waiver" in result["error"]["message"]
+    assert "moldarwin_recommend_waiver" in result["error"]["message"]
 
 
 def test_a_model_cannot_grant_the_waiver_it_recommended() -> None:
@@ -338,7 +338,7 @@ def test_a_model_cannot_grant_the_waiver_it_recommended() -> None:
     )
 
     result = json.loads(
-        _tools()["etalon_check_handoff"](json.dumps([FROM_A_DRAWING]), waived=signed_by_a_model)
+        _tools()["moldarwin_check_handoff"](json.dumps([FROM_A_DRAWING]), waived=signed_by_a_model)
     )
 
     assert result["ok"] is False
@@ -351,7 +351,7 @@ def test_a_waiver_cannot_release_a_cause_that_was_never_fixable_by_one() -> None
     Waiver rather than around it."""
 
     result = json.loads(
-        _tools()["etalon_check_handoff"](
+        _tools()["moldarwin_check_handoff"](
             json.dumps([FROM_A_DRAWING]), waived=_granted("F_COORDINATES_ARE_A_DEPICTION")
         )
     )
@@ -369,7 +369,7 @@ def test_a_granted_waiver_is_echoed_with_the_name_on_it() -> None:
     so the name has to be in the result rather than only in the argument."""
 
     result = json.loads(
-        _tools()["etalon_check_handoff"](
+        _tools()["moldarwin_check_handoff"](
             json.dumps([FROM_A_DRAWING]), waived=_granted("F_PROTONATION_UNDECIDED")
         )
     )
@@ -386,7 +386,7 @@ def test_an_expired_waiver_stops_releasing_its_fault() -> None:
     string was passed."""
 
     result = json.loads(
-        _tools()["etalon_check_handoff"](
+        _tools()["moldarwin_check_handoff"](
             json.dumps([FROM_A_DRAWING]),
             waived=_granted("F_PROTONATION_UNDECIDED", expires="2020-01-01"),
         )
@@ -418,13 +418,13 @@ def test_the_admissibility_gate_takes_the_same_shape_and_refuses_the_same_way() 
     )
 
     bare = json.loads(
-        _tools()["etalon_rule_admissible"](measurements, waived="F_COORDINATES_ARE_A_DEPICTION")
+        _tools()["moldarwin_rule_admissible"](measurements, waived="F_COORDINATES_ARE_A_DEPICTION")
     )
     assert bare["ok"] is False
     assert "granted waivers" in bare["error"]["message"]
 
     granted = json.loads(
-        _tools()["etalon_rule_admissible"](
+        _tools()["moldarwin_rule_admissible"](
             measurements, waived=_granted("F_COORDINATES_ARE_A_DEPICTION")
         )
     )
@@ -437,7 +437,7 @@ def test_a_waiver_missing_the_field_that_makes_it_one_is_refused() -> None:
     incomplete = json.dumps([{"code": "F_PROTONATION_UNDECIDED", "expires": "2099-01-01"}])
 
     result = json.loads(
-        _tools()["etalon_check_handoff"](json.dumps([FROM_A_DRAWING]), waived=incomplete)
+        _tools()["moldarwin_check_handoff"](json.dumps([FROM_A_DRAWING]), waived=incomplete)
     )
 
     assert result["ok"] is False
@@ -452,7 +452,7 @@ def test_a_stability_check_separates_blocking_from_qualifying() -> None:
     settled = [0.12 + rng.gauss(0, 0.02) for _ in range(300)]
 
     result = json.loads(
-        _tools()["etalon_check_stability"](
+        _tools()["moldarwin_check_stability"](
             json.dumps(settled),
             nanoseconds=1000,
             replicas=1,
@@ -489,7 +489,7 @@ def test_admissibility_reports_the_selection_effect() -> None:
         },
     ]
 
-    result = json.loads(_tools()["etalon_rule_admissible"](json.dumps(measurements)))
+    result = json.loads(_tools()["moldarwin_rule_admissible"](json.dumps(measurements)))
 
     assert result["report"]["admitted"] == 1
     assert result["report"]["admission_rate"] < 0.5
@@ -503,7 +503,7 @@ def test_the_fep_tool_names_what_it_cannot_reach() -> None:
     }
 
     result = json.loads(
-        _tools()["etalon_design_fep_network"](json.dumps(molecules), references="indolinone")
+        _tools()["moldarwin_design_fep_network"](json.dumps(molecules), references="indolinone")
     )
 
     assert set(result["network"]["unreachable"]) == set(molecules)
@@ -515,7 +515,7 @@ def test_the_fep_tool_names_what_it_cannot_reach() -> None:
 
 
 def test_a_plan_names_its_unmeasured_inputs_in_the_next_step() -> None:
-    result = json.loads(_tools()["etalon_plan_campaign"](pool=750_000, budget_gpu_hours=8760.0))
+    result = json.loads(_tools()["moldarwin_plan_campaign"](pool=750_000, budget_gpu_hours=8760.0))
 
     assert result["ok"] is True
     assert result["plan"]["unmeasured_inputs"]
@@ -524,16 +524,16 @@ def test_a_plan_names_its_unmeasured_inputs_in_the_next_step() -> None:
 
 def test_an_unknown_stage_override_is_refused_with_the_catalogue() -> None:
     result = json.loads(
-        _tools()["etalon_plan_campaign"](pool=1000, budget_gpu_hours=100.0, measured="invented=0.5")
+        _tools()["moldarwin_plan_campaign"](pool=1000, budget_gpu_hours=100.0, measured="invented=0.5")
     )
 
     assert result["ok"] is False
-    assert "etalon_stages" in result["error"]["message"]
+    assert "moldarwin_stages" in result["error"]["message"]
 
 
 def test_tuning_refuses_a_conditional_knob_until_its_precondition_is_recorded() -> None:
-    locked = json.loads(_tools()["etalon_tune_screen"]())
-    unlocked = json.loads(_tools()["etalon_tune_screen"](established="rescore_ml,consensus_three"))
+    locked = json.loads(_tools()["moldarwin_tune_screen"]())
+    unlocked = json.loads(_tools()["moldarwin_tune_screen"](established="rescore_ml,consensus_three"))
 
     assert locked["advice"]["worth_turning"] == []
     assert "Establish a precondition" in locked["next_step"]
@@ -546,14 +546,14 @@ def test_tuning_refuses_a_conditional_knob_until_its_precondition_is_recorded() 
 def test_the_skill_is_one_file_serving_both_consumers() -> None:
     """A second copy would drift, and the numbers are the part that must not."""
 
-    from etalon.mcp.server import _skill_path
+    from moldarwin.mcp.server import _skill_path
 
     path = _skill_path()
     text = path.read_text(encoding="utf-8")
 
     assert text.startswith("---"), "a Claude Code skill needs frontmatter"
-    assert "name: etalon-campaign" in text
-    assert SKILL_RESOURCE == "etalon://skills/campaign"
+    assert "name: moldarwin-campaign" in text
+    assert SKILL_RESOURCE == "moldarwin://skills/campaign"
     # Scientific rationale remains available on demand in the same bundle.
     reference = path.parent / "references" / "legacy-workflow.md"
     assert "references/legacy-workflow.md" in text
@@ -565,7 +565,7 @@ def test_the_skill_is_one_file_serving_both_consumers() -> None:
 def test_every_workflow_document_resolves_and_is_a_skill() -> None:
     """Every registered bundle serves the original skill entrypoint."""
 
-    from etalon.mcp.server import WORKFLOWS, _skill_path
+    from moldarwin.mcp.server import WORKFLOWS, _skill_path
 
     for slug, name in WORKFLOWS.items():
         text = _skill_path(slug).read_text(encoding="utf-8")
@@ -576,28 +576,28 @@ def test_every_workflow_document_resolves_and_is_a_skill() -> None:
 
 
 def test_an_unknown_workflow_slug_is_refused() -> None:
-    from etalon.mcp.server import _skill_path
+    from moldarwin.mcp.server import _skill_path
 
     with pytest.raises(KeyError, match="unknown skill") as error:
         _skill_path("no-such-regime")
-    assert "etalon_capabilities" in str(error.value)
+    assert "moldarwin_capabilities" in str(error.value)
 
 
 def test_the_campaign_document_offers_other_methods_without_a_required_route() -> None:
     """Optional skills preserve the relevant guard while leaving selection to the host."""
 
-    from etalon.mcp.server import _skill_path
+    from moldarwin.mcp.server import _skill_path
 
     text = _skill_path("campaign").read_text(encoding="utf-8")
-    assert "etalon-screening-sweep" in text
-    assert "etalon_authorize_gates" in text
+    assert "moldarwin-screening-sweep" in text
+    assert "moldarwin_authorize_gates" in text
     assert "Neither skill is a required" in text
 
 
 def test_the_sweep_document_carries_the_panel_that_justifies_its_guard() -> None:
     """The gate check is the sweep's one rule, and its argument is a table of measurements."""
 
-    from etalon.mcp.server import _skill_path
+    from moldarwin.mcp.server import _skill_path
 
     entry = _skill_path("sweep")
     assert "references/legacy-workflow.md" in entry.read_text(encoding="utf-8")
@@ -621,7 +621,7 @@ def test_the_sweep_document_carries_the_panel_that_justifies_its_guard() -> None
 
 def test_authorize_issues_a_token_only_for_a_record_that_survives_the_check() -> None:
     result = json.loads(
-        _tools()["etalon_authorize_spend"](
+        _tools()["moldarwin_authorize_spend"](
             records_json=json.dumps([FROM_A_DRAWING, CLEAN])
         )
     )
@@ -635,7 +635,7 @@ def test_authorize_issues_a_token_only_for_a_record_that_survives_the_check() ->
 
 def test_a_token_names_what_could_not_be_checked_rather_than_implying_it_passed() -> None:
     result = json.loads(
-        _tools()["etalon_authorize_spend"](records_json=json.dumps([CLEAN]))
+        _tools()["moldarwin_authorize_spend"](records_json=json.dumps([CLEAN]))
     )
     token = result["authorized"][CLEAN["parent_id"]]
     assert token["unchecked"], "a token over unevaluable checks must say which"
@@ -648,7 +648,7 @@ def test_the_council_is_refused_when_a_seat_is_at_chance() -> None:
         "refuses-everything": ["refuse"] * 20,
     }
     result = json.loads(
-        _tools()["etalon_council_reliability"](
+        _tools()["moldarwin_council_reliability"](
             votes_json=json.dumps(votes),
             truth_json=json.dumps([True] * 10 + [False] * 10),
             labels="20 hand-labelled handoff rows",
@@ -663,7 +663,7 @@ def test_the_council_is_refused_when_a_seat_is_at_chance() -> None:
 def test_the_council_reports_how_many_opinions_it_actually_carries() -> None:
     twin = ["refuse"] * 11 + ["clear"] + ["clear"] * 11 + ["refuse"]
     result = json.loads(
-        _tools()["etalon_council_reliability"](
+        _tools()["moldarwin_council_reliability"](
             votes_json=json.dumps({"one": twin, "two": list(twin)}),
             truth_json=json.dumps([True] * 12 + [False] * 12),
             labels="24 rows",
@@ -675,7 +675,7 @@ def test_the_council_reports_how_many_opinions_it_actually_carries() -> None:
 
 def test_a_vote_that_is_not_a_vote_is_refused_rather_than_guessed() -> None:
     result = json.loads(
-        _tools()["etalon_council_reliability"](
+        _tools()["moldarwin_council_reliability"](
             votes_json=json.dumps({"a": ["probably"], "b": ["clear"]}),
             truth_json=json.dumps([True]),
             labels="1 row",
@@ -689,7 +689,7 @@ def test_agreement_that_nothing_is_wrong_never_makes_a_check_evaluable() -> None
     """The one result that would let a campaign buy a clean record from a model."""
 
     result = json.loads(
-        _tools()["etalon_council_adjudicate"](
+        _tools()["moldarwin_council_adjudicate"](
             code="F_RECEPTOR_NOT_THE_ONE_SCORED",
             ballots_json=json.dumps(
                 [
@@ -707,7 +707,7 @@ def test_agreement_that_nothing_is_wrong_never_makes_a_check_evaluable() -> None
 
 def test_a_unanimous_refusal_is_the_one_direction_a_council_may_move_a_check() -> None:
     result = json.loads(
-        _tools()["etalon_council_adjudicate"](
+        _tools()["moldarwin_council_adjudicate"](
             code="F_RECEPTOR_NOT_THE_ONE_SCORED",
             ballots_json=json.dumps(
                 [
@@ -725,7 +725,7 @@ def test_a_unanimous_refusal_is_the_one_direction_a_council_may_move_a_check() -
 
 def test_a_split_waits_for_a_person_and_is_not_recorded_as_a_refusal() -> None:
     result = json.loads(
-        _tools()["etalon_council_adjudicate"](
+        _tools()["moldarwin_council_adjudicate"](
             code="F_RECEPTOR_NOT_THE_ONE_SCORED",
             ballots_json=json.dumps(
                 [
@@ -745,7 +745,7 @@ def test_a_split_waits_for_a_person_and_is_not_recorded_as_a_refusal() -> None:
 
 def test_an_unqualified_council_aggregates_nothing() -> None:
     result = json.loads(
-        _tools()["etalon_council_adjudicate"](
+        _tools()["moldarwin_council_adjudicate"](
             code="F_RECEPTOR_NOT_THE_ONE_SCORED",
             ballots_json=json.dumps(
                 [
@@ -761,7 +761,7 @@ def test_an_unqualified_council_aggregates_nothing() -> None:
 
 def test_one_ballot_is_not_a_council() -> None:
     result = json.loads(
-        _tools()["etalon_council_adjudicate"](
+        _tools()["moldarwin_council_adjudicate"](
             code="F_RECEPTOR_NOT_THE_ONE_SCORED",
             ballots_json=json.dumps([{"seat": "a", "vote": "refuse"}]),
             reliability_qualified=True,
@@ -773,7 +773,7 @@ def test_one_ballot_is_not_a_council() -> None:
 
 def test_two_ballots_from_one_seat_are_refused() -> None:
     result = json.loads(
-        _tools()["etalon_council_adjudicate"](
+        _tools()["moldarwin_council_adjudicate"](
             code="F_RECEPTOR_NOT_THE_ONE_SCORED",
             ballots_json=json.dumps(
                 [{"seat": "a", "vote": "refuse"}, {"seat": "a", "vote": "clear"}]
@@ -787,7 +787,7 @@ def test_two_ballots_from_one_seat_are_refused() -> None:
 
 def test_a_code_outside_the_taxonomy_is_refused_by_the_council_tool() -> None:
     result = json.loads(
-        _tools()["etalon_council_adjudicate"](
+        _tools()["moldarwin_council_adjudicate"](
             code="F_INVENTED",
             ballots_json=json.dumps(
                 [{"seat": "a", "vote": "refuse"}, {"seat": "b", "vote": "refuse"}]
@@ -808,14 +808,14 @@ def test_every_workflow_document_is_carried_into_the_wheel() -> None:
     building the wheel: one file under mcp/skills where WORKFLOWS names six.
 
     The table cannot be globbed -- the destination is the slug and the source is the directory, and
-    `sweep` comes from `etalon-screening-sweep` -- so it is written out, and written-out tables
+    `sweep` comes from `moldarwin-screening-sweep` -- so it is written out, and written-out tables
     drift. This is the check that stops the next one being forgotten rather than the fix for the
     five that were.
     """
 
     import tomllib
 
-    from etalon.mcp.server import WORKFLOWS, _skill_path
+    from moldarwin.mcp.server import WORKFLOWS, _skill_path
 
     root = Path(__file__).resolve().parent.parent
     with (root / "pyproject.toml").open("rb") as handle:
@@ -829,17 +829,17 @@ def test_every_workflow_document_is_carried_into_the_wheel() -> None:
         destinations = [destination + source[len(origin):]
                         for origin, destination in included.items()
                         if source == origin or source.startswith(origin + '/')]
-        expected = (f'etalon/_assets/molquarry/skills/{name}/SKILL.md'
-                    if slug.startswith('molquarry-')
-                    else f'etalon/mcp/skills/bundles/{slug}/SKILL.md')
+        expected = (f'moldarwin/_assets/molorigin/skills/{name}/SKILL.md'
+                    if slug.startswith('molorigin-')
+                    else f'moldarwin/mcp/skills/bundles/{slug}/SKILL.md')
         assert expected in destinations, (slug, source, destinations)
         if slug in legacy:
-            assert f'etalon/mcp/skills/{slug}.md' in destinations
+            assert f'moldarwin/mcp/skills/{slug}.md' in destinations
         assert _skill_path(slug).is_file(), slug
 
 
 def _sweep_tools() -> dict[str, object]:
-    from etalon.mcp import sweep
+    from moldarwin.mcp import sweep
 
     collector = Collector()
     sweep.register(collector)
@@ -856,7 +856,7 @@ def test_a_drained_pool_is_a_phase_not_a_generation_shortage() -> None:
     """
 
     plan = json.loads(
-        _sweep_tools()["etalon_campaign_plan"](
+        _sweep_tools()["moldarwin_campaign_plan"](
             pool_size=220_000,
             batch_size=20_000,
             screen_devices=8,
@@ -880,10 +880,10 @@ def test_screening_capacity_counts_batches_not_cards() -> None:
 
     tools = _sweep_tools()
     one = json.loads(
-        tools["etalon_campaign_plan"](pool_size=0, screen_devices=8, generation_devices=0)
+        tools["moldarwin_campaign_plan"](pool_size=0, screen_devices=8, generation_devices=0)
     )
     two = json.loads(
-        tools["etalon_campaign_plan"](
+        tools["moldarwin_campaign_plan"](
             pool_size=0, screen_devices=8, generation_devices=0, batches_per_device=2
         )
     )
@@ -910,13 +910,13 @@ def test_screening_capacity_counts_batches_not_cards() -> None:
 # calling again.
 #
 # `SweepError` is a `RuntimeError` and so not transient, and every deliberate sweep refusal was
-# reported as "this is a defect in ETALON ... Report it with this message rather than retrying."
+# reported as "this is a defect in MolDarwin ... Report it with this message rather than retrying."
 # The remedy was in the message, and the hint told the reader to disregard it.
 
 
 def test_a_missing_gate_is_a_refusal_not_a_transient_filesystem_error(tmp_path) -> None:
     (tmp_path / "ws").mkdir()
-    response = json.loads(_tools()["etalon_sweep_emit"](
+    response = json.loads(_tools()["moldarwin_sweep_emit"](
         str(tmp_path / "ws"), str(tmp_path / "p.sqlite"), str(tmp_path / "l.jsonl"),
         "rev-1", "",
     ))
@@ -925,11 +925,11 @@ def test_a_missing_gate_is_a_refusal_not_a_transient_filesystem_error(tmp_path) 
     error = response["error"]
     assert error["code"] == "NotAuthorized"
     assert error["retryable"] is False, "a missing gate was reported as worth calling again"
-    # `etalon_sweep_emit` catches this itself, so the hint is the emit-specific one rather than
+    # `moldarwin_sweep_emit` catches this itself, so the hint is the emit-specific one rather than
     # the boundary's generic refusal text. Both say the same thing about retrying.
     assert "stands between a calibration and a campaign" in error["hint"]
-    assert "etalon_authorize_gates" in error["hint"]
-    assert "ETALON_AUTHORITY_KEY" in error["hint"]
+    assert "moldarwin_authorize_gates" in error["hint"]
+    assert "MOLDARWIN_AUTHORITY_KEY" in error["hint"]
     # And it must name the revision that can actually match. The hint used to say only
     # "compare revision_id against the gate's", which sent a caller holding a batch revision
     # to re-screen the panel -- a remedy that cannot work, because a batch library compiles to
@@ -941,10 +941,10 @@ def test_a_missing_gate_is_a_refusal_not_a_transient_filesystem_error(tmp_path) 
     assert error["context"]["gate_revision_id"] is None
 
 
-def test_a_deliberate_sweep_refusal_is_not_reported_as_an_etalon_defect(tmp_path, caplog) -> None:
+def test_a_deliberate_sweep_refusal_is_not_reported_as_an_moldarwin_defect(tmp_path, caplog) -> None:
     """Claiming a batch that does not exist is a `SweepError` with its remedy in the message.
 
-    It used to arrive as *"this is a defect in ETALON or in an input it did not validate. Report
+    It used to arrive as *"this is a defect in MolDarwin or in an input it did not validate. Report
     it with this message rather than retrying"* -- and the message it told the reader to report
     rather than read was the one naming what to do. It was also filed by `logger.exception`, so a
     governance decision was recorded with a traceback, which is what an operator greps for when
@@ -954,13 +954,13 @@ def test_a_deliberate_sweep_refusal_is_not_reported_as_an_etalon_defect(tmp_path
     workspace, pool, ledger = tmp_path / "ws", tmp_path / "p.sqlite", tmp_path / "l.jsonl"
     workspace.mkdir()
 
-    admitted = json.loads(_tools()["etalon_sweep_admit"](
+    admitted = json.loads(_tools()["moldarwin_sweep_admit"](
         str(workspace), str(pool), str(ledger),
         json.dumps([{"key": f"K{i}", "smiles": f"C{i}", "source": "s"} for i in range(3)]),
     ))
     assert admitted["ok"] is True, admitted
 
-    refusal = json.loads(_tools()["etalon_sweep_claim"](
+    refusal = json.loads(_tools()["moldarwin_sweep_claim"](
         str(workspace), str(pool), str(ledger), "batch_0001", "cuda:0", str(tmp_path / "libs"), "",
     ))
     assert refusal["ok"] is False
@@ -968,14 +968,14 @@ def test_a_deliberate_sweep_refusal_is_not_reported_as_an_etalon_defect(tmp_path
     assert error["code"] == "SweepError"
     assert error["retryable"] is False
     assert "deliberately, not a defect" in error["hint"]
-    assert "defect in ETALON" not in error["hint"]
+    assert "defect in MolDarwin" not in error["hint"]
     # And the message's own remedy is one an MCP caller can act on.
-    assert "etalon_sweep_status" in error["message"]
+    assert "moldarwin_sweep_status" in error["message"]
 
     # Filed as a decision, not as a crash. `logger.exception` writes a traceback, which is what an
     # operator greps for when something broke; before the fix a batch that was simply already
     # claimed produced one.
-    records = [r for r in caplog.records if r.name.startswith("etalon.mcp")]
+    records = [r for r in caplog.records if r.name.startswith("moldarwin.mcp")]
     assert records, "the refusal was not logged at all"
     assert all(r.levelname != "ERROR" for r in records), [r.getMessage() for r in records]
     assert any("refused" in r.getMessage() for r in records)
@@ -985,15 +985,15 @@ def test_a_deliberate_sweep_refusal_is_not_reported_as_an_etalon_defect(tmp_path
 def test_the_boundary_tells_a_refusal_from_a_surprise() -> None:
     """The classifier itself, on the two types and on a genuine surprise."""
 
-    from etalon.authority.grant import NotAuthorized
-    from etalon.campaign.sweep import SweepError
-    from etalon.mcp._common import _refusal
+    from moldarwin.authority.grant import NotAuthorized
+    from moldarwin.campaign.sweep import SweepError
+    from moldarwin.mcp._common import _refusal
 
     gate = _refusal(NotAuthorized("no gate authorization for revision abc"))
     assert gate is not None
     assert "not a transient failure" in gate
-    assert "etalon_authorize_gates" in gate
-    assert "ETALON_AUTHORITY_KEY" in gate
+    assert "moldarwin_authorize_gates" in gate
+    assert "MOLDARWIN_AUTHORITY_KEY" in gate
 
     swept = _refusal(SweepError("batch_0001 was never emitted"))
     assert swept is not None
@@ -1015,14 +1015,14 @@ def keyed_gate(tmp_path, monkeypatch):
     handed back through ``gate_json``.
     """
 
-    from etalon.authority.gate import authorize_gate
-    from etalon.campaign.calibrate import Calibration, PanelMember, TierVerdict, separation
+    from moldarwin.authority.gate import authorize_gate
+    from moldarwin.campaign.calibrate import Calibration, PanelMember, TierVerdict, separation
 
-    monkeypatch.setenv("ETALON_AUTHORITY_KEY", "test-key")
+    monkeypatch.setenv("MOLDARWIN_AUTHORITY_KEY", "test-key")
     workspace, pool, ledger = tmp_path / "ws", tmp_path / "p.sqlite", tmp_path / "l.jsonl"
     workspace.mkdir()
 
-    admitted = json.loads(_tools()["etalon_sweep_admit"](
+    admitted = json.loads(_tools()["moldarwin_sweep_admit"](
         str(workspace), str(pool), str(ledger),
         json.dumps([{"key": f"K{i}", "smiles": f"C{i}", "source": "s"} for i in range(5)]),
     ))
@@ -1044,7 +1044,7 @@ def keyed_gate(tmp_path, monkeypatch):
         tiers=(TierVerdict("t9", "docking", 2, 2, (), ("neg_1",)),),
         finalize=(), separation=separation(scores, panel),
     )
-    token = authorize_gate(verdict, provenance={"name": "molcascade", "tree_sha256": "d", "pinned": True})
+    token = authorize_gate(verdict, provenance={"name": "molcat", "tree_sha256": "d", "pinned": True})
     return workspace, pool, ledger, token.as_dict()
 
 
@@ -1053,7 +1053,7 @@ def test_a_claim_with_no_library_reserves_nothing(tmp_path, keyed_gate) -> None:
 
     The reservation is irrevocable once taken: `Sweep.claim` refuses a second claim on the same
     batch. So this returned `ok(batch=..., library=None)` for a batch now committed to a screener
-    with nothing to screen, with no pointer to `etalon_sweep_recover` -- which is the exact state
+    with nothing to screen, with no pointer to `moldarwin_sweep_recover` -- which is the exact state
     the tool's own LibraryNotWritten block exists to warn about, reached by the one path that does
     not go through it. Refused before the claim now, because a presence check needs nothing from
     the pool.
@@ -1062,13 +1062,13 @@ def test_a_claim_with_no_library_reserves_nothing(tmp_path, keyed_gate) -> None:
     workspace, pool, ledger, gate = keyed_gate
     # flush, because five molecules is under any batch size: a short batch is the end-of-campaign
     # case and the only way to carve one deliberately.
-    emitted = json.loads(_tools()["etalon_sweep_emit"](
+    emitted = json.loads(_tools()["moldarwin_sweep_emit"](
         str(workspace), str(pool), str(ledger), "rev-1", json.dumps(gate), True,
     ))
     assert emitted["ok"] is True, emitted
     batch_id = emitted["emitted"][0]["batch_id"]
 
-    refusal = json.loads(_tools()["etalon_sweep_claim"](
+    refusal = json.loads(_tools()["moldarwin_sweep_claim"](
         str(workspace), str(pool), str(ledger), batch_id, "cuda:0", "", "",
     ))
     assert refusal["ok"] is False
@@ -1079,7 +1079,7 @@ def test_a_claim_with_no_library_reserves_nothing(tmp_path, keyed_gate) -> None:
     assert "Nothing has been reserved" in error["hint"]
 
     # The proof that nothing was reserved: the same claim succeeds once given a directory.
-    claimed = json.loads(_tools()["etalon_sweep_claim"](
+    claimed = json.loads(_tools()["moldarwin_sweep_claim"](
         str(workspace), str(pool), str(ledger), batch_id, "cuda:0", str(tmp_path / "libs"), "",
     ))
     assert claimed["ok"] is True, claimed
@@ -1090,24 +1090,24 @@ def test_every_tool_a_description_names_is_a_tool_that_exists() -> None:
     """Six descriptions cited siblings by names that resolve to nothing.
 
     `active_status`, `check_handoff`, `screen_plan`, `screen_status`, `workflow_advance` and the
-    compound `workflow_status/observe/artifact` all appear without the `etalon_` prefix that
+    compound `workflow_status/observe/artifact` all appear without the `moldarwin_` prefix that
     registers them. A model told to call `screen_status` has no such tool, and the hint that names
     the remedy is the part of a refusal that makes it useful.
 
     The check is deliberately loose about punctuation and strict about resolution: any
-    `etalon_*`-shaped word in a description must be a registered tool, and any bare `*_status` /
+    `moldarwin_*`-shaped word in a description must be a registered tool, and any bare `*_status` /
     `*_plan` / `*_handoff` word must not be one of ours in disguise.
     """
 
     import re
 
-    #: ``etalon_``-prefixed identifiers that are deliberately not tools: result fields and the
+    #: ``moldarwin_``-prefixed identifiers that are deliberately not tools: result fields and the
     #: environment variable that fixes the token-signing key. Listed rather than pattern-matched,
     #: so adding one is a decision.
-    not_tools = {"etalon_revisions", "etalon_cost", "ETALON_AUTHORITY_KEY"}
+    not_tools = {"moldarwin_revisions", "moldarwin_cost", "MOLDARWIN_AUTHORITY_KEY"}
 
     registered = set(_tools())
-    tails = {name.removeprefix("etalon_") for name in registered}
+    tails = {name.removeprefix("moldarwin_") for name in registered}
 
     unresolved: list[str] = []
     bare: list[str] = []
@@ -1117,8 +1117,8 @@ def test_every_tool_a_description_names_is_a_tool_that_exists() -> None:
     for name in sorted(registered):
         description = functions[name].__doc__ or ""
         parameters = signature(functions[name]).parameters
-        for cited in re.findall(r"etalon_[a-z_]+", description):
-            # A trailing underscore is a namespace glob in prose -- "every etalon_sweep_* call" --
+        for cited in re.findall(r"moldarwin_[a-z_]+", description):
+            # A trailing underscore is a namespace glob in prose -- "every moldarwin_sweep_* call" --
             # with the star eaten by the pattern, not a tool anybody can call.
             if cited.endswith("_") or cited in not_tools:
                 continue
@@ -1126,8 +1126,8 @@ def test_every_tool_a_description_names_is_a_tool_that_exists() -> None:
                 unresolved.append(f"{name} cites {cited}, which is not registered")
         for word in re.findall(r"(?<![\w_])([a-z]+(?:_[a-z]+)+)(?![\w_])", description):
             # A documented argument can share a tool's unprefixed name.
-            if word in tails and f"etalon_{word}" in registered and word not in parameters:
-                bare.append(f"{name} cites {word}, which registers as etalon_{word}")
+            if word in tails and f"moldarwin_{word}" in registered and word not in parameters:
+                bare.append(f"{name} cites {word}, which registers as moldarwin_{word}")
 
     assert not unresolved, "\n".join(unresolved)
     assert not bare, "\n".join(bare)

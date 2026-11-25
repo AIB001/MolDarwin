@@ -3,15 +3,15 @@ import json
 
 import pytest
 
-from etalon.active.schema import digest
-from etalon.research import evidence
-from etalon.research.evidence_refs import file_identity, make_ref
+from moldarwin.active.schema import digest
+from moldarwin.research import evidence
+from moldarwin.research.evidence_refs import file_identity, make_ref
 from test_evidence_query import publish, row
 
 
 def source(tmp_path, name, rows, **extra):
     path = tmp_path / (name + ".json")
-    path.write_text(json.dumps({"schema": "etalon-artifact-manifest/1", "records": rows}))
+    path.write_text(json.dumps({"schema": "moldarwin-artifact-manifest/1", "records": rows}))
     return {"source_id": name, "kind": "artifact_manifest", "location": path.name,
             "identity": {"kind": "snapshot_sha256", "value": file_identity(path)["sha256"]}, **extra}
 

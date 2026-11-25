@@ -1,8 +1,8 @@
 """Counterexamples for pose inputs and selective reuse (no scientific claims)."""
 import copy
 import pytest
-from etalon.research.pose_task import compile_task, select_pose_branch
-from etalon.research.scientific_input import identity
+from moldarwin.research.pose_task import compile_task, select_pose_branch
+from moldarwin.research.scientific_input import identity
 
 
 def task(tmp_path):
@@ -13,10 +13,10 @@ def task(tmp_path):
         sources.append(dict(id=name, path=str(p), **identity(p), locator='fixture', role='conditioning', scope='fixture'))
     values = {'receptor': str(tmp_path/'receptor'), 'ligand': str(tmp_path/'ligand'),
               'box': {'center': [0, 0, 0], 'size': [20, 20, 20]}, 'seed': 7, 'num_modes': 10, 'exhaustiveness': 8}
-    return dict(schema='etalon-pose-task/1', task_id='fixture', case_id='fixture', question='fixture',
+    return dict(schema='moldarwin-pose-task/1', task_id='fixture', case_id='fixture', question='fixture',
                 split='development', method={'engine': 'fixture'},
                 output_contract={'poses':'SDF','scores':'typed-with-direction','receipt':'request-and-file-identities','failure':'retained'},
-                input=dict(schema='etalon-scientific-input/1', task_id='fixture', scope='fixture', subject={'id':'fixture'},
+                input=dict(schema='moldarwin-scientific-input/1', task_id='fixture', scope='fixture', subject={'id':'fixture'},
                            sources=sources, observations=[], interpretations=[], bindings=[
                            dict(id=k, target=k, use='constraint' if k in ('receptor','ligand','box') else 'selection',
                                 value=v, basis_ids=[k if k in ('receptor','ligand') else 'settings'], rationale='fixture')

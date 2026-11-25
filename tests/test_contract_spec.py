@@ -16,22 +16,22 @@ import inspect
 
 import pytest
 
-from etalon.research import contract_spec
-from etalon.research.contract_spec import specification
-from etalon.research.evaluation_contract import _OPS, STATUSES, _aggregate
+from moldarwin.research import contract_spec
+from moldarwin.research.contract_spec import specification
+from moldarwin.research.evaluation_contract import _OPS, STATUSES, _aggregate
 
 
 def _ref(source_id, fill):
-    """A valid `etalon-evidence-ref/1`: source_id, record_id and a 64-hex record_digest."""
+    """A valid `moldarwin-evidence-ref/1`: source_id, record_id and a 64-hex record_digest."""
 
-    return {"schema": "etalon-evidence-ref/1", "source_id": source_id,
+    return {"schema": "moldarwin-evidence-ref/1", "source_id": source_id,
             "record_id": f"{source_id}-1", "record_digest": fill * 64}
 
 
 def _contract(**over):
     """A minimal valid contract. Fields mirror `build_evaluation_contract`'s signature."""
 
-    from etalon.research.evaluation_contract import build_evaluation_contract
+    from moldarwin.research.evaluation_contract import build_evaluation_contract
 
     base = dict(
         task_id="t-1", scope="fixture",
@@ -87,7 +87,7 @@ def test_the_criterion_says_where_the_threshold_came_from():
 def test_a_contract_that_skipped_validation_says_not_recorded_rather_than_guessing():
     """`validate=False` is the only way to reach the sentinel; it must not invent a tag."""
 
-    from etalon.research.evaluation_contract import THRESHOLD_EVIDENCE_NOT_RECORDED
+    from moldarwin.research.evaluation_contract import THRESHOLD_EVIDENCE_NOT_RECORDED
 
     bare = _contract()
     bare["metrics"] = [{k: v for k, v in m.items() if k != "threshold_evidence"}
@@ -105,7 +105,7 @@ def test_not_recorded_is_an_absence_and_never_a_fifth_kind_of_evidence():
     column as "somebody measured it" at every site that validates against the tuple.
     """
 
-    from etalon.research.evaluation_contract import (
+    from moldarwin.research.evaluation_contract import (
         PROVENANCE, THRESHOLD_EVIDENCE_NOT_RECORDED)
 
     assert THRESHOLD_EVIDENCE_NOT_RECORDED not in PROVENANCE
@@ -113,9 +113,9 @@ def test_not_recorded_is_an_absence_and_never_a_fifth_kind_of_evidence():
 
 
 def test_the_contract_schema_requires_a_provenance_tag_from_the_one_vocabulary():
-    from etalon.research.evaluation_contract import (
+    from moldarwin.research.evaluation_contract import (
         PROVENANCE, THRESHOLD_EVIDENCE_NOT_RECORDED, validate_evaluation_contract)
-    from etalon.runtime.files import EvidenceError
+    from moldarwin.runtime.files import EvidenceError
 
     for bad in (None, "i_measured_it", "", THRESHOLD_EVIDENCE_NOT_RECORDED):
         contract = _contract()
@@ -142,7 +142,7 @@ def test_relabelling_a_threshold_s_provenance_is_a_new_rule_identity():
     from one whose number was always literature-backed.
     """
 
-    from etalon.research.evaluation_contract import evaluation_rules_digest
+    from moldarwin.research.evaluation_contract import evaluation_rules_digest
 
     convention = _contract()
     literature = _contract()
@@ -159,7 +159,7 @@ def test_the_published_criterion_says_what_each_provenance_tag_licenses():
     harness's job here is only to hand over the input that judgement needs.
     """
 
-    from etalon.research.evaluation_contract import PROVENANCE
+    from moldarwin.research.evaluation_contract import PROVENANCE
 
     block = specification(_contract())["threshold_provenance"]
     assert block["vocabulary"] == list(PROVENANCE)
@@ -180,9 +180,9 @@ def test_one_provenance_vocabulary_serves_the_plan_the_contract_and_the_fault_ca
     instrument: it holds the agreement without creating the dependency.
     """
 
-    from etalon.faults.taxonomy import Evidence
-    from etalon.research.decision_rule import PROVENANCE as plan_side
-    from etalon.research.evaluation_contract import PROVENANCE as contract_side
+    from moldarwin.faults.taxonomy import Evidence
+    from moldarwin.research.decision_rule import PROVENANCE as plan_side
+    from moldarwin.research.evaluation_contract import PROVENANCE as contract_side
 
     assert plan_side is contract_side, "the plan side must import, not restate"
     assert tuple(e.value for e in Evidence) == contract_side, (
@@ -199,13 +199,13 @@ def test_the_contract_schema_requires_an_operator_and_a_finite_threshold():
     holds -- the same shape as `test_i18_absent_is_unreachable_because_the_field_is_required`.
     If it is ever relaxed, the branch stops being defensive and this test says where to look.
     """
-    from etalon.runtime.files import EvidenceError
+    from moldarwin.runtime.files import EvidenceError
 
     for field, value in (("operator", None), ("operator", "approximately"), ("threshold", None)):
         contract = _contract()
         contract["metrics"][0][field] = value
         with pytest.raises(EvidenceError):
-            from etalon.research.evaluation_contract import validate_evaluation_contract
+            from moldarwin.research.evaluation_contract import validate_evaluation_contract
             validate_evaluation_contract(contract)
 
 
@@ -289,7 +289,7 @@ def test_the_mcp_tool_is_free_and_returns_the_specification():
     pytest.importorskip("pydantic", reason="the MCP tool surface imports pydantic")
     import json
 
-    from etalon.mcp.methods import register
+    from moldarwin.mcp.methods import register
 
     tools: dict = {}
 
@@ -301,9 +301,9 @@ def test_the_mcp_tool_is_free_and_returns_the_specification():
             return decorate
 
     register(Collector())
-    assert "etalon_method_criterion" in tools
-    assert tools["etalon_method_criterion"].__doc__.startswith("FREE.")
-    payload = json.loads(tools["etalon_method_criterion"](_contract()))
+    assert "moldarwin_method_criterion" in tools
+    assert tools["moldarwin_method_criterion"].__doc__.startswith("FREE.")
+    payload = json.loads(tools["moldarwin_method_criterion"](_contract()))
     assert payload["ok"] is True
     assert payload["metrics"][0]["threshold"] == 0.75
 
@@ -312,7 +312,7 @@ def test_the_mcp_tool_is_free_and_returns_the_specification():
 
 
 def test_exactly_one_of_contract_or_ref_is_required():
-    from etalon.runtime.files import EvidenceError
+    from moldarwin.runtime.files import EvidenceError
 
     with pytest.raises(EvidenceError):
         specification()
@@ -327,8 +327,8 @@ def test_the_ref_path_resolves_the_contract_and_nothing_else(monkeypatch):
     that resolved `contract["inputs"][*]["ref"]` would be reading the oracle's data under a
     name that promises otherwise, so the single read is pinned by counting.
     """
-    from etalon.research import contract_spec as mod
-    from etalon.research import improvement
+    from moldarwin.research import contract_spec as mod
+    from moldarwin.research import improvement
 
     contract = _contract()
     ref = _ref("contract", "d")
@@ -339,7 +339,7 @@ def test_the_ref_path_resolves_the_contract_and_nothing_else(monkeypatch):
         return {"ref": r, "record": {}, "content": contract, "complete": True}
 
     monkeypatch.setattr(improvement, "read_material", fake_read_material)
-    monkeypatch.setattr("etalon.research.entry.resolve_read_workspace",
+    monkeypatch.setattr("moldarwin.research.entry.resolve_read_workspace",
                         lambda ws, entry=None, read_context=None: "/nowhere")
 
     spec = mod.specification(contract_ref=ref, workspace="/nowhere")
@@ -352,14 +352,14 @@ def test_the_ref_path_resolves_the_contract_and_nothing_else(monkeypatch):
 
 def test_a_fragmentary_contract_is_refused_rather_than_assembled(monkeypatch):
     """A specification built from fragments is one nobody can check."""
-    from etalon.research import contract_spec as mod
-    from etalon.research import improvement
-    from etalon.runtime.files import EvidenceError
+    from moldarwin.research import contract_spec as mod
+    from moldarwin.research import improvement
+    from moldarwin.runtime.files import EvidenceError
 
     monkeypatch.setattr(improvement, "read_material",
                         lambda ws, r: {"ref": r, "record": {}, "content": None,
                                        "complete": False, "fragment": {"offset": 0}})
-    monkeypatch.setattr("etalon.research.entry.resolve_read_workspace",
+    monkeypatch.setattr("moldarwin.research.entry.resolve_read_workspace",
                         lambda ws, entry=None, read_context=None: "/nowhere")
     with pytest.raises(EvidenceError, match="incomplete"):
         mod.specification(contract_ref=_ref("contract", "d"), workspace="/nowhere")
@@ -374,8 +374,8 @@ def test_the_missing_provenance_refusal_names_the_field_and_the_legal_route():
     this test came to exist. The same standard `research/reserved_bindings.py` is held to.
     """
 
-    from etalon.research.evaluation_contract import PROVENANCE, validate_evaluation_contract
-    from etalon.runtime.files import EvidenceError
+    from moldarwin.research.evaluation_contract import PROVENANCE, validate_evaluation_contract
+    from moldarwin.runtime.files import EvidenceError
 
     contract = _contract()
     del contract["metrics"][0]["threshold_evidence"]

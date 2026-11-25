@@ -4,7 +4,7 @@ from itertools import product
 
 import pytest
 
-from etalon.research.diagnostics import JointModel, Probe, Resource, World, condition, exact_program
+from moldarwin.research.diagnostics import JointModel, Probe, Resource, World, condition, exact_program
 
 
 def xor_model(*, coupled=True, shared_cost=0.):

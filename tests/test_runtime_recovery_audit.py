@@ -12,12 +12,12 @@ import time
 
 import pytest
 
-from etalon.active.schema import CampaignSpec, Candidate, Endpoint, Evaluation
-from etalon.active.store import CampaignStore, StateError
-from etalon.boundary.simulate import _run_owned
-from etalon.data.artifacts import new_run, seal, write_json
-from etalon.runtime import operations, process, service
-from etalon.runtime.store import RuntimeStore
+from moldarwin.active.schema import CampaignSpec, Candidate, Endpoint, Evaluation
+from moldarwin.active.store import CampaignStore, StateError
+from moldarwin.boundary.simulate import _run_owned
+from moldarwin.data.artifacts import new_run, seal, write_json
+from moldarwin.runtime import operations, process, service
+from moldarwin.runtime.store import RuntimeStore
 
 
 def pending_active(tmp_path, count=1):
@@ -28,7 +28,7 @@ def pending_active(tmp_path, count=1):
     campaign.add_candidates([Candidate(f"m{i}", "CCO", (float(i),)) for i in range(count)])
     start = {"action_ids": [], "balance": campaign.balance(), "admitted": 0}
     arguments = {"database": str(campaign.path), "max_rounds": 1}
-    spec = {"schema": "etalon-workflow/1", "objective": "recovery fixture", "limits": {"campaign:credits": 10},
+    spec = {"schema": "moldarwin-workflow/1", "objective": "recovery fixture", "limits": {"campaign:credits": 10},
             "nodes": [{"id": "active", "operation": "active.run", "arguments": arguments,
                        "resources": {"campaign:credits": 10}}]}
     prepared = service.plan(spec)
@@ -377,8 +377,8 @@ def test_parent_killed_before_process_receipt_never_releases_scientific_command(
     program = (
         "import json,os,signal,sys\n"
         "from pathlib import Path\n"
-        "from etalon.boundary.simulate import _run_owned\n"
-        "from etalon.runtime.process import identity\n"
+        "from moldarwin.boundary.simulate import _run_owned\n"
+        "from moldarwin.runtime.process import identity\n"
         "def interrupted_observer(pid):\n"
         "    Path(sys.argv[2]).write_text(json.dumps(identity(pid)))\n"
         "    os.kill(os.getpid(),signal.SIGKILL)\n"

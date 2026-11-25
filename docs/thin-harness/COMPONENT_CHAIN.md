@@ -6,31 +6,31 @@ automatic label admission, or default research policy.
 
 The interfaces form this chain:
 
-1. `data.service.plan_data/run_data` queries MolQuarry and seals normalized
+1. `data.service.plan_data/run_data` queries MolOrigin and seals normalized
    source records with response hashes, provenance and a bounded HTTP receipt.
    This API does not preserve the raw HTTP response envelope.
 2. The host reviews source identity, exact chemical state, target context and
    the role of each candidate. A structural control is not an affinity label.
-3. `data.library.prepare_library` uses the pinned MolCascade standardizer and
+3. `data.library.prepare_library` uses the pinned MolCat standardizer and
    retains every source-to-parent mapping. Its default tautomer policy preserves
-   the supplied graph. This conversion belongs to ETALON integration.
+   the supplied graph. This conversion belongs to MolDarwin integration.
 4. `boundary.screen.Screen.plan` compiles a native cascade. `run` executes it;
    `read`, `metrics`, `recall`, `export_shortlist` and `handoff` inspect the native
-   artifacts and contracts. MolCascade owns stage execution, cache and resume.
+   artifacts and contracts. MolCat owns stage execution, cache and resume.
 5. `research.components.inspect_component` produces verified read receipts for
    explicit later publication. Reading those receipts does not execute science
    or charge the original calculation again.
 
-MolQuarry supplies source identity and measurement context. MolCascade supplies
-computational screening evidence for declared inputs and policy. ETALON and its
+MolOrigin supplies source identity and measurement context. MolCat supplies
+computational screening evidence for declared inputs and policy. MolDarwin and its
 host retain scientific admission, research branches, comparisons and RSI
 evaluation. Similarity and basic SDF operations may overlap without requiring
 another abstraction layer.
 
 Use the existing catalogs for discovery. `research.components.capabilities()`
-declares the host interfaces and six MolQuarry instruction skills. MolCascade's
+declares the host interfaces and six MolOrigin instruction skills. MolCat's
 empty host `skills` list does not mean it has no capabilities:
-`molcascade.cascade.catalog.catalogue_json` exposes its native criteria and
+`molcat.cascade.catalog.catalogue_json` exposes its native criteria and
 registered adapters. Adapter registration, environment preflight, real execution
 and scientific benefit are four separate levels of acceptance.
 

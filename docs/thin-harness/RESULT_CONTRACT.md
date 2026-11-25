@@ -1,4 +1,4 @@
-# 结果契约：etalon-action-result/1
+# 结果契约：moldarwin-action-result/1
 
 2026-10-21 增量：可迁移证据引用、只读查询和结论 Artifact 见 [EVOLUTION_CONTRACT](EVOLUTION_CONTRACT.md)。本文件执行/准入/费用语义不变；索引不是新事实账本。
 
@@ -10,7 +10,7 @@
 
 | 字段 | 约束 |
 | --- | --- |
-| `schema` | `etalon-action-result/1` |
+| `schema` | `moldarwin-action-result/1` |
 | `request_id`、`plan_id` | 与原提交绑定 |
 | `execution_refs` | 现有 job/action/execution 标识及各自所属存储；不得混为一种 ID |
 | `execution_state` | `pending`、`running`、`completed`、`failed`、`blocked`、`cancelled`、`unresolved` |
@@ -56,12 +56,12 @@
 
 | 文件 | 复用 | 新增目标 |
 | --- | --- | --- |
-| [active/schema.py](../../src/etalon/active/schema.py) | Evaluation 的分子、端点、数值、单位、checks、provenance | 不扩成万能结果类型 |
-| [active/store.py](../../src/etalon/active/store.py) | `record_execution_costs`、`resolve`、admitted/ruling、`action_resolved` | 已提交事件读取和兼容结果引用 |
-| [runtime/operations.py](../../src/etalon/runtime/operations.py) | 原 verify/accounting/recover | 各操作映射到统一结果视图 |
-| [runtime/service.py](../../src/etalon/runtime/service.py)、[store.py](../../src/etalon/runtime/store.py) | 持久化结果、恢复收据、节点事件 | 有界、可续读的事件读取 |
-| [research/journal.py](../../src/etalon/research/journal.py) | 同账本不可变研究记录 | 三种方法记录及评价事件的类型标识 |
-| [research/validation.py](../../src/etalon/research/validation.py)、[feedback.py](../../src/etalon/research/feedback.py)、[baseline_feedback.py](../../src/etalon/research/baseline_feedback.py) | 原冻结／释放／比较绑定 | 兼容引用到方法评价，不假定附加反馈已经更新模型 |
+| [active/schema.py](../../src/moldarwin/active/schema.py) | Evaluation 的分子、端点、数值、单位、checks、provenance | 不扩成万能结果类型 |
+| [active/store.py](../../src/moldarwin/active/store.py) | `record_execution_costs`、`resolve`、admitted/ruling、`action_resolved` | 已提交事件读取和兼容结果引用 |
+| [runtime/operations.py](../../src/moldarwin/runtime/operations.py) | 原 verify/accounting/recover | 各操作映射到统一结果视图 |
+| [runtime/service.py](../../src/moldarwin/runtime/service.py)、[store.py](../../src/moldarwin/runtime/store.py) | 持久化结果、恢复收据、节点事件 | 有界、可续读的事件读取 |
+| [research/journal.py](../../src/moldarwin/research/journal.py) | 同账本不可变研究记录 | 三种方法记录及评价事件的类型标识 |
+| [research/validation.py](../../src/moldarwin/research/validation.py)、[feedback.py](../../src/moldarwin/research/feedback.py)、[baseline_feedback.py](../../src/moldarwin/research/baseline_feedback.py) | 原冻结／释放／比较绑定 | 兼容引用到方法评价，不假定附加反馈已经更新模型 |
 
 ## 5. Hook 的事件接缝
 
@@ -75,7 +75,7 @@
 
 `runner.result_observer` 负责准入前的恢复收据，保持其可靠性语义；普通 hook 不能插入其位置，也不能在事务内调用 LLM。Hook 失败不回滚科学事实。
 
-公共读取接口为 `etalon.runtime.api.read_events(log_ref, *, after_sequence=0, limit=100)`，返回 `events`、`log_id`、`next_cursor`、`has_more`。`after_sequence` 可为起始整数或完整 `{log_id, after_sequence}` 游标；使用完整游标可拒绝跨日志误用。A 实现既有日志的读适配，I 封装为 `etalon_events_read`，C 消费。
+公共读取接口为 `moldarwin.runtime.api.read_events(log_ref, *, after_sequence=0, limit=100)`，返回 `events`、`log_id`、`next_cursor`、`has_more`。`after_sequence` 可为起始整数或完整 `{log_id, after_sequence}` 游标；使用完整游标可拒绝跨日志误用。A 实现既有日志的读适配，I 封装为 `moldarwin_events_read`，C 消费。
 
 - `log_ref` 明确 CampaignStore 或 RuntimeStore 的来源及 scope；序号仅在该日志内有效。
 - 从提交记录读取稳定顺序；空页不跳过未来事件。返回内容有界，不能只返回“最近100条”而悄悄漏掉历史。

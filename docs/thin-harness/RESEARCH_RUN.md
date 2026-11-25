@@ -1,8 +1,8 @@
 # Continue a research question across native host exits
 
 For ordinary research, call the scientific method directly. Use
-`etalon.runtime.reuse.execute_or_reuse` for exact-request reuse and an optional
-explicit `recover` callback; native handles live in `etalon.runtime.native`.
+`moldarwin.runtime.reuse.execute_or_reuse` for exact-request reuse and an optional
+explicit `recover` callback; native handles live in `moldarwin.runtime.native`.
 Neither depends on a research graph or publication. A recovery reads the saved
 handle/output and does not dispatch the original callback a second time.
 
@@ -33,7 +33,7 @@ inside that context, `saved.array(name)` loads and reuses only the named NPZ
 member. Do numeric analysis in code and return decision-relevant differences and
 exceptions. `notes.read_original(..., selector={"json": ["/counts"]})` gives
 bounded exact fields; an omitted selector gives metadata. The same entry paths
-are available through `etalon research method` and `etalon research original`.
+are available through `moldarwin research method` and `moldarwin research original`.
 Descriptors remain ordinary note fields; these helpers neither select methods
 nor add a registry, execution stage or global cache.
 
@@ -86,7 +86,7 @@ Neither mode requires a preset two-turn demonstration or changes the task's
 scientific completion condition.
 
 Use `examples/research_host_lifecycle.py CAPSULE.json RUN_DIRECTORY`. The capsule
-has schema `etalon-host-task-capsule/1` and these fields:
+has schema `moldarwin-host-task-capsule/1` and these fields:
 
 | Field | Purpose |
 | --- | --- |
@@ -137,7 +137,7 @@ that affect the question instead of rereading every specialist transcript.
 
 ## Exit is not completion
 
-Each native turn ends with a structured `etalon-host-checkpoint/1`: `task_id`,
+Each native turn ends with a structured `moldarwin-host-checkpoint/1`: `task_id`,
 `state`, `entry`, `summary`, `basis_refs`, `wake_after_seconds`. States are:
 
 | State | Next behavior |
@@ -149,7 +149,7 @@ Each native turn ends with a structured `etalon-host-checkpoint/1`: `task_id`,
 | `needs_user` | A concrete dependency requires information or new authority |
 
 When an existing external handle is pending, the host may write `wait.json` in its
-turn directory with schema `etalon-host-wait/1`, `poll_seconds`, and `checks`.
+turn directory with schema `moldarwin-host-wait/1`, `poll_seconds`, and `checks`.
 Checks support native attempts, explicit file markers or JSON status values.
 The adapter reads status without another model call while unchanged; ready/failed
 results return to the host, and unknown/check errors remain explicit. No new job
@@ -227,11 +227,11 @@ packet. Full historical material remains reachable through the work reference.
 
 For note entries, a task-owned method can use native execution/reuse and save its
 meaningful result through `notes.save_progress` or `notes.patch_progress`. The
-optional `etalon.research.research_segment` adapter runs a known batch with either
+optional `moldarwin.research.research_segment` adapter runs a known batch with either
 a note entry or an existing graph checkpoint entry:
 
 ```python
-from etalon.research.research_segment import work_from_entry, run_segment, read_work
+from moldarwin.research.research_segment import work_from_entry, run_segment, read_work
 
 work = work_from_entry(goal, entry, branch_id=branch,
     residuals=["Which competing explanation survives the paired comparison?"])
@@ -284,7 +284,7 @@ def calculate_known_batch(work, output_directory):
     return compact_response(summary, output_directory)
 ```
 
-These are illustrative task functions, not new ETALON APIs. Invoke an already
+These are illustrative task functions, not new MolDarwin APIs. Invoke an already
 published ordinary `next_segment.argv` directly when its scientific reason and
 dependencies remain appropriate; use a fresh host when the residual needs a new
 judgment or ownership changes. An unchanged pinned method does not require
@@ -348,6 +348,6 @@ reads current branch heads; `find_notes` retains historical and negative knowled
 Both use the same journal. Generated views/cursors can be rebuilt and are not
 scientific observations. Runtime receipts remain the execution authority.
 
-MolQuarry's existing curation accepts optional agent-authored knowledge;
+MolOrigin's existing curation accepts optional agent-authored knowledge;
 `build_target_bundle(view="knowledge")` returns it without preparing a structure
 bundle. Internal research feedback is written directly to the project journal.

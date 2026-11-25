@@ -6,20 +6,20 @@ import sys
 
 import pytest
 
-from etalon import host, research_hooks as hooks, skills
-from etalon.active import CampaignStore
-from etalon.active.schema import canonical
-from etalon.data.artifacts import seal
-from etalon.research import Artifact
-from etalon.research.entry import make_read_context
-from etalon.research.evidence import query_evidence, read_evidence
-from etalon.research.evidence_refs import EvidenceError, file_identity, make_ref
-from etalon.research.meta_context import (
+from moldarwin import host, research_hooks as hooks, skills
+from moldarwin.active import CampaignStore
+from moldarwin.active.schema import canonical
+from moldarwin.data.artifacts import seal
+from moldarwin.research import Artifact
+from moldarwin.research.entry import make_read_context
+from moldarwin.research.evidence import query_evidence, read_evidence
+from moldarwin.research.evidence_refs import EvidenceError, file_identity, make_ref
+from moldarwin.research.meta_context import (
     WORKSET, build_task_workset, describe_resource, index_resources,
     publish_task_workset, read_task_workset,
 )
-from etalon.research.publication import STAGES, inspect_publication, prepare_publication, resume_publication
-from etalon.research.research_context import build_research_context
+from moldarwin.research.publication import STAGES, inspect_publication, prepare_publication, resume_publication
+from moldarwin.research.research_context import build_research_context
 from test_meta_context import part, profile, review, setup, workset
 from test_research_graph_memory import graph_case
 from test_research_publication import assert_old_unchanged, case
@@ -201,7 +201,7 @@ def test_same_named_resource_version_replacement_resets_hook_baseline(case, tmp_
     def event(event_id, kind):
         return hooks.handle_event(case["entry"],
             {"session_id": "same-task", "event_id": event_id, "hook_event_name": kind,
-             "tool_name": "mcp__etalon__etalon_research_context"},
+             "tool_name": "mcp__moldarwin__moldarwin_research_context"},
             host="codex", state_dir=tmp_path / "receipts", max_bytes=65536)
 
     initial = event("start", "SessionStart")
@@ -331,7 +331,7 @@ def test_workset_publication_recovers_after_process_death(case, tmp_path, phase)
                                     operation_id="crash-fixture", directory=tmp_path / "publication")
     script = """
 import os, sys
-from etalon.research import publication
+from moldarwin.research import publication
 original = publication._stage
 def crash(root, phase, payload):
     result = original(root, phase, payload)

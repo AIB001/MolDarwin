@@ -1,8 +1,8 @@
 """Optional scoped reads use the existing MCP interfaces and never write research."""
 import json
 
-from etalon.mcp import evidence
-from etalon.research.evidence_refs import file_identity
+from moldarwin.mcp import evidence
+from moldarwin.research.evidence_refs import file_identity
 from test_mcp import Collector
 from test_research_graph_memory import graph_case
 
@@ -14,7 +14,7 @@ def registered():
 
 
 def test_scope_is_not_an_ignored_option_on_other_views(graph_case):
-    call = registered()['etalon_research_context']
+    call = registered()['moldarwin_research_context']
     for view in ('resources', 'branch'):
         result = json.loads(call(str(graph_case['entry']), view=view,
             scope={'branch_id': 'fixed-core', 'ordinary_hops': 1}))
@@ -23,7 +23,7 @@ def test_scope_is_not_an_ignored_option_on_other_views(graph_case):
 
 
 def test_existing_context_passes_exact_scope_to_pinned_read(graph_case):
-    call = registered()['etalon_research_context']
+    call = registered()['moldarwin_research_context']
     before = file_identity(graph_case['store'].path)
     result = json.loads(call(str(graph_case['entry']), view='summary', max_bytes=65536,
         scope={'branch_id': 'fixed-core', 'ordinary_hops': 1}))
@@ -40,7 +40,7 @@ def test_existing_context_passes_exact_scope_to_pinned_read(graph_case):
 
 
 def test_invalid_scope_cannot_silently_expand_or_omit_counters(graph_case):
-    call = registered()['etalon_research_context']
+    call = registered()['moldarwin_research_context']
     for scope in (
         {'branch_id': 'fixed-core', 'ordinary_hops': 2},
         {'branch_id': 'fixed-core', 'drop_counters': True},
@@ -51,7 +51,7 @@ def test_invalid_scope_cannot_silently_expand_or_omit_counters(graph_case):
 
 
 def test_graph_tool_keeps_the_existing_node_ceiling(graph_case):
-    call = registered()['etalon_research_graph']
+    call = registered()['moldarwin_research_graph']
     args = dict(workspace=str(graph_case['workspace']), checkpoint_ref=graph_case['checkpoint'],
         scope={'root_refs': [graph_case['claim']], 'ordinary_hops': 0})
     result = json.loads(call(**args))

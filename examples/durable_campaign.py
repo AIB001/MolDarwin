@@ -14,11 +14,11 @@ import json
 import time
 from pathlib import Path
 
-from etalon.active.adapters import MOLECULAR_REPRESENTATION
-from etalon.campaign.design import component, compose
-from etalon.runtime.artifacts import configure
-from etalon.runtime.executors import prepare_executor
-from etalon.runtime.service import plan, status, submit
+from moldarwin.active.adapters import MOLECULAR_REPRESENTATION
+from moldarwin.campaign.design import component, compose
+from moldarwin.runtime.artifacts import configure
+from moldarwin.runtime.executors import prepare_executor
+from moldarwin.runtime.service import plan, status, submit
 
 
 def specification(workspace: Path, *, mode: str = "ordered") -> dict:
@@ -32,7 +32,7 @@ def specification(workspace: Path, *, mode: str = "ordered") -> dict:
         finalize={"steps": [{"id": "export", "backend": "export.rdkit_sdf_shortlist@0.1.0",
                              "settings": {"schema_version": 1}}]})
     configured = configure(workspace, config)
-    executor = prepare_executor("molcascade", {"cascade": config,
+    executor = prepare_executor("molcat", {"cascade": config,
         "readout": {"stage_id": "properties", "contract_id": "property/v1", "value_column": "mw"}},
         {"id": "mw", "target": "offline-fixture", "quantity": "molecular_weight", "units": "Da", "cost": 1})
     budget = {"max_requests": 0, "max_bytes": 1_000_000, "max_seconds": 30}
@@ -63,7 +63,7 @@ def specification(workspace: Path, *, mode: str = "ordered") -> dict:
                 "local_catalogs": [str(fixture)]}}, "budget": budget},
             "resources": {"http_requests": 0, "http_bytes": 1_000_000}},
     ]
-    return {"schema": "etalon-workflow/1", "objective": "Verify three CPU molecular-weight observations and retain source evidence",
+    return {"schema": "moldarwin-workflow/1", "objective": "Verify three CPU molecular-weight observations and retain source evidence",
             "nodes": nodes, "limits": {"http_requests": 0, "http_bytes": 2_000_000,
                                       "cpu_quotes": 1, "campaign:fixture_quotes": 3},
             "controller": {"mode": mode}, "max_seconds": 300}

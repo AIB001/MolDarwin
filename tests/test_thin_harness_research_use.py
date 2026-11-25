@@ -4,12 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active.store import StateError
-from etalon.boundary.prism_v1 import file_identity
-from etalon.research import Coupling, Experiment, Observation
-from etalon.research.calibration import empirical_model
-from etalon.research.diagnostics import Resource, exact_program
-from etalon.research.runtime import compile_first_segment, observed_branch, record_program
+from moldarwin.active.store import StateError
+from moldarwin.boundary.prism_v1 import file_identity
+from moldarwin.research import Coupling, Experiment, Observation
+from moldarwin.research.calibration import empirical_model
+from moldarwin.research.diagnostics import Resource, exact_program
+from moldarwin.research.runtime import compile_first_segment, observed_branch, record_program
 from test_research_use_methods import build_use_fixture
 from test_research_optional_methods import build_optional_fixture
 
@@ -88,8 +88,8 @@ def test_v_feedback_can_return_future_query_but_never_dispatch_or_compile_it(tmp
     journal.record(experiment)
     obs = Observation(experiment.id, 'measured', {'label': 'low'}, {'label': 'category'}, (refs['artifact'],))
     journal.record(obs)
-    from etalon.runtime import service
-    import etalon.research.runtime as research_runtime
+    from moldarwin.runtime import service
+    import moldarwin.research.runtime as research_runtime
     def prohibited(*args, **kwargs):
         pytest.fail('reading branch dispatched or compiled future work')
     monkeypatch.setattr(service, 'submit', prohibited)

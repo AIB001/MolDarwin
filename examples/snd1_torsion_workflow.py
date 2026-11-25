@@ -8,8 +8,8 @@ from scipy.optimize import minimize
 from rdkit import Chem,RDConfig
 from rdkit.Chem import AllChem,ChemicalFeatures,rdMolTransforms
 import snd1_evidence_workflow as legacy
-from etalon.research.geometry_input import SCHEMA,validate_geometry,geometry_evidence_ids
-from etalon.research.scientific_input import compile_input,consumption_receipt,identity
+from moldarwin.research.geometry_input import SCHEMA,validate_geometry,geometry_evidence_ids
+from moldarwin.research.scientific_input import compile_input,consumption_receipt,identity
 
 TARGETS={'geometry':'constraint','pocket':'objective','binding_support':'selection','optimizer':'objective'}
 read,write=legacy.read,legacy.write
@@ -281,7 +281,7 @@ def generate(bundle_path,baseline,output,method):
         if identity(baseline/name)!=pin:raise ValueError('baseline identity changed')
     request={'bundle':identity(bundle_path),'baseline':identity(baseline/'result.json'),'method':method,
         'runtime':legacy.old.runtime(),'scipy':{'version':scipy.__version__,'path':scipy.__file__,**identity(scipy.__file__)},
-        'source':{'path':__file__,**identity(__file__)},'contract_source':identity(__import__('etalon.research.geometry_input',fromlist=['x']).__file__),
+        'source':{'path':__file__,**identity(__file__)},'contract_source':identity(__import__('moldarwin.research.geometry_input',fromlist=['x']).__file__),
         'soft_term_source':identity(legacy.__file__)}
     if output.exists():
         if read(output/'request.json')!=request:raise ValueError('changed request')

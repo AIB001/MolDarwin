@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active import ActiveCampaign
-from etalon.active.schema import canonical
-from etalon.runtime.executors import build_executor, register_executor
+from moldarwin.active import ActiveCampaign
+from moldarwin.active.schema import canonical
+from moldarwin.runtime.executors import build_executor, register_executor
 from test_runtime_prism_bridge import prepared
 
 

@@ -4,10 +4,10 @@ import os
 
 import pytest
 
-from etalon.boundary.infra import load
+from moldarwin.boundary.infra import load
 
-load("molcascade")
-from molcascade.io import molecules, parquet
+load("molcat")
+from molcat.io import molecules, parquet
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows path/descriptor stat regression")
@@ -54,7 +54,7 @@ def test_completed_output_fsync_preserves_bytes(tmp_path):
 
 
 def test_checkpoint_paths_preserve_distinct_cache_keys(tmp_path):
-    from molcascade.runtime.cache import checkpoint_directory_name
+    from molcat.runtime.cache import checkpoint_directory_name
 
     names = [checkpoint_directory_name('cache:sha256:' + char * 64) for char in ('a', 'b')]
     assert names[0] != names[1]

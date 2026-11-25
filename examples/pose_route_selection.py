@@ -17,7 +17,7 @@ import sys
 import time
 
 from rdkit import Chem, rdBase
-from etalon.research import reaction_candidate as rc
+from moldarwin.research import reaction_candidate as rc
 
 
 def pin(path):
@@ -67,7 +67,7 @@ def make_poses(release, bindings):
             if result["status"] != "succeeded" or result["native_status"]["status"] != "succeeded":
                 raise ValueError("failed native pose work must retain an unknown endpoint")
             original = pair["candidate"]["coordinates"] if arm == "candidate" else pair["exact_input_sdf"]
-            path = (release.parent / "etalon-qov-anchor-20261026/science/remote/candidates" /
+            path = (release.parent / "moldarwin-qov-anchor-20261026/science/remote/candidates" /
                     Path(original["path"]).name if arm == "candidate" else
                     science / "remote/pairs" / run_id / "exact-input.sdf")
             molecule, pose_ref = sdf_identity(path, original)
@@ -251,7 +251,7 @@ def run(release_entry, output, science_handoff=None):
         body, ref = read(science_handoff)
         additional = {"ref": ref, "status": body.get("status"),
             "use": "Additional science context; does not retrospectively change the frozen local-retention endpoint or assert that local contact retention is the whole scientific objective."}
-    result = {"schema": "etalon-qov-pose-route-study/1", "entry_ref": entry_ref,
+    result = {"schema": "moldarwin-qov-pose-route-study/1", "entry_ref": entry_ref,
         "published_binding_ref": bound_ref, "source_refs": source_refs,
         "choice": choice, "evidence_omission_checks": controls,
         "additional_science": additional,

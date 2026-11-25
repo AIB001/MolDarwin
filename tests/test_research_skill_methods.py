@@ -7,11 +7,11 @@ import runpy
 
 import pytest
 
-from etalon.research.fixed_pool import subset_rank_outcome
-from etalon.research.transfer import checked_rows, evaluate_policies
+from moldarwin.research.fixed_pool import subset_rank_outcome
+from moldarwin.research.transfer import checked_rows, evaluate_policies
 
 ROOT = Path(__file__).resolve().parents[1]
-SKILL = ROOT / ".claude" / "skills" / "etalon-research"
+SKILL = ROOT / ".claude" / "skills" / "moldarwin-research"
 EXAMPLE = runpy.run_path(str(SKILL / "scripts" / "research_methods.py"))
 
 
@@ -66,7 +66,7 @@ def test_partial_subset_use_needs_no_policy_and_rejects_unpaid_information():
 
 def test_documented_pose_and_governance_snippets_execute():
     references = [SKILL / "references" / "pose-preparation.md",
-                  ROOT / ".claude" / "skills" / "etalon-campaign" / "references" / "governance-and-fep.md"]
+                  ROOT / ".claude" / "skills" / "moldarwin-campaign" / "references" / "governance-and-fep.md"]
     for path in references:
         snippet = re.findall(r"```python\n(.*?)```", path.read_text(encoding="utf-8"), re.S)[0]
         exec(compile(snippet, str(path), "exec"), {})

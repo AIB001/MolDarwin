@@ -4,11 +4,11 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active.schema import canonical, digest
-from etalon.research import Artifact
-from etalon.research.evidence_refs import EvidenceError, file_identity, make_ref
-from etalon.research.graph_memory import build_research_graph, node_identity
-from etalon.research.research_context import build_research_context
+from moldarwin.active.schema import canonical, digest
+from moldarwin.research import Artifact
+from moldarwin.research.evidence_refs import EvidenceError, file_identity, make_ref
+from moldarwin.research.graph_memory import build_research_graph, node_identity
+from moldarwin.research.research_context import build_research_context
 
 from test_research_graph_memory import graph_case
 
@@ -22,7 +22,7 @@ def _raw(c, name):
 
 
 def _claim(c, counters):
-    return c["save"]({"schema": "etalon-research-claim/1", "question": "Which route?",
+    return c["save"]({"schema": "moldarwin-research-claim/1", "question": "Which route?",
         "statement": "Synthetic scoped claim", "epistemic_status": "interpretation",
         "subjects": ["fixture"], "conditions": ["fixture only"], "limitations": ["No science"],
         "support_refs": [c["evidence"]], "counter_refs": counters, "method_refs": [], "supersedes": []})
@@ -138,7 +138,7 @@ def test_compact_receipt_retains_every_boundary_and_counter_direction(graph_case
     context = build_research_context(c["entry"], scope=scope, view="summary", max_bytes=32768)
     receipt = context["scope_receipt"]
     refs = {row["node_id"]: row["ref"] for row in context["reference_index"]}
-    assert receipt["schema"] == "etalon-research-context-scope/1"
+    assert receipt["schema"] == "moldarwin-research-context-scope/1"
     assert {(group["from"], target, group["relation"])
         for group in receipt["boundary_relation_groups"] for target in group["to_node_ids"]} == {
         (edge["from"], edge["to"], edge["relation"]) for edge in graph["scope_receipt"]["boundary_relations"]}

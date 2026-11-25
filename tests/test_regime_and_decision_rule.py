@@ -28,20 +28,20 @@ from dataclasses import replace
 
 import pytest
 
-import etalon.learn.admission_view as av
-from etalon.active.schema import canonical, digest
-from etalon.learn.admission_view import admission_view
-from etalon.research.assessment_regime import regime, regime_of_node
-from etalon.research.components import record_json
-from etalon.research.composition import record_evaluation
-from etalon.research.continuation import validate_content
-from etalon.research.decision_rule import (
+import moldarwin.learn.admission_view as av
+from moldarwin.active.schema import canonical, digest
+from moldarwin.learn.admission_view import admission_view
+from moldarwin.research.assessment_regime import regime, regime_of_node
+from moldarwin.research.components import record_json
+from moldarwin.research.composition import record_evaluation
+from moldarwin.research.continuation import validate_content
+from moldarwin.research.decision_rule import (
     REPLAY, build_decision_rule, plan_rules, replay, validate_decision_rule,
     validate_plan_metric_rule,
 )
-from etalon.research.evidence_refs import EvidenceError
-from etalon.research.graph_memory import build_research_graph
-from etalon.research.schema import MethodEvaluation, method_record_from_dict
+from moldarwin.research.evidence_refs import EvidenceError
+from moldarwin.research.graph_memory import build_research_graph
+from moldarwin.research.schema import MethodEvaluation, method_record_from_dict
 from test_research_composition import evaluation_plan
 from test_research_continuation import case, checkpoint, publish, save
 
@@ -320,7 +320,7 @@ def test_a_forged_verdict_is_refused_because_the_block_is_recomputed():
 
 @pytest.mark.parametrize("edit,match", [
     (lambda b: b.update(claim="probably"), "claim must be one of"),
-    (lambda b: b.update(schema="etalon-something-else/1"), "replay schema"),
+    (lambda b: b.update(schema="moldarwin-something-else/1"), "replay schema"),
     (lambda b: b.update(basis="no_operator_or_threshold_declared_in_the_evaluation_plan"), "basis must be"),
     (lambda b: b.pop("observed"), "names exactly"),
     (lambda b: b.update(extra=1), "names exactly"),
@@ -477,8 +477,8 @@ def test_count_of_prose_conclusions_asserting_success_against_a_replayed_failure
 
 def test_a_plan_carrying_the_contracts_rule_still_binds(case):
     from test_evaluation_contract import setup
-    from etalon.research.evaluation_contract import evaluate_contract
-    from etalon.research.method_revision import journal_ref
+    from moldarwin.research.evaluation_contract import evaluate_contract
+    from moldarwin.research.method_revision import journal_ref
 
     contract, _ = setup(case)
     declared = contract["metrics"][0]
@@ -502,7 +502,7 @@ def test_a_plan_whose_rule_disagrees_with_the_contract_is_refused(case):
     """Two declared thresholds that disagree are two criteria, not one."""
 
     from test_evaluation_contract import setup
-    from etalon.research.evaluation_contract import evaluate_contract
+    from moldarwin.research.evaluation_contract import evaluate_contract
 
     contract, _ = setup(case)
     plan = evaluation_plan(case)
@@ -530,7 +530,7 @@ def test_a_plan_claiming_a_better_founded_threshold_than_the_contract_is_refused
     """
 
     from test_evaluation_contract import setup
-    from etalon.research.evaluation_contract import evaluate_contract
+    from moldarwin.research.evaluation_contract import evaluate_contract
 
     contract, _ = setup(case)
     assert contract["metrics"][0]["threshold_evidence"] == "convention", "fixture premise"
@@ -626,7 +626,7 @@ def test_a_legacy_evaluation_node_without_a_basis_is_regime_unknown_on_a_real_gr
 
 def test_i18_a_null_role_and_an_out_of_enum_role_demote():
     """The reachable weak cases: the key is present, its value cannot be read as a regime."""
-    from etalon.research.assessment_regime import REGIME_UNKNOWN, NOT_DECLARED, regime_of_node
+    from moldarwin.research.assessment_regime import REGIME_UNKNOWN, NOT_DECLARED, regime_of_node
 
     for role in (None, "", "validated", "INDEPENDENT_VALIDATION", 0):
         got = regime_of_node({"evaluation": {"assessment_role": role}})
@@ -647,7 +647,7 @@ def test_i18_absent_is_unreachable_because_the_field_is_required():
     unreachable rather than unimplemented is exactly the requirement asserted here.
     """
     import dataclasses
-    from etalon.research.schema import MethodEvaluation
+    from moldarwin.research.schema import MethodEvaluation
 
     field = {f.name: f for f in dataclasses.fields(MethodEvaluation)}["assessment_role"]
     assert field.default is dataclasses.MISSING, (
@@ -659,7 +659,7 @@ def test_i18_absent_is_unreachable_because_the_field_is_required():
 
 def test_i18_a_node_with_no_evaluation_block_is_still_not_applicable():
     """The scope decision of §11.3 is unchanged: an artifact or a receipt is left alone."""
-    from etalon.research.assessment_regime import regime_of_node
+    from moldarwin.research.assessment_regime import regime_of_node
 
     assert regime_of_node({}) is None
     assert regime_of_node({"artifact": {"role": "input"}}) is None

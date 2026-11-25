@@ -3,12 +3,12 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active.schema import canonical
-from etalon.research import evidence, evidence_refs, read_scope
-from etalon.research.evidence_refs import EvidenceError, file_identity, load_workspace
-from etalon.research.graph_memory import build_research_graph, node_identity
-from etalon.research.read_scope import verified_read
-from etalon.research.research_context import build_research_context
+from moldarwin.active.schema import canonical
+from moldarwin.research import evidence, evidence_refs, read_scope
+from moldarwin.research.evidence_refs import EvidenceError, file_identity, load_workspace
+from moldarwin.research.graph_memory import build_research_graph, node_identity
+from moldarwin.research.read_scope import verified_read
+from moldarwin.research.research_context import build_research_context
 from test_research_graph_memory import graph_case
 from test_verified_read_scope import _same_size_change
 from test_research_publication import case
@@ -20,7 +20,7 @@ def manifest_case(graph_case, tmp_path):
     ws = load_workspace(c['workspace'])
     rows, _ = evidence._source_uncached(ws, ws.source('science'))
     path = tmp_path / 'published.json'
-    path.write_text(canonical({'schema': 'etalon-artifact-manifest/1', 'records': [
+    path.write_text(canonical({'schema': 'moldarwin-artifact-manifest/1', 'records': [
         {**{k: row[k] for k in ('record_id', 'record_type', 'record')}, 'visibility': 'released'}
         for row in rows.values()]}), encoding='utf-8')
     manifest = ws.manifest
@@ -105,8 +105,8 @@ def test_full_path_cache_falls_back_to_normal_resolution(tmp_path, monkeypatch):
 
 def test_card_reuse_keeps_manifest_independent_of_host_conditions(case, tmp_path):
     from test_meta_context import workset
-    from etalon.research.meta_context import publish_task_workset
-    from etalon.research.publication import resume_publication
+    from moldarwin.research.meta_context import publish_task_workset
+    from moldarwin.research.publication import resume_publication
     chosen = workset(case)
     intent = publish_task_workset(case['entry'], chosen, parent_entry=case['parent'],
         operation_id='activate-fixture', directory=tmp_path/'activation')

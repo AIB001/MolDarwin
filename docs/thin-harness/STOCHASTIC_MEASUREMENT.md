@@ -16,7 +16,7 @@ A value drawn once from a stochastic oracle is a draw. A measurement is a draw p
 **dispersion figure** over those draws. Absent either, the honest record is `evaluable=False` — the
 observable could not be evaluated — and not a number with a caveat attached.
 
-The distinction ETALON already draws correctly is that this is a **precision** defect and not a
+The distinction MolDarwin already draws correctly is that this is a **precision** defect and not a
 **validity** defect. `Consequence.UNVERIFIABLE` blocks a claim and never a spend, and
 `judgment/waiver.py` refuses a waiver for `F_RUN_NOT_REPRODUCIBLE` outright because *"it does not
 block a spend — it invalidates a claim about the run — so there is nothing for a waiver to
@@ -43,7 +43,7 @@ than obvious: zero is the value a missing spread most resembles.
 
 ## 3. Where the general form belongs
 
-ETALON already has the right instinct in exactly one place, and the general form is that place's
+MolDarwin already has the right instinct in exactly one place, and the general form is that place's
 argument moved up one level.
 
 `runtime/executors.py` registers the replicated MM-PBSA executor and **refuses to dispatch it**:
@@ -169,7 +169,7 @@ admission-coverage change must: `learn/admission_view.py` maps an `unchecked` co
 `WRONG_SUBJECT` to `not_recorded`, and `RSI_REWARD.md` (D4) counts `not_recorded` as a loss — in the
 denominator and not in the numerator. Turning declared replicas into unevaluable observations moves
 nodes in a derived view. That is a decision to be taken with the audit's four counts in hand, and
-`.claude/skills/etalon-recomputability-audit/SKILL.md` prescribes them.
+`.claude/skills/moldarwin-recomputability-audit/SKILL.md` prescribes them.
 
 **Decision, 2026-11-10: stage 2 is held, and the gate is restated because the one above is a
 deadlock.** Two things changed what this paragraph could claim.
@@ -183,7 +183,7 @@ which does not expire.
 
 Second, the gate as written cannot open. Stage 2 waits on the audit; the audit needs the four counts;
 the counts come from observations — and the real journals have **none**. Measured read-only on
-`2xpro6000:/home/zx/etalon/runs/*/research.sqlite`, 2026-11-10: 5 journals, `observations` rows **0**,
+`2xpro6000:/home/zx/moldarwin/runs/*/research.sqlite`, 2026-11-10: 5 journals, `observations` rows **0**,
 and no tool-identifying key anywhere in 2001 events. Evidence: `measured_here`. So the gate is
 restated: **stage 2 lands after a campaign exists whose journal carries non-zero `observations`**, and
 until then the blocking work is the recording gap, not the refusal. `research/capability_attribution.py`
@@ -269,7 +269,7 @@ that pair, not a replacement for it.
 
 Whether the external benchmark behind this evidence is intended to run through `method.run`, and
 whether its grader is to be expressed as an evaluation contract. If the grader stays outside, the
-acceptance criterion remains structurally invisible to ETALON and the realistic goal becomes
+acceptance criterion remains structurally invisible to MolDarwin and the realistic goal becomes
 recording that the criterion was *not* covered — which `missing_policy: "insufficient"` and
 `not_declared` already express.
 

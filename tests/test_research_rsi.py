@@ -3,12 +3,12 @@ import json
 import sqlite3
 import pytest
 
-from etalon.research import MethodEvaluation, TaskSplit
-from etalon.research import continuation, evidence
-from etalon.research.components import record_json
-from etalon.research.evidence_refs import EvidenceError
-from etalon.research.evidence_refs import file_identity, make_ref
-from etalon.research.method_revision import resolve_method_revision
+from moldarwin.research import MethodEvaluation, TaskSplit
+from moldarwin.research import continuation, evidence
+from moldarwin.research.components import record_json
+from moldarwin.research.evidence_refs import EvidenceError
+from moldarwin.research.evidence_refs import file_identity, make_ref
+from moldarwin.research.method_revision import resolve_method_revision
 from test_method_revision import case as revision_case, save as save_revision
 from test_research_continuation import case, save, step, checkpoint, publish
 
@@ -73,7 +73,7 @@ def test_published_member_hash_and_unclosed_scope_fallback(case, monkeypatch, cl
     body = {"members": [{"member": "payload", "path": str(payload), **file_identity(payload), "visibility": "released"}]}
     foreign = {**make_ref("data", "bundle-1", body), "member": "payload"}
     manifest = root / "data.json"
-    manifest.write_text(json.dumps({"schema": "etalon-artifact-manifest/1", "records": [
+    manifest.write_text(json.dumps({"schema": "moldarwin-artifact-manifest/1", "records": [
         {"record_id": "bundle-1", "record_type": "data_snapshot", "record": body, "visibility": "released"}]}))
     source = {"source_id": "data", "kind": "artifact_manifest", "location": str(manifest),
               "identity": {"kind": "snapshot_sha256", "value": file_identity(manifest)["sha256"]}}

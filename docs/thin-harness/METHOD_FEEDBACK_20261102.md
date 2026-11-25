@@ -39,7 +39,7 @@ The host continues to choose the goal, method, adaptation and next action.
 ## Consumer contract and example
 
 ```python
-from etalon.research.saved_methods import collect_saved_method
+from moldarwin.research.saved_methods import collect_saved_method
 
 result = collect_saved_method(invocation_path)
 # Decide from compact author feedback; raw results remain accessible when useful.
@@ -50,15 +50,15 @@ print(result["accounting_refs"])
 ```
 
 The producer is the existing native `method.run` adapter. Consumers are the Python
-saved-method API, MCP `etalon_method_collect`/`etalon_method_call`, and the existing
+saved-method API, MCP `moldarwin_method_collect`/`moldarwin_method_call`, and the existing
 action summary view. New fields are additive. This does not change submitted
 commands, request identity, result archival, accounting units or scientific admission.
 Reading the feedback is optional; the environment does not decide whether to stop.
 
 ## Validation and its boundary
 
-Local interpreter: the existing ETALON `.venv/Scripts/python.exe`, importing
-`src/etalon` in this checkout. No dependency upgrades or remote deployment.
+Local interpreter: the existing MolDarwin `.venv/Scripts/python.exe`, importing
+`src/moldarwin` in this checkout. No dependency upgrades or remote deployment.
 
 - The five new regression cases failed before the fixes and passed afterward.
 - Method/runtime/saved-method/cross-fitting/action-view checks: **36 passed,

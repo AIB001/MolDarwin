@@ -9,10 +9,10 @@ import sys
 import pytest
 from mcp.server.fastmcp import FastMCP
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.research import ResearchJournal
-from etalon.research.notes import entry_value, original, patch_progress, read_entry, save_progress
-from etalon.research.saved_methods import publish_method
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.research import ResearchJournal
+from moldarwin.research.notes import entry_value, original, patch_progress, read_entry, save_progress
+from moldarwin.research.saved_methods import publish_method
 
 
 @pytest.fixture
@@ -41,10 +41,10 @@ def project(tmp_path):
 
 
 def mcp_progress(**arguments):
-    from etalon.mcp.evidence import register
+    from moldarwin.mcp.evidence import register
     server = FastMCP("path-fixture")
     register(server)
-    response = asyncio.run(server.call_tool("etalon_research_progress", arguments))
+    response = asyncio.run(server.call_tool("moldarwin_research_progress", arguments))
     blocks = response[0] if isinstance(response, tuple) else response
     result = json.loads(blocks[0].text)
     assert result["ok"], result
@@ -54,9 +54,9 @@ def mcp_progress(**arguments):
 def cli_progress(project, mode, payload, *extra):
     payload_file = project["elsewhere"] / (mode + ".json")
     payload_file.write_text(json.dumps(payload))
-    import etalon
-    source = str(Path(etalon.__file__).resolve().parents[1])
-    result = subprocess.run([sys.executable, "-m", "etalon", "research", "progress",
+    import moldarwin
+    source = str(Path(moldarwin.__file__).resolve().parents[1])
+    result = subprocess.run([sys.executable, "-m", "moldarwin", "research", "progress",
         "--entry", str(project["locator"]), "--" + mode, str(payload_file), *map(str, extra)],
         cwd=project["elsewhere"], env={**os.environ, "PYTHONPATH": source},
         text=True, capture_output=True, timeout=30)
@@ -130,7 +130,7 @@ def test_sdk_does_not_rebase_pins_embedded_in_patch_or_resources(project, monkey
 
 
 def test_advice_report_embedded_refs_and_note_attachments_agree_for_locator(project, monkeypatch):
-    from etalon.research.advice import advice
+    from moldarwin.research.advice import advice
     prepared = advice(project["locator"], "prepare", "fixture", "v1", {
         "question": "Inspect the fixture", "brief": {"observation": "fixture"}, "execution_scope": {"work": "read only"}})
     advisor_locator = project["work"] / "ADVISOR.json"

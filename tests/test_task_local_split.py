@@ -1,6 +1,6 @@
 """A local improvement can be evaluated without inventing a transfer task."""
 import pytest
-from etalon.research import TaskSplit
+from moldarwin.research import TaskSplit
 
 
 def test_empty_transfer_is_explicit_and_roundtrips():
@@ -25,7 +25,7 @@ def test_local_split_preserves_nonoverlap_and_exact_identities(development, vali
 def test_diagnostic_only_split_does_not_invent_validation_or_allow_independence(tmp_path):
     from dataclasses import replace
     from test_research_methods import evaluation_fixture
-    from etalon.active.store import StateError
+    from moldarwin.active.store import StateError
     _,journal,evaluation=evaluation_fixture(tmp_path)
     split=TaskSplit(('seen',),(),(),{'seen':'actual-input'},'Local diagnostic only')
     split_id=journal.record(split)

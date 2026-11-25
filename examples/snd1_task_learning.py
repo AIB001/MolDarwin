@@ -18,9 +18,9 @@ import time
 
 import numpy as np
 
-P4 = Path('/home/zx/etalon/runs/snd1-scale-20261024/p4')
-ANALYSIS = Path('/home/zx/etalon/runs/etalon-research-closeout-20261025/md/analysis-v2/runs')
-EXTENSION = Path('/home/zx/etalon/runs/etalon-linux-continuity-20261026/science/successor-contact-topology')
+P4 = Path('/home/zx/moldarwin/runs/snd1-scale-20261024/p4')
+ANALYSIS = Path('/home/zx/moldarwin/runs/moldarwin-research-closeout-20261025/md/analysis-v2/runs')
+EXTENSION = Path('/home/zx/moldarwin/runs/moldarwin-linux-continuity-20261026/science/successor-contact-topology')
 DEVELOPMENT = '7KNX-QOV-seed-202610242'
 EVALUATION = ['7KNX-QOV-seed-202610241', '7KNX-QOV-seed-202610243',
               '7KNW-QOY-seed-202610241', '7KNW-QOY-seed-202610242', '7KNW-QOY-seed-202610243']

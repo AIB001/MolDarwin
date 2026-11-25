@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from etalon.research.evidence_refs import (
+from moldarwin.research.evidence_refs import (
     EvidenceError, EvidenceResolver, file_identity, load_workspace,
     make_ref, resolve_artifact, validate_claim, validate_ref,
 )
@@ -11,7 +11,7 @@ from etalon.research.evidence_refs import (
 
 def workspace(tmp_path, mappings=()):
     path = tmp_path / "workspace.json"
-    path.write_text(json.dumps({"schema": "etalon-evidence-workspace/1", "workspace_id": "fixture",
+    path.write_text(json.dumps({"schema": "moldarwin-evidence-workspace/1", "workspace_id": "fixture",
         "sources": [{"source_id": "released", "kind": "artifact_manifest", "location": "manifest.json",
                      "identity": {"kind": "snapshot_sha256", "value": "0" * 64}}],
         "location_map": list(mappings)}))
@@ -57,7 +57,7 @@ def test_ref_and_claim_keep_provenance_and_epistemic_state():
     ref = make_ref("old-campaign", "observation-1", body)
     assert ref != make_ref("other-campaign", "observation-1", body)
     assert ref["record_digest"] == make_ref("other-campaign", "observation-1", body)["record_digest"]
-    claim = {"schema": "etalon-research-claim/1", "question": "What changed?", "subjects": [],
+    claim = {"schema": "moldarwin-research-claim/1", "question": "What changed?", "subjects": [],
              "conditions": {}, "statement": "Unknown effect", "epistemic_status": "interpretation",
              "support_refs": [ref], "counter_refs": [ref], "limitations": ["seen evidence"],
              "method_refs": [], "supersedes": []}
@@ -70,7 +70,7 @@ def test_ref_and_claim_keep_provenance_and_epistemic_state():
 
 def test_no_raw_mapping_workspace_or_unknown_source(tmp_path):
     with pytest.raises(EvidenceError):
-        load_workspace({"schema": "etalon-evidence-workspace/1"})
+        load_workspace({"schema": "moldarwin-evidence-workspace/1"})
     with pytest.raises(EvidenceError):
         EvidenceResolver(workspace(tmp_path), "unknown")
 

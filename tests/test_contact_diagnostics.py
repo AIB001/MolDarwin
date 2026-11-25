@@ -3,7 +3,7 @@ import importlib.util
 from pathlib import Path
 import numpy as np
 import pytest
-from etalon.rescore.contacts import geometry, diagnose
+from moldarwin.rescore.contacts import geometry, diagnose
 
 
 @pytest.mark.parametrize('tilt',[0.,2.3])

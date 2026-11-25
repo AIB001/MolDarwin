@@ -112,7 +112,7 @@ README 的 FM 编号仅定位原功能，不新增标准或强制研究顺序。
 | RES-08、MET-04、LEARN-03 | B `test_research_function_methods.py`：既有校准和 `ResearchJournal.factorial`，V 另读真实零命中产物及 failed cell | synthetic contrast/面板不成为新科学结论、因果效应或独立收益 |
 | RES-02/07、ACT-06、INT-03 | A/I/V 只读 sweep/Screen/校准接缝，旧 schema、live WAL、坏收据、缺路径、reservation/partial cost | running/unknown fixture 不是本轮真实活动子进程；真实 POSIX 仍引用前轮原件 |
 | HOST-01、MET-01—05/07 | C 的独立原生 productivity/monitor/lineage 案例与 V 日志复核，workspace `integration/thin-harness-functions-20261021/c/` | 宿主声明不等于完整读取；父引用和试用不证明方法优越；Claude 仍 blocked |
-| INT-01/02 | I 新 wheel/完整包资源、非 editable 安装与 V source/manifest 检查 | 不用包 smoke 代替原生决策；molcascade 三个有意只读改动须逐项解释，不能称受保护文件全部未变 |
+| INT-01/02 | I 新 wheel/完整包资源、非 editable 安装与 V source/manifest 检查 | 不用包 smoke 代替原生决策；molcat 三个有意只读改动须逐项解释，不能称受保护文件全部未变 |
 | LEARN-01/02 | 维持 not_run | 无新独立任务与等预算对照，不能宣称 S/φ/G 收益 |
 
 本轮具体通过/失败与源快照以各 DELIVERY 和 V 结论为准。旧第一阶段/native 原件不覆盖，新增 README 文本不冒充它们原先的受测源码。
@@ -160,7 +160,7 @@ README 的 FM 编号仅定位原功能，不新增标准或强制研究顺序。
 
 沿用 INT-01/02/03、HOST-01、MET-01/02/03/04/06/07、RES-08、ACT-03 和 EVT 的语义。V 结果前协议 `tests/fixtures/thin_harness/skill_library_acceptance_20261021.json` SHA256 `da100aeb4ba05280acc8330730dd00883e7eb49f19650ab3772c51596bc5bdd3`；原件在 workspace `integration/thin-harness-skills-20261021/v/`。
 
-- 所有实际存在的产品bundle必须与目录/版本/安装/导出一致，包括六项MolQuarry原源；不以固定数量代替遍历实际内容。旧URI与零参数字段形状保留。
+- 所有实际存在的产品bundle必须与目录/版本/安装/导出一致，包括六项MolOrigin原源；不以固定数量代替遍历实际内容。旧URI与零参数字段形状保留。
 - 空范围不读bundle；混合指定范围只读选中项；summary和按需member仍绑定完整支持文件版本。外部改版/删除支持文件改变新版本，旧快照仍可验证。
 - SDK例来自实际实现和受测安装，数据角色、失败、未知、回放幂等、费用和原件不丢失；不强制skill、全流程或方法记录。
 - 两种宿主导出分别核对全部成员；Python MCP协议调用不冒称原生宿主。最多两个新原生任务各一次，沿V事前预算，保留失败，不补跑到通过。

@@ -8,10 +8,10 @@ import json
 
 import pytest
 
-from etalon.active.schema import canonical, digest
-from etalon.research.evidence_refs import EvidenceError, file_identity, make_ref
-from etalon.research.graph_memory import build_research_graph, node_identity
-from etalon.research.research_context import build_research_context
+from moldarwin.active.schema import canonical, digest
+from moldarwin.research.evidence_refs import EvidenceError, file_identity, make_ref
+from moldarwin.research.graph_memory import build_research_graph, node_identity
+from moldarwin.research.research_context import build_research_context
 
 from test_research_graph_memory import graph_case
 
@@ -22,7 +22,7 @@ def scope(ref, hops=0):
 
 def claim(case, name, *, counters=(), support=(), **extra):
     return case["save"]({
-        "schema": "etalon-research-claim/1", "task_id": "other-task-" + name,
+        "schema": "moldarwin-research-claim/1", "task_id": "other-task-" + name,
         "question": "Synthetic adversarial relation", "statement": name,
         "epistemic_status": "interpretation", "subjects": ["fixture"],
         "conditions": ["synthetic only"], "limitations": ["No science claim"],
@@ -40,7 +40,7 @@ def reachable_refs(value):
     refs = []
     def walk(item):
         if isinstance(item, dict):
-            if item.get("schema") == "etalon-evidence-ref/1":
+            if item.get("schema") == "moldarwin-evidence-ref/1":
                 refs.append(item)
             else:
                 for child in item.values():
@@ -148,12 +148,12 @@ def test_reverse_counter_with_wrong_record_digest_is_reported_as_unresolved(grap
     c = graph_case
     broken_target = {**c["claim"], **({"record_digest": "0" * 64} if corruption == "digest"
                                     else {"member": "unknown-member"})}
-    body = {"schema": "etalon-research-claim/1", "question": "Fixture broken reverse metadata",
+    body = {"schema": "moldarwin-research-claim/1", "question": "Fixture broken reverse metadata",
         "statement": "Counter declaration with an unresolved target identity", "epistemic_status": "interpretation",
         "subjects": ["fixture"], "conditions": [], "limitations": [], "support_refs": [],
         "counter_refs": [broken_target], "method_refs": [], "supersedes": []}
     manifest = c["entry"].parent / "broken-reverse.json"
-    manifest.write_text(json.dumps({"schema": "etalon-artifact-manifest/1", "records": [
+    manifest.write_text(json.dumps({"schema": "moldarwin-artifact-manifest/1", "records": [
         {"record_id": "broken-reverse", "record_type": "claim", "record": body, "visibility": "released"}]}),
         encoding="utf-8")
     config = json.loads(c["workspace"].read_text(encoding="utf-8"))

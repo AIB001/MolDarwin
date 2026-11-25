@@ -3,9 +3,9 @@ import copy
 
 import pytest
 
-from etalon.active.schema import digest
-from etalon.research.evidence_refs import EvidenceError
-from etalon.research.meta_context import (
+from moldarwin.active.schema import digest
+from moldarwin.research.evidence_refs import EvidenceError
+from moldarwin.research.meta_context import (
     compare_definitions, make_task_profile, describe_resource, index_resources,
     prepare_adaptation_context, review_adaptation, build_task_workset,
     validate_workset, workset_summary,
@@ -66,7 +66,7 @@ def test_known_unknown_and_mismatched_definitions():
 
 
 def test_workset_reentry_with_changed_definition_stops_old_activation(case, monkeypatch):
-    import etalon.research.meta_context as meta
+    import moldarwin.research.meta_context as meta
     ws, resources = setup(case)
     defs = {"metric:success": "a" * 64}
     # Fixture template expressly does not rely on this scientific endpoint.
@@ -94,8 +94,8 @@ def test_workset_reentry_with_changed_definition_stops_old_activation(case, monk
 
 
 def test_note_binding_uses_existing_workset_and_rejects_another_task(case, monkeypatch):
-    import etalon.research.meta_context as meta
-    from etalon.research.evidence_refs import validate_ref
+    import moldarwin.research.meta_context as meta
+    from moldarwin.research.evidence_refs import validate_ref
     import json
     entry = json.loads(case["parent"].read_text())
     binding = {"workspace": entry["workspace"], "checkpoint_ref": entry["checkpoint_ref"]}

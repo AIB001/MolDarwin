@@ -10,11 +10,11 @@ from rdkit.Chem import AllChem
 from posebusters import PoseBusters
 import pandas as pd
 
-from etalon.research.evidence_refs import make_ref
-from etalon.research.input_qualification import write_input_qualification
-from etalon.research.pose_verifier import installed_pose_check_contract, verify_pose_endpoints
-from etalon.research.result_integrity import validate_endpoint_verifier
-from etalon.research.scientific_input import identity
+from moldarwin.research.evidence_refs import make_ref
+from moldarwin.research.input_qualification import write_input_qualification
+from moldarwin.research.pose_verifier import installed_pose_check_contract, verify_pose_endpoints
+from moldarwin.research.result_integrity import validate_endpoint_verifier
+from moldarwin.research.scientific_input import identity
 from test_input_qualification import make_case
 
 

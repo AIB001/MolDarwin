@@ -3,7 +3,7 @@ import subprocess
 import sys
 from pathlib import Path
 import pytest
-from etalon.runtime.reuse import execute_or_reuse,request_identity
+from moldarwin.runtime.reuse import execute_or_reuse,request_identity
 
 
 def test_explicit_recovery_reads_output_without_second_execution(tmp_path):
@@ -21,5 +21,5 @@ def test_explicit_recovery_reads_output_without_second_execution(tmp_path):
 
 
 def test_runtime_and_scientific_algorithms_do_not_import_research():
-    code='import etalon.runtime.native, etalon.runtime.reuse, etalon.rescore.poses, etalon.generate.route; import sys; assert not any(n == "etalon.research" or n.startswith("etalon.research.") for n in sys.modules)'
+    code='import moldarwin.runtime.native, moldarwin.runtime.reuse, moldarwin.rescore.poses, moldarwin.generate.route; import sys; assert not any(n == "moldarwin.research" or n.startswith("moldarwin.research.") for n in sys.modules)'
     subprocess.run([sys.executable,'-c',code],check=True,capture_output=True,text=True)

@@ -1,7 +1,7 @@
 """Revalidate round1 through the registered runtime and import an existing design bundle.
 
 No submission, resume, MD, generation or training. All journal writes are isolated copies.
-Run in the actual environment with frozen ETALON source and the original PRISM source/input paths.
+Run in the actual environment with frozen MolDarwin source and the original PRISM source/input paths.
 """
 from __future__ import annotations
 
@@ -12,13 +12,13 @@ import sqlite3
 import subprocess
 import sys
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.schema import Action, canonical, digest
-from etalon.active.adapters import MOLECULAR_REPRESENTATION
-from etalon.authority.grant import record_digest
-from etalon.boundary.prism_v1 import CLITransport, file_identity
-from etalon.data.design import design_index, import_bundle, read_bundle
-from etalon.runtime.executors import build_executor, prepare_executor, register_executor, recover_bridge_action
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.schema import Action, canonical, digest
+from moldarwin.active.adapters import MOLECULAR_REPRESENTATION
+from moldarwin.authority.grant import record_digest
+from moldarwin.boundary.prism_v1 import CLITransport, file_identity
+from moldarwin.data.design import design_index, import_bundle, read_bundle
+from moldarwin.runtime.executors import build_executor, prepare_executor, register_executor, recover_bridge_action
 
 
 def copy_historical_authorizations(store: CampaignStore) -> list[dict]:
@@ -67,7 +67,7 @@ def validate_pool_cli(bundle: Path, workspace: Path) -> dict:
                               0, queryable=False, requires_handoff=False)])
     calls = []
     for number in (1, 2):
-        command = [sys.executable, '-m', 'etalon', 'design', 'import', '--mode', 'pool',
+        command = [sys.executable, '-m', 'moldarwin', 'design', 'import', '--mode', 'pool',
                    '--bundle', str(bundle.resolve()), '--database', str(store.path.resolve())]
         completed = subprocess.run(command, capture_output=True, text=True, timeout=120)
         (workspace / f'pool-import-{number}.stdout').write_text(completed.stdout, encoding='utf-8')
@@ -137,7 +137,7 @@ def run(database: Path, config: dict, bundle: Path, workspace: Path) -> dict:
             results.append({'action_id': action.id, 'value': one.value, 'cost': one.cost,
                             'job_id': one.provenance['result']['job_id'], 'source': 'existing_real_artifact',
                             'live_status_result_revalidated': True,
-                            'runtime_entry': 'etalon.runtime.executors.recover_bridge_action'})
+                            'runtime_entry': 'moldarwin.runtime.executors.recover_bridge_action'})
     finally:
         CLITransport.call = original_call
     assert before == {'budget': store.balance(), 'observations': store.observations(), 'actions': store.actions()}
@@ -154,7 +154,7 @@ def run(database: Path, config: dict, bundle: Path, workspace: Path) -> dict:
     assert file_identity(database) == original_identity
     report = {'scope': 'existing round1 result revalidation + explicitly sourced bundle reference import',
               'new_simulations': 0, 'new_training_runs': 0, 'python': sys.executable,
-              'imported_modules': {'etalon': __import__('etalon').__file__,
+              'imported_modules': {'moldarwin': __import__('moldarwin').__file__,
                                   'runtime_executor': sys.modules[build_executor.__module__].__file__},
               'source_database': {'path': str(database), **original_identity},
               'source_database_unchanged': True, 'historical_authorization_backfill': migrations,

@@ -13,22 +13,22 @@ from datetime import date
 
 import pytest
 
-import etalon.learn.admission_view as av
-from etalon.active.schema import canonical, digest
-from etalon.faults.attribution import Observation
-from etalon.faults.taxonomy import BY_CODE, FAULTS, Consequence, Evidence, Exactness, Phase
-from etalon.judgment.waiver import Waiver, WaiverSet
-from etalon.learn.admissible import Measurement, rule
-from etalon.learn.admission_view import (
+import moldarwin.learn.admission_view as av
+from moldarwin.active.schema import canonical, digest
+from moldarwin.faults.attribution import Observation
+from moldarwin.faults.taxonomy import BY_CODE, FAULTS, Consequence, Evidence, Exactness, Phase
+from moldarwin.judgment.waiver import Waiver, WaiverSet
+from moldarwin.learn.admissible import Measurement, rule
+from moldarwin.learn.admission_view import (
     UNCATALOGUED_BLOCKING_CODES,
     AdmissionViewMismatch,
     admission_view,
     catalogue_digest,
     compare_views,
 )
-from etalon.research.evidence_refs import make_ref
-from etalon.research.graph_memory import GRAPH, node_identity
-from etalon.research.graph_scope import SCOPE
+from moldarwin.research.evidence_refs import make_ref
+from moldarwin.research.graph_memory import GRAPH, node_identity
+from moldarwin.research.graph_scope import SCOPE
 
 # ---------------------------------------------------------------- helpers
 
@@ -76,13 +76,13 @@ def make_graph(names, edges, *, truncated=False, kinds=None, receipt="good", vie
     ``SCOPE``, ``issues == []`` and a correct graph view_id.
 
     ``experiences`` maps a node name to the ``experience`` projection block
-    ``_project_node`` writes for an ``etalon-method-experience/1`` record. Mirrors
+    ``_project_node`` writes for an ``moldarwin-method-experience/1`` record. Mirrors
     ``regimes`` and is passed verbatim for the same reason: the v4 membrane keys on
     the presence of that block, so a test must show the block it depends on.
 
     ``regimes`` maps a node name to the ``evaluation`` projection block
     ``research/graph_memory._project_node`` writes for an
-    ``etalon-method-evaluation/1`` record. The block is passed verbatim rather
+    ``moldarwin-method-evaluation/1`` record. The block is passed verbatim rather
     than built from a shorthand, so each membrane test shows the exact projected
     shape it depends on -- including the case that matters most for migration,
     where ``assessment_role_basis`` is simply absent.
@@ -178,7 +178,7 @@ def reid(view):
 I1_DIGEST = "d003268d06fc8267b3d30cccd54bc8248ca457ee158167e477edaab7398f082a"
 #: Second pin: rule(..., require_comparator=False), the path CampaignStore uses.
 #: Computed from the unmodified rule() with
-#:   PYTHONPATH=src /tmp/etalon-venv/bin/python /tmp/i1_pin2.py
+#:   PYTHONPATH=src /tmp/moldarwin-venv/bin/python /tmp/i1_pin2.py
 I1_DIGEST_NO_COMPARATOR = "c756480f629f1c820e787d64cb7d3366a682fb8a9a9ae6ac3f0291078ca6b635"
 I1_WHEN = date(2026, 11, 5)
 
@@ -535,8 +535,8 @@ def test_i4_view_carries_version_and_catalogue_digest():
     view = admission_view(j_graph(), [binding("p1", "admitted")])
     # v3 because the membrane changes derived values: a stored v2 view and a v3
     # view are two propagation rules, and compare_views must refuse the pair.
-    assert view["view_version"] == "etalon-admission-view/4"
-    assert view["schema"] == "etalon-admission-view/4"
+    assert view["view_version"] == "moldarwin-admission-view/4"
+    assert view["schema"] == "moldarwin-admission-view/4"
     assert view["catalogue_digest"] == catalogue_digest()
 
 
@@ -1142,7 +1142,7 @@ _INCOMPLETE = [
     ("graph_issues", _set("issues", [{"reason": "premise record unavailable"}]), "issues"),
     ("graph_issues_absent", lambda g: g.pop("issues"), "issues"),
     ("receipt_absent", lambda g: g.pop("scope_receipt"), "scope_receipt"),
-    ("receipt_schema", _receipt("schema", "etalon-research-graph-scope/0"), "scope_receipt.schema"),
+    ("receipt_schema", _receipt("schema", "moldarwin-research-graph-scope/0"), "scope_receipt.schema"),
     ("traversal_incomplete", _receipt("traversal_complete", False), "scope_receipt.traversal_complete"),
     ("traversal_not_true", _receipt("traversal_complete", 1), "scope_receipt.traversal_complete"),
     ("reference_coverage_incomplete", _receipt("reference_coverage_complete", False),
@@ -1214,7 +1214,7 @@ def _view(*bindings, graph=None):
 
 def test_s10_6_compare_refuses_view_version_mismatch():
     a = _view(binding("p1", "admitted"))
-    b = reid({**a, "view_version": "etalon-admission-view/1"})
+    b = reid({**a, "view_version": "moldarwin-admission-view/1"})
     with pytest.raises(AdmissionViewMismatch, match="view_version"):
         compare_views(a, b)
 
@@ -1342,7 +1342,7 @@ def test_view_id_is_digest_of_rest_and_deterministic():
 # Each pair below is the demonstration by construction. The two graphs differ in one
 # projected field and in nothing else; the first propagates and the second does not.
 
-#: What research/graph_memory._project_node writes for an etalon-method-evaluation/1
+#: What research/graph_memory._project_node writes for an moldarwin-method-evaluation/1
 #: record. Only the two regime fields matter here; the rest is carried for shape.
 def _evaluation_block(role, basis=...):
     block = {"subjects": ["mv-1"], "comparators": ["mv-0"], "assessment_role": role,
@@ -1356,7 +1356,7 @@ def _membrane_graph(role, basis=..., relation="evaluation_result"):
     """J relies on p1 by a declared relied-class relation; p1 declares a regime.
 
     `evaluation_result` is the real reachable case: research/method_links.py emits it
-    from an `etalon-research-step/1` evaluation step to the `etalon-method-evaluation/1`
+    from an `moldarwin-research-step/1` evaluation step to the `moldarwin-method-evaluation/1`
     record it bound, and that record is the only projection carrying a regime.
     """
 
@@ -1616,7 +1616,7 @@ def test_membrane_classify_is_pure_in_the_regime_argument():
         ("diagnostic", "explicitly_declared", ("used", "regime_cannot_settle")),
         ("independent_validation", None, ("used", "regime_not_declared")),
     ):
-        from etalon.research.assessment_regime import regime
+        from moldarwin.research.assessment_regime import regime
         out = [av._classify(edge, regime(role, basis))[:2] for _ in range(2)]
         assert out == [expected, expected]
 
@@ -1714,7 +1714,7 @@ def _lesson_block(outcome="adopt"):
 def test_i21_a_lesson_cannot_be_a_premise_and_no_label_restores_it():
     """I21. The route a loose internal judge would otherwise take into the premise set.
 
-    `etalon-method-experience/1` is a legal premise ref, and two edges reached `relied_on`:
+    `moldarwin-method-experience/1` is a legal premise ref, and two edges reached `relied_on`:
     a decision step's `basis_refs` (relation `selection_basis`, in `_RELIED_BY_RELATION`),
     and a `supports` edge that `_declared_class` marks labelable. Both are checked here,
     and the label clause is the one that was false before v4 -- §11's prose claimed no label
@@ -1754,7 +1754,7 @@ def test_i21_a_lesson_declares_not_an_assessment_rather_than_an_unknown_regime()
     no reliance to permit. Collapsing it into either of the other two loses that.
     """
 
-    from etalon.research.assessment_regime import (
+    from moldarwin.research.assessment_regime import (
         LESSON_CANNOT_SETTLE, NOT_AN_ASSESSMENT, NOT_APPLICABLE, REGIME_UNKNOWN,
         regime_of_node)
 

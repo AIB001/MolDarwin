@@ -1,6 +1,6 @@
 # Explicit capability evidence
 
-`build_capability_profile` in `etalon.research.capability_profile` reads an explicit
+`build_capability_profile` in `moldarwin.research.capability_profile` reads an explicit
 bounded list of research decisions, updates, case declarations and evaluation
 contracts. It replays the existing evaluator; it does not run science, update
 defaults, assert a globally latest state or create another registry.

@@ -3,7 +3,7 @@
   "source_archive_sha256": "943225fc55c0146c78e4d4ce3e19eb5d86c0433f10a1a31d10c2b08f9fcca24e",
   "fixed_source_files_checked": 1168,
   "production_difference_from_first_native": [
-    "src/etalon/generate/audit.py"
+    "src/moldarwin/generate/audit.py"
   ],
   "audit_source_sha256": "5c141540996d685ddee2c7418bfe03a278072f0d0482518e228cd54bdd983470",
   "native_prompt_sha256": "559796c4e1f1ba1fe2d59705692e8fa8c7b83688a3043ddf8ee4d7a73ff776c9",
@@ -16,7 +16,7 @@
   "native_calls": [
     {
       "line": 7,
-      "tool": "etalon_capabilities",
+      "tool": "moldarwin_capabilities",
       "arguments": {},
       "error": null,
       "result": {
@@ -129,13 +129,13 @@
         },
         "runtime": {
           "durable_workers": "Linux /proc and POSIX locks required",
-          "module": "F:\\life_healthy\\integration\\thin-harness-functions-20261021\\c\\fixed-source-v2\\src\\etalon\\mcp\\host.py",
-          "python": "F:\\life_healthy\\ETALON\\.venv\\Scripts\\python.exe"
+          "module": "F:\\life_healthy\\integration\\thin-harness-functions-20261021\\c\\fixed-source-v2\\src\\moldarwin\\mcp\\host.py",
+          "python": "F:\\life_healthy\\MolDarwin\\.venv\\Scripts\\python.exe"
         },
-        "schema": "etalon-capability-catalog/1",
+        "schema": "moldarwin-capability-catalog/1",
         "skills": [
           {
-            "description": "Inspect scientific evidence and prepare bounded expensive execution through ETALON registered executors, including handoff validation, budget protection and result admission.",
+            "description": "Inspect scientific evidence and prepare bounded expensive execution through MolDarwin registered executors, including handoff validation, budget protection and result admission.",
             "entrypoint": "SKILL.md",
             "files": [
               {
@@ -156,12 +156,12 @@
             ],
             "kind": "domain_skill",
             "manifest_sha256": "f2f28041e42e16ad8cf3401352022582d2cef9ea0983e02659babe2f41e6f8fd",
-            "name": "etalon-campaign",
-            "schema": "etalon-capability-version/1",
+            "name": "moldarwin-campaign",
+            "schema": "moldarwin-capability-version/1",
             "slug": "campaign"
           },
           {
-            "description": "Prepare and supervise bounded MolCascade screening batches, including calibrated gates, batch reservations, duplicate submission and recovery.",
+            "description": "Prepare and supervise bounded MolCat screening batches, including calibrated gates, batch reservations, duplicate submission and recovery.",
             "entrypoint": "SKILL.md",
             "files": [
               {
@@ -177,8 +177,8 @@
             ],
             "kind": "domain_skill",
             "manifest_sha256": "0c05670d799901667db6d12e27ebf9169764b6ae1626ea92a50d191d03cea699",
-            "name": "etalon-screening-sweep",
-            "schema": "etalon-capability-version/1",
+            "name": "moldarwin-screening-sweep",
+            "schema": "moldarwin-capability-version/1",
             "slug": "sweep"
           },
           {
@@ -198,8 +198,8 @@
             ],
             "kind": "domain_skill",
             "manifest_sha256": "ed695eb354612135dc9ce99d90b2d45dbcf917d8f46f4642fba889b8c473ce38",
-            "name": "etalon-gate-calibration",
-            "schema": "etalon-capability-version/1",
+            "name": "moldarwin-gate-calibration",
+            "schema": "moldarwin-capability-version/1",
             "slug": "gate-calibration"
           },
           {
@@ -219,12 +219,12 @@
             ],
             "kind": "domain_skill",
             "manifest_sha256": "67a892bc1c669a65330824b5fb580e04ccf058718778b92e5618b65222b15372",
-            "name": "etalon-generation-planning",
-            "schema": "etalon-capability-version/1",
+            "name": "moldarwin-generation-planning",
+            "schema": "moldarwin-capability-version/1",
             "slug": "generation-planning"
           },
           {
-            "description": "Inspect long-running ETALON jobs and distinguish progress, stalled work, partial results and uncertain outcomes before recovery.",
+            "description": "Inspect long-running MolDarwin jobs and distinguish progress, stalled work, partial results and uncertain outcomes before recovery.",
             "entrypoint": "SKILL.md",
             "files": [
               {
@@ -240,12 +240,12 @@
             ],
             "kind": "domain_skill",
             "manifest_sha256": "e9a859608f9db06e514c5240cdf5fa2fa27b7d00091c91d37334c1ea76a938b4",
-            "name": "etalon-campaign-monitoring",
-            "schema": "etalon-capability-version/1",
+            "name": "moldarwin-campaign-monitoring",
+            "schema": "moldarwin-capability-version/1",
             "slug": "monitoring"
           },
           {
-            "description": "Set up or diagnose ETALON host access and selected scientific backends, checking interpreter paths, vendored sources and platform limits.",
+            "description": "Set up or diagnose MolDarwin host access and selected scientific backends, checking interpreter paths, vendored sources and platform limits.",
             "entrypoint": "SKILL.md",
             "files": [
               {
@@ -261,90 +261,90 @@
             ],
             "kind": "domain_skill",
             "manifest_sha256": "3869d34e45d75916aae903816a4b004bbe45382a503af8f62bb5ebc32aeb75a6",
-            "name": "etalon-install",
-            "schema": "etalon-capability-version/1",
+            "name": "moldarwin-install",
+            "schema": "moldarwin-capability-version/1",
             "slug": "install"
           }
         ],
         "tools": {
-          "etalon_action_prepare": "free",
-          "etalon_action_result": "free",
-          "etalon_action_submit": "spends",
-          "etalon_active_create": "cheap",
-          "etalon_active_execution_plan": "cheap",
-          "etalon_active_plan": "cheap",
-          "etalon_active_replay": "cheap",
-          "etalon_active_status": "free",
-          "etalon_active_submit": "spends",
-          "etalon_authorize_gates": "free",
-          "etalon_authorize_spend": "free",
-          "etalon_calibrate_gates": "free",
-          "etalon_campaign_plan": "free",
-          "etalon_capabilities": "free",
-          "etalon_check_handoff": "free",
-          "etalon_check_stability": "free",
-          "etalon_council_adjudicate": "free",
-          "etalon_council_reliability": "free",
-          "etalon_data_attach_handoffs": "cheap",
-          "etalon_data_import_assays": "cheap",
-          "etalon_data_import_candidates": "cheap",
-          "etalon_data_plan": "cheap",
-          "etalon_data_prepare": "cheap",
-          "etalon_data_review_template": "free",
-          "etalon_data_run": "cheap",
-          "etalon_data_sources": "free",
-          "etalon_data_status": "free",
-          "etalon_design_fep_network": "cheap",
-          "etalon_devices": "free",
-          "etalon_doctor": "cheap",
-          "etalon_events_read": "free",
-          "etalon_executor_list": "free",
-          "etalon_executor_prepare": "cheap",
-          "etalon_executor_register": "cheap",
-          "etalon_generation_productivity": "free",
-          "etalon_infrastructure": "free",
-          "etalon_method_read": "free",
-          "etalon_method_record": "cheap",
-          "etalon_plan_campaign": "free",
-          "etalon_recommend_waiver": "never-by-a-model",
-          "etalon_rule_admissible": "free",
-          "etalon_screen_configure": "cheap",
-          "etalon_screen_export": "cheap",
-          "etalon_screen_plan": "cheap",
-          "etalon_screen_status": "free",
-          "etalon_screen_submit": "spends",
-          "etalon_skill_read": "free",
-          "etalon_stages": "free",
-          "etalon_sweep_admit": "cheap",
-          "etalon_sweep_claim": "free",
-          "etalon_sweep_emit": "cheap",
-          "etalon_sweep_progress": "free",
-          "etalon_sweep_record": "free",
-          "etalon_sweep_recover": "free",
-          "etalon_sweep_status": "free",
-          "etalon_tune_screen": "free",
-          "etalon_workflow_advance": "spends",
-          "etalon_workflow_artifact": "cheap",
-          "etalon_workflow_cancel": "cheap",
-          "etalon_workflow_capabilities": "free",
-          "etalon_workflow_observe": "free",
-          "etalon_workflow_plan": "cheap",
-          "etalon_workflow_reconcile": "spends",
-          "etalon_workflow_status": "free",
-          "etalon_workflow_submit": "spends"
+          "moldarwin_action_prepare": "free",
+          "moldarwin_action_result": "free",
+          "moldarwin_action_submit": "spends",
+          "moldarwin_active_create": "cheap",
+          "moldarwin_active_execution_plan": "cheap",
+          "moldarwin_active_plan": "cheap",
+          "moldarwin_active_replay": "cheap",
+          "moldarwin_active_status": "free",
+          "moldarwin_active_submit": "spends",
+          "moldarwin_authorize_gates": "free",
+          "moldarwin_authorize_spend": "free",
+          "moldarwin_calibrate_gates": "free",
+          "moldarwin_campaign_plan": "free",
+          "moldarwin_capabilities": "free",
+          "moldarwin_check_handoff": "free",
+          "moldarwin_check_stability": "free",
+          "moldarwin_council_adjudicate": "free",
+          "moldarwin_council_reliability": "free",
+          "moldarwin_data_attach_handoffs": "cheap",
+          "moldarwin_data_import_assays": "cheap",
+          "moldarwin_data_import_candidates": "cheap",
+          "moldarwin_data_plan": "cheap",
+          "moldarwin_data_prepare": "cheap",
+          "moldarwin_data_review_template": "free",
+          "moldarwin_data_run": "cheap",
+          "moldarwin_data_sources": "free",
+          "moldarwin_data_status": "free",
+          "moldarwin_design_fep_network": "cheap",
+          "moldarwin_devices": "free",
+          "moldarwin_doctor": "cheap",
+          "moldarwin_events_read": "free",
+          "moldarwin_executor_list": "free",
+          "moldarwin_executor_prepare": "cheap",
+          "moldarwin_executor_register": "cheap",
+          "moldarwin_generation_productivity": "free",
+          "moldarwin_infrastructure": "free",
+          "moldarwin_method_read": "free",
+          "moldarwin_method_record": "cheap",
+          "moldarwin_plan_campaign": "free",
+          "moldarwin_recommend_waiver": "never-by-a-model",
+          "moldarwin_rule_admissible": "free",
+          "moldarwin_screen_configure": "cheap",
+          "moldarwin_screen_export": "cheap",
+          "moldarwin_screen_plan": "cheap",
+          "moldarwin_screen_status": "free",
+          "moldarwin_screen_submit": "spends",
+          "moldarwin_skill_read": "free",
+          "moldarwin_stages": "free",
+          "moldarwin_sweep_admit": "cheap",
+          "moldarwin_sweep_claim": "free",
+          "moldarwin_sweep_emit": "cheap",
+          "moldarwin_sweep_progress": "free",
+          "moldarwin_sweep_record": "free",
+          "moldarwin_sweep_recover": "free",
+          "moldarwin_sweep_status": "free",
+          "moldarwin_tune_screen": "free",
+          "moldarwin_workflow_advance": "spends",
+          "moldarwin_workflow_artifact": "cheap",
+          "moldarwin_workflow_cancel": "cheap",
+          "moldarwin_workflow_capabilities": "free",
+          "moldarwin_workflow_observe": "free",
+          "moldarwin_workflow_plan": "cheap",
+          "moldarwin_workflow_reconcile": "spends",
+          "moldarwin_workflow_status": "free",
+          "moldarwin_workflow_submit": "spends"
         },
         "usage_method": {
           "bytes": 2988,
           "kind": "usage_method",
-          "name": "etalon-host-guidance",
+          "name": "moldarwin-host-guidance",
           "sha256": "eb8fffca6a3aa74fc604ae2244b534ccaeaab9f0071160d62225a14a134faa72",
-          "uri": "etalon://host"
+          "uri": "moldarwin://host"
         }
       }
     },
     {
       "line": 9,
-      "tool": "etalon_generation_productivity",
+      "tool": "moldarwin_generation_productivity",
       "arguments": {
         "cost_ceiling": 2,
         "loops_json": "[{\"tag\":\"loop-fixture\",\"model\":\"synthetic\",\"pocket\":\"fixed-condition-A\",\"chunks\":[{\"requested\":100,\"delivered\":100,\"unique\":0,\"seconds\":60},{\"requested\":100,\"delivered\":100,\"unique\":0,\"seconds\":60},{\"requested\":100,\"delivered\":100,\"unique\":0,\"seconds\":60}]}]"
@@ -386,7 +386,7 @@
           }
         ],
         "median_unique_per_hour": null,
-        "note": "Ranked on unique molecules per hour. Use etalon.generate.audit.compare for hit rates, and act on it only where its intervals are disjoint.",
+        "note": "Ranked on unique molecules per hour. Use moldarwin.generate.audit.compare for hit rates, and act on it only where its intervals are disjoint.",
         "ok": true,
         "retire": {
           "loop-fixture": [
@@ -397,8 +397,8 @@
     }
   ],
   "native_messages": [
-    "I\u2019ll inspect `input.json`, find a relevant ETALON numerical check, and use its feedback to decide whether another chunk is justified. I won\u2019t launch any work.",
-    "**Another chunk is not justified.** I would stop this loop and use the existing inventory of 20 usable molecules.\n\nReal ETALON MCP `etalon_generation_productivity` returned:\n\n- Delivery: 300/300 (100%).\n- Globally new molecules: 0/300; uniqueness 95% Wilson interval **0\u20131.26%**.\n- Duplicate-cost multiplier: **unbounded** (`null` numerically), exceeding the **2\u00d7** ceiling; marked `exhausted` and recommended retirement.\n\nThis supports stopping under unchanged conditioning, though it does not prove future novelty is impossible.\n\nSkipped skills, exported bundles, planning, campaign creation, generation, screening, scoring, actions, replay and recovery. No files changed.\n\nMonetary cost remains unknown. ETALON\u2019s 0.05 hours derives from synthetic input seconds, not actual expenditure. These results describe only this engineering fixture."
+    "I\u2019ll inspect `input.json`, find a relevant MolDarwin numerical check, and use its feedback to decide whether another chunk is justified. I won\u2019t launch any work.",
+    "**Another chunk is not justified.** I would stop this loop and use the existing inventory of 20 usable molecules.\n\nReal MolDarwin MCP `moldarwin_generation_productivity` returned:\n\n- Delivery: 300/300 (100%).\n- Globally new molecules: 0/300; uniqueness 95% Wilson interval **0\u20131.26%**.\n- Duplicate-cost multiplier: **unbounded** (`null` numerically), exceeding the **2\u00d7** ceiling; marked `exhausted` and recommended retirement.\n\nThis supports stopping under unchanged conditioning, though it does not prove future novelty is impossible.\n\nSkipped skills, exported bundles, planning, campaign creation, generation, screening, scoring, actions, replay and recovery. No files changed.\n\nMonetary cost remains unknown. MolDarwin\u2019s 0.05 hours derives from synthetic input seconds, not actual expenditure. These results describe only this engineering fixture."
   ],
   "usage": [
     {

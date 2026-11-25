@@ -2,8 +2,8 @@
 import json
 import pytest
 
-from etalon.research.evidence import read_evidence, EvidenceError
-from etalon.research.evidence_refs import file_identity, make_ref
+from moldarwin.research.evidence import read_evidence, EvidenceError
+from moldarwin.research.evidence_refs import file_identity, make_ref
 from test_evidence_query import publish
 
 
@@ -53,7 +53,7 @@ def test_large_projection_guides_to_child_and_bytes_still_work(tmp_path):
 
 @pytest.mark.parametrize('overhead', [0, 353, 701])
 def test_wrapped_unicode_pages_deliver_every_counter_once(tmp_path, overhead):
-    from etalon.active.schema import canonical
+    from moldarwin.active.schema import canonical
     data = {'counters': [{'context': f'反证 {i} '+('有限范围' * 35)} for i in range(12)],
             'cost': None, 'definition': 'observed_count / all_candidates',
             'extra': {'b': '未读取原件', 'a': '保留阴性结果'}}
@@ -94,8 +94,8 @@ def test_wrapped_unicode_pages_deliver_every_counter_once(tmp_path, overhead):
 
 
 def test_mcp_selection_measures_ok_wrapper(tmp_path):
-    from etalon.mcp.evidence import register
-    from etalon.active.schema import canonical
+    from moldarwin.mcp.evidence import register
+    from moldarwin.active.schema import canonical
     class Collector:
         def __init__(self): self.tools = {}
         def tool(self):
@@ -103,7 +103,7 @@ def test_mcp_selection_measures_ok_wrapper(tmp_path):
             return add
     _, ws, ref = source(tmp_path, {'rows': ['中文'*150 for _ in range(12)]})
     collector = Collector(); register(collector)
-    result = collector.tools['etalon_evidence_read'](str(ws), ref, view='artifact',
+    result = collector.tools['moldarwin_evidence_read'](str(ws), ref, view='artifact',
         selector={'json':['/rows']}, max_bytes=4096)
     page = json.loads(result)
     assert page['ok']
@@ -120,7 +120,7 @@ def test_atomic_value_larger_than_remaining_wrapper_budget_is_explicit(tmp_path)
 
 def test_raw_original_byte_pages_also_fit_actual_wrapper(tmp_path):
     import base64
-    from etalon.active.schema import canonical
+    from moldarwin.active.schema import canonical
     path, ws, ref = source(tmp_path, {'body':'反证'*2500})
     original=path.read_bytes();chunks=[];offset=0
     wrapper=lambda payload: {'ok':True,'variable_metadata':'long'*200,**payload}

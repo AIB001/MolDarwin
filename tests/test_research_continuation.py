@@ -7,15 +7,15 @@ from functools import partial
 
 import pytest
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.schema import canonical, digest
-from etalon.active.store import StateError
-from etalon.research import Artifact, ResearchJournal
-from etalon.research.continuation import (
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.schema import canonical, digest
+from moldarwin.active.store import StateError
+from moldarwin.research import Artifact, ResearchJournal
+from moldarwin.research.continuation import (
     CHECKPOINT, STEP, capture_watermarks, read_content, record_content, resume_research, validate_content,
 )
-from etalon.research.evidence import query_evidence, read_evidence
-from etalon.research.evidence_refs import EvidenceError, file_identity, make_ref
+from moldarwin.research.evidence import query_evidence, read_evidence
+from moldarwin.research.evidence_refs import EvidenceError, file_identity, make_ref
 
 
 @pytest.fixture(params=["fresh", "frozen_view"], autouse=True)
@@ -57,7 +57,7 @@ def save(case, content):
 def publish(case):
     journal, _, authority, root = case
     path = root / "workspace.json"
-    path.write_text(json.dumps({"schema": "etalon-evidence-workspace/1", "workspace_id": "continuation-fixture",
+    path.write_text(json.dumps({"schema": "moldarwin-evidence-workspace/1", "workspace_id": "continuation-fixture",
         "sources": [{"source_id": "research", "kind": "journal", "location": str(journal.store.path),
                      "identity": {"kind": "snapshot_sha256", "value": file_identity(journal.store.path)["sha256"]}}],
         "status_refs": [str(authority)], "location_map": []}))
@@ -93,7 +93,7 @@ def test_ordinary_artifacts_project_query_read_and_resume_idempotently(case):
 
 
 def test_large_explicit_closure_is_verified_without_a_large_display(case, monkeypatch):
-    from etalon.research import continuation
+    from moldarwin.research import continuation
     previous=case[1]
     for i in range(140):
         previous=save(case,step(previous,reason=f'Fixture chained progress {i}'))
@@ -188,7 +188,7 @@ def test_missing_or_new_status_authority_requires_review(case):
 def test_changed_source_watermark_and_damaged_evidence_require_review(case):
     _, ref, _, root = case
     stable = root / "stable.json"
-    stable.write_text(json.dumps({"schema": "etalon-artifact-manifest/1", "records": []}))
+    stable.write_text(json.dumps({"schema": "moldarwin-artifact-manifest/1", "records": []}))
     ws = publish(case)
     config = json.loads(ws.read_text())
     extra = {"source_id": "input", "kind": "artifact_manifest", "location": str(stable),
@@ -214,7 +214,7 @@ def test_new_process_needs_only_workspace_and_checkpoint(case):
     cp = save(case, checkpoint(case, save(case, step(ref))))
     ws = publish(case)
     before = file_identity(journal.store.path)
-    process = subprocess.run([sys.executable, "-c", "import json,sys; from etalon.research.continuation import resume_research; "
+    process = subprocess.run([sys.executable, "-c", "import json,sys; from moldarwin.research.continuation import resume_research; "
         "print(json.dumps(resume_research(sys.argv[1],json.loads(sys.argv[2]))))", str(ws), canonical(cp)],
         capture_output=True, text=True, check=True)
     result = json.loads(process.stdout)
@@ -224,7 +224,7 @@ def test_new_process_needs_only_workspace_and_checkpoint(case):
 
 def test_pending_handle_is_read_not_resubmitted_and_cost_unchanged(case, monkeypatch):
     from test_runtime_actions import fixture_action, submit
-    from etalon.runtime import api
+    from moldarwin.runtime import api
     journal, ref, _, root = case
     store, request, calls, _ = fixture_action(root / "runtime-fixture", monkeypatch, outcome="pending")
     handle = submit(request, root / "runtime-fixture")

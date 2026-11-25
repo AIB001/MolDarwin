@@ -607,8 +607,8 @@ def aggregate(args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("operation", choices=("freeze", "run", "aggregate"))
-    parser.add_argument("--p4", type=Path, default=Path("/home/zx/etalon/runs/snd1-scale-20261024/p4"))
-    parser.add_argument("--prism-source", type=Path, default=Path("/home/zx/etalon/runs/snd1-scale-20261024/p4/source"))
+    parser.add_argument("--p4", type=Path, default=Path("/home/zx/moldarwin/runs/snd1-scale-20261024/p4"))
+    parser.add_argument("--prism-source", type=Path, default=Path("/home/zx/moldarwin/runs/snd1-scale-20261024/p4/source"))
     parser.add_argument("--gmx", type=Path, default=Path("/opt/gromacs2026/bin/gmx"))
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--run-id")

@@ -1,4 +1,4 @@
-"""Contract/comparison counterexamples and real MolCascade compile-only tests.
+"""Contract/comparison counterexamples and real MolCat compile-only tests.
 
 Receipts in the comparison tests are explicit fixtures; real compilation is
 not an execution, affinity or method-benefit experiment.
@@ -8,11 +8,11 @@ import json
 
 import pytest
 
-from etalon.active.schema import digest
-from etalon.boundary.screen import Screen
-from etalon.campaign.design import component, compose
-from etalon.research import method_contract as mc
-from etalon.research.evidence_refs import EvidenceError, make_ref
+from moldarwin.active.schema import digest
+from moldarwin.boundary.screen import Screen
+from moldarwin.campaign.design import component, compose
+from moldarwin.research import method_contract as mc
+from moldarwin.research.evidence_refs import EvidenceError, make_ref
 
 
 def parameter(path="/library/batch_size", *, category="execution", immutable=False):
@@ -65,10 +65,10 @@ def test_real_compilation_preserves_authored_effective_and_module_identities_wit
     assert plan["missing_checks"] == []
     assert {s["stage_id"] for s in plan["compiled_stages"]} >= {"library", "standardize", "properties"}
     assert plan["declaration_digest"] == digest(configuration)
-    assert plan["modules"]["etalon.boundary.screen"]["sha256"]
+    assert plan["modules"]["moldarwin.boundary.screen"]["sha256"]
     assert plan["parameters"]["/library/batch_size"]["origin"] == "declared"
     assert plan["effective_parameters"][0]["status"] == "matches"
-    assert not (path.parent / "etalon-screen-jobs.sqlite").exists()
+    assert not (path.parent / "moldarwin-screen-jobs.sqlite").exists()
     assert not (path.parent / "runs").exists()
 
 

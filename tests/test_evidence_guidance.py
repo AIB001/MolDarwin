@@ -18,8 +18,8 @@ import sys
 
 import pytest
 
-from etalon import host, skills
-from etalon.research.evidence_refs import EvidenceError, make_ref
+from moldarwin import host, skills
+from moldarwin.research.evidence_refs import EvidenceError, make_ref
 
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "evidence_reuse.py"
@@ -40,14 +40,14 @@ def published(tmp_path):
             "cost": None, "statement": "a released engineering observation"}
     second = {**body, "statement": "a counterexample; not an independent repeat"}
     manifest = tmp_path / "artifacts.json"
-    _write_json(manifest, {"schema": "etalon-artifact-manifest/1", "records": [
+    _write_json(manifest, {"schema": "moldarwin-artifact-manifest/1", "records": [
         {"record_id": "result", "record_type": "artifact", "record": body,
          "visibility": "released"},
         {"record_id": "counter", "record_type": "artifact", "record": second,
          "visibility": "released"},
     ]})
-    workspace = tmp_path / "etalon-workspace.json"
-    _write_json(workspace, {"schema": "etalon-evidence-workspace/1",
+    workspace = tmp_path / "moldarwin-workspace.json"
+    _write_json(workspace, {"schema": "moldarwin-evidence-workspace/1",
         "workspace_id": "guidance-fixture", "sources": [{
             "source_id": "released", "kind": "artifact_manifest", "location": manifest.name,
             "identity": {"kind": "snapshot_sha256",
@@ -76,7 +76,7 @@ def test_exported_entry_and_optional_guides_have_complete_local_links(tmp_path, 
             assert linked.is_file(), (document, linked)
             assert linked.relative_to(target).as_posix() in manifest["files"]
     directory = ".agents" if consumer == "codex" else ".claude"
-    research = target / directory / "skills" / "etalon-research"
+    research = target / directory / "skills" / "moldarwin-research"
     for linked in _local_links(research / "SKILL.md"):
         assert linked.is_relative_to(research) and linked.is_file()
     source_manifest, contents = skills.snapshot("research")
@@ -106,7 +106,7 @@ def test_example_query_is_one_page_and_independent_of_working_directory(publishe
 
 
 def test_known_ref_bypasses_query_and_distinguishes_metadata_from_bytes(published, monkeypatch):
-    from etalon.research import evidence
+    from moldarwin.research import evidence
 
     workspace, ref, body = published
     def forbidden_query(*args, **kwargs):
@@ -145,8 +145,8 @@ def test_example_cli_emits_unmodified_sdk_record_with_no_query(published, tmp_pa
 
 
 def test_missing_source_is_reported_without_creating_a_database(tmp_path):
-    workspace = tmp_path / "etalon-workspace.json"
-    _write_json(workspace, {"schema": "etalon-evidence-workspace/1",
+    workspace = tmp_path / "moldarwin-workspace.json"
+    _write_json(workspace, {"schema": "moldarwin-evidence-workspace/1",
         "workspace_id": "missing-fixture", "sources": [{"source_id": "missing",
             "kind": "journal", "location": "absent.sqlite",
             "identity": {"kind": "snapshot_sha256", "value": "a" * 64}}]})
@@ -161,10 +161,10 @@ def test_missing_source_is_reported_without_creating_a_database(tmp_path):
 
 def _ordinary_documents(root):
     """Normal SDK writes; topic text exists only in immutable original content."""
-    from etalon.active import CampaignSpec, CampaignStore, Endpoint
-    from etalon.boundary.prism_v1 import file_identity
-    from etalon.research import Artifact, MethodUse, MethodVersion, ResearchJournal
-    from etalon.research.method_revision import build_method_revision, journal_ref, record_method_revision
+    from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+    from moldarwin.boundary.prism_v1 import file_identity
+    from moldarwin.research import Artifact, MethodUse, MethodVersion, ResearchJournal
+    from moldarwin.research.method_revision import build_method_revision, journal_ref, record_method_revision
 
     root.mkdir()
     store = CampaignStore(root / "journal.sqlite")
@@ -191,7 +191,7 @@ def _ordinary_documents(root):
         scope="synthetic engineering fixture; no-change; not a scientific finding")
     revision_id = record_method_revision(journal, revision, root / "revisions",
                                          source_id="ordinary", source_kind="fixture")
-    claim = {"schema": "etalon-research-claim/1", "question": "What remains unknown?",
+    claim = {"schema": "moldarwin-research-claim/1", "question": "What remains unknown?",
              "statement": "Counterfactual ambiguity remains after this fixture.",
              "subjects": ["synthetic engineering"], "conditions": ["normal SDK writes"],
              "epistemic_status": "interpretation", "support_refs": [ref(problem)],
@@ -205,7 +205,7 @@ def _ordinary_documents(root):
 
 @pytest.mark.parametrize("kind,topic", [("revision", "Portability lacuna"), ("claim", "Counterfactual ambiguity")])
 def test_normal_stored_content_is_found_by_topic_in_another_process(tmp_path, kind, topic):
-    import etalon
+    import moldarwin
 
     store, journal, records, problem = _ordinary_documents(tmp_path / "original")
     original_record = journal.get(records[kind])
@@ -215,7 +215,7 @@ def test_normal_stored_content_is_found_by_topic_in_another_process(tmp_path, ki
     manifest = json.loads(workspace.read_text(encoding="utf-8"))
     assert set(manifest["sources"][0]) == {"source_id", "kind", "location", "identity"}
     assert topic not in workspace.read_text(encoding="utf-8")
-    env = {**os.environ, "PYTHONPATH": str(Path(etalon.__file__).resolve().parents[1]), "PYTHONUTF8": "1"}
+    env = {**os.environ, "PYTHONPATH": str(Path(moldarwin.__file__).resolve().parents[1]), "PYTHONUTF8": "1"}
     def child(*arguments):
         result = subprocess.run([sys.executable, "-S", str(EXAMPLE), "--workspace", str(workspace), *arguments],
                                 cwd=tmp_path, env=env, capture_output=True, check=True, timeout=30)

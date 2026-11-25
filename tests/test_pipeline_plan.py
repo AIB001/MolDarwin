@@ -14,9 +14,9 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from etalon.campaign.pipeline import DEFAULT_FUNNEL, Pipeline
-from etalon.economics.stage import BY_ID
-from etalon.generate.audit import GeneratorYield
+from moldarwin.campaign.pipeline import DEFAULT_FUNNEL, Pipeline
+from moldarwin.economics.stage import BY_ID
+from moldarwin.generate.audit import GeneratorYield
 
 
 def _pipeline(**over: object) -> Pipeline:
@@ -139,7 +139,7 @@ def test_the_plan_round_trips_as_json() -> None:
 def test_the_plan_command_renders_and_signals_affordability() -> None:
     """Exit 1 on an unaffordable plan so a shell can branch, and it is not an error."""
 
-    from etalon.__main__ import main
+    from moldarwin.__main__ import main
 
     assert main(["plan", "--pool", "1000", "--budget", "1000000", "--deliver", "10"]) == 0
     assert main(["plan", "--pool", "1000000", "--budget", "50", "--deliver", "10"]) == 1
@@ -148,7 +148,7 @@ def test_the_plan_command_renders_and_signals_affordability() -> None:
 def test_a_measured_correlation_can_be_supplied_at_the_command_line() -> None:
     """The intended use: every figure in the catalogue is a placeholder for one of these."""
 
-    from etalon.__main__ import main
+    from moldarwin.__main__ import main
 
     assert main(["plan", "--pool", "10000", "--budget", "100000", "--measured", "docking=0.52"]) == 0
     # A stage that is not in the catalogue, and a value that is not a number, are both refused.
@@ -157,7 +157,7 @@ def test_a_measured_correlation_can_be_supplied_at_the_command_line() -> None:
 
 
 def test_the_stage_catalogue_prints_as_json() -> None:
-    from etalon.__main__ import main
+    from moldarwin.__main__ import main
 
     assert main(["stages", "--json"]) == 0
     assert main(["stages"]) == 0

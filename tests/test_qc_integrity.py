@@ -6,12 +6,12 @@ import copy
 
 import pytest
 
-from etalon.active.replay import from_manifest, synthetic_manifest
-from etalon.active.runner import ActiveCampaign
-from etalon.active.schema import CampaignSpec, Candidate, Endpoint, Evaluation
-from etalon.active.store import CampaignStore
-from etalon.faults.attribution import Observation
-from etalon.learn.admissible import Measurement, rule
+from moldarwin.active.replay import from_manifest, synthetic_manifest
+from moldarwin.active.runner import ActiveCampaign
+from moldarwin.active.schema import CampaignSpec, Candidate, Endpoint, Evaluation
+from moldarwin.active.store import CampaignStore
+from moldarwin.faults.attribution import Observation
+from moldarwin.learn.admissible import Measurement, rule
 
 
 @pytest.mark.parametrize("field", ["fired", "evaluable"])

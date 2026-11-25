@@ -3,18 +3,18 @@ import json
 
 import pytest
 
-from etalon.active.schema import canonical
-from etalon.research.evidence_refs import file_identity
-from etalon.research.graph_memory import node_identity
+from moldarwin.active.schema import canonical
+from moldarwin.research.evidence_refs import file_identity
+from moldarwin.research.graph_memory import node_identity
 from test_mcp import Collector
 from test_research_graph_memory import graph_case
 
 
 def reader():
-    from etalon.mcp.evidence import register
+    from moldarwin.mcp.evidence import register
     collector = Collector()
     register(collector)
-    return collector.tools['etalon_research_context']
+    return collector.tools['moldarwin_research_context']
 
 
 def test_reading_is_existing_tool_and_exact_original_navigation(graph_case):

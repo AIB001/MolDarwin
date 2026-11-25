@@ -6,10 +6,10 @@ import sys
 
 import pytest
 
-from etalon.active.schema import canonical
-from etalon.research import notes
-from etalon.research.notes import find_notes, read_current, read_entry, save_progress
-from etalon.research.resource_catalog import build_resource_catalog
+from moldarwin.active.schema import canonical
+from moldarwin.research import notes
+from moldarwin.research.notes import find_notes, read_current, read_entry, save_progress
+from moldarwin.research.resource_catalog import build_resource_catalog
 from test_research_notes import case
 
 
@@ -178,13 +178,13 @@ def test_long_controls_definitions_and_branches_keep_exact_navigation(case, tmp_
             break
     assert branches == {f"topic-{i:03}" for i in range(18)}
     # Wrapper callers retain the real project entry for exact branch navigation.
-    from etalon.research.research_context import build_research_context
+    from moldarwin.research.research_context import build_research_context
     for view in ("summary", "card", "knowledge"):
         wrapped = build_research_context(entry, view=view, max_bytes=4096)
         assert len(canonical(wrapped).encode()) <= 4096
         assert wrapped["branch_navigation"]["entry"] == str(entry)
         assert len(wrapped["branches"]) == 1
-    from etalon.research_hooks import _build_context
+    from moldarwin.research_hooks import _build_context
     hooked = _build_context(entry, policy=None, max_bytes=4096)
     assert len(canonical(hooked).encode()) <= 4096
     assert hooked["branch_navigation"]["entry"] == str(entry)

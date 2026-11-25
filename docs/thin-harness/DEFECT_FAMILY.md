@@ -1,7 +1,7 @@
 # Reviewed defect families
 
-`etalon.research.defect_family` provides optional ordinary
-`etalon-defect-family/1` Artifacts. A host can relate explicitly reviewed problems
+`moldarwin.research.defect_family` provides optional ordinary
+`moldarwin-defect-family/1` Artifacts. A host can relate explicitly reviewed problems
 without changing the existing revision-context/opportunity `/1` identity or
 request ID. The module does not discover clusters, propose a candidate, schedule
 a Probe, adopt a method, or grant scientific execution permission.
@@ -24,8 +24,8 @@ cannot establish a same-issue match. The host still owns the meaning and adequac
 of its declared conditions; arbitrary prose is not interpreted as a proof.
 
 ```python
-from etalon.research.defect_family import review_defect_member, build_defect_family
-from etalon.research.continuation import record_content
+from moldarwin.research.defect_family import review_defect_member, build_defect_family
+from moldarwin.research.continuation import record_content
 
 member = review_defect_member(
     workspace, context_ref=context_ref, opportunity_ref=opportunity_ref,
@@ -35,7 +35,7 @@ member = review_defect_member(
 payload = build_defect_family(
     workspace, task_id="reader-task", scope="released-json-reader",
     conditions={"protocol": "released-json/1", "operation": "read"},
-    capability_id="etalon.evidence", target_ref=base_method_ref,
+    capability_id="moldarwin.evidence", target_ref=base_method_ref,
     mechanism_hypothesis="A typed reader was used for a generic JSON Artifact",
     members=[member],
 )

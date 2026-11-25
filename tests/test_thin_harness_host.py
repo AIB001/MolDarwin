@@ -3,10 +3,10 @@ from pathlib import Path
 
 import pytest
 
-from etalon import host, skills
-from etalon.active.schema import canonical
-from etalon.research import MethodVersion, ResearchJournal
-from etalon.runtime import api
+from moldarwin import host, skills
+from moldarwin.active.schema import canonical
+from moldarwin.research import MethodVersion, ResearchJournal
+from moldarwin.runtime import api
 from test_runtime_actions import fixture_action
 
 
@@ -80,7 +80,7 @@ def test_real_research_filter_does_not_recurse_on_method_version(tmp_path, monke
                                      {"manifest_sha256": "f" * 64}))
     params = dict(log_ref=log, state_path=tmp_path / "cursor.json",
                   handler_method_version="V-improvement-v1", handler=handler,
-                  event_types=["research_recorded"], record_types=["etalon-method-evaluation/1"])
+                  event_types=["research_recorded"], record_types=["moldarwin-method-evaluation/1"])
     host.consume_events(**params)
     journal.record(evaluation)
     assert len(host.consume_events(**params)["handled"]) == 1

@@ -16,7 +16,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from etalon.rescore.features import (
+from moldarwin.rescore.features import (
     ELEMENTS,
     SHELLS,
     Pose,
@@ -28,7 +28,7 @@ from etalon.rescore.features import (
     radius_for,
     read_pose,
 )
-from etalon.rescore.model import MIN_SAMPLES_PER_FEATURE, Rescorer, resolve_device
+from moldarwin.rescore.model import MIN_SAMPLES_PER_FEATURE, Rescorer, resolve_device
 
 #: A two-atom receptor written out as a PDB, so the geometry of a feature is checkable by hand.
 _RECEPTOR_PDB = """\
@@ -73,7 +73,7 @@ def receptor(tmp_path: Path):
 
 
 def _pose(points: list[tuple[float, float, float]], elements: list[str], name: str = "p") -> Pose:
-    from etalon.rescore.features import _element_slot
+    from moldarwin.rescore.features import _element_slot
 
     return Pose(
         coordinates=np.asarray(points, dtype=np.float32),

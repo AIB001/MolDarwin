@@ -1,10 +1,10 @@
 """Independently released R4b evaluation and root-reviewed same-H feedback."""
 import argparse,json
 from pathlib import Path
-from etalon.active import CampaignStore
-from etalon.active.schema import canonical
-from etalon.research import ResearchJournal
-from etalon.research.baseline_feedback import evaluate_retained,attach_retained_feedback
+from moldarwin.active import CampaignStore
+from moldarwin.active.schema import canonical
+from moldarwin.research import ResearchJournal
+from moldarwin.research.baseline_feedback import evaluate_retained,attach_retained_feedback
 
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('command',choices=('evaluate','attach-feedback'))

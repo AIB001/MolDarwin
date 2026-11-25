@@ -7,9 +7,9 @@ from dataclasses import FrozenInstanceError, replace
 
 import pytest
 
-from etalon.active.cascade import CascadeRecipe, Readout
-from etalon.active.mutations import DesignSpace, mutate_recipe
-from etalon.campaign.design import component, compose
+from moldarwin.active.cascade import CascadeRecipe, Readout
+from moldarwin.active.mutations import DesignSpace, mutate_recipe
+from moldarwin.campaign.design import component, compose
 
 
 @pytest.fixture
@@ -242,7 +242,7 @@ def test_missing_resource_and_changed_infrastructure_are_refused(base, tmp_path)
 
 
 def test_mutation_does_not_execute_a_tool(base, monkeypatch):
-    from etalon.boundary.screen import Screen
+    from moldarwin.boundary.screen import Screen
 
     def forbidden(*args, **kwargs):
         pytest.fail("mutation must not execute a calculation")

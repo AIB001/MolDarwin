@@ -15,9 +15,9 @@ import sys
 import time
 from pathlib import Path
 
-from etalon.active.schema import digest
-from etalon.research.scientific_input import identity
-from etalon.research.result_integrity import (confirmation_eligibility, freeze_check_contract,
+from moldarwin.active.schema import digest
+from moldarwin.research.scientific_input import identity
+from moldarwin.research.result_integrity import (confirmation_eligibility, freeze_check_contract,
     result_binding, validate_native_receipt, validate_verifier)
 
 spec = importlib.util.spec_from_file_location('snd1_scale_screen', Path(__file__).with_name('snd1_scale_screen.py'))
@@ -77,7 +77,7 @@ def reassess(root, *, overlay_path, checker_smoke=False, existing_smoke_path=Non
     requests = {r['case_id']: r for r in originals.read(source / 'requests-manifest.json')['rows']}
     # This declaration derives from the historical policy freeze. It is not a
     # new candidate, nor a claim that a new post-feedback candidate is unseen.
-    candidate = {'schema': 'etalon-candidate-confirmation-freeze/1',
+    candidate = {'schema': 'moldarwin-candidate-confirmation-freeze/1',
         'candidate_digest': digest(protocol), 'panel': panel_pin,
         'frozen_at_ns': protocol['frozen_at_ns'], 'decisions_frozen_before_execution': True,
         'outcomes_visible_at_freeze': False, 'seen_series_ids': [],
@@ -85,10 +85,10 @@ def reassess(root, *, overlay_path, checker_smoke=False, existing_smoke_path=Non
         'freeze_evidence': {'path': str(originals.path(source / 'freeze.json')), **protocol_pin}}
     implementation = {'entry': {'path': str(Path(__file__).absolute()), **identity(__file__)},
         'screen': {'path': screen.__file__, **identity(screen.__file__)},
-        'result_integrity': {'path': sys.modules['etalon.research.result_integrity'].__file__,
-            **identity(sys.modules['etalon.research.result_integrity'].__file__)},
+        'result_integrity': {'path': sys.modules['moldarwin.research.result_integrity'].__file__,
+            **identity(sys.modules['moldarwin.research.result_integrity'].__file__)},
         'python_executable': sys.executable,
-        'pose_task': {'path': sys.modules['etalon.research.pose_task'].__file__, **identity(sys.modules['etalon.research.pose_task'].__file__)}}
+        'pose_task': {'path': sys.modules['moldarwin.research.pose_task'].__file__, **identity(sys.modules['moldarwin.research.pose_task'].__file__)}}
     screen.save(root / 'reassessment-freeze.json', {'schema': 'snd1-reassessment-freeze/1',
         'originals_manifest': identity(root / 'completed-manifest.json'), 'old_protocol': protocol_pin,
         'old_source': originals.pin(old_source), 'new_implementation': implementation,

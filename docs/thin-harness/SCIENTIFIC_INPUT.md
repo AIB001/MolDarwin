@@ -1,6 +1,6 @@
 # Scientific input / 1
 
-`etalon-scientific-input/1` is an ordinary JSON Artifact. It connects scientific
+`moldarwin-scientific-input/1` is an ordinary JSON Artifact. It connects scientific
 evidence to an explicit domain adapter without adding a journal, scheduler or
 mandatory research stage. The host can skip, replace or compose adapters.
 

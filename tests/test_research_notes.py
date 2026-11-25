@@ -5,10 +5,10 @@ import sys
 from pathlib import Path
 import pytest
 
-from etalon.active import CampaignStore, CampaignSpec, Endpoint
-from etalon.research import ResearchJournal
-from etalon.research.notes import original, record_note, publish_note, read_entry, find_notes
-from etalon.research.notes import save_progress
+from moldarwin.active import CampaignStore, CampaignSpec, Endpoint
+from moldarwin.research import ResearchJournal
+from moldarwin.research.notes import original, record_note, publish_note, read_entry, find_notes
+from moldarwin.research.notes import save_progress
 
 
 @pytest.fixture
@@ -35,7 +35,7 @@ def test_one_record_replays_and_retrieves_negative_without_graph(case,tmp_path):
     assert queried['matches'][0]['note']['outcome']=='retain'
     assert not find_notes(journal,task_id='fixture',conditions={'target':'new-target'})['matches']
     assert not find_notes(journal,task_id='fixture',conditions={**note['conditions'],'unknown':'x'})['matches']
-    code="from etalon.research.notes import read_entry; import sys,json; r=read_entry(sys.argv[1]); assert 'etalon.research.graph_memory' not in sys.modules; print(json.dumps(r))"
+    code="from moldarwin.research.notes import read_entry; import sys,json; r=read_entry(sys.argv[1]); assert 'moldarwin.research.graph_memory' not in sys.modules; print(json.dumps(r))"
     completed=subprocess.run([sys.executable,'-c',code,str(entry)],capture_output=True,text=True,check=True)
     assert json.loads(completed.stdout)['record_id']==rid
     result.write_text('{"retained":999}')
@@ -43,7 +43,7 @@ def test_one_record_replays_and_retrieves_negative_without_graph(case,tmp_path):
 
 
 def test_entry_failure_can_be_repaired_without_science_and_keeps_old_notes(case,tmp_path,monkeypatch):
-    from etalon.research import notes
+    from moldarwin.research import notes
     journal,note,result=case;entry=tmp_path/'ENTRY.json'
     rid=record_note(journal,note,tmp_path/'notes');publish_note(entry,journal,rid)
     update={**note,'summary':'New explanation, old result retained','supersedes':[rid]}
@@ -59,16 +59,16 @@ def test_entry_failure_can_be_repaired_without_science_and_keeps_old_notes(case,
 
 
 def test_existing_context_api_reads_note_without_graph(case,tmp_path,monkeypatch):
-    from etalon.research import research_context as context
+    from moldarwin.research import research_context as context
     journal,note,_=case;rid=record_note(journal,note,tmp_path/'notes');entry=tmp_path/'ENTRY.json'
     publish_note(entry,journal,rid)
     monkeypatch.setattr(context,'build_research_graph',lambda *a,**k:(_ for _ in ()).throw(AssertionError('graph traversed')))
     result=context.build_research_context(entry)
-    assert result['note']=={**note,'schema':'etalon-research-note/1'}
+    assert result['note']=={**note,'schema':'moldarwin-research-note/1'}
 
 
 def test_existing_mcp_reads_note_and_one_hop_locator(case,tmp_path):
-    from etalon.mcp.evidence import register
+    from moldarwin.mcp.evidence import register
     class Collector:
         def __init__(self): self.tools={}
         def tool(self):
@@ -77,7 +77,7 @@ def test_existing_mcp_reads_note_and_one_hop_locator(case,tmp_path):
     journal,note,_=case;rid=record_note(journal,note,tmp_path/'notes');entry=tmp_path/'ENTRY.json'
     publish_note(entry,journal,rid)
     locator=tmp_path/'CURRENT.json';locator.write_text(json.dumps({'entry':'ENTRY.json'}))
-    collector=Collector();register(collector);read=collector.tools['etalon_research_context']
+    collector=Collector();register(collector);read=collector.tools['moldarwin_research_context']
     for source in [str(entry),{'entry':str(entry)},str(locator)]:
         response=json.loads(read(source,conditions=note['conditions']))
         assert response['ok'] and response['record_id']==rid
@@ -85,13 +85,13 @@ def test_existing_mcp_reads_note_and_one_hop_locator(case,tmp_path):
 
 
 def test_existing_hook_delivers_real_note_write_and_delta(case,tmp_path):
-    from etalon import research_hooks as hooks
+    from moldarwin import research_hooks as hooks
     journal,note,_=case;entry=tmp_path/'ENTRY.json'
     note['knowledge']=['A stable, scoped rule. '*150]
     rid=record_note(journal,note,tmp_path/'notes');publish_note(entry,journal,rid)
     def event(name,number):
         return {'hook_event_name':name,'session_id':'note-session','event_id':str(number),
-                **({'tool_name':'mcp__etalon__etalon_research_context','tool_use_id':str(number),'tool_input':{}} if name=='PreToolUse' else {})}
+                **({'tool_name':'mcp__moldarwin__moldarwin_research_context','tool_use_id':str(number),'tool_input':{}} if name=='PreToolUse' else {})}
     first=hooks.handle_event(str(entry),event('SessionStart',1),host='codex',state_dir=tmp_path/'hooks')
     assert first['ok']
     updated={**note,'summary':'New evidence changes the next question','supersedes':[rid]}
@@ -108,7 +108,7 @@ def test_existing_hook_delivers_real_note_write_and_delta(case,tmp_path):
 
 
 def test_project_heads_replay_and_branch_updates_survive_interrupted_publication(case,tmp_path,monkeypatch):
-    from etalon.research import notes
+    from moldarwin.research import notes
     journal,note,_=case; entry=tmp_path/'entry.json'
     a=save_progress(journal,entry,note)
     b=save_progress(journal,entry,{**note,'branch_id':'other','summary':'A different open question'})
@@ -133,7 +133,7 @@ def test_project_heads_replay_and_branch_updates_survive_interrupted_publication
 
 
 def test_knowledge_is_small_and_original_verification_is_explicit(case,tmp_path,monkeypatch):
-    from etalon.research import notes
+    from moldarwin.research import notes
     journal,note,result=case;entry=tmp_path/'entry.json'
     note.update(raw_debug=list(range(10000)),other_pauses={'R4b':'user-paused'},lesson='Do not optimize this geometry objective alone',
                 invalid_when='Different molecular state',residuals=['Unknown escape mechanism'])
@@ -154,7 +154,7 @@ def test_knowledge_is_small_and_original_verification_is_explicit(case,tmp_path,
 
 
 def test_project_catalog_pages_exact_heads_and_rejects_changed_cursor(case,tmp_path):
-    from etalon.research.resource_catalog import build_resource_catalog
+    from moldarwin.research.resource_catalog import build_resource_catalog
     journal,note,_=case;entry=tmp_path/'entry.json'
     save_progress(journal,entry,note)
     save_progress(journal,entry,{**note,'branch_id':'second'})

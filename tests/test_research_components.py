@@ -5,13 +5,13 @@ import shutil
 
 import pytest
 
-from etalon.boundary.quarry import DataBudget
-from etalon.boundary.screen import Screen
-from etalon.campaign.design import component, compose
-from etalon.data.service import run_data
-from etalon.research.components import capabilities, inspect_component, record_component_step
-from etalon.research.continuation import read_content, resume_research
-from etalon.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.boundary.quarry import DataBudget
+from moldarwin.boundary.screen import Screen
+from moldarwin.campaign.design import component, compose
+from moldarwin.data.service import run_data
+from moldarwin.research.components import capabilities, inspect_component, record_component_step
+from moldarwin.research.continuation import read_content, resume_research
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
 from test_research_continuation import case, checkpoint, publish, save
 
 FIXTURE = Path(__file__).parent / "fixtures/prism_design_bundle_v1"
@@ -32,7 +32,7 @@ def files(root):
 def test_capabilities_keep_ownership_and_unsupported_scope_explicit():
     catalog = capabilities()
     rows = {c["id"]: c for c in catalog["capabilities"]}
-    assert len(rows["molquarry.data"]["skills"]) == 6
+    assert len(rows["molorigin.data"]["skills"]) == 6
     assert rows["prism.general_fep_lab"]["integration"] == "not_connected"
     assert rows["prism.bridge_v1"]["memory_reader"] is None
     assert rows["prism.legacy_mmpbsa"]["integration"] == "existing_asset_executor"
@@ -49,9 +49,9 @@ def test_quarry_actual_catalog_read_is_sealed_and_replay_does_not_requery(case):
                      root / "quarry", run_id="fixture", budget=DataBudget(max_requests=0))
     snapshot = Path(result["snapshot"])
     before = files(root / "quarry")
-    node = record(case, "molquarry.data", snapshot)
+    node = record(case, "molorigin.data", snapshot)
     events = j.store.events()
-    assert record(case, "molquarry.data", snapshot) == node
+    assert record(case, "molorigin.data", snapshot) == node
     assert j.store.events() == events and files(root / "quarry") == before
     assert result["usage"]["requests"] == 0
     cp = save(case, checkpoint(case, node["step_ref"]))
@@ -60,7 +60,7 @@ def test_quarry_actual_catalog_read_is_sealed_and_replay_does_not_requery(case):
     (snapshot / "result.json").write_text("{}")
     events = j.store.events()
     with pytest.raises(ValueError, match="changed"):
-        record(case, "molquarry.data", snapshot)
+        record(case, "molorigin.data", snapshot)
     assert j.store.events() == events
 
 
@@ -78,9 +78,9 @@ def test_real_cpu_screen_receipts_read_without_dispatch_or_label_admission(case,
     def forbidden(*args, **kwargs):
         raise AssertionError("a memory read must not run the screen")
     monkeypatch.setattr(Screen, "run", forbidden)
-    node = record(case, "molcascade.screen", root / "screen", run_id="fixture")
+    node = record(case, "molcat.screen", root / "screen", run_id="fixture")
     events = j.store.events()
-    assert record(case, "molcascade.screen", root / "screen", run_id="fixture") == node
+    assert record(case, "molcat.screen", root / "screen", run_id="fixture") == node
     assert j.store.events() == events and files(root / "screen") == before
     cp = save(case, checkpoint(case, node["step_ref"]))
     ws = publish(case)
@@ -99,7 +99,7 @@ def test_real_cpu_screen_receipts_read_without_dispatch_or_label_admission(case,
     status_path.write_text("fixture changed producer state")
     assert not resume_research(ws, cp)["issues"]  # Historical memory, not a live heartbeat.
     with pytest.raises(EvidenceError, match="no such screen"):
-        record(case, "molcascade.screen", root / "screen", run_id="absent")
+        record(case, "molcat.screen", root / "screen", run_id="absent")
 
 
 def test_prism_bundle_preserves_failed_slots_and_exact_state_pose_identity(case):

@@ -9,10 +9,10 @@ import sys
 
 import pytest
 
-from etalon.active.store import CampaignStore
-from etalon.boundary.screen import Screen
-from etalon.campaign.calibrate import PanelMember, calibrate
-from etalon.research import Contrast, Coupling, MethodVersion, Observation, ResearchJournal
+from moldarwin.active.store import CampaignStore
+from moldarwin.boundary.screen import Screen
+from moldarwin.campaign.calibrate import PanelMember, calibrate
+from moldarwin.research import Contrast, Coupling, MethodVersion, Observation, ResearchJournal
 from test_function_capabilities import cpu_config
 from test_function_mcp import tools
 from test_research_function_methods import build_research_fixture
@@ -39,7 +39,7 @@ def test_v_legacy_query_preserves_duplicate_molecules_and_protocol_changes(tmp_p
           ('c',1,'now','w','now','rc','relaxed',NULL,NULL);
         """)
     before = inventory(tmp_path)
-    response = json.loads(tools()["etalon_sweep_status"](
+    response = json.loads(tools()["moldarwin_sweep_status"](
         workspace=str(tmp_path / "unused"), pool=str(pool),
         ledger=str(tmp_path / "unused.jsonl")))
     assert response["ok"]
@@ -48,7 +48,7 @@ def test_v_legacy_query_preserves_duplicate_molecules_and_protocol_changes(tmp_p
     assert state["pool"]["one_row_per_smiles"] is False
     assert state["comparable"] is False
     assert state["revisions"] == ["relaxed", "strict"]
-    assert state["etalon_revisions"] == []  # absent provenance remains absent
+    assert state["moldarwin_revisions"] == []  # absent provenance remains absent
     assert state["batches"]["by_outcome"] == {"exhausted": 1, "committed": 1}
     assert state["batches"]["outstanding"] == 1
     assert inventory(tmp_path) == before
@@ -61,8 +61,8 @@ def test_v_corrupt_run_cannot_become_missing_or_trigger_calibration_repair(tmp_p
     before = inventory(tmp_path)
     api = tools()
     for tool, arguments in (
-        ("etalon_sweep_progress", {}),
-        ("etalon_calibrate_gates", {"panel_json": '[{"parent_id":"a","known_active":true}]'}),
+        ("moldarwin_sweep_progress", {}),
+        ("moldarwin_calibrate_gates", {"panel_json": '[{"parent_id":"a","known_active":true}]'}),
     ):
         result = json.loads(api[tool](workspace=str(workspace), run_id="broken", **arguments))
         assert result["ok"] is False
@@ -73,7 +73,7 @@ def test_v_corrupt_run_cannot_become_missing_or_trigger_calibration_repair(tmp_p
 
 def test_v_actual_zero_hit_artifacts_can_be_calibrated_without_new_execution(tmp_path):
     """Actual cheap CPU algorithm, real artifact reader; no fake calibration adapter."""
-    from etalon.authority import NotAuthorized, authorize_gate
+    from moldarwin.authority import NotAuthorized, authorize_gate
 
     library = tmp_path / "panel.csv"
     library.write_text("id,smiles\nethanol,CCO\nbenzene,c1ccccc1\n", encoding="utf8")
@@ -132,13 +132,13 @@ def test_v_invalid_parent_types_are_atomic_and_parentless_versions_still_legal(t
     before_balance = store.balance()
     for bad_parent in (refs["artifact"], "methodversion-" + "b" * 64):
         proposal = replace(root, name="bad-child", parents=(bad_parent,))
-        response = json.loads(api["etalon_method_record"](
+        response = json.loads(api["moldarwin_method_record"](
             database=str(store.path), record=proposal.as_dict()))
         assert response["ok"] is False
         assert store.export() == before
     child = replace(root, name="actual-child", parents=(root_id,),
                     content_ref={"manifest_sha256": "c" * 64})
-    saved = json.loads(api["etalon_method_record"](
+    saved = json.loads(api["moldarwin_method_record"](
         database=str(store.path), record=child.as_dict()))
     assert saved["ok"] and saved["record"]["parents"] == [root_id]
     assert journal.get(root_id) == original_root
@@ -149,7 +149,7 @@ def test_v_invalid_parent_types_are_atomic_and_parentless_versions_still_legal(t
 
 
 def test_v_wilson_tail_bounds_symmetry_and_rejected_unknown_confidence():
-    from etalon.generate.audit import wilson
+    from moldarwin.generate.audit import wilson
 
     for total in (1, 2, 10, 100000):
         for successes in {0, 1, total // 2, total}:
@@ -177,7 +177,7 @@ def test_v_productivity_standalone_cold_process_never_imports_scientific_dlls(tm
     """Separate dependency check; I/C provide actual cold stdio/native transport evidence."""
     code = """
 import sys
-from etalon.generate.productivity import Chunk, Productivity, allocate
+from moldarwin.generate.productivity import Chunk, Productivity, allocate
 assert 'numpy' not in sys.modules and 'scipy' not in sys.modules
 r = allocate([Productivity('cold','fixture','same', (Chunk(100,100,0,60),)*3)])
 assert 'cold' in r['retire']

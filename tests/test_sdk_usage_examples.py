@@ -5,7 +5,7 @@ import re
 import pytest
 
 
-REFERENCES = Path(__file__).parents[1] / '.claude/skills/etalon-campaign/references'
+REFERENCES = Path(__file__).parents[1] / '.claude/skills/moldarwin-campaign/references'
 
 
 def run_example(filename, marker):

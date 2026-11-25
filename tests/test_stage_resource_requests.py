@@ -6,11 +6,11 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from molcascade.environment.models import AcceleratorVendor, GpuDevice
-from molcascade.errors import ConfigError
-from molcascade.parallel import StageResources, resource_request, ShardOutcome
-from molcascade.parallel.devices import FrameworkProbe, resolve_framework_lanes
-from molcascade.parallel.shards import iter_shard_batches, run_sharded
+from molcat.environment.models import AcceleratorVendor, GpuDevice
+from molcat.errors import ConfigError
+from molcat.parallel import StageResources, resource_request, ShardOutcome
+from molcat.parallel.devices import FrameworkProbe, resolve_framework_lanes
+from molcat.parallel.shards import iter_shard_batches, run_sharded
 
 
 def environment():
@@ -34,14 +34,14 @@ def test_requested_cpu_budget_is_not_capped_by_gpu_count():
 
 
 def test_framework_fallback_preserves_the_requested_budget(monkeypatch):
-    import molcascade.parallel.devices as module
+    import molcat.parallel.devices as module
     monkeypatch.setattr(module, 'probe_framework_gpu', lambda _: FrameworkProbe('torch', False))
     result = resolve_framework_lanes(StageResources(workers=3, devices=('cuda:0',), device_request='auto'), module='torch')
     assert result.workers == 3 and result.devices == ('cpu',) * 3
 
 
 def test_cli_passes_cpu_budget_and_gpu_selection_independently(monkeypatch):
-    from molcascade import cli
+    from molcat import cli
     measured = environment()
     monkeypatch.setattr(cli, 'detect_environment', lambda: measured)
     resources, observed = cli._stage_resources(workers=48, device='cuda:0,1')
@@ -70,11 +70,11 @@ def test_gpu_dispatch_still_uses_the_selected_devices(tmp_path):
 
 
 def test_real_conformers_use_cpu_budget_and_reuse_unchanged_shards(tmp_path):
-    from molcascade.artifacts import ArtifactRef
-    from molcascade.chemistry.identity import ParentStandardizer
-    from molcascade.contracts import PARENT_V1
-    from molcascade.plugins.api import StageContext, StageInput, StageRequest
-    from molcascade.plugins.builtin.docking.ligand_prep import RDKitLigandConformerPlugin
+    from molcat.artifacts import ArtifactRef
+    from molcat.chemistry.identity import ParentStandardizer
+    from molcat.contracts import PARENT_V1
+    from molcat.plugins.api import StageContext, StageInput, StageRequest
+    from molcat.plugins.builtin.docking.ligand_prep import RDKitLigandConformerPlugin
 
     source = tmp_path/'parents'; source.mkdir()
     standardizer = ParentStandardizer()

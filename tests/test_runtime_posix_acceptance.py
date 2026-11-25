@@ -15,12 +15,12 @@ import time
 
 import pytest
 
-from etalon.active.schema import CampaignSpec, Candidate, Endpoint
-from etalon.active.store import CampaignStore, StateError
-from etalon.runtime import api, process, service
-from etalon.runtime.executors import prepare_executor, register_executor
-from etalon.runtime.store import RuntimeStore
-from etalon.campaign.design import component, compose
+from moldarwin.active.schema import CampaignSpec, Candidate, Endpoint
+from moldarwin.active.store import CampaignStore, StateError
+from moldarwin.runtime import api, process, service
+from moldarwin.runtime.executors import prepare_executor, register_executor
+from moldarwin.runtime.store import RuntimeStore
+from moldarwin.campaign.design import component, compose
 
 pytestmark = pytest.mark.skipif(not sys.platform.startswith("linux"), reason="real /proc identity and POSIX locks required")
 
@@ -44,13 +44,13 @@ def campaign(root, budget=1):
     configuration = {"cascade": compose("posix-cpu-fixture", [{"id": "measure", "title": "CPU properties",
         "criteria": [component("properties", "features.rdkit_properties@0.1.0")]}]),
         "readout": {"stage_id": "properties", "contract_id": "property/v1", "value_column": "mw"}}
-    prepared = prepare_executor("molcascade", configuration,
+    prepared = prepare_executor("molcat", configuration,
         {"id": "mw", "target": "engineering-fixture", "quantity": "molecular_weight", "units": "Da", "cost": 1})
     store = CampaignStore(root / "campaign.sqlite")
     store.configure(CampaignSpec("mw", budget, "wall_second", "engineering-fixture"), [Endpoint(**prepared["endpoint"])])
     store.add_candidates([Candidate("one", "CCO", (1,)), Candidate("two", "CC", (2,))])
     register_executor(store.path, prepared, "Explicit cheap CPU engineering fixture; not affinity")
-    request = {"schema": "etalon-action/1", "request_id": "first", "operation": "active.evaluate",
+    request = {"schema": "moldarwin-action/1", "request_id": "first", "operation": "active.evaluate",
         "arguments": {"database": str(store.path), "candidate_id": "one", "endpoint_id": "mw"},
         "limits": {"campaign:wall_second": budget}, "method_use_refs": []}
     return store, request
@@ -92,7 +92,7 @@ def test_real_processes_compete_for_one_execution_and_final_budget(tmp_path, sam
     barrier = tmp_path / "release"
     program = """import json,sys,time,os
 from pathlib import Path
-from etalon.runtime.api import submit_action
+from moldarwin.runtime.api import submit_action
 payload=json.loads(Path(sys.argv[1]).read_text());ready=Path(sys.argv[2]);ready.write_text(str(os.getpid()))
 while not Path(sys.argv[3]).exists():time.sleep(.005)
 try: result={'ok':True,'handle':submit_action(**payload)}
@@ -134,7 +134,7 @@ def injector(tmp_path, monkeypatch, code):
     root=tmp_path/"fault-injection";root.mkdir()
     (root/"sitecustomize.py").write_text(code,encoding="utf-8")
     monkeypatch.setenv("PYTHONPATH", str(root)+os.pathsep+os.environ.get("PYTHONPATH", ""))
-    monkeypatch.setenv("ETALON_FIXTURE_ROOT", str(tmp_path))
+    monkeypatch.setenv("MOLDARWIN_FIXTURE_ROOT", str(tmp_path))
     return root
 
 
@@ -142,12 +142,12 @@ def test_real_worker_killed_after_durable_receipt_recovers_without_second_execut
     store,request=campaign(tmp_path)
     injector(tmp_path,monkeypatch,"""import os,signal,json
 from pathlib import Path
-from etalon.runtime.service import Context
+from moldarwin.runtime.service import Context
 original=Context.receipt
 def receipt(self,key,body):
  original(self,key,body)
  if key.startswith('action:'):
-  root=Path(os.environ['ETALON_FIXTURE_ROOT'])
+  root=Path(os.environ['MOLDARWIN_FIXTURE_ROOT'])
   with (root/'execution-count.jsonl').open('a') as f:f.write(json.dumps({'pid':os.getpid(),'action':body['action']['id']})+'\\n')
   os.kill(os.getpid(),signal.SIGKILL)
 Context.receipt=receipt
@@ -174,10 +174,10 @@ Context.receipt=receipt
 
 _CHILD_INJECTOR = r'''import os,sys,time,subprocess,json
 from pathlib import Path
-from etalon.runtime import executors
-from etalon.active.store import CampaignStore
-from etalon.active.runner import ExecutionPending
-root=Path(os.environ['ETALON_FIXTURE_ROOT'])
+from moldarwin.runtime import executors
+from moldarwin.active.store import CampaignStore
+from moldarwin.active.runner import ExecutionPending
+root=Path(os.environ['MOLDARWIN_FIXTURE_ROOT'])
 def build(database,workspace,checkpoint=None,process_observer=None,endpoint_ids=None):
  def execute(action,candidate,endpoint,grant):
   code="""import os,sys,time,json,signal

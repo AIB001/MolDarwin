@@ -1,6 +1,6 @@
 """Synthetic controller branch tests; no inferred scientific mechanism probabilities."""
-from etalon.active.schema import digest
-from etalon.research.controller import register_controller,next_segment,record_segment,independent_feedback
+from moldarwin.active.schema import digest
+from moldarwin.research.controller import register_controller,next_segment,record_segment,independent_feedback
 from test_research_journal import setup
 
 

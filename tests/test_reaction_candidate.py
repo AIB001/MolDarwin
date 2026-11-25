@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from etalon.research.reaction_candidate import (
+from moldarwin.research.reaction_candidate import (
     chemical_identity, chemical_state, compile_reaction_candidate, object_digest,
 )
 

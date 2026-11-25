@@ -12,9 +12,9 @@ import statistics
 import time
 from pathlib import Path
 
-from etalon.research.evidence_refs import file_identity
-from etalon.research.pose_pool import diagnose_cpu_pool
-from etalon.research.publication import _save
+from moldarwin.research.evidence_refs import file_identity
+from moldarwin.research.pose_pool import diagnose_cpu_pool
+from moldarwin.research.publication import _save
 
 
 def read(path):
@@ -72,7 +72,7 @@ def analyse(root, destination):
     # Save before opening any outcome or reference. This establishes processing
     # separation; these existing tasks are still seen, retrospective development.
     descriptor_path = destination / "conditioning-diagnostics.json"
-    _save(descriptor_path, {"schema": "etalon-cpu-pool-panel/1", "panel_identity": panel_identity,
+    _save(descriptor_path, {"schema": "moldarwin-cpu-pool-panel/1", "panel_identity": panel_identity,
         "rows": rows, "scope": "retrospective conditioning-only extraction; not prospective freezing"})
     descriptor_identity = file_identity(descriptor_path)
     outcome_path = root / "comparison.json"
@@ -102,7 +102,7 @@ def analyse(root, destination):
                           "features": features}
     if any(file_identity(Path(path)) != pin for path, pin in pins.items()):
         raise ValueError("retained source changed during reanalysis")
-    report = {"schema": "etalon-cpu-pool-development-analysis/1", "groups": summary,
+    report = {"schema": "moldarwin-cpu-pool-development-analysis/1", "groups": summary,
               "conditioning_diagnostics": descriptor_identity, "outcomes": pins[str(outcome_path)],
               "source_files": len(pins), "all_source_identities_unchanged": True,
               "wall_seconds": time.perf_counter() - start, "new_docking_or_cnn_calls": 0,

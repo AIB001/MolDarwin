@@ -1,6 +1,6 @@
 import copy
 import pytest
-from etalon.research.scientific_input import SCHEMA, identity, compile_input, consumption_receipt
+from moldarwin.research.scientific_input import SCHEMA, identity, compile_input, consumption_receipt
 
 
 def bundle(tmp_path):

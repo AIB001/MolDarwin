@@ -25,7 +25,7 @@ baseline. The host may choose another explicit policy.
 The example `examples/research_posebusters.py` binds these interfaces to the
 existing ResearchJournal, MethodVersion/Use/Evaluation, improvement opportunity,
 execution budget, research-step, checkpoint and publication interfaces. It uses
-MolCascade's native runner for a frozen GNINA executable. The paired methods
+MolCat's native runner for a frozen GNINA executable. The paired methods
 rank the same empirical pose pool; validation choices are archived before its
 labels are read. Running alternatives creates an explicitly charged audit panel,
 not free observations available to the selective policy.

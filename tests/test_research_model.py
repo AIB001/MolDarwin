@@ -4,12 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from etalon.research import Artifact, MethodVersion
-from etalon.research import research_model as rm
-from etalon.research.components import record_json
-from etalon.research.composition import node_step
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research.method_revision import journal_ref
+from moldarwin.research import Artifact, MethodVersion
+from moldarwin.research import research_model as rm
+from moldarwin.research.components import record_json
+from moldarwin.research.composition import node_step
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research.method_revision import journal_ref
 from test_research_continuation import case, publish, save
 
 

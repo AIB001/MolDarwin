@@ -6,12 +6,12 @@ from dataclasses import replace
 
 import pytest
 
-from molcascade.artifacts import ArtifactIntegrityError
-from molcascade.errors import PluginError
-from molcascade.plugins.registry import create_builtin_registry
-from molcascade.runtime.cache import stage_cache_key
-from molcascade.runtime.runner import LocalRunner
-from etalon.boundary.screen import Screen
+from molcat.artifacts import ArtifactIntegrityError
+from molcat.errors import PluginError
+from molcat.plugins.registry import create_builtin_registry
+from molcat.runtime.cache import stage_cache_key
+from molcat.runtime.runner import LocalRunner
+from moldarwin.boundary.screen import Screen
 from test_conformer_handoff import original
 
 

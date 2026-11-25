@@ -12,13 +12,13 @@ from pathlib import Path
 import pytest
 from test_legacy_execution_integrity import simulation as _simulation_fixture
 
-from etalon.active.runner import ActiveCampaign
-from etalon.active.schema import Action, CampaignSpec, Candidate, Endpoint
-from etalon.active.store import CampaignStore, StateError
-from etalon.boundary.screen import Screen
-from etalon.boundary.simulate import Environment, Simulate, _run_owned
-from etalon.campaign.design import component, compose
-from etalon.runtime.executors import (
+from moldarwin.active.runner import ActiveCampaign
+from moldarwin.active.schema import Action, CampaignSpec, Candidate, Endpoint
+from moldarwin.active.store import CampaignStore, StateError
+from moldarwin.boundary.screen import Screen
+from moldarwin.boundary.simulate import Environment, Simulate, _run_owned
+from moldarwin.campaign.design import component, compose
+from moldarwin.runtime.executors import (
     build_executor,
     prepare_executor,
     register_executor,
@@ -36,7 +36,7 @@ def molecular_configuration(files=None):
 
 
 def prepared_molecular(files=None):
-    return prepare_executor("molcascade", molecular_configuration(files),
+    return prepare_executor("molcat", molecular_configuration(files),
                             {"id": "mw", "target": "fixture", "quantity": "molecular_weight",
                              "units": "Da", "cost": 1.0})
 
@@ -80,7 +80,7 @@ def test_registered_cpu_executor_reconstructs_and_runs_real_measurements(tmp_pat
 def test_registration_checks_the_existing_endpoint_before_any_registry_write(tmp_path):
     prepared = prepared_molecular()
     store = configured_store(tmp_path, prepared)
-    changed = prepare_executor("molcascade", molecular_configuration(),
+    changed = prepare_executor("molcat", molecular_configuration(),
                                {**prepared["endpoint"], "units": "wrong"})
     before = store.export()
     with pytest.raises(ValueError, match="exactly match"):
@@ -194,7 +194,7 @@ def test_prism_requires_bounded_explicit_execution_configuration(tmp_path, confi
 
 
 def test_prism_registration_never_runs_environment_or_scientific_tools(tmp_path, monkeypatch):
-    monkeypatch.setattr("etalon.boundary.simulate.discover", lambda *args, **kwargs: pytest.fail("environment was executed"))
+    monkeypatch.setattr("moldarwin.boundary.simulate.discover", lambda *args, **kwargs: pytest.fail("environment was executed"))
     monkeypatch.setattr(Simulate, "build", lambda *args, **kwargs: pytest.fail("science was executed"))
     prepared = prepared_prism(tmp_path)
     store = configured_store(tmp_path, prepared)
@@ -207,9 +207,9 @@ def test_prism_registration_never_runs_environment_or_scientific_tools(tmp_path,
 
 
 def test_prism_dispatch_keeps_action_workspaces_and_does_not_invent_affinity(tmp_path, monkeypatch):
-    from etalon.authority.grant import authorize
-    from etalon.campaign.expensive import PrismStage
-    from etalon.learn.admissible import Measurement
+    from moldarwin.authority.grant import authorize
+    from moldarwin.campaign.expensive import PrismStage
+    from moldarwin.learn.admissible import Measurement
 
     prepared = prepared_prism(tmp_path)
     store = configured_store(tmp_path, prepared)
@@ -218,9 +218,9 @@ def test_prism_dispatch_keeps_action_workspaces_and_does_not_invent_affinity(tmp
         pass
 
     executor, receptor = build_executor(store.path, tmp_path / "queries", process_observer=observer)
-    monkeypatch.setattr("etalon.boundary.simulate.discover", lambda python:
+    monkeypatch.setattr("moldarwin.boundary.simulate.discover", lambda python:
                         Environment(Path(python), tmp_path / "fixture-gmx"))
-    monkeypatch.setattr("etalon.faults.preflight.check_record", lambda *args, **kwargs: ())
+    monkeypatch.setattr("moldarwin.faults.preflight.check_record", lambda *args, **kwargs: ())
     seen = []
 
     def no_affinity(self, rows, cheap, grants):
@@ -253,7 +253,7 @@ def test_prism_rejects_inconsistent_receptors_before_dispatch(tmp_path):
 
 
 def test_prism_build_and_drive_forward_process_observer(simulation, monkeypatch):
-    from etalon.boundary import simulate as module
+    from moldarwin.boundary import simulate as module
 
     runner, protein, ligand, _, _ = simulation
     seen = []

@@ -3,11 +3,11 @@ import copy
 
 import pytest
 
-from etalon.active.schema import digest
-from etalon.research import method_contract as mc
-from etalon.research import research_trace as rt
-from etalon.research.evidence_refs import EvidenceError
-from etalon.research.graph_memory import build_research_graph, node_identity
+from moldarwin.active.schema import digest
+from moldarwin.research import method_contract as mc
+from moldarwin.research import research_trace as rt
+from moldarwin.research.evidence_refs import EvidenceError
+from moldarwin.research.graph_memory import build_research_graph, node_identity
 from test_method_contract import assess, contract, prepared
 from test_research_graph_memory import graph_case
 from test_research_trace import event
@@ -63,7 +63,7 @@ def test_review_input_change_cannot_hide_under_the_same_attempt():
 def test_review_reverse_counterclaim_enters_counter_selection(graph_case):
     c = graph_case
     counterclaim = c["save"]({
-        "schema": "etalon-research-claim/1",
+        "schema": "moldarwin-research-claim/1",
         "question": "Which route?",
         "statement": "Opposite fixture claim; inspect before inheriting the current conclusion",
         "epistemic_status": "interpretation",

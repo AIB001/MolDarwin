@@ -3,8 +3,8 @@ import copy
 
 import pytest
 
-from etalon.research import research_trace as rt
-from etalon.research.evidence_refs import EvidenceError, make_ref
+from moldarwin.research import research_trace as rt
+from moldarwin.research.evidence_refs import EvidenceError, make_ref
 from test_research_continuation import case, save, publish
 
 
@@ -14,7 +14,7 @@ def ref(label):
 
 def event(phase="execution", *, state="completed", sequence=1, attempt="attempt-1", reason="fixture outcome", key=None):
     details = {
-        "execution": dict(tool_name="mcp__etalon__screen", call_id="call-" + str(sequence), input_digest="input-fixture",
+        "execution": dict(tool_name="mcp__moldarwin__screen", call_id="call-" + str(sequence), input_digest="input-fixture",
             output_digest="output-fixture", duration_seconds=None, cost=None, reuse_of=ref("original") if state == "reused" else None,
             error="backend missing" if state == "failed" else None, completed_checks=[] if state == "failed" else ["identity"]),
         "declaration": dict(planned_checks=["identity"], alternatives=["repeat", "reuse"], choice="reuse", reconsider_when="inputs change"),
@@ -133,11 +133,11 @@ def test_admission_cannot_discard_rejected_evidence():
 
 
 def test_journal_roundtrip_and_admission_attempt_link(case):
-    from etalon.research.continuation import read_content
+    from moldarwin.research.continuation import read_content
     journal, real_ref, _, _ = case
     def local(value):
         if isinstance(value, dict):
-            if value.get("schema") == "etalon-evidence-ref/1":
+            if value.get("schema") == "moldarwin-evidence-ref/1":
                 return real_ref
             return {k: local(v) for k, v in value.items()}
         if isinstance(value, list):

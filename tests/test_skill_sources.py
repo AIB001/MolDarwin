@@ -5,13 +5,13 @@ from pathlib import Path
 
 import pytest
 
-from etalon import skills
-from etalon.research.evidence_refs import EvidenceError, file_identity, load_workspace
-from etalon.research.meta_context import (
+from moldarwin import skills
+from moldarwin.research.evidence_refs import EvidenceError, file_identity, load_workspace
+from moldarwin.research.meta_context import (
     build_task_workset, describe_resource, index_resources, make_task_profile,
     prepare_adaptation_context, review_adaptation, selected_skill_members, verify_resource,
 )
-from etalon.research.skill_sources import resolve_skill_bundle, validate_skill_bundle_map
+from moldarwin.research.skill_sources import resolve_skill_bundle, validate_skill_bundle_map
 
 
 @pytest.fixture
@@ -23,7 +23,7 @@ def archived(tmp_path):
     (root / "references/api.md").write_text("Original semantics.\n", encoding="utf-8")
     version, _ = skills.snapshot("research-index", bundle_ref={"root": str(root)})
     content_ref = {"slug": "research-index", "manifest_sha256": version["manifest_sha256"]}
-    manifest = {"schema": "etalon-evidence-workspace/1", "workspace_id": "archive-fixture", "sources": [],
+    manifest = {"schema": "moldarwin-evidence-workspace/1", "workspace_id": "archive-fixture", "sources": [],
         "location_map": [], "skill_bundle_map": [{**content_ref, "root": "skills/original/bundle"}]}
     path = tmp_path / "workspace.json"
     path.write_text(json.dumps(manifest), encoding="utf-8")
@@ -119,9 +119,9 @@ def test_selected_members_expose_resolved_locator_without_revising_workset(archi
     path, root, _, resource = archived
     # Use an ordinary fixture Artifact as a compatible template, not a new
     # scientific source. The existing test workspace supplies its valid refs.
-    from etalon.active import CampaignStore, CampaignSpec, Endpoint
-    from etalon.research import ResearchJournal, Artifact
-    from etalon.research.evidence_refs import make_ref
+    from moldarwin.active import CampaignStore, CampaignSpec, Endpoint
+    from moldarwin.research import ResearchJournal, Artifact
+    from moldarwin.research.evidence_refs import make_ref
     store = CampaignStore(tmp_path / "fixture.sqlite")
     store.configure(CampaignSpec("audit", 0, "wall_second", "fixture"),
                     [Endpoint("audit", "fixture", "none", "count", "fixture", 0, queryable=False)])
@@ -153,19 +153,19 @@ def test_selected_members_expose_resolved_locator_without_revising_workset(archi
 
     # A real checkpoint summary exposes this locator to existing skill_read;
     # it does not merely validate the archive then point callers at current.
-    from etalon.research.components import record_json
-    from etalon.research.continuation import record_content
-    from etalon.research.meta_context import WORKSET, _dependencies, workset_summary
+    from moldarwin.research.components import record_json
+    from moldarwin.research.continuation import record_content
+    from moldarwin.research.meta_context import WORKSET, _dependencies, workset_summary
     def local_ref(rid):
         return make_ref("fixture", rid, journal.get(rid))
     wr = local_ref(record_json(journal, value, tmp_path / "content", source_kind="fixture",
         bindings=dict(schema=WORKSET, meta_activation=WORKSET, task_id="fixture", evidence_refs=_dependencies(value))))
-    activation = dict(schema="etalon-research-step/1", task_id="fixture", question="Archive lookup", branch_id="read",
+    activation = dict(schema="moldarwin-research-step/1", task_id="fixture", question="Archive lookup", branch_id="read",
         operation="decision", reason="Keep this pinned old version", input_refs=[], output_refs=[wr], method_refs=[],
         accounting_refs=[], source_watermarks=[], supersedes=[], detail=dict(choice="reuse", alternatives=[],
             basis_refs=[make_ref("fixture", ar.id, journal.get(ar.id))], reconsider_when="Task conditions change"))
     sr = local_ref(record_content(journal, activation, tmp_path / "content", source_id="fixture", source_kind="fixture"))
-    cp = dict(schema="etalon-research-checkpoint/1", task_id="fixture", question="Archive lookup", step_refs=[sr],
+    cp = dict(schema="moldarwin-research-checkpoint/1", task_id="fixture", question="Archive lookup", step_refs=[sr],
         claim_refs=[], counter_refs=[], method_refs=[], branches=[dict(branch_id="read", state="resolved", basis_refs=[wr],
         next_read_refs=[wr], reconsider_when="Changed conditions")], pending_handles=[], source_watermarks=[],
         supersedes=[], status_guards=[])
@@ -180,7 +180,7 @@ def test_selected_members_expose_resolved_locator_without_revising_workset(archi
     changed = workset_summary(path, cr, conditions={"target": "new-target"})
     assert changed["status"] == "review_required" and changed["selected_skill_sources"] == []
     assert value == before and not store.actions()
-    from etalon import host
+    from moldarwin import host
     entry = tmp_path / "entry.json"
     entry.write_text(json.dumps({"workspace": str(path), "checkpoint_ref": cr}), encoding="utf-8")
     monkeypatch.setattr(skills, "bundle_root", lambda *_: pytest.fail("export must not fall back to current library"))

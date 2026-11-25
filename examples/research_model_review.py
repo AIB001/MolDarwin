@@ -31,11 +31,11 @@ import argparse
 import json
 from pathlib import Path
 
-from etalon.active.schema import canonical
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research.improvement import read_material
-from etalon.research.read_scope import bounded_read
-from etalon.research.research_model import recorded_rule_assessment, review_model_revision
+from moldarwin.active.schema import canonical
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research.improvement import read_material
+from moldarwin.research.read_scope import bounded_read
+from moldarwin.research.research_model import recorded_rule_assessment, review_model_revision
 
 
 @bounded_read

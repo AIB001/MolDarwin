@@ -1,8 +1,8 @@
 """Bounded checkpoint for the SND1 example; all detailed nodes remain linked."""
 import os,sqlite3
-from etalon.research.publication import _save
-from etalon.research.evidence_refs import file_identity
-from etalon.research.composition import node_step
+from moldarwin.research.publication import _save
+from moldarwin.research.evidence_refs import file_identity
+from moldarwin.research.composition import node_step
 
 
 def checkpoint(case,s):

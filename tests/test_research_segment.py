@@ -6,8 +6,8 @@ import sys
 
 import pytest
 
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research import research_segment as segment
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research import research_segment as segment
 from test_research_publication import case, assert_old_unchanged
 
 
@@ -36,7 +36,7 @@ def test_batch_auto_publication_new_process_read_and_same_operation_reuse(case, 
     assert selected["work"]["residuals"] == response(case)["residuals"]
     assert selected["work"]["status_guards"] == case["checkpoint"]["status_guards"]
     assert selected["execution_permission"] == "not_granted"
-    code = "from etalon.research.research_segment import read_work; import json,sys; print(json.dumps(read_work(sys.argv[1])))"
+    code = "from moldarwin.research.research_segment import read_work; import json,sys; print(json.dumps(read_work(sys.argv[1])))"
     fresh = subprocess.run([sys.executable, "-c", code, str(case["entry"])], capture_output=True, text=True, check=True)
     assert json.loads(fresh.stdout)["work"]["residuals"] == selected["work"]["residuals"]
     before = file_identity(case["entry"])

@@ -10,13 +10,13 @@ from pathlib import Path
 import sys
 import time
 
-from etalon.active.schema import canonical
-from etalon.active import CampaignStore
-from etalon.research import ResearchJournal
-from etalon.research.rows import verify_dataset, verify_visible_receipts
-from etalon.boundary.prism_v1 import file_identity
-from etalon.research.diagnostics import Probe, Resource
-from etalon.research.transfer import (Catalog, GroupSplit, evaluate_policies, fit_policy,
+from moldarwin.active.schema import canonical
+from moldarwin.active import CampaignStore
+from moldarwin.research import ResearchJournal
+from moldarwin.research.rows import verify_dataset, verify_visible_receipts
+from moldarwin.boundary.prism_v1 import file_identity
+from moldarwin.research.diagnostics import Probe, Resource
+from moldarwin.research.transfer import (Catalog, GroupSplit, evaluate_policies, fit_policy,
     load_policy, next_action, probability_assessment, save_policy, calibrate_policy, record_policy)
 
 

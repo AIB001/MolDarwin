@@ -4,12 +4,12 @@ import argparse
 import json
 from pathlib import Path
 import sys
-from etalon.active import CampaignSpec,CampaignStore,Endpoint
-from etalon.active.schema import canonical
-from etalon.boundary.prism_v1 import CLITransport
-from etalon.research import ResearchJournal
-from etalon.research.pose import PoseClient,execute
-from etalon.research.controller import next_segment,record_segment
+from moldarwin.active import CampaignSpec,CampaignStore,Endpoint
+from moldarwin.active.schema import canonical
+from moldarwin.boundary.prism_v1 import CLITransport
+from moldarwin.research import ResearchJournal
+from moldarwin.research.pose import PoseClient,execute
+from moldarwin.research.controller import next_segment,record_segment
 
 
 def interpreter_path(value):
@@ -46,7 +46,7 @@ def main():
     if a.controller_id:
         step=next_segment(journal,a.controller_id,decision_sha256=a.decision_sha256)
         if step['status']!='query' or step['next']['id']!=a.segment_id:raise ValueError('controller does not authorize this next segment')
-        from etalon.active.schema import digest
+        from moldarwin.active.schema import digest
         if step['next']['request_sha256']!=digest(client.bind(request)['semantic']):raise ValueError('wrong controller request')
     receipt=execute(journal,client,request,root=a.root,task_id=a.task,stage=a.stage,
                     source_kind=a.source_kind,decision_sha256=a.decision_sha256)

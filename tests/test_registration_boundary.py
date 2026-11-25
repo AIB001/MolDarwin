@@ -1,16 +1,16 @@
-"""The ETALON producer/consumer boundary uses the component's existing status and bundles."""
+"""The MolDarwin producer/consumer boundary uses the component's existing status and bundles."""
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from etalon.boundary.screen import Screen
-from etalon.screening import plan_screen, screen_status, _journal
+from moldarwin.boundary.screen import Screen
+from moldarwin.screening import plan_screen, screen_status, _journal
 
 
 def test_registered_subset_retains_rejections_and_selection_identity(tmp_path):
     import hashlib
     import pytest
-    from molcascade.plugins.registry import create_builtin_registry
-    from molcascade.runtime.runner import LocalRunner
+    from molcat.plugins.registry import create_builtin_registry
+    from molcat.runtime.runner import LocalRunner
     old = tmp_path / 'old'
     raw = tmp_path / 'raw.csv'
     raw.write_text('id,smiles\na,CCO\nb,C(C)O\nc,CCC\nbad,invalid\n')
@@ -53,8 +53,8 @@ def test_registered_subset_retains_rejections_and_selection_identity(tmp_path):
 
 
 def test_registered_plan_pins_bundle_files_and_runs_without_standardizing(tmp_path):
-    from molcascade.plugins.registry import create_builtin_registry
-    from molcascade.runtime.runner import LocalRunner
+    from molcat.plugins.registry import create_builtin_registry
+    from molcat.runtime.runner import LocalRunner
     old = tmp_path / 'old'
     raw = tmp_path / 'raw.csv'
     raw.write_text('id,smiles\none,CCO\ntwo,C(C)O\nbad,invalid\n')
@@ -86,15 +86,15 @@ def test_registered_plan_pins_bundle_files_and_runs_without_standardizing(tmp_pa
 
 
 def test_screen_status_reports_checkpoint_progress_without_starting_work(tmp_path):
-    from molcascade.runtime.models import RunState, RunStatus, StageRunState, StageRunStatus
-    from molcascade.runtime.cache import checkpoint_directory_name
-    from molcascade.parallel.progress import write_progress
+    from molcat.runtime.models import RunState, RunStatus, StageRunState, StageRunStatus
+    from molcat.runtime.cache import checkpoint_directory_name
+    from molcat.parallel.progress import write_progress
     now=datetime.now(timezone.utc); key='cache:sha256:'+'b'*64
     state=RunState(run_id='live',revision_id='c'*64,status=RunStatus.RUNNING,started_at=now,updated_at=now,
         stages=(StageRunState(stage_id='standardize',plugin_key='chemistry.rdkit_standardize@0.1.0',
                              status=StageRunStatus.RUNNING,cache_key=key),))
     (tmp_path/'runs').mkdir()
-    from molcascade.artifacts import canonical_json_bytes
+    from molcat.artifacts import canonical_json_bytes
     (tmp_path/'runs/live.json').write_bytes(canonical_json_bytes(state))
     write_progress(tmp_path/'checkpoints'/checkpoint_directory_name(key),phase='map',
                    shards_complete=2,shards_total=8,rows_completed=5000,rows_total=20000,

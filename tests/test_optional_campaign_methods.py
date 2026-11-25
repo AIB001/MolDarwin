@@ -11,17 +11,17 @@ import sqlite3
 
 import pytest
 
-from etalon.boundary.screen import Screen
-from etalon.authority.grant import NotAuthorized
-from etalon.campaign.ledger import Ledger
-from etalon.campaign.loop import Campaign
-from etalon.campaign.pipeline import Pipeline
-from etalon.campaign.propose import Acquisition, Panel, ParameterChange, as_loop_acquirer
-from etalon.campaign.supervisor import Supervisor
-from etalon.campaign.sweep import Sweep
-from etalon.economics.stage import BY_ID
-from etalon.judgment.proposal import Act
-from etalon.learn.calibrate import Split, Verdict
+from moldarwin.boundary.screen import Screen
+from moldarwin.authority.grant import NotAuthorized
+from moldarwin.campaign.ledger import Ledger
+from moldarwin.campaign.loop import Campaign
+from moldarwin.campaign.pipeline import Pipeline
+from moldarwin.campaign.propose import Acquisition, Panel, ParameterChange, as_loop_acquirer
+from moldarwin.campaign.supervisor import Supervisor
+from moldarwin.campaign.sweep import Sweep
+from moldarwin.economics.stage import BY_ID
+from moldarwin.judgment.proposal import Act
+from moldarwin.learn.calibrate import Split, Verdict
 
 
 def _forbidden(*args, **kwargs):
@@ -66,7 +66,7 @@ def test_standalone_parameter_advice_changes_method_after_feedback_without_a_rou
 
 
 def test_empty_acquisition_stops_before_fitting_or_legacy_orchestration(monkeypatch):
-    from etalon.campaign import propose as module
+    from moldarwin.campaign import propose as module
     monkeypatch.setattr(module.Surrogate, "fit", _forbidden)
     monkeypatch.setattr(Campaign, "__init__", _forbidden)
     method = Acquisition(_panel(), budget=1)

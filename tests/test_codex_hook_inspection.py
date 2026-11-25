@@ -6,7 +6,7 @@ import threading
 
 import pytest
 
-from etalon import codex_hooks
+from moldarwin import codex_hooks
 
 REAL_PROBE = codex_hooks._probe_transport
 

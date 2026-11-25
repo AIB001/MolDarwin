@@ -4,14 +4,14 @@ import json
 from pathlib import Path
 import pytest
 
-from etalon.research import MethodVersion, MethodUse, TaskSplit
-from etalon.research import improvement as imp
-from etalon.research.composition import node_step, WORKFLOW
-from etalon.research.components import record_json
-from etalon.research.continuation import STEP, record_content, resume_research
-from etalon.research.method_revision import journal_ref
-from etalon.research.evidence_refs import EvidenceError
-from etalon.active.store import StateError
+from moldarwin.research import MethodVersion, MethodUse, TaskSplit
+from moldarwin.research import improvement as imp
+from moldarwin.research.composition import node_step, WORKFLOW
+from moldarwin.research.components import record_json
+from moldarwin.research.continuation import STEP, record_content, resume_research
+from moldarwin.research.method_revision import journal_ref
+from moldarwin.research.evidence_refs import EvidenceError
+from moldarwin.active.store import StateError
 from test_research_continuation import case, publish, save, checkpoint
 
 
@@ -82,7 +82,7 @@ def test_context_reads_generic_artifacts_without_typed_schema_or_actions(case, p
 def test_unfinished_opportunity_resumes_and_incomplete_context_does_not_trigger(case, prepared):
     p=prepared
     ctx={**p['ctx'], 'scope':'other'}
-    from etalon.active.schema import digest
+    from moldarwin.active.schema import digest
     ctx['opportunity_key']=digest({k:ctx[k] for k in ('scope','conditions','target_ref','problem_refs','evidence_refs')})
     ref=save(case,ctx)
     one=imp.register_opportunity(p['j'],ref,p['root']/'content',source_id='research',source_kind='fixture')
@@ -129,14 +129,14 @@ def test_workflow_conflicts_and_forged_patch_are_rejected(case,prepared):
 def test_experience_reads_negative_conditions_and_supersession_without_promotion(case,prepared):
     p=prepared
     kwargs=dict(patch_ref=p['patch'],outcome='unresolved',lesson='No execution yet; do not assume improvement',
-        invalid_when='protocol changes',capability_id='etalon.evidence',support_refs=[case[1]],
+        invalid_when='protocol changes',capability_id='moldarwin.evidence',support_refs=[case[1]],
         directory=p['root']/'content',source_id='research',source_kind='fixture')
     exp=imp.record_experience(p['j'],**kwargs)
     newer=imp.record_experience(p['j'],**{**kwargs,'lesson':'Keep counterevidence', 'counter_refs':[case[1]],'supersedes':[exp]})
     ws=publish(case)
-    result=imp.retrieve_experience(ws,source_ids=['research'],capability_id='etalon.evidence',conditions=p['conditions'])
+    result=imp.retrieve_experience(ws,source_ids=['research'],capability_id='moldarwin.evidence',conditions=p['conditions'])
     assert {r['ref']['record_id'] for r in result['matches']}=={exp['record_id'],newer['record_id']}
-    assert imp.retrieve_experience(ws,source_ids=['research'],capability_id='etalon.evidence',conditions={'endpoint':'other'})['matches']==[]
+    assert imp.retrieve_experience(ws,source_ids=['research'],capability_id='moldarwin.evidence',conditions={'endpoint':'other'})['matches']==[]
     with pytest.raises(EvidenceError,match='evaluation'):
         imp.record_experience(p['j'],**{**kwargs,'outcome':'adopt'})
 
@@ -144,18 +144,18 @@ def test_experience_reads_negative_conditions_and_supersession_without_promotion
 def test_related_experience_is_explicit_hypothesis_not_an_applicable_match(case,prepared):
     p=prepared
     exp=imp.record_experience(p['j'],patch_ref=p['patch'],outcome='unresolved',lesson='Fixture hypothesis only',
-        invalid_when='different protocol',capability_id='etalon.evidence',support_refs=[case[1]],
+        invalid_when='different protocol',capability_id='moldarwin.evidence',support_refs=[case[1]],
         directory=p['root']/'content',source_id='research',source_kind='fixture')
     conditions={**p['conditions'],'endpoint':'different-endpoint'}
-    exact=imp.retrieve_experience(publish(case),source_ids=['research'],capability_id='etalon.evidence',conditions=conditions)
+    exact=imp.retrieve_experience(publish(case),source_ids=['research'],capability_id='moldarwin.evidence',conditions=conditions)
     assert exact['matches']==[] and exact['related']==[]
-    related=imp.retrieve_experience(publish(case),source_ids=['research'],capability_id='etalon.evidence',conditions=conditions,
+    related=imp.retrieve_experience(publish(case),source_ids=['research'],capability_id='moldarwin.evidence',conditions=conditions,
                                     related_condition_keys=['problem_kind'])
     assert related['matches']==[] and related['related'][0]['ref']==exp
     assert related['related'][0]['unmatched_conditions']==['endpoint']
     assert 'hypothesis_only' in related['related'][0]['applicability']
     with pytest.raises(EvidenceError,match='query conditions'):
-        imp.retrieve_experience(publish(case),source_ids=['research'],capability_id='etalon.evidence',conditions=conditions,
+        imp.retrieve_experience(publish(case),source_ids=['research'],capability_id='moldarwin.evidence',conditions=conditions,
                                 related_condition_keys=['undeclared'])
 
 

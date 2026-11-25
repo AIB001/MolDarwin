@@ -8,7 +8,7 @@
 
 | 能力 | 直接复用 | 增量 |
 | --- | --- | --- |
-| 宿主指引 | src/etalon/HOST.md、HOST_SETUP.md、host.export/verify | 精简共用内容，增加可选专项引用与项目资料入口；不覆盖已有 AGENTS/CLAUDE |
+| 宿主指引 | src/moldarwin/HOST.md、HOST_SETUP.md、host.export/verify | 精简共用内容，增加可选专项引用与项目资料入口；不覆盖已有 AGENTS/CLAUDE |
 | S/U/G 版本 | MethodVersion/Use/Evaluation、完整 bundle snapshot、显式外部 bundle | 修订产物和生成关系；无新顶层 method schema |
 | 原件与结果 | Artifact、Experiment、Observation、data snapshot、runtime 分页、费用引用 | 可迁移定位、结论内容约定与只读检索 |
 | 事件 | read_events、host.consume_events、稳定 request ID | 可选有限触发；不增加常驻反思循环 |
@@ -19,17 +19,17 @@ S=科学 skill，U=选择/组合/跳过的使用方法，G=产生和检验修订
 
 HOST.md 保留宿主自主权、核心事实语义和入口；任务方法放入按需 references。专项指引仅说明职责、资源范围、相关证据/能力入口和权威暂停状态引用；不复制完整历史，不规定统一研究顺序。研究、方法改进、工程维护是可选用途，不是固定 agent 类。
 
-可复用专项文本由 C 放在 src/etalon/host-guides/，具体文件由 I 在所有权表登记。I 负责导出器把这些文本按需带入包/宿主导出；默认不将全文拼入 AGENTS.md。项目本机 AGENTS、工程 life-healthy-contract-refactor skill 与项目路径不进入产品科学 skill 库。宿主原生加载只对实际观察过的宿主作结论。
+可复用专项文本由 C 放在 src/moldarwin/host-guides/，具体文件由 I 在所有权表登记。I 负责导出器把这些文本按需带入包/宿主导出；默认不将全文拼入 AGENTS.md。项目本机 AGENTS、工程 life-healthy-contract-refactor skill 与项目路径不进入产品科学 skill 库。宿主原生加载只对实际观察过的宿主作结论。
 
-项目提供一份可选 etalon-workspace.json，指引仅给出其位置。清单是数据源定位，不是任务计划、授权系统或强制注册中心。已知 SDK、文件或引用可直接使用。
+项目提供一份可选 moldarwin-workspace.json，指引仅给出其位置。清单是数据源定位，不是任务计划、授权系统或强制注册中心。已知 SDK、文件或引用可直接使用。
 
 ## 3. 项目资料清单与引用
 
-新增 schema 标识 etalon-evidence-workspace/1；由 A 实现校验，I 负责公共契约。最小内容：
+新增 schema 标识 moldarwin-evidence-workspace/1；由 A 实现校验，I 负责公共契约。最小内容：
 
 ```json
 {
-  "schema": "etalon-evidence-workspace/1",
+  "schema": "moldarwin-evidence-workspace/1",
   "workspace_id": "project-scoped-stable-id",
   "sources": [{
     "source_id": "released-research-01",
@@ -44,13 +44,13 @@ HOST.md 保留宿主自主权、核心事实语义和入口；任务方法放入
 
 示例只示意字段，尖括号不是有效 digest。sources.kind 初始仅 journal、data_snapshot、artifact_manifest。artifact_manifest 必须显式列成员、哈希/大小及可见来源；不能变成任意目录扫描。身份锚使用实际存在的日志身份，或不可变快照摘要；活账本另报告事件水位，不把会变化的整个 DB 哈希当永久身份。清单相对位置相对于清单目录解析，不依赖进程 cwd。位置改变不改变 source_id，绑定到其他来源须明确冲突/新来源，不得静默替换。
 
-对外 EvidenceRef 形状：schema=etalon-evidence-ref/1、source_id、record_id、record_digest；成员读取另含 member/selector 与原件 sha256/bytes。record_digest 对原始规范化记录计算；不得改写旧 record_id。内容 digest、带来源的记录 ID、当前位置是三个不同概念。相同 bytes 的两个来源不自动合并其测定语义、角色或成本。
+对外 EvidenceRef 形状：schema=moldarwin-evidence-ref/1、source_id、record_id、record_digest；成员读取另含 member/selector 与原件 sha256/bytes。record_digest 对原始规范化记录计算；不得改写旧 record_id。内容 digest、带来源的记录 ID、当前位置是三个不同概念。相同 bytes 的两个来源不自动合并其测定语义、角色或成本。
 
 location_map 的条目绑定 source_id、原 artifact/manifest 引用、预期 sha256/bytes 与新位置。旧绝对路径/记录原文保留。新位置必须经过路径边界和实际内容验证；错误映射不能被当作恢复成功。旧 API 不传 resolver 时保持兼容。POSIX 历史路径在 Windows 上的解析、Artifact 验证、journal._artifacts、skill verify_snapshot 均须贯通；不能只替换展示字符串。
 
 ## 4. SDK 与 MCP 共用的最小读接口
 
-目标 SDK 模块 etalon.research.evidence；以下为本轮冻结签名，实施调整须 I 更新生产端/消费端/兼容样例。
+目标 SDK 模块 moldarwin.research.evidence；以下为本轮冻结签名，实施调整须 I 更新生产端/消费端/兼容样例。
 
 ```python
 query_evidence(workspace, *, query="", filters=None, limit=10, cursor=None)
@@ -64,13 +64,13 @@ query 返回 items、next_cursor、coverage、warnings。每项含 ref、summary
 
 read 的 view=record/summary/lineage/artifact，可直接读取已知 ref，无需 query。返回原记录/片段、来源链、核验状态、缺失信息；lineage 有界且可续读。获取记录元数据不冒充验证原件。所有查询/读取以只读方式打开已存在来源，未知路径不得隐式初始化 CampaignStore。不得启动模型、科学计算、外部下载或改写事实。
 
-新增两个 MCP 薄工具 etalon_evidence_query、etalon_evidence_read，字段语义与 SDK 相同；共享注册只由 I 修改。现有 etalon_method_read、workflow_artifact、data status、零参 discovery 与旧 URI 保持兼容。新增工具不成为 router，不限制工具/skill 选择空间。
+新增两个 MCP 薄工具 moldarwin_evidence_query、moldarwin_evidence_read，字段语义与 SDK 相同；共享注册只由 I 修改。现有 moldarwin_method_read、workflow_artifact、data status、零参 discovery 与旧 URI 保持兼容。新增工具不成为 router，不限制工具/skill 选择空间。
 
 ## 5. 存储、解释与跨源复用
 
 原件保存在原执行/数据存储，SQLite 记录身份与关系；大文件不复制进索引。检索资料保留请求、返回、来源、时间及具体定位；计算保留输入/协议/执行/输出；实验保留样本、端点、条件、单位及原始数据。既有解析和科学准入可复用；不支持的端点先存原件及解析产物，不宣称已成为训练标签。
 
-新增内容约定 etalon-research-claim/1，以 JSON Artifact 存储，不扩展万能 Observation。字段：question、subjects/conditions、statement、epistemic_status、support_refs、counter_refs、limitations、method_refs、supersedes。epistemic_status 区分 extracted_report/hypothesis/interpretation；它不是可信度分数，也不是科学准入。所有提取/解释指向具体原件位置，未知不补造。新解释追加并关联旧解释；事实、费用、原评价角色不回写。
+新增内容约定 moldarwin-research-claim/1，以 JSON Artifact 存储，不扩展万能 Observation。字段：question、subjects/conditions、statement、epistemic_status、support_refs、counter_refs、limitations、method_refs、supersedes。epistemic_status 区分 extracted_report/hypothesis/interpretation；它不是可信度分数，也不是科学准入。所有提取/解释指向具体原件位置，未知不补造。新解释追加并关联旧解释；事实、费用、原评价角色不回写。
 
 跨源引用始终保留 source_id。当前 journal 的引用校验仍尊重本 campaign 范围；需要写入关系时，用显式来源封装 Artifact 登记原 ref/哈希/角色、此次可见性及复用类型，再建立本次记录。需要本地 MethodVersion 时登记所用完整快照并保留外部来源，内容摘要不变；新本地记录 ID 不等于新算法。引用历史费用不再收费，重新分析的实际新增成本另记。旧 independent_validation 经读取后是本次已见依据，不能复制后改称新的独立测试。
 
@@ -80,7 +80,7 @@ read 的 view=record/summary/lineage/artifact，可直接读取已知 ref，无�
 
 ## 6. 元 skill 的修订产物与自身改进
 
-内容约定 etalon-method-revision/1 同样保存为 Artifact。字段：problem_refs、target_kind(S/U/G)、base_method_ref、producer_method_ref、producer_use_ref、candidate_version_refs、change_summary、mechanism_hypothesis、scope、counterexamples、trial_refs、accounting_refs。候选可为空，表示有理由的不修改；成本/原件仍保留。各引用有明确来源，不能编造执行遥测。MethodVersion.parents 只记录被修改对象的沿革，G 的生成关系在此单列，避免循环/混淆。
+内容约定 moldarwin-method-revision/1 同样保存为 Artifact。字段：problem_refs、target_kind(S/U/G)、base_method_ref、producer_method_ref、producer_use_ref、candidate_version_refs、change_summary、mechanism_hypothesis、scope、counterexamples、trial_refs、accounting_refs。候选可为空，表示有理由的不修改；成本/原件仍保留。各引用有明确来源，不能编造执行遥测。MethodVersion.parents 只记录被修改对象的沿革，G 的生成关系在此单列，避免循环/混淆。
 
 现有 MethodUse 支持多选、空选、片段与 usage_method_ref，直接复用。现阶段 journal 只接受 host_reported 使用归因；原生读取/调用/输出痕迹另存 Artifact，区分 available/read/applied，不能通过开放 tool_observed 标志伪造实际采用。既有 MethodEvaluation 的诊断与冻结独立评价继续使用。
 
@@ -110,7 +110,7 @@ host.export 在原先新目录导出语义下携带独立 `host-guides/*.md` 和
 
 方法筛选包含已有 `MethodUse.selected_methods` 和 `usage_method_ref`，不改变多选、空选或跳过语义。lineage 的精确 EvidenceRef 保留原 digest、member、selector、sha256、bytes；目标不符在 missing/relationships 中明确标为 digest_mismatch、artifact_identity_mismatch 或 unavailable，不生成替代成功引用。历史字符串引用单独标为 legacy_string/resolved_current_metadata，不能冒充精确版本绑定。关系验证只覆盖记录及声明成员元数据，不自动证明目标文件内容正确。
 
-普通 Artifact 可用既有 `bindings.schema` 显式声明 `etalon-method-revision/1` 或 `etalon-research-claim/1`。在明确发布的 workspace 来源中，读取器核验原件全文哈希/大小后为这两种内容生成临时检索和 lineage 视图。历史外壳缺少声明时可在 source 中显式列 `content_projections: [{record_id, schema}]`，最多64条，不接受未知 schema、重复条目或目录扫描。每来源最多64份投影、单份1 MiB、合计8 MiB；不建新权威账本，不回写 Artifact 或费用。
+普通 Artifact 可用既有 `bindings.schema` 显式声明 `moldarwin-method-revision/1` 或 `moldarwin-research-claim/1`。在明确发布的 workspace 来源中，读取器核验原件全文哈希/大小后为这两种内容生成临时检索和 lineage 视图。历史外壳缺少声明时可在 source 中显式列 `content_projections: [{record_id, schema}]`，最多64条，不接受未知 schema、重复条目或目录扫描。每来源最多64份投影、单份1 MiB、合计8 MiB；不建新权威账本，不回写 Artifact 或费用。
 
 查询仍返回原 Artifact 的 ref、record_type 与原记录摘要身份，并报告 projection 状态及带原件身份的 artifact_ref。view=record 返回原外壳，view=artifact 返回原件；投影补充主题检索与声明关系。原件缺失、损坏、未公开或超预算时保留明确 unavailable/partial/warnings，不把失败解释为空内容成功。普通清单发布和 schema 声明都是可选数据能力，不是执行 gate。`examples/evidence_reuse.py` 的可选普通 claim 写入与具名 journal 快照发布示例不自动隔离封存文件；只可显式发布允许暴露的来源。
 

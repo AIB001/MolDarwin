@@ -14,7 +14,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from etalon.fep.network import MIN_CORE_FRACTION, Edge, design, mapping_quality, observations
+from moldarwin.fep.network import MIN_CORE_FRACTION, Edge, design, mapping_quality, observations
 
 #: A constructed congeneric series: one scaffold, single-substituent differences. What FEP is for.
 SERIES = {
@@ -158,7 +158,7 @@ def test_the_fep_command_signals_unreachable_molecules(tmp_path: Path) -> None:
 
     import csv
 
-    from etalon.__main__ import main
+    from moldarwin.__main__ import main
 
     path = tmp_path / "library.csv"
     with path.open("w", newline="", encoding="utf-8") as handle:
@@ -174,7 +174,7 @@ def test_the_fep_command_signals_unreachable_molecules(tmp_path: Path) -> None:
 
 
 def test_the_fep_command_refuses_a_library_it_cannot_read(tmp_path: Path) -> None:
-    from etalon.__main__ import main
+    from moldarwin.__main__ import main
 
     path = tmp_path / "empty.csv"
     path.write_text("a,b\n1,2\n", encoding="utf-8")

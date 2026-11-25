@@ -3,11 +3,11 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active.schema import canonical
-from etalon.research import Artifact
-from etalon.research.decision_reading import build_decision_delivery
-from etalon.research.evidence import StaleCursorError
-from etalon.research.evidence_refs import EvidenceError, file_identity, make_ref
+from moldarwin.active.schema import canonical
+from moldarwin.research import Artifact
+from moldarwin.research.decision_reading import build_decision_delivery
+from moldarwin.research.evidence import StaleCursorError
+from moldarwin.research.evidence_refs import EvidenceError, file_identity, make_ref
 from test_decision_delivery import delivered
 from test_decision_reading_mcp import reader
 from test_research_graph_memory import graph_case
@@ -21,7 +21,7 @@ def duplicate_case(c, raw):
         artifact = Artifact(str(path), **file_identity(path), source_kind="fixture", role="diagnostic", bindings={})
         c["journal"].record(artifact)
         refs.append(make_ref("science", artifact.id, c["journal"].get(artifact.id)))
-    claim = c["save"]({"schema": "etalon-research-claim/1", "question": "Same bytes, distinct provenance?",
+    claim = c["save"]({"schema": "moldarwin-research-claim/1", "question": "Same bytes, distinct provenance?",
         "statement": "Synthetic alias contract; no scientific result", "epistemic_status": "interpretation",
         "subjects": ["fixture"], "conditions": [], "limitations": [], "support_refs": [refs[0]],
         "counter_refs": [refs[1]], "method_refs": [], "supersedes": []})
@@ -68,7 +68,7 @@ def test_conditional_alias_does_not_claim_a_delivered_or_understood_body(graph_c
 def test_missing_optional_boundary_alias_adds_no_original_read_gate(graph_case):
     c = graph_case
     _, refs = duplicate_case(c, b"optional identical bytes")
-    claim = c["save"]({"schema": "etalon-research-claim/1", "question": "Status only?",
+    claim = c["save"]({"schema": "moldarwin-research-claim/1", "question": "Status only?",
         "statement": "Optional boundary fixture", "epistemic_status": "interpretation", "subjects": ["fixture"],
         "conditions": [], "limitations": [], "support_refs": refs, "counter_refs": [],
         "method_refs": [], "supersedes": []})

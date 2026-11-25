@@ -1,8 +1,8 @@
-# ETALON architecture review: eight measured failure modes
+# MolDarwin architecture review: eight measured failure modes
 
 Scope: `the repository root`, read 2026-11-09. Read in the order required —
-`CLAUDE.md`, `README.md`, `src/etalon/HOST_SETUP.md`, `src/etalon/runtime/README.md` — then
-`src/etalon` (244 `.py` files), `docs/thin-harness/` (the local design corpus), `.claude/skills/`
+`CLAUDE.md`, `README.md`, `src/moldarwin/HOST_SETUP.md`, `src/moldarwin/runtime/README.md` — then
+`src/moldarwin` (244 `.py` files), `docs/thin-harness/` (the local design corpus), `.claude/skills/`
 and `tools/`. `asset/` was not read or touched. No existing file was modified; this document is
 the only file created. Everything load-bearing below was read directly; the four claims the
 argument most depends on (`research/journal.py:230`, `active/store.py:561`,
@@ -21,7 +21,7 @@ place of admission.
 
 ## 1. The finding that organises the other seven
 
-ETALON does not lack primitives for these failure modes. For six of the eight, the correct
+MolDarwin does not lack primitives for these failure modes. For six of the eight, the correct
 primitive already exists, is better argued than the published practice in the survey, and is
 then **either reachable only from Python, or bound to one task family, or sitting behind a
 default that skips it.** The measured failures are, almost uniformly, failures of an optional
@@ -54,7 +54,7 @@ That is predeclaration enforced on a durable event sequence, not asserted. And
 **(B) The spend path mints its own evidence; the learning path accepts the agent's.**
 `authority.authorize()` (`authority/grant.py:221`) refuses to take a verdict as an argument, and
 says why at `:232-235`: *"it does not take a verdict from the caller — it calls
-`etalon.faults.preflight.check_record` itself. A function that accepted 'this one passed' as an
+`moldarwin.faults.preflight.check_record` itself. A function that accepted 'this one passed' as an
 argument would be a guard on the path nobody takes with extra steps."* It calls `check_record`
 at `:261`, HMAC-signs a token over `parent_id` + `record_sha256` + `receptor_sha256` +
 `issued_at` + `expires_at` + `proceeded_under_waiver` + `unchecked` (`:143-155`), and `require()`
@@ -65,7 +65,7 @@ wrong-record token. In `src` overall `require()` has nine call sites
 
 Now the same taxonomy on the path `learn/admissible.py`'s own docstring calls the more
 consequential one ("admitting a bad one costs a shift in the policy applied to all of them").
-`etalon_rule_admissible` (`mcp/governance.py:268`) takes the observations as JSON **from the
+`moldarwin_rule_admissible` (`mcp/governance.py:268`) takes the observations as JSON **from the
 model** and constructs them at `:297-317` with `fired=item.get("fired", False)` and
 `evaluable=item.get("evaluable", True)`. A host passing `observations: []` receives a `Ruling`
 with an empty `blocking` set — `Admission.ADMITTED` — and `AdmissionReport.rate` counts it as
@@ -97,7 +97,7 @@ failures.** `active/budget.py` is three functions about not exceeding an allowan
 `controller.max_calls` and `max_seconds` are caps. The measured failures were: too few oracle
 calls, too few stochastic draws, no declared threshold at all.
 
-ETALON demonstrably *can* write floors — but only in its statistical layer:
+MolDarwin demonstrably *can* write floors — but only in its statistical layer:
 `learn/calibrate.decide` returns `Verdict.UNDERPOWERED` below `minimum_positives=10`
 (`learn/calibrate.py:317-331`); `research/calibration.py:72-79` refuses a fitted model on
 `len(rows) < 2` or `len(set(groups)) < 2`; `research/transfer.py:42-43` requires at least two
@@ -112,21 +112,21 @@ exists and has never been applied to resources or to draws.
 
 | # | Failure mode | Verdict | Code behind the verdict |
 |---|---|---|---|
-| 1 | Optimised the visible oracle; failed the unseen acceptance criterion | **partial** | Prevents *misreporting which number was measured*; does not detect *divergence between the measured quantity and the scored one*. The readout is hash-bound: `Readout(stage_id, contract_id, value_column, filters)` (`active/cascade.py:27-32`) is digested into `protocol_id = "molcascade-recipe/1:" + digest(...)` (`:124`), so changing which column you read changes the endpoint's protocol id, and `active/store.py:190` refuses `"protocol changed under an existing id; register a new endpoint id"`. `active/graph.py:92-123` checks the column exists and is numerically typed. Aliasing is refused: `"this protocol is already registered; a new alias is not a new experiment"` (`active/protocols.py:279-280`). Units cannot drift: `"result units do not match the endpoint; no implicit conversion"` (`store.py:558-559`), and `active/schema.py:70-71` refuses a ΔΔG as a scalar molecule label. What the host *could see* is recorded (`MethodUse.visible_evidence_refs`, `research/schema.py:235`; the `visible_at_selection` relation at `learn/admission_view.py:97`, classified `used` with basis `record_cannot_settle`). The real anti-proxy mechanism is budgetary, not epistemic: `active/store.py:475-488` refuses, inside the reservation transaction, a proxy action that would eat the objective's confirmation reserve — `BudgetExhausted("proxy action would consume the objective confirmation budget")` — but only for `policy == "decision_aware"`, and `CampaignSpec.confirmation_reserve` defaults to **1**, so "confirmed" means n=1. Against this sits the comparator waiver at `store.py:561-563`. And the fault catalogue is closed-world — an unknown code raises (`learn/admissible.py:173-180`) — so an externally imposed criterion cannot be *named* in a `Ruling` at all. |
+| 1 | Optimised the visible oracle; failed the unseen acceptance criterion | **partial** | Prevents *misreporting which number was measured*; does not detect *divergence between the measured quantity and the scored one*. The readout is hash-bound: `Readout(stage_id, contract_id, value_column, filters)` (`active/cascade.py:27-32`) is digested into `protocol_id = "molcat-recipe/1:" + digest(...)` (`:124`), so changing which column you read changes the endpoint's protocol id, and `active/store.py:190` refuses `"protocol changed under an existing id; register a new endpoint id"`. `active/graph.py:92-123` checks the column exists and is numerically typed. Aliasing is refused: `"this protocol is already registered; a new alias is not a new experiment"` (`active/protocols.py:279-280`). Units cannot drift: `"result units do not match the endpoint; no implicit conversion"` (`store.py:558-559`), and `active/schema.py:70-71` refuses a ΔΔG as a scalar molecule label. What the host *could see* is recorded (`MethodUse.visible_evidence_refs`, `research/schema.py:235`; the `visible_at_selection` relation at `learn/admission_view.py:97`, classified `used` with basis `record_cannot_settle`). The real anti-proxy mechanism is budgetary, not epistemic: `active/store.py:475-488` refuses, inside the reservation transaction, a proxy action that would eat the objective's confirmation reserve — `BudgetExhausted("proxy action would consume the objective confirmation budget")` — but only for `policy == "decision_aware"`, and `CampaignSpec.confirmation_reserve` defaults to **1**, so "confirmed" means n=1. Against this sits the comparator waiver at `store.py:561-563`. And the fault catalogue is closed-world — an unknown code raises (`learn/admissible.py:173-180`) — so an externally imposed criterion cannot be *named* in a `Ruling` at all. |
 | 2 | Measurement with no decision rule | **partial — strong path exists, default path skips it** | The threshold *is* first-class data, separate from the reported quantity: `research/evaluation_contract.py` metrics carry `operator` ∈ {le,lt,ge,gt,eq} and a finite numeric `threshold`, with `"finite numeric threshold and fixed comparator required"` and `"missing values cannot be dropped, imputed or passed"` (`missing_policy` must be `"insufficient"`); `evaluation_rules_digest` strips inputs and provenance so the rule has an identity independent of the data it was applied to. `_aggregate` returns `"not_declared"` where nothing was declared and orders precedence `incomparable > criteria_failed > insufficient > passed`, so a missing input can never aggregate into a pass, and "cost success never erases quality failure". `research_decision.py:502-503` makes the rule binding on the claim: a judgment of `supported` against a replayed status of `criteria_failed` raises `"unsupported judgment conflicts with verified evaluation status"`, and `:334-335` refuses a report whose rules digest differs from the decision's frozen rules. `evidence_window.py` with `timing_mode="controlled"` enforces real durable ordering (`"durable window must precede decision"`, `"outcome must follow frozen decision"`, `"earlier original bytes cannot become a prospective release"`). **And none of it gates the default path.** `composition.record_evaluation` (`research/composition.py:244`) takes a free-text `conclusion`, validated only by `nonempty`; `MethodEvaluation` (`research/schema.py:275-299`) has no threshold, metric, operator or contract field; the `evaluation_plan` step requires metrics with `("name","family","unit","denominator","missing_policy")` (`composition.py:101-108`) and, because `_fields` is an exact-field check (`research/continuation.py:35-37`), **`operator` and `threshold` are not representable in the plan**; and `assessment_role="diagnostic"` returns at `journal.py:230`. `evaluation_contract.py` states the gap itself: *"Existing composition.record_evaluation can explicitly reference the returned Artifact in its result_refs; no MethodEvaluation/adoption is auto-created."* Where a decision rule *is* mandatory it is hard-coded rather than declared: `learn/calibrate.decide` has exactly one call site, `campaign/propose.py:287`, and scores on `Split.WHOLE_PANEL`, the weakest of its three splits. |
 | 3 | A single draw from a stochastic oracle is not a measurement | **partial — detected, priced, annotated; never refused, and the count is unverified** | `F_SINGLE_REPLICA_ESTIMATE` (`faults/taxonomy.py:562`) carries band 1.5–12.0 kcal/mol, `Evidence.LITERATURE`, and a remedy naming five replicas as the ESMACS/TIES count with the honest rider that no theory establishes it. It fires at `faults/stability.py:290` on `trajectory.replicas < 2` — but its `Consequence` is `WRONG_SIZE`, routed to `bounded` (`learn/admissible.py:205-206`), which annotates and does not withhold. The count is a caller-declared integer defaulting to 1 (`faults/stability.py:88`; `from_prism(..., replicas: int = 1)` at `:181`), never derived from the authorised replicate records. `economics/stage.py` has the right predicate in the right place — `reproducible_from_one_run` returns `run_to_run_kcal_mol <= 1.42` (RT·ln 10 at 310 K, i.e. one log unit of affinity) at `:238`, and `replicas_for_a_measurement()` returns 1 or 5 at `:256` — it is binding on **cost** (`economics/allocate.py:222-223`) and surfaces only as a **note**, not a refusal (`allocate.py:478-485`), and **nothing in `active/` consults it.** The one real aggregation rule in the repository is hard-coded and self-labelled a convention: `CONTACT_PERSISTENCE = 0.5` with `CONTACT_PRESENT = 0.3` (`faults/stability.py:65-68`) — structurally identical to the grader's "each feature in ≥60% of 10 draws, then enough features" — and not declarable per protocol. Genuinely strong adjacent work: `runtime/executors.py:138` refuses a repeated seed with *"a repeated seed is a retry, not a replica"*; `active/prism.py:33,59-60` authorises one distinct seed per replicate and refuses dispatch past the authorised set; `active/model.py:69` refuses duplicate action identities as replicates; `active/cascade.py:165-171` refuses a fixed-seed cascade as a replica source; `active/adapters.py:77-78` refuses `PrismStage` as a certifier of independent replicas. And the decisive one, `runtime/executors.py:388-400`: the replicated MM-PBSA executor is registered and **deliberately not dispatchable**, because falling through *"would quietly run as one unseeded trajectory per action and report the result under a protocol id that claims recorded seeds and a known energy author."* Both shipped dispatchable kinds have `max_replicates = 1`. So the replicate machinery is correct, honest, and inert. |
-| 4 | Budget systematically under-used | **absent** | `active/store.py:292` `_balance` returns exactly `{"budget", "spent", "reserved", "remaining"}`, and `remaining` is read only to decide whether the next action fits (`runner.py:70`, `policy.py:35`); nothing ever reads a large `remaining` as a problem. The per-round allowance is `spec.batch_size` (`active/schema.py:189`), passed as `slots` at `runner.py:72`; when `policy.choose` returns fewer than `slots` it simply breaks out of its loop (`policy.py:135-136`) and the round runs short. The round summary at `runner.py:174` records a **cumulative** balance and a `stop_reason` of `"ready"` — so a round that used 2 of 8 slots and one that used 8 of 8 are recorded identically. `len(summary["actions"]) < spec.batch_size` is computable by any reader and computed by nothing. `campaign/ledger.py` has no cost field at all; it is a config-change journal (`Entry(kind, round_id, at, body)`, `:61`). The nearest thing that puts allowance beside consumption is the benchmark layer, at whole-campaign granularity (`active/benchmark.py:78,87`), and there under-spend is scored as a **virtue**: `protocol_stopping_benchmark.py:87` reports `"budget_saved": budget - spent`. That is the real obstacle, not the arithmetic: `active/decision_benchmark.py:136-137` states *"Equal budget means equal caps and charged warm starts, not necessarily equal expenditure: a confirmation guard may deliberately leave unusable budget."* A detector must therefore distinguish a deliberate reserve from a failure to use the allowance, and that distinction exists nowhere as data. ETALON's substantive position agrees with the measurement — `findings/0004` as quoted in `README.md` holds that a better cheap tier beats ten times the compute — so this is a missing detector, not a disputed claim. |
-| 5 | Error recovery is the bottleneck, not capability | **partial — feedback strong, adaptation absent** | Materially stronger than the harness those numbers were measured on. `method.run` is a whole declared program, not a snippet: explicit absolute argv with no shell (`runtime/method.py:46-49`), declared `files`, `inputs`, `input_files`, `outputs` confined to the step directory (`:65-73`), and `--request`/`--result` paths appended (`:129`). The program runs as its own OS process under a detached supervisor (`runtime/native.py:337-338`, `:397-398`), so "variables did not persist across calls" is not a failure this contract can produce; state crosses steps through `$ref` and the step directory. Failure feedback is typed: `_failure_details` (`runtime/method.py:21-40`) returns a discriminating `kind` ∈ {`process_exit`, `missing_output`, `invalid_result`}, plus `returncode`, a `missing_outputs` list, `reason`, a 2048-byte `stderr_tail` with `stderr_truncated`, a content-addressed `stderr` pin, and `stderr_read_error` kept separate so a log-read failure is not confused with the program's. A malformed result file is itself a typed failure rather than a crash. Exit code 0 is not read as success: `"scientific_status": "not_inferred_from_exit_code"` (`native.py:416`). Retry is structurally forbidden, not merely omitted: `"automatic_retry": False` in both status and receipt (`native.py:281`, `:378`), `return  # Never relaunch even after a worker dies with unknown outcome` (`:390`), and an unknown outcome raises rather than re-running (`method.py:141`). What is absent is the other half. Nothing counts repeated near-identical failing submissions. `runtime/reuse.py` would recognise one — `request_identity()` digests operation+implementation+environment+inputs+parameters and a terminal receipt *including a failed one* is returned as `reused: True` (`reuse.py:20-31`, `:37`) — but **`method.run` does not use it**; no import of `etalon.runtime.reuse` appears in `method.py`, `native.py` or `operations.py`. `research/defect_family.py` can represent a family of related failures with a `mechanism_hypothesis`, and its dedup is deliberately anti-inflationary — `sorted(set(accepted))` with *"repeated bytes add no accepted issue"* — which is right for corroboration and discards the one signal that would support "you have tried this three times". `research/action_learning.py:87` is the nearest thing to forced adaptation: a prediction must predeclare `next_if_match` / `next_if_different` / `next_if_unknown`, all nonempty, and `compare_action_feedback` replays the comparison and hands back the matching branch — explicitly as advice, *"Hints are the host's previously recorded alternatives, never executor commands."* |
-| 6 | Determinism is not robustness | **partial** | The distinction ETALON draws is better than the survey's. `F_RUN_NOT_REPRODUCIBLE` (`faults/taxonomy.py:434`) carries `Consequence.UNVERIFIABLE`, which by the taxonomy's own rule blocks a *claim* and never a spend, and `rule()` routes it to `unverifiable` with the note *"Admitted but not reproducible … This qualifies the claim, not the molecule"* (`learn/admissible.py:203-204`, `:259-265`). That is exactly right: an unseeded run is a **precision** defect, not a **validity** defect, and `judgment/waiver.py:115-123` refuses a waiver for it outright because *"it does not block a spend — it invalidates a claim about the run — so there is nothing for a waiver to release."* `docs/adr/0001` measured the problem (two `genion` runs, `7c3e3472…` vs `098089b3…`) and `boundary/toolchain.py` supplies the seed from outside, refusing with exit 64 when none is set, pinning its own bytes by digest and refusing to wrap itself. `boundary/simulate.py:398-399` is honest that `reproducible` is a conjunction of configuration facts, not a verified output property, and `toolchain.py:30-33` names the residual: the shim does not touch MDP files, so velocity generation is not seeded. **What is missing is dispersion.** Nothing runs the same thing under multiple seeds and reports the spread. `tools/falsify_determinism.py` compares two runs bit-for-bit but records `"seed_passed": False` — it probes the *unseeded* case only, so the shim's own claim is never itself falsified by a probe. Cross-seed `sd_*` is computed, but only inside ETALON's own synthetic policy benchmarks and `None` at n = 1 (`active/benchmark.py:86`, `active/protocol_benchmark.py:161`, `active/decision_benchmark.py:99,125`). The one executor that declares multiple distinct seeds is blocked at dispatch (`runtime/executors.py:388-400`). In `research/`, `panel.py` collects replicate slots and protects the denominator (`slots_per_candidate`, every attempted slot including failures represented exactly once) and then takes **best-of** rather than a spread (`panel.py:128`), closing with `'uncertainty': None, 'uncertainty_reason': 'correlated poses; no calibrated assay-error model'` (`:148`); `grep` over `research/` finds no `stdev`, `variance`, `confidence_interval`, `percentile` or `bootstrap`. ETALON also names this gap against itself: `README.md` records two runs of the council probe at one seed moving Youden's J 1.000 → 0.917, kappa 0.371 → 0.442, effective votes 1.46 → 1.39, concluding *"it is the precision that is unestablished."* |
+| 4 | Budget systematically under-used | **absent** | `active/store.py:292` `_balance` returns exactly `{"budget", "spent", "reserved", "remaining"}`, and `remaining` is read only to decide whether the next action fits (`runner.py:70`, `policy.py:35`); nothing ever reads a large `remaining` as a problem. The per-round allowance is `spec.batch_size` (`active/schema.py:189`), passed as `slots` at `runner.py:72`; when `policy.choose` returns fewer than `slots` it simply breaks out of its loop (`policy.py:135-136`) and the round runs short. The round summary at `runner.py:174` records a **cumulative** balance and a `stop_reason` of `"ready"` — so a round that used 2 of 8 slots and one that used 8 of 8 are recorded identically. `len(summary["actions"]) < spec.batch_size` is computable by any reader and computed by nothing. `campaign/ledger.py` has no cost field at all; it is a config-change journal (`Entry(kind, round_id, at, body)`, `:61`). The nearest thing that puts allowance beside consumption is the benchmark layer, at whole-campaign granularity (`active/benchmark.py:78,87`), and there under-spend is scored as a **virtue**: `protocol_stopping_benchmark.py:87` reports `"budget_saved": budget - spent`. That is the real obstacle, not the arithmetic: `active/decision_benchmark.py:136-137` states *"Equal budget means equal caps and charged warm starts, not necessarily equal expenditure: a confirmation guard may deliberately leave unusable budget."* A detector must therefore distinguish a deliberate reserve from a failure to use the allowance, and that distinction exists nowhere as data. MolDarwin's substantive position agrees with the measurement — `findings/0004` as quoted in `README.md` holds that a better cheap tier beats ten times the compute — so this is a missing detector, not a disputed claim. |
+| 5 | Error recovery is the bottleneck, not capability | **partial — feedback strong, adaptation absent** | Materially stronger than the harness those numbers were measured on. `method.run` is a whole declared program, not a snippet: explicit absolute argv with no shell (`runtime/method.py:46-49`), declared `files`, `inputs`, `input_files`, `outputs` confined to the step directory (`:65-73`), and `--request`/`--result` paths appended (`:129`). The program runs as its own OS process under a detached supervisor (`runtime/native.py:337-338`, `:397-398`), so "variables did not persist across calls" is not a failure this contract can produce; state crosses steps through `$ref` and the step directory. Failure feedback is typed: `_failure_details` (`runtime/method.py:21-40`) returns a discriminating `kind` ∈ {`process_exit`, `missing_output`, `invalid_result`}, plus `returncode`, a `missing_outputs` list, `reason`, a 2048-byte `stderr_tail` with `stderr_truncated`, a content-addressed `stderr` pin, and `stderr_read_error` kept separate so a log-read failure is not confused with the program's. A malformed result file is itself a typed failure rather than a crash. Exit code 0 is not read as success: `"scientific_status": "not_inferred_from_exit_code"` (`native.py:416`). Retry is structurally forbidden, not merely omitted: `"automatic_retry": False` in both status and receipt (`native.py:281`, `:378`), `return  # Never relaunch even after a worker dies with unknown outcome` (`:390`), and an unknown outcome raises rather than re-running (`method.py:141`). What is absent is the other half. Nothing counts repeated near-identical failing submissions. `runtime/reuse.py` would recognise one — `request_identity()` digests operation+implementation+environment+inputs+parameters and a terminal receipt *including a failed one* is returned as `reused: True` (`reuse.py:20-31`, `:37`) — but **`method.run` does not use it**; no import of `moldarwin.runtime.reuse` appears in `method.py`, `native.py` or `operations.py`. `research/defect_family.py` can represent a family of related failures with a `mechanism_hypothesis`, and its dedup is deliberately anti-inflationary — `sorted(set(accepted))` with *"repeated bytes add no accepted issue"* — which is right for corroboration and discards the one signal that would support "you have tried this three times". `research/action_learning.py:87` is the nearest thing to forced adaptation: a prediction must predeclare `next_if_match` / `next_if_different` / `next_if_unknown`, all nonempty, and `compare_action_feedback` replays the comparison and hands back the matching branch — explicitly as advice, *"Hints are the host's previously recorded alternatives, never executor commands."* |
+| 6 | Determinism is not robustness | **partial** | The distinction MolDarwin draws is better than the survey's. `F_RUN_NOT_REPRODUCIBLE` (`faults/taxonomy.py:434`) carries `Consequence.UNVERIFIABLE`, which by the taxonomy's own rule blocks a *claim* and never a spend, and `rule()` routes it to `unverifiable` with the note *"Admitted but not reproducible … This qualifies the claim, not the molecule"* (`learn/admissible.py:203-204`, `:259-265`). That is exactly right: an unseeded run is a **precision** defect, not a **validity** defect, and `judgment/waiver.py:115-123` refuses a waiver for it outright because *"it does not block a spend — it invalidates a claim about the run — so there is nothing for a waiver to release."* `docs/adr/0001` measured the problem (two `genion` runs, `7c3e3472…` vs `098089b3…`) and `boundary/toolchain.py` supplies the seed from outside, refusing with exit 64 when none is set, pinning its own bytes by digest and refusing to wrap itself. `boundary/simulate.py:398-399` is honest that `reproducible` is a conjunction of configuration facts, not a verified output property, and `toolchain.py:30-33` names the residual: the shim does not touch MDP files, so velocity generation is not seeded. **What is missing is dispersion.** Nothing runs the same thing under multiple seeds and reports the spread. `tools/falsify_determinism.py` compares two runs bit-for-bit but records `"seed_passed": False` — it probes the *unseeded* case only, so the shim's own claim is never itself falsified by a probe. Cross-seed `sd_*` is computed, but only inside MolDarwin's own synthetic policy benchmarks and `None` at n = 1 (`active/benchmark.py:86`, `active/protocol_benchmark.py:161`, `active/decision_benchmark.py:99,125`). The one executor that declares multiple distinct seeds is blocked at dispatch (`runtime/executors.py:388-400`). In `research/`, `panel.py` collects replicate slots and protects the denominator (`slots_per_candidate`, every attempted slot including failures represented exactly once) and then takes **best-of** rather than a spread (`panel.py:128`), closing with `'uncertainty': None, 'uncertainty_reason': 'correlated poses; no calibrated assay-error model'` (`:148`); `grep` over `research/` finds no `stdev`, `variance`, `confidence_interval`, `percentile` or `bootstrap`. MolDarwin also names this gap against itself: `README.md` records two runs of the council probe at one seed moving Youden's J 1.000 → 0.917, kappa 0.371 → 0.442, effective votes 1.46 → 1.39, concluding *"it is the precision that is unestablished."* |
 | 7 | The harness dominates the base model; effort is non-monotonic | **partial, trending absent** | The content/usage split is real: skill-content identity S and usage-method identity U carry independent digests (`HOST_SETUP.md`, §Capabilities and versions), the usage method is a byte hash of the guidance file (`skills.py:296-297`), `MethodVersion.verification_basis` ∈ {`host_reported`, `content_verified`} (`research/schema.py:223-224`), `MethodUse.basis` ∈ {`host_reported`, `tool_observed`} (`:268-269`), and `selected_methods` carries `adoption` ∈ {full, partial} with `used_parts` required for partial (`:256-263`). `MethodEvaluation` requires `task_split_ref` *and* `accounting_refs` (`:276-287`), so cost is structurally beside quality. `research_decision.py:101-109` is the richest record, with `attribution` fields `("actor","basis","model_ref","skill_refs","verifier_refs")` and a refusal that predictions stay attributable host judgment — and `model_ref` is explicitly nullable, `skill_refs` and `verifier_refs` may be empty. `capability_profile.py:108-118` does form a joint version group over model + skills + methods + verifiers + rules digest, and reports a null `model_ref` as a **gap** (`:99-107`) — but it is read-only, refuses nothing, and stamps `transferable_benefit="not_established_by_aggregation"` and `uncertainty="no_confidence_interval_or_statistical_noninferiority_inferred"`. `MethodUse.host_conditions` defaults to `{}` and is validated only as *"must be an object with null for unknown fields"* (`research/schema.py:270-271`): **no required key, no type, no enum.** `host.py:120-121` restricts `host` to a vendor name. So prompt/skill version is content-hashed and recordable, model name is a nullable ref, and **reasoning effort is not representable at all** — input 7's non-monotonicity (one system peaking at medium, another lifting 35% → 52% from high to max) has no slot. No mechanism refuses a two-axis change: `Revision` only refuses changing the same field twice, and `panel.propose_joint_revision` *requires* a simultaneous two-axis change, answering confounding by predeclaring the joint arm as a control (`panel.py:198-208`, `:267`) and closing with `'causal_attribution': 'unresolved; factorial differences are descriptive'` (`:153`). `improvement.assess_revision:392` compares a patch's declared `conditions` against observed `host_conditions` and reports mismatches as **missing evidence** (`'awaiting_evidence'`), checking only keys the patch declared — an undeclared axis that changed is invisible. |
-| 8 | The field's convergent design discipline | **largely handled; in three places stronger than the surveyed practice; one element consciously rejected** | **Freeze all but the variable — handled, chronology enforced by data rather than claimed.** `research/panel.freeze_selection` (`:236`) requires distinct development and validation tasks and refuses outright once the validation panel holds any observation: `if any(v is not None for v in target_summary['cells'].values()): raise StateError('freeze must precede validation panel observations')` (`:251-253`). It freezes a 2×2 of `P0/E0 … P1/E1` including an explicit `static_P1_E1` "predeclared joint intervention control", records `improvement_policy_learning: 'not_demonstrated'`, `independent_validation_accessed: False` and `policy_equivalence: '… neither is a learned improvement policy'` in the frozen body, digests it, and `execute_frozen_policies` re-verifies that digest (`"frozen decision changed"`) while noting it is *"an off-policy evaluation, not four independent experiments."* `schema.Contrast` (`:136-151`) forces all four factorial cells to be recorded including the missing ones as `None`, and refuses one observation impersonating two arms. **Sealed split, scored once — handled, and one-way.** `Artifact.role` ∈ {`diagnostic`, `independent_validation`, `sealed_holdout`} (`research/schema.py:47-48`), with `sealed_holdout` structurally unreadable at many read sites. `research_decision.py:259-261` refuses evaluation-only or sealed material from conditioning a decision, and `:400-401` refuses the byte-level relabel. `seen.register_seen_labels` releases evidence from independent validation to seen development one way only, refusing a formerly-seen task re-entering an independent test, refusing any label change (*"seen release changes scientific labels; explicit data amendment required"*), and recording `independent_validation_reusable: False`. `journal.py:263-269` adds the content-addressed anti-laundering check. `result_integrity.confirmation_eligibility` (`:270`) requires `decisions_frozen_before_execution is True`, `outcomes_visible_at_freeze is False`, verified freeze-declaration *bytes* rather than *"a newly asserted boolean or a command-line flag"*, and `seen_series_ids` tracking that returns `series_feedback_seen`. `evidence_window.py:522-523` refuses partial scoring — *"release must preserve every frozen outcome, including failures"* — so you cannot score only the slots that came out well. **Sealed oracle in the benchmarks — handled by argument absence.** `active/policy.choose` has no oracle parameter; `replay.py:39-47` returns a cell only for an action already reserved and charged; `replay.py:80-84` requires the table be *complete* over the full cross product so which cells exist leaks nothing; `replay.py:98-104` validates QC across the whole table *"without admitting or exposing any unqueried label to the learner"*; `decision_benchmark.py:71-72` refuses an evidence-backed recommendation the arm never paid to measure. **Fresh re-run — partially handled**, by `boundary/infra.py` refusing a shadowed import, `tools/verify_assets.py --deep`, and the SND1 ablation's reproduction cell (`narrow_on` must reproduce historical T0 within 0.001 Å and 0.0001 kcal/mol); there is no general "re-run the submitted artifact in a fresh environment as the official score". **Cost as a first-class axis — handled**, with units kept separate rather than normalised and the separation enforced: `store.py:334-335` refuses a cross-unit charge, `:558-559` a cross-unit value, `active/adapters.py:45-46` states *"Wall time is NOT silently called GPU time"*, and `economics/stage.py:147-152` gives each quantity its own Evidence tag because `measure.with_enrichment` had published `spearman: 0.35` under `evidence: measured_here`. **Mechanism evidence — the strongest element, and unimplemented.** `faults/attribution.py` eliminates causes by magnitude and returns `UNEXPLAINED` when no candidate survives — a label on a returned `Attribution`, not a refusal, with the note *"Something outside this taxonomy is acting, and naming one of the refused causes anyway would be the wrong answer confidently given"*, and `magnitude_was_available` reporting whether any magnitude reasoning happened at all. `research_decision.py:129-141` requires a testable prediction to bind competing `option_ids` and state in `distinguishes` which rival explanation the observation rules out, and `:492-493` requires a judgment's observations to be exact outputs of the specific executed action with its identity unchanged — arm-level attribution, genuinely enforced. `docs/thin-harness/RSI_REWARD.md` then goes further than anything in the survey: restrict the reward to `Exactness.EXACT` observables so it is *"ungameable by construction rather than by vigilance"*, count only `Admission.ADMITTED` and not `ADMITTED_UNDER_WAIVER`, count `not_recorded` as a loss, refuse a comparison whose sides differ in catalogue digest, argue that **no split of an external benchmark protects against learning the verifier** so the reward must be internal, and specify the shuffled-signal control as *"the only observable here that distinguishes the two."* None of that reward exists in `src` (`grep -rn "warrant"` over `src/etalon` returns two unrelated docstrings), and no module checks a declared mechanism against evidence — every delta module stamps "not causal" instead (`transfer_checks.py:81`, `panel.py:153`, `research_impact.py:137`, `declared_relations.py:103-105`). **Normalisation onto one anchored scale — consciously rejected**, and I think correctly. That rejection should stay a stated position rather than drift into an unstated one. |
+| 8 | The field's convergent design discipline | **largely handled; in three places stronger than the surveyed practice; one element consciously rejected** | **Freeze all but the variable — handled, chronology enforced by data rather than claimed.** `research/panel.freeze_selection` (`:236`) requires distinct development and validation tasks and refuses outright once the validation panel holds any observation: `if any(v is not None for v in target_summary['cells'].values()): raise StateError('freeze must precede validation panel observations')` (`:251-253`). It freezes a 2×2 of `P0/E0 … P1/E1` including an explicit `static_P1_E1` "predeclared joint intervention control", records `improvement_policy_learning: 'not_demonstrated'`, `independent_validation_accessed: False` and `policy_equivalence: '… neither is a learned improvement policy'` in the frozen body, digests it, and `execute_frozen_policies` re-verifies that digest (`"frozen decision changed"`) while noting it is *"an off-policy evaluation, not four independent experiments."* `schema.Contrast` (`:136-151`) forces all four factorial cells to be recorded including the missing ones as `None`, and refuses one observation impersonating two arms. **Sealed split, scored once — handled, and one-way.** `Artifact.role` ∈ {`diagnostic`, `independent_validation`, `sealed_holdout`} (`research/schema.py:47-48`), with `sealed_holdout` structurally unreadable at many read sites. `research_decision.py:259-261` refuses evaluation-only or sealed material from conditioning a decision, and `:400-401` refuses the byte-level relabel. `seen.register_seen_labels` releases evidence from independent validation to seen development one way only, refusing a formerly-seen task re-entering an independent test, refusing any label change (*"seen release changes scientific labels; explicit data amendment required"*), and recording `independent_validation_reusable: False`. `journal.py:263-269` adds the content-addressed anti-laundering check. `result_integrity.confirmation_eligibility` (`:270`) requires `decisions_frozen_before_execution is True`, `outcomes_visible_at_freeze is False`, verified freeze-declaration *bytes* rather than *"a newly asserted boolean or a command-line flag"*, and `seen_series_ids` tracking that returns `series_feedback_seen`. `evidence_window.py:522-523` refuses partial scoring — *"release must preserve every frozen outcome, including failures"* — so you cannot score only the slots that came out well. **Sealed oracle in the benchmarks — handled by argument absence.** `active/policy.choose` has no oracle parameter; `replay.py:39-47` returns a cell only for an action already reserved and charged; `replay.py:80-84` requires the table be *complete* over the full cross product so which cells exist leaks nothing; `replay.py:98-104` validates QC across the whole table *"without admitting or exposing any unqueried label to the learner"*; `decision_benchmark.py:71-72` refuses an evidence-backed recommendation the arm never paid to measure. **Fresh re-run — partially handled**, by `boundary/infra.py` refusing a shadowed import, `tools/verify_assets.py --deep`, and the SND1 ablation's reproduction cell (`narrow_on` must reproduce historical T0 within 0.001 Å and 0.0001 kcal/mol); there is no general "re-run the submitted artifact in a fresh environment as the official score". **Cost as a first-class axis — handled**, with units kept separate rather than normalised and the separation enforced: `store.py:334-335` refuses a cross-unit charge, `:558-559` a cross-unit value, `active/adapters.py:45-46` states *"Wall time is NOT silently called GPU time"*, and `economics/stage.py:147-152` gives each quantity its own Evidence tag because `measure.with_enrichment` had published `spearman: 0.35` under `evidence: measured_here`. **Mechanism evidence — the strongest element, and unimplemented.** `faults/attribution.py` eliminates causes by magnitude and returns `UNEXPLAINED` when no candidate survives — a label on a returned `Attribution`, not a refusal, with the note *"Something outside this taxonomy is acting, and naming one of the refused causes anyway would be the wrong answer confidently given"*, and `magnitude_was_available` reporting whether any magnitude reasoning happened at all. `research_decision.py:129-141` requires a testable prediction to bind competing `option_ids` and state in `distinguishes` which rival explanation the observation rules out, and `:492-493` requires a judgment's observations to be exact outputs of the specific executed action with its identity unchanged — arm-level attribution, genuinely enforced. `docs/thin-harness/RSI_REWARD.md` then goes further than anything in the survey: restrict the reward to `Exactness.EXACT` observables so it is *"ungameable by construction rather than by vigilance"*, count only `Admission.ADMITTED` and not `ADMITTED_UNDER_WAIVER`, count `not_recorded` as a loss, refuse a comparison whose sides differ in catalogue digest, argue that **no split of an external benchmark protects against learning the verifier** so the reward must be internal, and specify the shuffled-signal control as *"the only observable here that distinguishes the two."* None of that reward exists in `src` (`grep -rn "warrant"` over `src/moldarwin` returns two unrelated docstrings), and no module checks a declared mechanism against evidence — every delta module stamps "not causal" instead (`transfer_checks.py:81`, `panel.py:153`, `research_impact.py:137`, `declared_relations.py:103-105`). **Normalisation onto one anchored scale — consciously rejected**, and I think correctly. That rejection should stay a stated position rather than drift into an unstated one. |
 
 ### Two terminology findings worth stating separately
 
 **`soundness` and `progress` are not implemented anywhere.** A repository-wide search over `*.py`,
 `*.md` and `*.json` outside `asset/` returns only `CLAUDE.md:6-7` itself. Their sole operational
 appearance is a prose instruction to the host in
-`.claude/skills/etalon-step-corpus/SKILL.md:30-35`:
+`.claude/skills/moldarwin-step-corpus/SKILL.md:30-35`:
 
 > Soundness and progress are separate fields. … Fill them from rules over the fault codes and the
 > operation outcomes on the first pass. Where a rule does not reach, leave the field empty; an
@@ -177,7 +177,7 @@ moving.
 
 *(b) Make an independent-validation conclusion name the rule it is a conclusion of.* In
 `composition.record_evaluation`, when `assessment_role == "independent_validation"`, require
-every plan metric to carry a `rules_digest` and a bound `etalon-evaluation-report/1` whose status
+every plan metric to carry a `rules_digest` and a bound `moldarwin-evaluation-report/1` whose status
 is `criteria_passed` or `criteria_failed` — not `insufficient`, not `incomparable`, not absent.
 This does not ask the contract to be right and promotes nothing; it asks that a claim of
 independent validation name a numeric rule.
@@ -189,12 +189,12 @@ at `:232`, so a diagnostic evaluation may carry no results and no cost reference
 `accounting_refs` for every role. Cost is already a required field of the dataclass; this makes
 it a required *fact*.
 
-**Files and call sites.** `src/etalon/research/composition.py:101-108` (metric validation, add
+**Files and call sites.** `src/moldarwin/research/composition.py:101-108` (metric validation, add
 the optional field), `:244-282` (`record_evaluation`: the refusal, and binding the report ref
-into the recorded step's `detail`); `src/etalon/research/journal.py:230-232`
+into the recorded step's `detail`); `src/moldarwin/research/journal.py:230-232`
 (`_validate_method_evaluation`, the early return and the check immediately after it);
-`src/etalon/research/schema.py:296-297` (`assessment_role`, already the discriminator). Reads
-only: `src/etalon/research/evaluation_contract.py` (`evaluation_rules_digest`,
+`src/moldarwin/research/schema.py:296-297` (`assessment_role`, already the discriminator). Reads
+only: `src/moldarwin/research/evaluation_contract.py` (`evaluation_rules_digest`,
 `validate_evaluation_contract`), whose `method_contract_ref` binding already demonstrates the
 digest-into-a-contract pattern.
 
@@ -205,7 +205,7 @@ requires a contract declared beforehand. That is the intended cost.
 would become unrecordable. They must not be retrofitted — hard constraint 4 forbids backfilling
 admission, and `RSI_REWARD.md` already concedes historical nodes are permanently `not_recorded`.
 Apply to new records and leave the old ones in a marked partition, which is exactly what
-`.claude/skills/etalon-recomputability-audit/SKILL.md:46-49` prescribes for this class of change.
+`.claude/skills/moldarwin-recomputability-audit/SKILL.md:46-49` prescribes for this class of change.
 Second risk, and the one to watch: hosts route around a stricter path by recording everything as
 `diagnostic`. That should be reported rather than prevented — `diagnostic` is a legitimate role
 and forcing the stronger one would make the record less honest, not more. Edit (c) is the one
@@ -251,12 +251,12 @@ were taken without a comparator, because the whole argument of `learn/admissible
 calibration of a cheap number against an expensive one, and on this path that comparison is
 structurally absent.
 
-**Files and call sites.** `src/etalon/mcp/governance.py:268` (signature), `:297-317` (the
+**Files and call sites.** `src/moldarwin/mcp/governance.py:268` (signature), `:297-317` (the
 `Measurement`/`Observation` construction that is the actual hole), `:318-330` (the `ok(...)`
-response). Reads only: `src/etalon/faults/taxonomy.py` (`FAULTS`/`BY_CODE`) and
-`src/etalon/faults/preflight.py:388` (`unchecked`) for the existing vocabulary. For the
-comparator report: `src/etalon/active/store.py:561-563` and the round summary at
-`src/etalon/active/runner.py:174`. **`src/etalon/learn/admissible.py` is not modified** —
+response). Reads only: `src/moldarwin/faults/taxonomy.py` (`FAULTS`/`BY_CODE`) and
+`src/moldarwin/faults/preflight.py:388` (`unchecked`) for the existing vocabulary. For the
+comparator report: `src/moldarwin/active/store.py:561-563` and the round summary at
+`src/moldarwin/active/runner.py:174`. **`src/moldarwin/learn/admissible.py` is not modified** —
 `rule(Measurement) -> Ruling` keeps its semantics exactly; what changes is the completeness of
 the `Measurement` handed to it, which is the argument `rule()` was designed to receive.
 
@@ -293,18 +293,18 @@ refusal. Run the recomputability audit first and publish its four counts — abs
 places, all on the surface a model actually drives. This proposal is to close two of them and
 document the third as a bounded, named exception rather than an oversight.
 
-1. **`etalon_screen_submit` is a route around the gate.** `mcp/execution.py:109-117` takes
+1. **`moldarwin_screen_submit` is a route around the gate.** `mcp/execution.py:109-117` takes
    `config_path, workspace, run_id, plan_id, library_path, workers, devices, allow_copyleft,
    delivery` — no gate token of any kind. `plan_id` is `expected_plan_id`, a change-detection
-   check, not an authorization. Meanwhile `etalon_sweep_emit` does it correctly: it takes
+   check, not an authorization. Meanwhile `moldarwin_sweep_emit` does it correctly: it takes
    `gate_json`, refuses without it, and reports which of the three causes fired. A host that
-   reads a refusal from `etalon_authorize_gates` — or never calls it — can reach
-   `etalon_screen_plan` (CHEAP) then `etalon_screen_submit` (SPENDS) and apply uncalibrated gates
+   reads a refusal from `moldarwin_authorize_gates` — or never calls it — can reach
+   `moldarwin_screen_plan` (CHEAP) then `moldarwin_screen_submit` (SPENDS) and apply uncalibrated gates
    to a library it supplies directly. `authority/gate.py:31-36` concedes this and calls it *"a
    campaign whose operator chose to skip the check"*, but the actor on the MCP surface is the
    model, which is the party the cost scheme exists for. **Change:** add an optional `gate_json`
-   to `etalon_screen_submit` and refuse without it when the config declares gates whose
-   calibration is recorded — the same shape `etalon_sweep_emit` already uses.
+   to `moldarwin_screen_submit` and refuse without it when the config declares gates whose
+   calibration is recorded — the same shape `moldarwin_sweep_emit` already uses.
 2. **`method.run` and `screen.run` nodes spend with no authority object.** Of the registered
    workflow operations, only `active.evaluate` can reach `require()`
    (`runtime/operations.py:171-177`). For `method.run` the preflight checks only that an
@@ -325,13 +325,13 @@ While there: `authority/__init__.py:8-9` and `mcp/governance.py:410` both still 
 five that spend"*. The current census is 87 `@tool` applications with 7 SPENDS and 1 NEVER. A
 stale count in a docstring that *reasons from* the count is worth fixing in the same pass.
 
-**Files and call sites.** `src/etalon/mcp/execution.py:109-131` (`etalon_screen_submit`);
-`src/etalon/mcp/sweep.py:246-296` (`etalon_sweep_emit`, the pattern to copy) and `:314-368`
-(`etalon_authorize_gates`); `src/etalon/runtime/operations.py:171-190` (the preflight branch
+**Files and call sites.** `src/moldarwin/mcp/execution.py:109-131` (`moldarwin_screen_submit`);
+`src/moldarwin/mcp/sweep.py:246-296` (`moldarwin_sweep_emit`, the pattern to copy) and `:314-368`
+(`moldarwin_authorize_gates`); `src/moldarwin/runtime/operations.py:171-190` (the preflight branch
 where a `method.run` token would be required) and `:650-652` (`verify`);
-`src/etalon/authority/grant.py` and `src/etalon/authority/gate.py` (the two existing copies that
-a third instance should finally factor); `src/etalon/authority/__init__.py:8-12` and
-`src/etalon/mcp/governance.py:410` (stale counts).
+`src/moldarwin/authority/grant.py` and `src/moldarwin/authority/gate.py` (the two existing copies that
+a third instance should finally factor); `src/moldarwin/authority/__init__.py:8-12` and
+`src/moldarwin/mcp/governance.py:410` (stale counts).
 
 **Cost.** (1) is small. (2) is the largest single change in this document, because doing it
 properly means extracting the shared authorization shape rather than writing it a third time.
@@ -393,12 +393,12 @@ defaulting to 1. Derive it from the authorised replicate actions, which already 
 with distinct authorised seeds, and when the declared and authorised counts disagree, emit the
 stability observation as `evaluable=False` rather than letting the larger number clear the fault.
 
-**Files and call sites.** (a) `src/etalon/economics/stage.py:238,256` (read only),
-`src/etalon/active/recommendation.py:40-57`, `src/etalon/active/decision.py`. (b)
-`src/etalon/active/schema.py` (`Endpoint`, where `max_replicates` and its validation live),
-`src/etalon/active/store.py:459-461`, `src/etalon/runtime/operations.py:212-214`,
-`src/etalon/active/policy.py:47,89`. (c) `src/etalon/faults/stability.py:65-68,171,275-281`. (d)
-`src/etalon/faults/stability.py:72-88,176-211,288-301`. The fault's `Consequence` stays
+**Files and call sites.** (a) `src/moldarwin/economics/stage.py:238,256` (read only),
+`src/moldarwin/active/recommendation.py:40-57`, `src/moldarwin/active/decision.py`. (b)
+`src/moldarwin/active/schema.py` (`Endpoint`, where `max_replicates` and its validation live),
+`src/moldarwin/active/store.py:459-461`, `src/moldarwin/runtime/operations.py:212-214`,
+`src/moldarwin/active/policy.py:47,89`. (c) `src/moldarwin/faults/stability.py:65-68,171,275-281`. (d)
+`src/moldarwin/faults/stability.py:72-88,176-211,288-301`. The fault's `Consequence` stays
 `WRONG_SIZE` throughout — I am not proposing a single draw block a spend, which would contradict
 `docs/adr/0002`'s finding that band and consequence are different questions.
 
@@ -450,14 +450,14 @@ measurement is that **more iteration was not the lever** — passing tasks used 
 optimising the quantity the data says is not the problem. What under-use earns is visibility, so
 that slack and its reason arrive together.
 
-**Files and call sites.** `src/etalon/active/store.py:292` (`_balance`, the only accounting view,
+**Files and call sites.** `src/moldarwin/active/store.py:292` (`_balance`, the only accounting view,
 and the four keys to extend from), `:475-488` (the confirmation guard that defines
 `deliberately_reserved`), `:490-492` (where quote and attempt count are written);
-`src/etalon/active/runner.py:72` (`slots=spec.batch_size`, the per-round allowance) and `:174`
+`src/moldarwin/active/runner.py:72` (`slots=spec.batch_size`, the per-round allowance) and `:174`
 (the round summary, which today carries a cumulative balance and a `stop_reason` of `"ready"` for
-both a 2-of-8 and an 8-of-8 round); `src/etalon/active/schema.py:189` (`batch_size`). Surfaced
-through the existing status path (`src/etalon/runtime/api.py` and the status tools in
-`src/etalon/mcp/`), not a new tool. **Not** `campaign/ledger.py`, which has no cost field — it is
+both a 2-of-8 and an 8-of-8 round); `src/moldarwin/active/schema.py:189` (`batch_size`). Surfaced
+through the existing status path (`src/moldarwin/runtime/api.py` and the status tools in
+`src/moldarwin/mcp/`), not a new tool. **Not** `campaign/ledger.py`, which has no cost field — it is
 a config-change journal and should stay one.
 
 **Cost.** Low. It is arithmetic over records that already exist, plus the reason partition.
@@ -484,7 +484,7 @@ against the number of rounds examined, is itself a countable mechanism quantity 
 
 ### P6 (smaller, and required by the vocabulary). Type `soundness` and `progress`, or stop asking
 
-Both exist only as prose in `.claude/skills/etalon-step-corpus/SKILL.md:30-35`. Either make them
+Both exist only as prose in `.claude/skills/moldarwin-step-corpus/SKILL.md:30-35`. Either make them
 derived fields or withdraw the request; a field the host fills from its own reading is the
 configuration that skill's own last clause warns against.
 
@@ -498,7 +498,7 @@ blocking and unwaived is not recoverable within the loop, whereas a `WRONG_SIZE`
 outcome. Neither is a `Fault`, so neither belongs in the taxonomy and neither may touch
 `catalogue_digest()`. Expect the `regressed` collision noted in §2.
 
-**Files.** `src/etalon/learn/admission_view.py` — a third derived facet beside `admission` and
+**Files.** `src/moldarwin/learn/admission_view.py` — a third derived facet beside `admission` and
 `exact_admission` in the node rows at `:503-526`, over the same `relied_on` edges. Then the skill
 text changes from "fill them" to "read them", which is the point.
 
@@ -554,7 +554,7 @@ than in the catalogue.
 
 ---
 
-## 5. Where ETALON is already ahead of the surveyed practice
+## 5. Where MolDarwin is already ahead of the surveyed practice
 
 Stated plainly, because the brief asks for it and because four of these are not small.
 
@@ -562,8 +562,8 @@ Stated plainly, because the brief asks for it and because four of these are not 
    number is about the wrong thing" from "this number may be fine and no re-run will confirm it",
    and `judgment/waiver.py:115-123` refuses a waiver for the latter because there is nothing to
    release. Input 6's whole shape — determinism mistaken for robustness — is a conflation of
-   **precision** with **validity**, and ETALON already has two words, two consequences and a
-   refusal for them. The surveyed benchmarks publish a verdict resting on one draw; ETALON would
+   **precision** with **validity**, and MolDarwin already has two words, two consequences and a
+   refusal for them. The surveyed benchmarks publish a verdict resting on one draw; MolDarwin would
    record that verdict as admitted and not reproducible, which is the honest shape of the same
    fact.
 2. **Reward restricted to `EXACT` observables.** `RSI_REWARD.md:39-57` makes the improvement
@@ -571,7 +571,7 @@ Stated plainly, because the brief asks for it and because four of these are not 
    comparison has no knob. It also argues — correctly, and against the field's convergent
    practice — that **a held-out split cannot protect against learning the verifier**, because
    splitting by instance leaves the verifier shared. That is sharper than input 8's "sealed split
-   scored once", and it is the reason to adopt the sealed-split element as ETALON already has it
+   scored once", and it is the reason to adopt the sealed-split element as MolDarwin already has it
    (`seen.py`'s one-way release, `journal.py:263-269`'s byte-level anti-laundering) rather than as
    the benchmarks frame it.
 3. **Freeze chronology enforced by data, not asserted.** `panel.freeze_selection` refuses to
@@ -627,7 +627,7 @@ Stated plainly, because the brief asks for it and because four of these are not 
    `composition.record_evaluation` needed a value, then the stronger move is to make
    `independent_validation` the default and force the cheap lane to be chosen explicitly, which I
    am not proposing without knowing.
-4. **Are `etalon-candidate-confirmation-freeze/1`, `snd1-seen-series-visibility-overlay/1` and
+4. **Are `moldarwin-candidate-confirmation-freeze/1`, `snd1-seen-series-visibility-overlay/1` and
    `freeze_selection`'s `{P0/E0, P0/E1, P1/E0, P1/E1}` vocabulary deliberate single-task
    instruments, or prototypes of a general contract?** If they are meant to generalise, then
    promoting `panel.freeze_selection`'s chronology enforcement into a harness-level primitive
@@ -645,14 +645,14 @@ Stated plainly, because the brief asks for it and because four of these are not 
    deliberate?
 7. **Is the external benchmark behind these eight inputs intended to run through `method.run`, and
    is its grader to be expressed as an evaluation contract?** This decides P1's scope. If the
-   grader stays outside, the acceptance criterion remains structurally invisible to ETALON whatever
+   grader stays outside, the acceptance criterion remains structurally invisible to MolDarwin whatever
    P1 does, and the realistic goal becomes recording that the criterion was *not* covered — which
    `missing_policy: "insufficient"` and `not_declared` already express.
 8. **Is the shuffled-signal control of `RSI_REWARD.md:106-116` scheduled?** `grep` finds shuffling
    in `active/protocol_benchmark.py` (where it shuffles public catalogue ids independently of the
    hidden response function, so public ids carry no signal) and in `tools/measure_council.py`, and
    neither is that control. It is the only mechanism-evidence instrument the design corpus
-   specifies and the only one of input 8's convergent practices ETALON argues for *more* strongly
+   specifies and the only one of input 8's convergent practices MolDarwin argues for *more* strongly
    than the field; whether it is scheduled decides whether mechanism evidence is a gap or a pending
    delivery.
 9. **Are `controller.max_calls` and `max_seconds` meant to be read as allowances whose under-use
@@ -672,7 +672,7 @@ of leverage, not the order they were asked.
 **§6.1 — `soundness` and `progress`: withdrawn, and deliberately NOT re-delivered as derived
 fields.** `FIXED_TERMINOLOGY_STATUS.md` §6. Withdrawal is the answer to the question as posed;
 the second half is the part worth noting, because the obvious alternative was to keep the
-concepts as ETALON-computed fields and that was refused on the repository's own argument.
+concepts as MolDarwin-computed fields and that was refused on the repository's own argument.
 `Ruling` already separates `blocking` / `waived` / `bounded` / `unverifiable` / `unchecked`,
 each fault carries a `Consequence` of `WRONG_SUBJECT` / `WRONG_SIZE` / `UNVERIFIABLE`, and
 `Consequence`'s docstring says *"the band and the consequence are different questions, and one
@@ -681,9 +681,9 @@ field cannot answer both"*. A three-value summary over that is lossy re-presenta
 is checkpoint freshness and `regressed` at `learn/acquire.py:10` is statistical regression to
 a conditional mean. This review's P6 assumed the first answer and should be dropped.
 
-The live hazard was never `CLAUDE.md` — `host.py:145` installs `src/etalon/HOST.md` as the
+The live hazard was never `CLAUDE.md` — `host.py:145` installs `src/moldarwin/HOST.md` as the
 target's `CLAUDE.md`, so the conventions never reach a research host. It was
-`.claude/skills/etalon-step-corpus/SKILL.md` telling the host to *fill* both fields, in a
+`.claude/skills/moldarwin-step-corpus/SKILL.md` telling the host to *fill* both fields, in a
 paragraph whose own closing clause explained that an inferred value there is indistinguishable
 from a measured one later. That instruction is removed, and `test_normative_consistency.py` J4
 holds its absence across all 28 skills and `HOST.md`.
@@ -736,7 +736,7 @@ as a literal at ~40 **read** sites, which is debt rather than a breach.
 
 ### What was not on the list and mattered more
 
-**ETALON recorded what was produced and never which capability produced it.** No MCP tool name
+**MolDarwin recorded what was produced and never which capability produced it.** No MCP tool name
 appears anywhere in 2001 real events. That one gap blocked three things at once: stage 2, the
 recomputability audit, and the question of which of the 89 verbs are core. It is closed at the
 one seam that knows the answer without being told — `mcp/_common.py::tool` wraps every
@@ -788,7 +788,7 @@ a better prose detector and no enforcement at all.
 The question re-asked one layer down: **why can a field that does not exist be written?**
 Measured, not assumed: `Artifact(bindings={"soundness": "sound"})` was written to the
 journal and read back intact, while a typed `MethodEvaluation(..., soundness=...)` was
-already refused. The hole was the free-form slot that is *also* where ETALON's own
+already refused. The hole was the free-form slot that is *also* where MolDarwin's own
 annotations live — `capability_attribution.KEY` calls `bindings` "the reserved bindings
 key" — which is exactly what makes a host-supplied value indistinguishable from a computed
 one afterwards. `research/reserved_bindings.py` refuses it at `Artifact.__post_init__` and
@@ -801,7 +801,7 @@ Three things generalise:
 1. **Tuning a pattern over prose means the instrument is wrong.** Find the seam where the
    mistake becomes indistinguishable later and refuse it there. A document-level test can
    honestly hold doc↔source *agreement* and never behaviour.
-2. **Scope a refusal to what ETALON would be read as having produced.** `bindings` yes;
+2. **Scope a refusal to what MolDarwin would be read as having produced.** `bindings` yes;
    arbitrary payload content no, because `progress` in a caller's own document legitimately
    means how far a screen got (`boundary/screen.py:178`). The first structural check
    overreached here too and failed on ten legitimate sites — the same error one level in.
@@ -883,7 +883,7 @@ be learned freely because nothing propagates. And the owner's qualification is t
 position: admission is not a score, so nothing here needs an internal benchmark to function.
 
 **What had to change was a defect, not an addition.** Tracing where a judge's verdicts would
-go — consolidated into lessons — found that `etalon-method-experience/1` was outside the
+go — consolidated into lessons — found that `moldarwin-method-experience/1` was outside the
 membrane's scope while being a legal premise ref, and that a human label on a `supports`
 edge from a lesson could promote it to `relied_on` with nothing to stop it. Verified in
 source before acting: `evidence_refs.py:23` makes it a `CONTENT_SCHEMAS` member,

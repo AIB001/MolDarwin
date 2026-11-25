@@ -9,9 +9,9 @@ import numpy as np
 import pytest
 from scipy.integrate import quad
 
-from etalon.active.knowledge import knowledge_gradient, query_knowledge_gradient
-from etalon.active.model import MultiEndpointGP
-from etalon.active.schema import Candidate, Endpoint, Evaluation
+from moldarwin.active.knowledge import knowledge_gradient, query_knowledge_gradient
+from moldarwin.active.model import MultiEndpointGP
+from moldarwin.active.schema import Candidate, Endpoint, Evaluation
 
 
 def model_fixture(*, trained=True, scale=1.0, direction="maximize"):

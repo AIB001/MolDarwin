@@ -1,12 +1,12 @@
 """Attribution is inspectable, but selection alone must never imply execution."""
 import pytest
 
-from etalon.research import MethodUse
-from etalon.research.composition import record_evaluation
-from etalon.research.evidence import query_evidence
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research.graph_memory import build_research_graph, node_identity
-from etalon.research.research_context import build_research_context
+from moldarwin.research import MethodUse
+from moldarwin.research.composition import record_evaluation
+from moldarwin.research.evidence import query_evidence
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research.graph_memory import build_research_graph, node_identity
+from moldarwin.research.research_context import build_research_context
 from test_research_continuation import case, save, checkpoint, publish, step
 from test_research_composition import evaluation_plan, node, ref
 
@@ -24,7 +24,7 @@ def test_evaluation_raw_resource_id_reaches_exact_same_source_receipt(case):
     costs=[n for n in graph['nodes'] if n['ref']['record_id']=='budget:execution:fixture-job']
     assert len(costs)==1 and costs[0]['ref']['source_id']=='research'
     assert any(e.get('relation')=='evaluation_cost' and e['to']==costs[0]['node_id'] for e in graph['edges'])
-    from etalon.research.continuation import resume_research
+    from moldarwin.research.continuation import resume_research
     resumed=resume_research(publish(case),cp)
     assert not any(i.get('record_id')=='fixture-job' and i['reason']=='legacy_reference_unavailable' for i in resumed['issues'])
 
@@ -63,9 +63,9 @@ def test_use_node_evaluation_and_choice_form_explicit_links(case):
     assert file_identity(j.store.path) == before and not j.store.actions()
     # An explicit external workspace supports append-only attribution after
     # deployment. It does not allow unbound local-looking IDs or wrong task use.
-    from etalon.research.continuation import read_content, record_content
-    from etalon.research import ResearchJournal
-    from etalon.active import CampaignStore, CampaignSpec, Endpoint
+    from moldarwin.research.continuation import read_content, record_content
+    from moldarwin.research import ResearchJournal
+    from moldarwin.active import CampaignStore, CampaignSpec, Endpoint
     other = CampaignStore(root / "other.sqlite")
     other.configure(CampaignSpec("audit",0,"wall_second","fixture"),
                     [Endpoint("audit","fixture","unmeasured","count","fixture",0,queryable=False)])

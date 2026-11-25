@@ -1,8 +1,8 @@
 """Two real independent PRISM seeds -> engineering feedback -> plan only.
 
-Run in the frozen ETALON environment:
+Run in the frozen MolDarwin environment:
   python examples/prism_round1.py --config /absolute/config.json --workspace /absolute/new/run
-Dependencies: ETALON [active] (numpy/scipy); PRISM runs in its separately specified Python/cwd.
+Dependencies: MolDarwin [active] (numpy/scipy); PRISM runs in its separately specified Python/cwd.
 No fixture values, implicit PRISM import, third simulation, or dependency installation.
 """
 from __future__ import annotations
@@ -15,14 +15,14 @@ from pathlib import Path
 import sys
 import tempfile
 
-from etalon.active import ActiveCampaign, CampaignSpec, CampaignStore, Candidate, Endpoint
-from etalon.active.prism import PrismV1Executor
-from etalon.active.rounds import is_ready
-from etalon.active.runner import ExecutionPending
-from etalon.active.schema import Action, Evaluation, canonical, digest
-from etalon.authority.grant import authorize, require
-from etalon.boundary.prism_v1 import CLITransport, fields, file_identity, validate_request
-from etalon.faults.preflight import check_record
+from moldarwin.active import ActiveCampaign, CampaignSpec, CampaignStore, Candidate, Endpoint
+from moldarwin.active.prism import PrismV1Executor
+from moldarwin.active.rounds import is_ready
+from moldarwin.active.runner import ExecutionPending
+from moldarwin.active.schema import Action, Evaluation, canonical, digest
+from moldarwin.authority.grant import authorize, require
+from moldarwin.boundary.prism_v1 import CLITransport, fields, file_identity, validate_request
+from moldarwin.faults.preflight import check_record
 
 
 def write_json(path: Path, value: dict) -> None:
@@ -78,10 +78,10 @@ def run(config: dict, workspace: Path, *, resume: bool = False) -> dict:
     # Unknown toolchain shim remains explicitly unevaluable; never claim a shim is installed.
     campaign = ActiveCampaign(store, executor, receptor_path=config["receptor_path"])
     version = {"python": sys.executable, "python_version": sys.version,
-               "etalon_module": __import__("etalon").__file__,
+               "moldarwin_module": __import__("moldarwin").__file__,
                "driver": {"path": str(Path(__file__).resolve()), **file_identity(__file__)},
-               "sources": {str(p.relative_to(Path(__import__('etalon').__file__).parent)): file_identity(p)
-                           for p in sorted(Path(__import__('etalon').__file__).parent.rglob('*.py'))},
+               "sources": {str(p.relative_to(Path(__import__('moldarwin').__file__).parent)): file_identity(p)
+                           for p in sorted(Path(__import__('moldarwin').__file__).parent.rglob('*.py'))},
                "config_sha256": digest(config)}
     if not (workspace / "environment.json").exists():
         write_json(workspace / "environment.json", version)

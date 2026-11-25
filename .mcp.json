@@ -1,29 +1,29 @@
 {
   "mcpServers": {
-    "etalon": {
+    "moldarwin": {
       "type": "stdio",
       "command": "bash",
       "args": [
         "-lc",
-        "source /opt/miniforge3/etc/profile.d/conda.sh && conda activate ETALON && exec python -m etalon.mcp"
+        "source /opt/miniforge3/etc/profile.d/conda.sh && conda activate MolDarwin && exec python -m moldarwin.mcp"
       ],
       "env": {}
     },
-    "molquarry": {
+    "molorigin": {
       "type": "stdio",
       "command": "bash",
       "args": [
         "-lc",
-        "source /opt/miniforge3/etc/profile.d/conda.sh && conda activate ETALON && exec python -m molquarry.mcp_server"
+        "source /opt/miniforge3/etc/profile.d/conda.sh && conda activate MolDarwin && exec python -m molorigin.mcp_server"
       ],
       "env": {}
     },
-    "molcascade": {
+    "molcat": {
       "type": "stdio",
       "command": "bash",
       "args": [
         "-lc",
-        "source /opt/miniforge3/etc/profile.d/conda.sh && conda activate ETALON && exec python -m molcascade.mcp_server"
+        "source /opt/miniforge3/etc/profile.d/conda.sh && conda activate MolDarwin && exec python -m molcat.mcp_server"
       ],
       "env": {}
     },
@@ -32,7 +32,7 @@
       "command": "bash",
       "args": [
         "-lc",
-        "source /opt/miniforge3/etc/profile.d/conda.sh && conda activate ETALON && exec python -m prism.mcp_server"
+        "source /opt/miniforge3/etc/profile.d/conda.sh && conda activate MolDarwin && exec python -m prism.mcp_server"
       ],
       "env": {}
     }

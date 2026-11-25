@@ -9,7 +9,7 @@ from dataclasses import replace
 
 import pytest
 
-from etalon.active import (
+from moldarwin.active import (
     ActiveCampaign,
     CampaignSpec,
     CampaignStore,
@@ -17,13 +17,13 @@ from etalon.active import (
     Evaluation,
     StateError,
 )
-from etalon.active.cascade import CascadeExecutor, CascadeRecipe, Readout
-from etalon.active.mutations import DesignSpace
-from etalon.active.proposer import ProtocolSearch
-from etalon.active.protocols import ProtocolRegistry, TrialPolicy
-from etalon.active.schema import Endpoint, canonical, digest
-from etalon.boundary.screen import Screen
-from etalon.campaign.design import component, compose
+from moldarwin.active.cascade import CascadeExecutor, CascadeRecipe, Readout
+from moldarwin.active.mutations import DesignSpace
+from moldarwin.active.proposer import ProtocolSearch
+from moldarwin.active.protocols import ProtocolRegistry, TrialPolicy
+from moldarwin.active.schema import Endpoint, canonical, digest
+from moldarwin.boundary.screen import Screen
+from moldarwin.campaign.design import component, compose
 
 PANEL = ("m0", "m1", "m2", "m3")
 
@@ -138,7 +138,7 @@ def test_catalogue_and_plan_are_read_only_and_do_not_execute(search_case, monkey
 
 
 def test_catalogue_refuses_combinatorial_limit_before_attempting_mutations(search_case, monkeypatch):
-    import etalon.active.proposer as proposer
+    import moldarwin.active.proposer as proposer
 
     case = search_case
     if hasattr(proposer, "mutate_recipe"):
@@ -475,7 +475,7 @@ def test_durable_proposal_intent_resumes_without_alias_or_second_allocation(sear
 
 
 def test_registry_api_cannot_change_a_durable_search_intents_quote(search_case, monkeypatch):
-    import etalon.active.proposer as proposer
+    import moldarwin.active.proposer as proposer
 
     case = search_case
     search_id = _authorize(case)
@@ -678,7 +678,7 @@ def test_audit_panel_size_limit_rejects_before_catalogue_or_execution(search_cas
 
 @pytest.mark.parametrize("constant", ["PANEL_VERSION", "RANKER_VERSION"])
 def test_search_plan_refuses_a_changed_reward_or_ranker_definition(search_case, monkeypatch, constant):
-    import etalon.active.protocol_score as scoring
+    import moldarwin.active.protocol_score as scoring
 
     case = search_case
     search_id = _authorize(case)
@@ -693,7 +693,7 @@ def test_search_plan_refuses_a_changed_reward_or_ranker_definition(search_case, 
 
 
 def test_unfrozen_reward_cannot_silently_use_new_scoring_code(search_case, monkeypatch):
-    import etalon.active.protocol_score as scoring
+    import moldarwin.active.protocol_score as scoring
 
     case = search_case
     search_id = _authorize(case)
@@ -736,7 +736,7 @@ def test_audit_ei_economic_stop_is_read_only_and_does_not_close_or_propose(searc
 
 @pytest.mark.parametrize("policy", ["linear_ucb", "fixed", "random"])
 def test_legacy_search_body_and_plan_remain_unchanged_without_economics(search_case, monkeypatch, policy):
-    import etalon.active.protocol_score as scoring
+    import moldarwin.active.protocol_score as scoring
 
     case = search_case
     search_id = _authorize(case, policy=policy)
@@ -758,7 +758,7 @@ def test_legacy_search_body_and_plan_remain_unchanged_without_economics(search_c
 
 @pytest.mark.parametrize("constant", ["AUDIT_RANKER_VERSION", "AUDIT_ECONOMICS_VERSION"])
 def test_audit_ei_freezes_the_exact_economic_contract_and_version(search_case, monkeypatch, constant):
-    import etalon.active.protocol_score as scoring
+    import moldarwin.active.protocol_score as scoring
 
     case = search_case
     search_id = _authorize(case, policy="audit_ei", opportunity_cost=0.04)
@@ -862,7 +862,7 @@ def test_audit_ei_completes_the_committed_panel_then_stops_without_double_chargi
 
 
 def test_audit_ei_filters_unaffordable_ranker_rows_before_economic_stop(search_case, monkeypatch):
-    import etalon.active.protocol_score as scoring
+    import moldarwin.active.protocol_score as scoring
 
     case = search_case
     variants = _catalogue(case)["variants"]
@@ -889,7 +889,7 @@ def test_audit_ei_filters_unaffordable_ranker_rows_before_economic_stop(search_c
 
 
 def test_audit_ei_durable_intent_recovery_does_not_repeat_economic_selection(search_case, monkeypatch):
-    import etalon.active.protocol_score as scoring
+    import moldarwin.active.protocol_score as scoring
 
     case = search_case
     search_id = _authorize(case, policy="audit_ei", opportunity_cost=0.000001)

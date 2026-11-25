@@ -12,24 +12,24 @@ import math
 from pathlib import Path
 import sqlite3
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.schema import digest
-from etalon.research import Artifact, MethodUse, MethodVersion, ResearchJournal, TaskSplit
-from etalon.research import improvement as imp
-from etalon.research.components import record_json
-from etalon.research.composition import node_step, record_evaluation
-from etalon.research.continuation import CHECKPOINT, STEP, record_content, resume_research
-from etalon.research.evaluation_contract import (
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.schema import digest
+from moldarwin.research import Artifact, MethodUse, MethodVersion, ResearchJournal, TaskSplit
+from moldarwin.research import improvement as imp
+from moldarwin.research.components import record_json
+from moldarwin.research.composition import node_step, record_evaluation
+from moldarwin.research.continuation import CHECKPOINT, STEP, record_content, resume_research
+from moldarwin.research.evaluation_contract import (
     build_evaluation_contract, evaluate_contract, record_evaluation_artifact,
 )
-from etalon.research.evidence_refs import file_identity, make_ref
-from etalon.research.method_revision import (
+from moldarwin.research.evidence_refs import file_identity, make_ref
+from moldarwin.research.method_revision import (
     build_method_revision, record_method_revision, resolve_method_revision,
 )
-from etalon.research.opportunity_state import (
+from moldarwin.research.opportunity_state import (
     build_opportunity_disposition, resolve_opportunity_state,
 )
-from etalon.research.publication import _save, prepare_publication, resume_publication
+from moldarwin.research.publication import _save, prepare_publication, resume_publication
 
 TASK = "snd1-integrity-20261024"
 SID = "snd1-integrity-science"
@@ -158,7 +158,7 @@ class Archive:
             with self.store.connection() as src, sqlite3.connect(snapshot) as dst:
                 src.backup(dst)
         path = self.root / (name + "-workspace.json")
-        _save(path, {"schema": "etalon-evidence-workspace/1", "workspace_id": TASK,
+        _save(path, {"schema": "moldarwin-evidence-workspace/1", "workspace_id": TASK,
             "sources": [{"source_id": SID, "kind": "journal", "location": str(snapshot),
                 "identity": {"kind": "snapshot_sha256", "value": file_identity(snapshot)["sha256"]}}],
             "status_refs": [str(self.root / "AUTHORITY.json")], "location_map": []})
@@ -386,7 +386,7 @@ def complete(root, summary_path, receipt_path, recovery_path, *, outcome="retain
         counter_refs=[state["problem_ref"], counter, recovery], candidate_ref=state["candidate_ref"],
         evaluation_ref=evaluation["evaluation_ref"], resolution_ref=resolution["step_ref"], source_id=SID,
         reconsider_when=[{"condition_id": "new-evidence", "condition": "New measured counterevidence or changed physical conditions; another read is not new evidence"}]))
-    claim = a.save({"schema": "etalon-research-claim/1", "question": QUESTION,
+    claim = a.save({"schema": "moldarwin-research-claim/1", "question": QUESTION,
         "statement": f"Frozen comparison: {summary.get('recovered_failures')} of {summary.get('failure_cases')} historical failures rescued, {summary.get('control_regressions')} control regressions, solver CPU ratio {summary.get('candidate_cpu_ratio')}; scoped host decision={outcome}",
         "epistemic_status": "interpretation", "subjects": ["QOY", "QOV"], "conditions": state["conditions"],
         "limitations": [SCOPE, "Wider bounds retain known-crystal anchors", "Pocket-term benefit must be read separately", "Solver cost is not total pipeline cost"],

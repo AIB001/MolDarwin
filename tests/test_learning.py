@@ -17,15 +17,15 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from etalon.learn.acquire import DEFAULT_NOVELTY_BONUS, acquire
-from etalon.learn.conformal import (
+from moldarwin.learn.acquire import DEFAULT_NOVELTY_BONUS, acquire
+from moldarwin.learn.conformal import (
     SPREAD_FLOOR,
     Calibration,
     Interval,
     _quantile_index,
     intervals,
 )
-from etalon.learn.surrogate import DESCRIPTORS, MORGAN_BITS, Features, pic50
+from moldarwin.learn.surrogate import DESCRIPTORS, MORGAN_BITS, Features, pic50
 
 
 def _interval(name: str, mean: float, half: float) -> Interval:
@@ -227,7 +227,7 @@ def test_an_empty_pool_and_an_impossible_budget_are_handled() -> None:
 
 
 def test_a_dropped_row_realigns_rather_than_silently_truncating() -> None:
-    """MolCascade's featuriser drops what it cannot featurise; a full target list then mispairs.
+    """MolCat's featuriser drops what it cannot featurise; a full target list then mispairs.
 
     Its reasoning is better than zero-filling: a zero vector is a plausible input a model will
     happily score. The consequence is that alignment becomes the caller's problem, and getting
@@ -244,10 +244,10 @@ def test_a_dropped_row_realigns_rather_than_silently_truncating() -> None:
         features.align([1, 2])
 
 
-def test_the_representation_is_declared_in_molcascades_vocabulary() -> None:
+def test_the_representation_is_declared_in_molcats_vocabulary() -> None:
     """So the manifest cannot describe a featurisation the model was not trained on.
 
-    Skipped, loudly, where the vendored MolCascade cannot be imported. It needs pydantic v2 and an
+    Skipped, loudly, where the vendored MolCat cannot be imported. It needs pydantic v2 and an
     environment with v1 installed fails this one test at collection-time import, which is how the
     README's "277 tests, no GPU, no AmberTools, no network, no API key" came to describe a suite
     that was not green: 277 is what pytest collects and 276 is what passed. The dependency is real
@@ -256,20 +256,20 @@ def test_the_representation_is_declared_in_molcascades_vocabulary() -> None:
     that could not run.
     """
 
-    from etalon.boundary.infra import InfraError, load
+    from moldarwin.boundary.infra import InfraError, load
 
     try:
-        load("molcascade")
-        from etalon.learn.surrogate import representation
+        load("molcat")
+        from moldarwin.learn.surrogate import representation
 
         spec = representation()
     except (ImportError, InfraError) as error:  # pragma: no cover -- environment-dependent
-        # The top-level package imports on pydantic v1; molcascade.chemistry.featurizers does not,
+        # The top-level package imports on pydantic v1; molcat.chemistry.featurizers does not,
         # so the skip has to cover the call and not only the load.
-        pytest.skip(f"vendored molcascade is not usable here ({error}); it needs pydantic v2")
+        pytest.skip(f"vendored molcat is not usable here ({error}); it needs pydantic v2")
     kinds = [block.kind for block in spec.blocks]
 
     assert kinds == ["descriptors", "morgan"]
     assert spec.width == len(DESCRIPTORS) + MORGAN_BITS
-    # The manifest's n_features must equal this, and MolCascade validates that it does.
+    # The manifest's n_features must equal this, and MolCat validates that it does.
     assert spec.width == 1033

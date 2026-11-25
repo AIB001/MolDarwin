@@ -12,13 +12,13 @@ import json
 import math
 from pathlib import Path
 
-from etalon.active import ActiveCampaign, CampaignSpec, CampaignStore
-from etalon.active.adapters import MOLECULAR_REPRESENTATION, molecular_candidates
-from etalon.active.cascade import CascadeExecutor, CascadeRecipe, Readout
-from etalon.active.mutations import DesignSpace
-from etalon.active.proposer import ProtocolSearch
-from etalon.active.protocols import ProtocolRegistry, TrialPolicy
-from etalon.campaign.design import component, compose
+from moldarwin.active import ActiveCampaign, CampaignSpec, CampaignStore
+from moldarwin.active.adapters import MOLECULAR_REPRESENTATION, molecular_candidates
+from moldarwin.active.cascade import CascadeExecutor, CascadeRecipe, Readout
+from moldarwin.active.mutations import DesignSpace
+from moldarwin.active.proposer import ProtocolSearch
+from moldarwin.active.protocols import ProtocolRegistry, TrialPolicy
+from moldarwin.campaign.design import component, compose
 
 
 def main() -> None:

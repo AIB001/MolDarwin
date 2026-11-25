@@ -5,13 +5,13 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.schema import canonical, digest
-from etalon.active.store import StateError, BudgetExhausted
-from etalon.active.runner import ExecutionPending
-from etalon.boundary.prism_v1 import file_identity
-from etalon.research import ResearchJournal
-from etalon.research.pool import COMPONENTS, execute, semantic_request
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.schema import canonical, digest
+from moldarwin.active.store import StateError, BudgetExhausted
+from moldarwin.active.runner import ExecutionPending
+from moldarwin.boundary.prism_v1 import file_identity
+from moldarwin.research import ResearchJournal
+from moldarwin.research.pool import COMPONENTS, execute, semantic_request
 
 
 def fixture(tmp_path, status='SUCCEEDED'):

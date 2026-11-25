@@ -3,8 +3,8 @@ import json
 
 import pytest
 
-from etalon.research.continuation import resume_research
-from etalon.research.evidence_refs import file_identity
+from moldarwin.research.continuation import resume_research
+from moldarwin.research.evidence_refs import file_identity
 from test_research_continuation import case, checkpoint, publish, save, step
 
 

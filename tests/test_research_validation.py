@@ -2,12 +2,12 @@
 from dataclasses import replace
 import pytest
 
-from etalon.active.schema import digest
-from etalon.active.store import StateError
-from etalon.research import Observation
-from etalon.research.validation import attach_decision_validation
-from etalon.research.calibration import OutcomeRule, bind_outcome, empirical_model
-from etalon.research.diagnostics import Probe, Resource, exact_program
+from moldarwin.active.schema import digest
+from moldarwin.active.store import StateError
+from moldarwin.research import Observation
+from moldarwin.research.validation import attach_decision_validation
+from moldarwin.research.calibration import OutcomeRule, bind_outcome, empirical_model
+from moldarwin.research.diagnostics import Probe, Resource, exact_program
 from test_research_journal import setup, experiment
 
 

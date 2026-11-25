@@ -5,7 +5,7 @@ the actual PoseBusters dock configuration and pins the complete configuration
 and Python/configuration source tree. It constructs a checker; it does not run
 `bust` or observe poses.
 
-`audit_pose_verification()` adapts the original `etalon-pose-verification/1`
+`audit_pose_verification()` adapts the original `moldarwin-pose-verification/1`
 format to `result_integrity.validate_verifier`. It independently requires exact
 input pins, protocol/threshold, requested slots, row request order, the complete
 strict Boolean check set, consistent physical validity and RMSD success, and

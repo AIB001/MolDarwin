@@ -1,24 +1,24 @@
 # Portable project adapters
 
-ETALON ships the same research reader and lifecycle handler for Codex and Claude
+MolDarwin ships the same research reader and lifecycle handler for Codex and Claude
 Code. Host configuration declares when to call the handler; the configured MCP
 server owns the entry and receipt bindings. Installing a package does not grant
 project trust, scientific execution or access to a remote evidence directory.
 
 ## Install and move
 
-Use the intended environment's Python, with ETALON and its MCP extra installed:
+Use the intended environment's Python, with MolDarwin and its MCP extra installed:
 
 ```text
-python -m etalon.host install --host codex --target NEW_PROJECT --research-entry /absolute/CURRENT.json
-python -m etalon.host doctor --target NEW_PROJECT
+python -m moldarwin.host install --host codex --target NEW_PROJECT --research-entry /absolute/CURRENT.json
+python -m moldarwin.host doctor --target NEW_PROJECT
 ```
 
 Use `--host claude` for Claude Code. The default installation uses native
 `mcp_tool` hooks; `--hook-transport command` keeps the command adapter available
 for hosts without MCP hook support. Ordinary `export` remains backward compatible.
 
-The portable recipe is `etalon-install.json`. After moving an owned export,
+The portable recipe is `moldarwin-install.json`. After moving an owned export,
 run the same install command at its new location with the receiving machine's
 Python and explicit entry. This rebinds the MCP runtime, entry and receipts while
 preserving reviewed hook definitions. The handler definitions contain no machine
@@ -39,8 +39,8 @@ not copy scientific originals, environments or running jobs.
 
 ## Native activation and first continuation
 
-The existing MCP server exposes `etalon_research_hook(event)`. It reads
-`ETALON_RESEARCH_HOOK_BINDING` from its server configuration and emits native hook
+The existing MCP server exposes `moldarwin_research_hook(event)`. It reads
+`MOLDARWIN_RESEARCH_HOOK_BINDING` from its server configuration and emits native hook
 JSON through MCP TextContent. A failure sets the MCP protocol's `isError`; it
 cannot masquerade as successful context injection. Callers cannot select another
 entry or receipt directory through event arguments. Supplied events are
@@ -52,7 +52,7 @@ recursive observation. It never runs science or dispatches RSI.
 
 Claude skips MCP hooks at startup/resume before the MCP client is available.
 Codex also needs an existing MCP connection. Therefore first continuation starts
-from the supplied entry and context skill; the first connected ETALON tool call's
+from the supplied entry and context skill; the first connected MolDarwin tool call's
 PreToolUse can deliver the baseline. After real compaction, SessionStart or the
 next PreToolUse rebuilds a baseline. A prepared receipt does not prove delivery;
 host traces and the agent's actual source reads establish those separately.
@@ -87,7 +87,7 @@ host review, login, MCP reachability, native event acceptance and model consumpt
 Only static installation is checked by doctor; `acceptance_complete` remains
 false. A receipt on disk does not upgrade these other stages.
 
-For Codex, inspect `python -m etalon.codex_hooks --target PROJECT`, then use normal project trust and
+For Codex, inspect `python -m moldarwin.codex_hooks --target PROJECT`, then use normal project trust and
 `/hooks` review. For Claude, review the actual project hooks and MCP configuration
 through the host. Inspection first reads bounded `app-server --help` output and
 selects the advertised `--listen stdio://`, `--stdio`, or explicit default stdio

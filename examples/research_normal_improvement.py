@@ -10,16 +10,16 @@ import json
 from pathlib import Path
 import time
 
-from etalon import host
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.schema import digest
-from etalon.research import Artifact, ResearchJournal, MethodVersion, MethodUse, TaskSplit
-from etalon.research import improvement as imp
-from etalon.research.composition import WORKFLOW, node_step, record_evaluation
-from etalon.research.components import record_json
-from etalon.research.continuation import STEP, CHECKPOINT, record_content, resume_research, capture_watermarks
-from etalon.research.evidence_refs import file_identity
-from etalon.research.method_revision import journal_ref, build_method_revision, record_method_revision, resolve_method_revision
+from moldarwin import host
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.schema import digest
+from moldarwin.research import Artifact, ResearchJournal, MethodVersion, MethodUse, TaskSplit
+from moldarwin.research import improvement as imp
+from moldarwin.research.composition import WORKFLOW, node_step, record_evaluation
+from moldarwin.research.components import record_json
+from moldarwin.research.continuation import STEP, CHECKPOINT, record_content, resume_research, capture_watermarks
+from moldarwin.research.evidence_refs import file_identity
+from moldarwin.research.method_revision import journal_ref, build_method_revision, record_method_revision, resolve_method_revision
 
 SID, TASK = 'improvement', 'normal-research-reader-revision'
 QUESTION = 'Recover the released R4 conclusion without repeating a failed reader or scientific task'
@@ -62,11 +62,11 @@ def run(root, entry_path, native_trace, authority, protocol):
     def save(obj):
         return ref(record_content(j,obj,root/'memory',source_id=SID,source_kind='new_execution'))
     def publish():
-        write(root/'etalon-workspace.json',{'schema':'etalon-evidence-workspace/1','workspace_id':TASK,
+        write(root/'moldarwin-workspace.json',{'schema':'moldarwin-evidence-workspace/1','workspace_id':TASK,
             'sources':[*original_workspace['sources'],{'source_id':SID,'kind':'journal','location':str(store.path),
                 'identity':{'kind':'snapshot_sha256','value':file_identity(store.path)['sha256']}}],
             'status_refs':[str(authority)],'location_map':original_workspace.get('location_map',[])})
-        return root/'etalon-workspace.json'
+        return root/'moldarwin-workspace.json'
     def use(method,reason,*,conditions=None,subject='normal-use'):
         return ref(j.record(MethodUse(({'kind':'task','id':TASK,'scope':str(store.path)},
             {'kind':'request','id':subject,'scope':str(store.path)}),
@@ -77,7 +77,7 @@ def run(root, entry_path, native_trace, authority, protocol):
     problem=artifact({'schema':'observed-reader-problem/1','failure':failures[0], 'original_trace_ref':trace_ref,
         'result_ref':result_ref,'baseline_origin':'actual historical native call; not a new baseline run',
         'historical_cost':'whole original session cost retained; per-failed-call cost unknown'},kind='observed_method_problem')
-    base_content=artifact({'entrypoint':'etalon.research.continuation.read_content','observed_error':'unsupported research content schema',
+    base_content=artifact({'entrypoint':'moldarwin.research.continuation.read_content','observed_error':'unsupported research content schema',
         'input_ref':result_ref,'provenance':problem,'scope':'reconstruction of the observed call, not the entire old harness'})
     base=ref(j.record(MethodVersion('observed-typed-reader',('domain_skill','usage_method'),{'artifact_ref':base_content['record_id']})))
     trigger=use(base,'Actual earlier failing call reconstructed from original command/output; host_reported',subject='historical-problem')
@@ -90,16 +90,16 @@ def run(root, entry_path, native_trace, authority, protocol):
         if digest(event['body']['record'])==trigger['record_digest']:
             opened.append(imp.register_opportunity(j,context_ref,root/'memory',source_id=SID,source_kind='new_execution'))
     hooks=dict(log_ref={'kind':'campaign','database':str(store.path)},state_path=root/'trigger-cursor.json',
-        handler_method_version='normal-use-reader-v1',event_types=['research_recorded'],record_types=['etalon-method-use/1'],limit=100)
+        handler_method_version='normal-use-reader-v1',event_types=['research_recorded'],record_types=['moldarwin-method-use/1'],limit=100)
     first=host.consume_events(**hooks,handler=handler)
     opportunity=opened[0]
     import inspect
-    candidate_content=artifact({'entrypoint':'etalon.research.improvement.read_material','implementation':inspect.getsource(imp.read_material),
+    candidate_content=artifact({'entrypoint':'moldarwin.research.improvement.read_material','implementation':inspect.getsource(imp.read_material),
         'module':{'path':str(Path(imp.__file__).absolute()),**file_identity(Path(imp.__file__))},
         'procedure':'Use existing verified reader; generic JSON stays generic. Preserve complete/fragment and provenance.',
         'effects':'reader selection only; producer and scientific conclusion unchanged'})
     candidate=ref(j.record(MethodVersion('generic-result-reader',('domain_skill','usage_method'),{'artifact_ref':candidate_content['record_id']},
-        parents=(base['record_id'],),entrypoint='etalon.research.improvement.read_material',change_summary='Select generic evidence reader for ordinary JSON')))
+        parents=(base['record_id'],),entrypoint='moldarwin.research.improvement.read_material',change_summary='Select generic evidence reader for ordinary JSON')))
     g_content=artifact({'recipe':'Use the observed failure and current reader contracts to change the reader selection and its optional workflow node.',
                         'author':'current host; no autonomous generation or generator-benefit claim'})
     generator=ref(j.record(MethodVersion('reader-repair-recipe',('improvement_method',),{'artifact_ref':g_content['record_id']})))
@@ -178,7 +178,7 @@ def run(root, entry_path, native_trace, authority, protocol):
         task_id=TASK,question=QUESTION,scope=ctx['scope'],reason='Use generic reader for this released result; shared defaults unchanged',
         directory=root/'memory',source_id=SID,source_kind='new_execution')
     experience=imp.record_experience(j,patch_ref=patch,outcome='adopt',lesson='For ordinary released result JSON, choose a generic evidence reader and preserve identity/completeness; do not rerun its producer after typed schema rejection.',
-        invalid_when='Different schema, changed provenance, incomplete bytes, or new counterevidence',capability_id='etalon.evidence',
+        invalid_when='Different schema, changed provenance, incomplete bytes, or new counterevidence',capability_id='moldarwin.evidence',
         support_refs=[node,assessment],counter_refs=[problem],evaluation_ref=evaluation['evaluation_ref'],resolution_ref=resolution['step_ref'],
         directory=root/'memory',source_id=SID,source_kind='new_execution')
     # Distinct event for the same problem, plus ordinary bookkeeping events, must not propose again.
@@ -202,7 +202,7 @@ def run(root, entry_path, native_trace, authority, protocol):
     write(root/'entry.json',entry)
     context=resume_research(entry['workspace'],final_cp)
     assert not context['issues'] and context['authority']['state']=='paused' and not context['pending']
-    retrieved=imp.retrieve_experience(entry['workspace'],source_ids=[SID],capability_id='etalon.evidence',conditions=conditions)
+    retrieved=imp.retrieve_experience(entry['workspace'],source_ids=[SID],capability_id='moldarwin.evidence',conditions=conditions)
     assert len(retrieved['matches'])==1 and retrieved['matches'][0]['ref']==experience
     report={'entry':entry,'original_entry':original_entry,'problem_ref':problem,'context_ref':context_ref,'patch_ref':patch,
         'waiting_assessment_ref':waiting,'normal_node_ref':node,'assessment_ref':assessment,'experience_ref':experience,

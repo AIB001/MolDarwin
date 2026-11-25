@@ -1,6 +1,6 @@
 # Optional external evaluation contracts
 
-`etalon.research.evaluation_contract` replays declared numeric rules against
+`moldarwin.research.evaluation_contract` replays declared numeric rules against
 exact published evidence. It does not execute a method, select or adopt one,
 change defaults, certify scientific truth, or require callers to use a gate.
 Existing SDK, MethodEvaluation and composition APIs remain available directly.
@@ -8,11 +8,11 @@ Existing SDK, MethodEvaluation and composition APIs remain available directly.
 The public functions are:
 
 - `build_evaluation_contract(**declaration)` and
-  `validate_evaluation_contract(payload)` for `etalon-evaluation-contract/1`.
+  `validate_evaluation_contract(payload)` for `moldarwin-evaluation-contract/1`.
 - `evaluation_rules_digest(contract)` for stable rule identity independent of
   observed input refs, provenance and optional typed wrapper refs.
 - `evaluate_contract(workspace=None, contract=None, *, contract_ref=None,
-  entry=None, read_context=None)` for a read-only `etalon-evaluation-report/1`.
+  entry=None, read_context=None)` for a read-only `moldarwin-evaluation-report/1`.
   Supply exactly one evidence selector, and exactly one inline contract or
   contract Artifact reference.
 - `record_evaluation_artifact(journal, payload, directory, *, source_kind,
@@ -30,7 +30,7 @@ empty. All refs use the existing source-qualified EvidenceRef with record
 digest; artifact original bytes are checked by the evidence reader.
 
 ```python
-from etalon.research.evaluation_contract import build_evaluation_contract, evaluate_contract
+from moldarwin.research.evaluation_contract import build_evaluation_contract, evaluate_contract
 
 select = lambda path: {"input": "paired", "pointer": path}
 contract = build_evaluation_contract(
@@ -118,7 +118,7 @@ used as numeric observations.
 
 `method_contract_ref` binds an existing method contract whose `required_checks`
 are covered and whose `evaluation` equals
-`{"schema": "etalon-evaluation-contract/1", "rules_digest": digest}`. Compute
+`{"schema": "moldarwin-evaluation-contract/1", "rules_digest": digest}`. Compute
 `evaluation_rules_digest(contract)` before adding this optional ref; wrapper refs
 are excluded from the rule digest to avoid a circular identity dependency.
 
@@ -145,7 +145,7 @@ separately. This agrees with the original `retain` decision and does not claim
 independent end-to-end savings or statistical noninferiority.
 
 Local integration artifacts are under
-`integration/etalon-resource-branches-20261024/evaluation/`, including exact
+`integration/moldarwin-resource-branches-20261024/evaluation/`, including exact
 contracts/reports, replay script, before/after original hashes and runtime/source
 identity. No molecular computation or production deployment is performed.
 

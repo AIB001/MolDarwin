@@ -2,9 +2,9 @@
 import copy
 import pytest
 
-from etalon.research import improvement as imp
-from etalon.research import opportunity_state as state
-from etalon.research.evidence_refs import EvidenceError
+from moldarwin.research import improvement as imp
+from moldarwin.research import opportunity_state as state
+from moldarwin.research.evidence_refs import EvidenceError
 from test_opportunity_state import case, close, save, reopen, SID
 from test_defect_family import case as family_case
 
@@ -38,8 +38,8 @@ def test_waiting_cannot_be_mistaken_for_proposal_success(case):
 
 
 def test_new_annotations_project_as_reviewed_judgments():
-    from etalon.research.graph_memory import _project_node
-    ref={'schema':'etalon-evidence-ref/1','source_id':'fixture','record_id':'artifact-'+'0'*64,'record_digest':'0'*64}
+    from moldarwin.research.graph_memory import _project_node
+    ref={'schema':'moldarwin-evidence-ref/1','source_id':'fixture','record_id':'artifact-'+'0'*64,'record_digest':'0'*64}
     content={'schema':state.DISPOSITION,'task_id':'fixture-task','reason':'No justified candidate',
              'outcome':'no_change','counter_refs':[ref],'reconsider_when':[],'judgment':'bounded_judgment'}
     row={'projected_content':content,'record':{},'record_type':'artifact'}

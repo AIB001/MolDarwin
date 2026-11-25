@@ -2,10 +2,10 @@
 import importlib.util
 import json
 from pathlib import Path
-from etalon.active.schema import digest
-from etalon.boundary.prism_v1 import file_identity
-from etalon.research import Artifact
-from etalon.research.validation import attach_decision_validation
+from moldarwin.active.schema import digest
+from moldarwin.boundary.prism_v1 import file_identity
+from moldarwin.research import Artifact
+from moldarwin.research.validation import attach_decision_validation
 from test_research_journal import setup
 
 

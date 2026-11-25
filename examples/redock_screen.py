@@ -1,6 +1,6 @@
 """Run a bounded Uni-Dock → independent redock → original-pose handoff screen.
 
-Requires ETALON's cascade extra, Meeko, PoseBusters and a working Uni-Dock GPU
+Requires MolDarwin's cascade extra, Meeko, PoseBusters and a working Uni-Dock GPU
 executable. Supply a CSV with id,smiles, a prepared receptor PDB and its matching
 PDBQT in the same coordinate frame. All box dimensions are in angstrom.
 Use --plan-only to inspect the compiled protocol without docking.
@@ -17,8 +17,8 @@ import hashlib
 import json
 from pathlib import Path
 
-from etalon.boundary.screen import Screen
-from etalon.campaign.design import component, compose
+from moldarwin.boundary.screen import Screen
+from moldarwin.campaign.design import component, compose
 
 
 def configuration(args: argparse.Namespace) -> dict:

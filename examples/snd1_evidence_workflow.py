@@ -15,7 +15,7 @@ from scipy.optimize import minimize
 from rdkit import Chem
 from rdkit.Chem import AllChem
 import snd1_pose_workflow as old
-from etalon.research.scientific_input import SCHEMA, compile_input, consumption_receipt, identity
+from moldarwin.research.scientific_input import SCHEMA, compile_input, consumption_receipt, identity
 
 TARGETS={'pocket':'objective','contacts':'constraint','mobility':'constraint',
          'binding_support':'selection','optimizer':'objective'}
@@ -159,7 +159,7 @@ def generate(bundle_path, base_dir, output):
         if identity(base_dir/name)!=pin:raise ValueError('baseline pose changed')
     request={'bundle':identity(bundle_path),'baseline':identity(base_dir/'result.json'),'runtime':old.runtime(),
              'scipy':{'version':scipy.__version__,'path':scipy.__file__,**identity(scipy.__file__)},
-             'recipe':identity(__file__),'compiler':identity(__import__('etalon.research.scientific_input',fromlist=['x']).__file__)}
+             'recipe':identity(__file__),'compiler':identity(__import__('moldarwin.research.scientific_input',fromlist=['x']).__file__)}
     if output.exists():
         if read(output/'request.json')!=request:raise ValueError('changed execution request')
         prior=read(output/'result.json')

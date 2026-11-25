@@ -8,9 +8,9 @@ import pytest
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
-from etalon.boundary.screen import Screen
-from etalon.campaign.design import compose, component
-from etalon.screening_delivery import export_screen_delivery, rmsd_acceptance, _sdf
+from moldarwin.boundary.screen import Screen
+from moldarwin.campaign.design import compose, component
+from moldarwin.screening_delivery import export_screen_delivery, rmsd_acceptance, _sdf
 
 
 def test_archive_read_export_retains_rejected_smiles_without_writer_directories(tmp_path):
@@ -60,7 +60,7 @@ def test_strict_rmsd_and_sdf_coordinates_are_not_reinterpreted(tmp_path):
 
 def test_new_screen_preserves_quality_cap_and_budget_decisions(tmp_path):
     """Actual CPU execution, with different reasons for three discarded populations."""
-    from etalon.screening import plan_screen
+    from moldarwin.screening import plan_screen
 
     library = tmp_path/'input.csv'
     library.write_text('id,smiles\na,c1ccccc1\nb,Cc1ccccc1\nc,CCc1ccccc1\nd,c1ccncc1\ne,C1CCCCC1\nf,CCO\n')
@@ -93,7 +93,7 @@ def test_new_screen_preserves_quality_cap_and_budget_decisions(tmp_path):
 
 
 def test_declared_delivery_distinguishes_computing_redock_from_enforcing_it():
-    from etalon.screening_delivery import delivery_options
+    from moldarwin.screening_delivery import delivery_options
 
     pipeline={'stages':[
         {'id':'repeat','plugin':'docking.redock_consistency@0.1.0','config':{'keep_poses':True}},
@@ -111,7 +111,7 @@ def test_declared_delivery_distinguishes_computing_redock_from_enforcing_it():
 def test_worker_completes_delivery_and_readback_does_not_repeat_computation(tmp_path):
     """Real worker body on Windows too; POSIX process detachment is tested separately."""
     import os
-    from etalon.screening import plan_screen, _journal, _worker, screen_status
+    from moldarwin.screening import plan_screen, _journal, _worker, screen_status
     config=tmp_path/'config.json'
     config.write_text(json.dumps(compose('delivery-worker',[{'id':'window','title':'window',
         'criteria':[component('mw','chemistry.rdkit_property_range_gate@0.1.0',settings={'mw_min':60})]}])))
@@ -135,7 +135,7 @@ def test_worker_completes_delivery_and_readback_does_not_repeat_computation(tmp_
 
 def test_delivery_failure_is_not_a_scientific_retry(tmp_path,monkeypatch):
     import os
-    from etalon.screening import plan_screen, _journal, _worker, screen_status
+    from moldarwin.screening import plan_screen, _journal, _worker, screen_status
     config=tmp_path/'config.json'
     config.write_text(json.dumps(compose('one',[{'id':'measure','title':'measure',
         'criteria':[component('props','features.rdkit_properties@0.1.0')]}])))
@@ -149,7 +149,7 @@ def test_delivery_failure_is_not_a_scientific_retry(tmp_path,monkeypatch):
         db.commit()
     def unavailable(*args,**kwargs):
         raise OSError('labelled delivery I/O failure')
-    monkeypatch.setattr('etalon.screening_delivery.export_screen_delivery',unavailable)
+    monkeypatch.setattr('moldarwin.screening_delivery.export_screen_delivery',unavailable)
     assert _worker(str(workspace),'fresh')==0
     job=screen_status(workspace,'fresh')
     assert job['state']=='succeeded' and job['result']['delivery']['state']=='failed'
@@ -158,7 +158,7 @@ def test_delivery_failure_is_not_a_scientific_retry(tmp_path,monkeypatch):
 
 
 def test_interrupted_materialization_resumes_without_science(tmp_path,monkeypatch):
-    import etalon.screening_delivery as delivery
+    import moldarwin.screening_delivery as delivery
     config=tmp_path/'config.json'
     config.write_text(json.dumps(compose('measure',[{'id':'measure','title':'measure',
         'criteria':[component('props','features.rdkit_properties@0.1.0')]}])))

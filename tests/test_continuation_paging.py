@@ -4,12 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active.schema import canonical, digest
-from etalon.research.continuation import resume_research
-from etalon.research.continuation_pages import audit_closure_pages
-from etalon.research.evidence import StaleCursorError
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research.research_context import build_research_context
+from moldarwin.active.schema import canonical, digest
+from moldarwin.research.continuation import resume_research
+from moldarwin.research.continuation_pages import audit_closure_pages
+from moldarwin.research.evidence import StaleCursorError
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research.research_context import build_research_context
 from test_research_graph_memory import graph_case
 from test_scope_adversarial import claim
 
@@ -84,7 +84,7 @@ def test_cursor_or_final_page_cannot_prove_missing_prior_pages(graph_case, chang
 def test_source_and_implementation_changes_reject_old_cursor(graph_case, monkeypatch):
     c = graph_case
     first = pages(c, limit=2)[0]
-    import etalon.research.continuation_pages as module
+    import moldarwin.research.continuation_pages as module
     original_identity = module.implementation_identity
     monkeypatch.setattr(module, "implementation_identity", lambda: "changed-implementation")
     with pytest.raises(StaleCursorError, match="stale"):
@@ -117,7 +117,7 @@ def test_policy_narrowing_never_claims_full_counter_coverage(graph_case):
 
 def test_legacy_truncation_remains_separate_from_explicit_paged_closure(graph_case, monkeypatch):
     c = graph_case
-    import etalon.research.continuation as legacy
+    import moldarwin.research.continuation as legacy
     monkeypatch.setattr(legacy, "MAX_RESUME_RECORDS", 2)
     original = resume_research(c["workspace"], c["checkpoint"])
     assert any(i["reason"] == "reference_walk_truncated" for i in original["issues"])
@@ -127,7 +127,7 @@ def test_legacy_truncation_remains_separate_from_explicit_paged_closure(graph_ca
 
 
 def test_metadata_bound_fails_explicitly_instead_of_complete_truncation(graph_case, monkeypatch):
-    import etalon.research.continuation_pages as module
+    import moldarwin.research.continuation_pages as module
     monkeypatch.setattr(module, "MAX_RECORDS", 2)
     with pytest.raises(EvidenceError, match="index bound"):
         pages(graph_case)

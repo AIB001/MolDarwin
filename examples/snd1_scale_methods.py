@@ -288,7 +288,7 @@ def initialize(root, originals):
     for p in sorted((root/'source').rglob('*')):
         if p.is_file() and p.suffix in {'.py','.so'}:source[str(p)]=pin(p)
     native={}
-    for name in ['rdkit.Chem.rdForceFieldHelpers','rdkit.Chem.rdMolTransforms','scipy.optimize._lbfgsb','numpy._core._multiarray_umath','etalon.research.geometry_input','etalon.research.scientific_input']:
+    for name in ['rdkit.Chem.rdForceFieldHelpers','rdkit.Chem.rdMolTransforms','scipy.optimize._lbfgsb','numpy._core._multiarray_umath','moldarwin.research.geometry_input','moldarwin.research.scientific_input']:
         module=importlib.import_module(name);native[name]={'path':module.__file__,**pin(module.__file__)}
     freeze={'schema':'snd1-p1-freeze/1','frozen_before_optimization':True,'inputs':files,'source':source,'native':native,
             'python':sys.executable,'python_executable':pin(sys.executable),'protocol':pin(root/'protocol.json'),

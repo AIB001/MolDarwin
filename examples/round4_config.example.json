@@ -1,5 +1,5 @@
 {
-  "schema": "etalon-round4-consumer-config/1",
+  "schema": "moldarwin-round4-consumer-config/1",
   "scope": "PROPOSED numerical hyperparameters; coordinator must freeze before real fit; quotes are hard action bounds, not measured cost",
   "split": {
     "tasks": {

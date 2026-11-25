@@ -14,10 +14,10 @@ from pathlib import Path
 
 def read(entry,branch_id,*,counter_bodies=False,view=None,selectors=None,offset=0,limit=20,
          max_bytes=4096,record_id=None,definitions=None,response_envelope=None):
-    from etalon.research.notes import entry_value
+    from moldarwin.research.notes import entry_value
     entry=Path(entry).absolute();metadata=entry_value(entry)
-    if metadata.get('schema') == 'etalon-note-entry/1':
-        from etalon.research.notes import read_entry, read_current
+    if metadata.get('schema') == 'moldarwin-note-entry/1':
+        from moldarwin.research.notes import read_entry, read_current
         if counter_bodies and view not in {None,'full'}:
             raise ValueError('--counter-bodies requires --view full')
         if record_id is not None:
@@ -49,11 +49,11 @@ def read(entry,branch_id,*,counter_bodies=False,view=None,selectors=None,offset=
         return result
     if view is not None or selectors is not None or offset or limit!=20 or record_id is not None:
         raise ValueError('--view/--select/--offset/--limit/--record-id apply to note entries')
-    from etalon.research.research_context import load_entry
-    from etalon.research.research_segment import read_work
-    from etalon.research.continuation import read_content
-    from etalon.research.evidence import read_evidence
-    from etalon.research.improvement import retrieve_experience
+    from moldarwin.research.research_context import load_entry
+    from moldarwin.research.research_segment import read_work
+    from moldarwin.research.continuation import read_content
+    from moldarwin.research.evidence import read_evidence
+    from moldarwin.research.improvement import retrieve_experience
     ws,checkpoint_ref=load_entry(entry);checkpoint=read_content(ws,checkpoint_ref)
     current=read_work(entry,branch_id=branch_id)
     counters=[]
@@ -113,7 +113,7 @@ def decision_packet(result, *, previous=None):
         experiences.append({'entry':query['entry'],'conditions':query['conditions'],
             'heads':heads,'history_count':len(query['history']),
             'next_cursor':query['next_cursor']})
-    packet={'schema':'etalon-decision-delivery/1','entry':current['entry'],
+    packet={'schema':'moldarwin-decision-delivery/1','entry':current['entry'],
         'task_id':work['task_id'],'branch_id':work['branch_id'],
         'checkpoint_ref':current['checkpoint_ref'],'work_ref':current['work_ref'],
         'goal':work['goal'],'question':work['question'],'state':work['branch_state'],
@@ -140,7 +140,7 @@ def decision_packet(result, *, previous=None):
     if any(old.get(k)!=packet[k] for k in ('entry','task_id','branch_id')):
         return {**envelope,'delivery':'scope_changed_full_packet'},envelope
     changed={k:v for k,v in packet.items() if old.get(k)!=v}
-    delta={'schema':'etalon-decision-delivery-delta/1','base_sha256':previous['sha256'],
+    delta={'schema':'moldarwin-decision-delivery-delta/1','base_sha256':previous['sha256'],
         'sha256':digest,'changed':changed,'unchanged_fields_omitted':len(packet)-len(changed),
         'counter_coverage':packet['counter_originals'],
         'counter_bodies_rechecked':all(r['body_read'] for r in packet['counter_originals']),

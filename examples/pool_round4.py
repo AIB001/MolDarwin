@@ -5,12 +5,12 @@ from pathlib import Path
 import sys
 import time
 
-from etalon.active import CampaignStore
-from etalon.active.schema import canonical, digest
-from etalon.boundary.prism_v1 import CLITransport, file_identity
-from etalon.research import ResearchJournal
-from etalon.research.pool import PoolClient, execute
-from etalon.research.transfer import load_policy, record_policy
+from moldarwin.active import CampaignStore
+from moldarwin.active.schema import canonical, digest
+from moldarwin.boundary.prism_v1 import CLITransport, file_identity
+from moldarwin.research import ResearchJournal
+from moldarwin.research.pool import PoolClient, execute
+from moldarwin.research.transfer import load_policy, record_policy
 
 
 def main():
@@ -48,7 +48,7 @@ def main():
         requests=json.loads(a.request_map.read_text())
         if not requests or any(len(k)!=64 or policy['split']['tasks'][v]['role']!='test' for k,v in requests.items()):
             raise ValueError('test plan must bind exact semantic hashes to frozen test task IDs')
-        body={'schema':'etalon-pool-test-plan/1','policy_sha256':policy['policy_sha256'],
+        body={'schema':'moldarwin-pool-test-plan/1','policy_sha256':policy['policy_sha256'],
               'split_sha256':policy['split_sha256'],'requests':requests,
               'request_map':{'path':str(a.request_map.absolute()),**file_identity(a.request_map)}}
         identifier='poolplan-'+digest(body)

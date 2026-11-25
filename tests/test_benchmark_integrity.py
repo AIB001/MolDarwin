@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active.benchmark import benchmark
-from etalon.active.replay import from_manifest, synthetic_manifest
-from etalon.active.store import CampaignStore, StateError
+from moldarwin.active.benchmark import benchmark
+from moldarwin.active.replay import from_manifest, synthetic_manifest
+from moldarwin.active.store import CampaignStore, StateError
 
 
 @pytest.mark.parametrize("overrides", [
@@ -32,7 +32,7 @@ def test_invalid_comparison_inputs_fail_before_any_journal(tmp_path, overrides):
 
 
 def test_legacy_comparison_fingerprints_environment_and_rejects_changed_resume(tmp_path, monkeypatch):
-    module = importlib.import_module("etalon.active.benchmark")
+    module = importlib.import_module("moldarwin.active.benchmark")
     arguments = {"seeds": (0,), "policies": ("random",), "rounds": 1, "size": 8, "budget": 48}
     first = benchmark(tmp_path, **arguments)
     assert first["round_limit"] == 1
@@ -54,7 +54,7 @@ def test_cannot_retroactively_certify_rounds_that_ran_outside_benchmark(tmp_path
         arguments = {"policies": ("random",)}
         run_comparison = benchmark
     else:
-        module = importlib.import_module("etalon.active.decision_benchmark")
+        module = importlib.import_module("moldarwin.active.decision_benchmark")
         manifest = module._manifest(synthetic_manifest(seed=0, size=8, budget=48, batch_size=1), "random")
         arguments = {}
         run_comparison = module.decision_benchmark
@@ -81,7 +81,7 @@ def test_legacy_comparison_resumes_without_spending_its_round_quota_twice(tmp_pa
 
 @pytest.mark.parametrize("comparison", ["legacy", "decision"])
 def test_qc_implementation_changes_cannot_silently_change_a_resumed_benchmark(tmp_path, monkeypatch, comparison):
-    module = importlib.import_module("etalon.active.decision_benchmark")
+    module = importlib.import_module("moldarwin.active.decision_benchmark")
     run_comparison = benchmark if comparison == "legacy" else module.decision_benchmark
     extra = {"policies": ("random",)} if comparison == "legacy" else {}
     arguments = {"seeds": (0,), "size": 8, "budget": 48, "rounds": 1, **extra}

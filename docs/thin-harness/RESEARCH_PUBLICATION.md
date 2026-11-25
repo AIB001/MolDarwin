@@ -2,13 +2,13 @@
 
 The publication API archives **explicit existing files and caller-authored research steps**, creates a checkpoint that retains the selected research state, and atomically advances a compatible `{workspace, checkpoint_ref}` entry. It does not infer a scientific conclusion from chat, execute a method, retry an action, settle costs, or trigger RSI.
 
-`etalon.research.publication` reuses `ResearchJournal.record(Artifact)`, `continuation.record_content`, existing evidence references and workspace manifests, SQLite backup, and the host's cross-platform OS lock. Each operation gets a separate archival journal with zero budget and a non-queryable endpoint. This is a memory store; it is not an execution ledger or a second resource allocator. Frozen source journals and original artifacts are never opened writable.
+`moldarwin.research.publication` reuses `ResearchJournal.record(Artifact)`, `continuation.record_content`, existing evidence references and workspace manifests, SQLite backup, and the host's cross-platform OS lock. Each operation gets a separate archival journal with zero budget and a non-queryable endpoint. This is a memory store; it is not an execution ledger or a second resource allocator. Frozen source journals and original artifacts are never opened writable.
 
 ## API
 
 ```python
-from etalon.research.evidence_refs import file_identity
-from etalon.research.publication import (
+from moldarwin.research.evidence_refs import file_identity
+from moldarwin.research.publication import (
     prepare_publication, resume_publication,
     inspect_publication, discover_publications,
 )
@@ -28,7 +28,7 @@ prepared = prepare_publication(
     }],
     steps=[{
         "name": "reuse_decision",
-        "content": explicit_research_step,     # ordinary etalon-research-step/1
+        "content": explicit_research_step,     # ordinary moldarwin-research-step/1
     }],
 )
 published = resume_publication(prepared["intent_path"])
@@ -38,7 +38,7 @@ The step may refer to the newly archived result using `{"publication_ref": "comp
 
 For a subsequent operation against an existing entry, omit `parent_entry` and supply `expected_entry_identity=file_identity(entry)`. For a new destination, `parent_entry` is mandatory and `expected_entry_identity` must be `None`. The chosen parent's file identity and frozen source identities are bound into the intent. A changed parent requires explicit review and a new operation.
 
-`directory` is optional and defaults to `<entry parent>/.etalon/publications`. Operation identity is scoped to the destination entry. Repeating the same operation ID and identical request returns the existing operation, including if a different storage directory is supplied. Reusing that ID with changed content fails. Normalized request equality, rather than merely a filename, protects against conflicts.
+`directory` is optional and defaults to `<entry parent>/.moldarwin/publications`. Operation identity is scoped to the destination entry. Repeating the same operation ID and identical request returns the existing operation, including if a different storage directory is supplied. Reusing that ID with changed content fails. Normalized request equality, rather than merely a filename, protects against conflicts.
 
 The bounded input is at most 32 existing result files and 1–16 explicit steps. Results require all six fields shown above. Supported provenance and roles are the existing `Artifact` values. Metadata is limited to 4 MiB; normal step/checkpoint size and reference limits still apply. Large scientific results remain referenced files, not checkpoint text.
 
@@ -162,7 +162,7 @@ Missing or unreadable indexed intents remain visible as `unavailable`. A malform
 An unsuccessful intent is not deleted or silently retried. `close_publication` writes one immutable `disposition.json`, using the same per-entry process lock as prepare/resume:
 
 ```python
-from etalon.research.publication import close_publication, inspect_publication
+from moldarwin.research.publication import close_publication, inspect_publication
 
 state = inspect_publication(intent_path)
 closed = close_publication(

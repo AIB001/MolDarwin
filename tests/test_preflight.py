@@ -21,7 +21,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from etalon.faults import (
+from moldarwin.faults import (
     BY_CODE,
     Consequence,
     Observation,
@@ -55,7 +55,7 @@ CLEAN = {
     "status": "OK",
 }
 
-#: What MolCascade's SDF shortlist exporter actually produces, as measured: geometry
+#: What MolCat's SDF shortlist exporter actually produces, as measured: geometry
 #: rebuilt from the name, no explicit hydrogens, nothing having decided a species.
 FROM_A_DRAWING = {
     **CLEAN,
@@ -282,7 +282,7 @@ def test_a_stage_that_never_ran_blocks_on_a_driver_that_reported_success() -> No
     there.
     """
 
-    from etalon.faults import postflight
+    from moldarwin.faults import postflight
 
     manifest = {
         "build": {"built": True},
@@ -309,7 +309,7 @@ def test_a_stage_that_never_ran_blocks_on_a_driver_that_reported_success() -> No
 
 
 def test_a_campaign_wanting_equilibration_is_not_failed_by_production() -> None:
-    from etalon.faults import postflight
+    from moldarwin.faults import postflight
 
     manifest = {
         "build": {"built": True},
@@ -333,7 +333,7 @@ def test_a_campaign_wanting_equilibration_is_not_failed_by_production() -> None:
 def test_a_fractional_charge_grompp_was_told_to_ignore_still_blocks() -> None:
     """Every grompp in the driver carries -maxwarn 999, so it printed this and built."""
 
-    from etalon.faults import postflight
+    from moldarwin.faults import postflight
 
     observed = postflight.check_drive(
         {
@@ -354,7 +354,7 @@ def test_a_fractional_charge_grompp_was_told_to_ignore_still_blocks() -> None:
 def test_a_build_never_driven_leaves_its_stages_unevaluable_not_failed() -> None:
     """Nothing ran, which is different from something having failed."""
 
-    from etalon.faults import postflight
+    from moldarwin.faults import postflight
 
     observed = postflight.check_run({"build": {"built": True}})
     by_code = {entry.code: entry for entry in observed}
@@ -372,7 +372,7 @@ def test_an_unmapped_terminus_is_told_apart_from_an_unmapped_residue() -> None:
     terminus was reported as an interior residue worth deciding by hand.
     """
 
-    from etalon.faults import postflight
+    from moldarwin.faults import postflight
 
     log = (
         "WARNING:prism.utils.protonation:Residue A:1 N+: N+ (unmapped)\n"
@@ -393,7 +393,7 @@ def test_an_unmapped_terminus_is_told_apart_from_an_unmapped_residue() -> None:
 def test_no_build_log_means_the_protonation_check_did_not_run() -> None:
     """The unmapped lines exist only in the log; an absent log is an unasked question."""
 
-    from etalon.faults import postflight
+    from moldarwin.faults import postflight
 
     entry = next(
         e for e in postflight.check_build({"built": True})
@@ -405,7 +405,7 @@ def test_no_build_log_means_the_protonation_check_did_not_run() -> None:
 
 
 def test_a_failed_build_blocks_and_carries_its_reason() -> None:
-    from etalon.faults import postflight
+    from moldarwin.faults import postflight
 
     observed = postflight.check_build(
         {"built": False, "detail": "no topol.top and solv_ions.gro in GMX_PROLIG_MD"}

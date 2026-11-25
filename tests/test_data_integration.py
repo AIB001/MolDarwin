@@ -10,7 +10,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from etalon.active import (
+from moldarwin.active import (
     ActiveCampaign,
     CampaignSpec,
     CampaignStore,
@@ -18,13 +18,13 @@ from etalon.active import (
     Endpoint,
     Evaluation,
 )
-from etalon.active.adapters import MOLECULAR_REPRESENTATION
-from etalon.active.store import StateError
-from etalon.boundary.quarry import DataBudget, Quarry
-from etalon.data.artifacts import new_run, read_snapshot, seal, write_json
-from etalon.data.ingress import import_assays, review_template
-from etalon.data.library import import_candidates, prepare_library
-from etalon.data.service import plan_data, run_data
+from moldarwin.active.adapters import MOLECULAR_REPRESENTATION
+from moldarwin.active.store import StateError
+from moldarwin.boundary.quarry import DataBudget, Quarry
+from moldarwin.data.artifacts import new_run, read_snapshot, seal, write_json
+from moldarwin.data.ingress import import_assays, review_template
+from moldarwin.data.library import import_candidates, prepare_library
+from moldarwin.data.service import plan_data, run_data
 
 
 def no_http(request):
@@ -44,7 +44,7 @@ def library(tmp_path):
     return Path(prepared["snapshot"]), acquired, prepared
 
 
-def test_local_catalog_to_molcascade_identity_keeps_source_rows(library):
+def test_local_catalog_to_molcat_identity_keeps_source_rows(library):
     root, acquired, prepared = library
     assert acquired["usage"]["requests"] == 0
     assert acquired["result"]["status"] == "complete"

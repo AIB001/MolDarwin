@@ -1,12 +1,12 @@
 """Freeze/execute retained B, then separately acquire P diagnostics after predictions."""
 import argparse,json,time
 from pathlib import Path
-from etalon.active import CampaignStore
-from etalon.boundary.prism_v1 import CLITransport
-from etalon.research import ResearchJournal
-from etalon.research.pool import PoolClient
-from etalon.research.online import _write_once
-from etalon.research.retained_baseline import freeze_retained_baseline,run_retained_baseline
+from moldarwin.active import CampaignStore
+from moldarwin.boundary.prism_v1 import CLITransport
+from moldarwin.research import ResearchJournal
+from moldarwin.research.pool import PoolClient
+from moldarwin.research.online import _write_once
+from moldarwin.research.retained_baseline import freeze_retained_baseline,run_retained_baseline
 
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__)

@@ -8,14 +8,14 @@ import argparse
 import json
 from pathlib import Path
 
-from etalon.active.schema import digest
-from etalon.research.entry import resolve_entry
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research.meta_context import (
+from moldarwin.active.schema import digest
+from moldarwin.research.entry import resolve_entry
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research.meta_context import (
     make_task_profile, index_resources, review_adaptation, build_task_workset,
     read_task_workset, publish_task_workset,
 )
-from etalon.research.publication import resume_publication, _save
+from moldarwin.research.publication import resume_publication, _save
 
 
 def main():

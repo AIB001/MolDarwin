@@ -14,11 +14,11 @@ import time
 
 import numpy as np
 
-from etalon.runtime.files import file_identity, _save
-from etalon.runtime.reuse import execute_or_reuse, request_identity
-from etalon.rescore import contacts, motion
-from etalon.active.schema import digest
-from etalon.research import result_semantics
+from moldarwin.runtime.files import file_identity, _save
+from moldarwin.runtime.reuse import execute_or_reuse, request_identity
+from moldarwin.rescore import contacts, motion
+from moldarwin.active.schema import digest
+from moldarwin.research import result_semantics
 
 
 METHOD = {
@@ -135,8 +135,8 @@ def freeze(path, value):
 def dependencies():
     root = Path(__file__).parents[1]
     files = [Path(__file__), Path(motion.__file__), Path(contacts.__file__),
-             Path(result_semantics.__file__), root / "src/etalon/active/schema.py",
-             root / "src/etalon/runtime/reuse.py", root / "src/etalon/runtime/files.py"]
+             Path(result_semantics.__file__), root / "src/moldarwin/active/schema.py",
+             root / "src/moldarwin/runtime/reuse.py", root / "src/moldarwin/runtime/files.py"]
     files += [Path(__file__).parent/name for name in (
         "snd1_feedback_experiment.py", "snd1_anchor_intervention.py",
         "snd1_contact_program.py", "snd1_feedback_search.py",

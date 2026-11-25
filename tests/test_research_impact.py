@@ -3,9 +3,9 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active.schema import canonical
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research.research_impact import build_research_impact
+from moldarwin.active.schema import canonical
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research.research_impact import build_research_impact
 from test_research_graph_memory import graph_case
 from test_declared_relations import nested_counter
 

@@ -7,13 +7,13 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from etalon.active.decision import choose_decision
-from etalon.active.knowledge import knowledge_gradient
-from etalon.active.model import MultiEndpointGP
-from etalon.active.policy import choose
-from etalon.active.recommendation import recommend
-from etalon.active.replay import synthetic_manifest
-from etalon.active.schema import CampaignSpec, Candidate, Endpoint, Evaluation
+from moldarwin.active.decision import choose_decision
+from moldarwin.active.knowledge import knowledge_gradient
+from moldarwin.active.model import MultiEndpointGP
+from moldarwin.active.policy import choose
+from moldarwin.active.recommendation import recommend
+from moldarwin.active.replay import synthetic_manifest
+from moldarwin.active.schema import CampaignSpec, Candidate, Endpoint, Evaluation
 
 
 def _fixture(*, cost=1.0, budget=20.0, policy="decision_aware", **settings):

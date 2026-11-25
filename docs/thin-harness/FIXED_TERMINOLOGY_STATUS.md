@@ -7,7 +7,7 @@ editing it. §4 is the block to paste; §1–§3 are the evidence for it and sta
 Scope: this document records status and names hazards. **It does not decide whether
 `soundness` and `progress` should be implemented or withdrawn.** That decision belongs to
 the repo owner, is listed first among the things a previous review could not determine
-(`etalon-architecture-review.md:612-616`), and nothing here presumes an answer.
+(`moldarwin-architecture-review.md:612-616`), and nothing here presumes an answer.
 
 > **Superseded on 2026-11-10 by §6.** The repo owner decided, and the decision is
 > withdrawal. §1–§5 are kept as the pre-decision record, in this repository's accretive
@@ -26,7 +26,7 @@ anything. Two of the five name nothing, and the list as written cannot say so.
 The cost is specific. A term that exists only as an instruction to fill a field is a
 **declared hazard**, not a vocabulary: the host supplies a value from its own reading, and
 the skill that asks for it names the consequence in its own closing clause
-(`.claude/skills/etalon-step-corpus/SKILL.md:30-35`):
+(`.claude/skills/moldarwin-step-corpus/SKILL.md:30-35`):
 
 > Where a rule does not reach, leave the field empty; an inferred value here is
 > indistinguishable from a measured one later, which is the failure this project has a
@@ -49,7 +49,7 @@ Case-insensitive `soundness` outside `asset/` returns **two** lines, in full:
 
 ```
 CLAUDE.md:6:- `soundness` ∈ `sound` | `unsound_recoverable` | `unsound_terminal`
-.claude/skills/etalon-step-corpus/SKILL.md:30:Soundness and progress are separate fields. A step can be unsound and repaired
+.claude/skills/moldarwin-step-corpus/SKILL.md:30:Soundness and progress are separate fields. A step can be unsound and repaired
 ```
 
 `unsound_recoverable` and `unsound_terminal` return one line each: `CLAUDE.md:6`.
@@ -61,8 +61,8 @@ returns nothing.
 So: **`soundness` and `progress` are defined in `CLAUDE.md` lines 6-7 and implemented
 nowhere in the repository outside `asset/`.** No field, no enum, no validator, no schema,
 no test. Their only operational existence is the prose instruction at
-`.claude/skills/etalon-step-corpus/SKILL.md:30-35` telling the host to fill them. This
-reproduces the architecture review's finding (`etalon-architecture-review.md:126-135`)
+`.claude/skills/moldarwin-step-corpus/SKILL.md:30-35` telling the host to fill them. This
+reproduces the architecture review's finding (`moldarwin-architecture-review.md:126-135`)
 from an independent search.
 
 Two of the five fixed vocabularies are therefore enforced at exactly the level
@@ -76,7 +76,7 @@ claim about a surrogate's behaviour on held-out chemotypes. `progress = regresse
 a claim that a research step moved backwards. Two different assertions, one token, and the
 existing one is load-bearing in a module docstring that explains an ADR-backed design
 choice. Whoever implements the vocabulary should expect the collision
-(`etalon-architecture-review.md:148-151`).
+(`moldarwin-architecture-review.md:148-151`).
 
 ### 2.3 Three further collisions, not previously recorded
 
@@ -84,11 +84,11 @@ Found while verifying §2.1; each is a token the conventions fix and the source 
 spends on something else.
 
 - **`precision`.** `CLAUDE.md:8` requires saying `precision` when the claim is about
-  repeatability. In `src/etalon` the word means Bayesian precision, i.e. inverse variance
+  repeatability. In `src/moldarwin` the word means Bayesian precision, i.e. inverse variance
   (`active/protocol_score.py:202,248,254`), and floating-point precision
   (`active/knowledge.py:23,74`). Seven occurrences, none about repeatability.
 - **`validity`.** `CLAUDE.md:8` requires saying `validity` when the claim is about
-  agreement with a measured quantity. In `src/etalon` it overwhelmingly means structural or
+  agreement with a measured quantity. In `src/moldarwin` it overwhelmingly means structural or
   physical validity of a pose (`research/pose_selection.py:49`, `research/pose_verifier.py:38`,
   `research/pose_pool.py:137`), and `research/result_semantics.py:170` explicitly disclaims
   the other reading: *"This is not a scientific validity or adoption assessment."* Fifty
@@ -132,18 +132,18 @@ two terms the conventions keep fixed (`ADMISSION_PROPAGATION.md` §0.4).
 
 - **`admission`** is implemented and load-bearing. `Admission` is a `StrEnum` at
   `learn/admissible.py:72` with values `admitted`, `admitted_under_waiver`, `withheld`;
-  `Admission` appears at 29 sites in `src/etalon`.
+  `Admission` appears at 29 sites in `src/moldarwin`.
 - **`relied_on` / `used`** are implemented and load-bearing, **but only in the derived
   view**. `graph_memory.EDGES` is `{"flow", "depends_on", "derived_from", "supports",
   "refutes", "tests", "supersedes", "skipped_because"}` (`research/graph_memory.py:25-26`)
   and contains neither token. They exist as `premise_class` values computed by
   `learn/admission_view.py::_classify` (`:84-110`) and consumed by propagation. So the
   distinction is real, is enforced, and is **not recorded at emission** — which is why
-  `.claude/skills/etalon-recomputability-audit/SKILL.md:31-36` treats classifying old edges
+  `.claude/skills/moldarwin-recomputability-audit/SKILL.md:31-36` treats classifying old edges
   as the expensive class of a rule change.
 - **Evidence provenance** (`measured_here` / `measured_in_an_asset` / `literature` /
   `convention`) is implemented as `Evidence(StrEnum)` at `faults/taxonomy.py:66`, used at
-  34 sites in `src/etalon`.
+  34 sites in `src/moldarwin`.
 - **`completion` and `verification`** are implemented as structure under other field names,
   which is a weaker status than `admission` and stronger than prose. Completion is carried
   by `Evaluation.status` ∈ {`ok`, `failed`, `invalid`, `blocked`}
@@ -153,7 +153,7 @@ two terms the conventions keep fixed (`ADMISSION_PROPAGATION.md` §0.4).
   and declaratively by `evaluation_contract.STATUSES` = `{criteria_passed, criteria_failed,
   insufficient, incomparable}` (`research/evaluation_contract.py:23`). **That mapping is
   this document's reading of field semantics, evidence class `convention`, not a
-  measurement** — neither word is an identifier *of this concept* in `src/etalon`.
+  measurement** — neither word is an identifier *of this concept* in `src/moldarwin`.
   An earlier revision of this line claimed the stronger thing, that neither word is an
   identifier at all. That is true of `completion` (zero code-token sites) and **false of
   `verification`**, which has 76: a record field at `boundary/native_result.py:71` and
@@ -191,15 +191,15 @@ listed in the order `CLAUDE.md:4-8` gives them. The statuses are:
 | --- | --- | --- | --- |
 | `completion` | CLAUDE.md:4 | implemented as structure | `active/schema.py:140` 的 `Evaluation.status`;`runtime/native.py:416`。术语不是本概念的标识符(`completion` 零处;`verification` 另有 76 处他义,见 §2.4);字段对应关系是约定(convention),不是实测 |
 | `verification` | CLAUDE.md:4 | implemented as structure | `Ruling` 的 `blocking`/`unchecked`;`research/evaluation_contract.py:23` 的 `STATUSES`。同上,术语不是本概念的标识符;`verification` 被 host 安装验证等占用 76 处,见 §2.4 |
-| `admission` | CLAUDE.md:4 | implemented | `learn/admissible.py:72` 的 `Admission`;`src/etalon` 内 29 处 |
+| `admission` | CLAUDE.md:4 | implemented | `learn/admissible.py:72` 的 `Admission`;`src/moldarwin` 内 29 处 |
 | `relied_on` / `used` | CLAUDE.md:5 | derived only | `learn/admission_view.py:84-110` 的 `premise_class`。**`graph_memory.EDGES`(`:25-26`)不含这两个词** —— 该区分在发射时不被记录,只在导出视图里计算 |
-| `soundness` ∈ `sound` \| `unsound_recoverable` \| `unsound_terminal` | CLAUDE.md:6 | **prose only — 已声明的危险** | 仓库内(不含 `asset/`)只有 CLAUDE.md:6 的定义本身,以及 `.claude/skills/etalon-step-corpus/SKILL.md:30-35` 要求宿主填写的一段文字。无字段、无枚举、无校验、无 schema、无测试 |
+| `soundness` ∈ `sound` \| `unsound_recoverable` \| `unsound_terminal` | CLAUDE.md:6 | **prose only — 已声明的危险** | 仓库内(不含 `asset/`)只有 CLAUDE.md:6 的定义本身,以及 `.claude/skills/moldarwin-step-corpus/SKILL.md:30-35` 要求宿主填写的一段文字。无字段、无枚举、无校验、无 schema、无测试 |
 | `progress` ∈ `advanced` \| `no_progress` \| `regressed` | CLAUDE.md:7 | **prose only — 已声明的危险** | 同上。另有命名冲突:`learn/acquire.py:10` 与 `learn/__init__.py:12` 的 `regressed` 指向条件均值的统计回归,不是本枚举值 |
-| Evidence 来源 `measured_here` / `measured_in_an_asset` / `literature` / `convention` | CLAUDE.md:15 | implemented | `faults/taxonomy.py:66` 的 `Evidence`;`src/etalon` 内 34 处 |
-| `precision`(重复性)/ `validity`(与实测相关) | CLAUDE.md:8 | 报告用语,无字段 | 两词在 `src/etalon` 已被占用:`precision` 指贝叶斯精度与浮点精度(`active/protocol_score.py:202`、`active/knowledge.py:23`);`validity` 指姿势的结构/物理有效性(`research/pose_verifier.py:38`),且 `research/result_semantics.py:170` 明确否认另一读法 |
+| Evidence 来源 `measured_here` / `measured_in_an_asset` / `literature` / `convention` | CLAUDE.md:15 | implemented | `faults/taxonomy.py:66` 的 `Evidence`;`src/moldarwin` 内 34 处 |
+| `precision`(重复性)/ `validity`(与实测相关) | CLAUDE.md:8 | 报告用语,无字段 | 两词在 `src/moldarwin` 已被占用:`precision` 指贝叶斯精度与浮点精度(`active/protocol_score.py:202`、`active/knowledge.py:23`);`validity` 指姿势的结构/物理有效性(`research/pose_verifier.py:38`),且 `research/result_semantics.py:170` 明确否认另一读法 |
 
 **prose only 的含义:**一个只以"请宿主填写"存在的术语是一个已声明的危险,不是一个词汇表 ——
-按 `etalon-step-corpus/SKILL.md:30-35` 自己的说法,此处填入的推断值"later 与实测值不可区分"。
+按 `moldarwin-step-corpus/SKILL.md:30-35` 自己的说法,此处填入的推断值"later 与实测值不可区分"。
 是否实现或删除 `soundness` 与 `progress` 是负责人的决定,本表不作此决定,只记录状态并点名危险。
 
 另外两处术语占用,实现前应预期:`Artifact.role`(关于字节,含 `sealed_holdout`,
@@ -213,7 +213,7 @@ listed in the order `CLAUDE.md:4-8` gives them. The statuses are:
 1. Whether `soundness` and `progress` become derived fields, or are withdrawn from the
    fixed vocabulary. If the second, the step-corpus skill's text should say the fields are
    host judgements, so a later reader cannot mistake one for a derived value
-   (`etalon-architecture-review.md:612-616`). Either way the status column above stays
+   (`moldarwin-architecture-review.md:612-616`). Either way the status column above stays
    correct until the decision lands.
 2. Whether to merge this block into `CLAUDE.md` at all, or keep it as a separate
    conventions appendix. The block is written to be pasted; nothing depends on where it
@@ -236,7 +236,7 @@ carries it.
 
 A term that exists only as an instruction to fill a field is not a vocabulary. It is a
 **manufactured indistinguishability**: the host supplies a value from its own reading, and
-`.claude/skills/etalon-step-corpus/SKILL.md` said in its own closing clause that such a
+`.claude/skills/moldarwin-step-corpus/SKILL.md` said in its own closing clause that such a
 value is indistinguishable from a measured one later. The repository was asking, in
 writing, for the failure `admission` exists to prevent. Of the three available moves —
 implement, withdraw, leave as is — *leave as is* was the only one that violated the first
@@ -267,7 +267,7 @@ better.** Both halves were checked against the code rather than assumed:
   step. There is no single quantity for a derived `progress` to be derived from.
 
 So an earlier sketch of this decision — withdraw the vocabulary status and re-deliver both
-as ETALON-derived response fields — is **not** what landed. Withdrawing was right; the
+as MolDarwin-derived response fields — is **not** what landed. Withdrawing was right; the
 re-delivery would have added a fourth field answering a question two existing ones answer
 more precisely. Recorded here because the sketch is the plausible wrong move and a later
 reader will reach for it.
@@ -322,7 +322,7 @@ vocabulary monopoly nobody decided.
 
 **The first attempt got the layer wrong, and it is worth recording because the error is the
 one this whole round is about.** The hazard was identified as *the instruction to supply a
-value* — `.claude/skills/etalon-step-corpus/SKILL.md` telling the host to fill both fields
+value* — `.claude/skills/moldarwin-step-corpus/SKILL.md` telling the host to fill both fields
 "from rules over the fault codes" — and the check written for it was a regular expression
 hunting imperatives across 28 skill files. That is **prose policing prose**, and §6.1's own
 argument says why it cannot work: prose-as-discipline is the mechanism this round measured
@@ -348,12 +348,12 @@ at all?** Measured before anything was built (2026-11-10, throwaway campaign; Ev
 | `record_json` payload containing `soundness` | written to disk intact |
 | `MethodEvaluation(..., soundness="sound")` | already refused — `TypeError` |
 
-So the hole was the free-form slot that is *also* where ETALON's own annotations live:
+So the hole was the free-form slot that is *also* where MolDarwin's own annotations live:
 `capability_attribution.KEY` calls `bindings` *the reserved bindings key*. A key there is
-read later as ETALON's, which is exactly what makes a host-supplied value indistinguishable
+read later as MolDarwin's, which is exactly what makes a host-supplied value indistinguishable
 from a computed one.
 
-`src/etalon/research/reserved_bindings.py` is the enforcement. It refuses, at
+`src/moldarwin/research/reserved_bindings.py` is the enforcement. It refuses, at
 `Artifact.__post_init__` and `Experiment.__post_init__`:
 
 - a **withdrawn** name — nothing computes it, so any value is a judgement wearing a field's
@@ -361,7 +361,7 @@ from a computed one.
   for soundness, a retained-baseline comparison for progress) and says a name of the host's
   own is legal, because a refusal a host cannot act on is a wall;
 - a **reserved and in use** name carrying the wrong shape — a malformed `produced_by` would
-  read afterwards as ETALON's own output. ETALON's own write passes through the same gate.
+  read afterwards as MolDarwin's own output. MolDarwin's own write passes through the same gate.
 
 By the hardening criterion this is the cheap kind of refusal: it fails in the same session,
 visibly, and nothing legitimate writes those keys (verified — the only `bindings` hit on
@@ -371,9 +371,9 @@ correct record today).
 
 **Deliberate boundary, stated rather than hidden:** the registry does not police a record's
 *payload*. A payload is the caller's own document, its schema is the caller's, and `progress`
-in one may legitimately mean how far a screen got. Payloads that claim to be ETALON records
-carry `schema` and go through typed validation instead — and no ETALON code reads
-`payload["soundness"]`, so nothing would present it as ETALON's output. The line is: ETALON
+in one may legitimately mean how far a screen got. Payloads that claim to be MolDarwin records
+carry `schema` and go through typed validation instead — and no MolDarwin code reads
+`payload["soundness"]`, so nothing would present it as MolDarwin's output. The line is: MolDarwin
 refuses what it would be read as having produced.
 
 So the checks now are:

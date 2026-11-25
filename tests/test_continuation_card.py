@@ -5,11 +5,11 @@ import json
 
 import pytest
 
-from etalon.active.schema import canonical, digest
-from etalon.research.evidence import StaleCursorError, read_evidence
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research.graph_memory import node_identity
-from etalon.research.research_context import build_research_context
+from moldarwin.active.schema import canonical, digest
+from moldarwin.research.evidence import StaleCursorError, read_evidence
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research.graph_memory import node_identity
+from moldarwin.research.research_context import build_research_context
 
 from test_research_graph_memory import graph_case
 
@@ -141,8 +141,8 @@ def test_manifest_cursor_is_pinned_and_reports_source_change(graph_case):
 
 
 def test_card_keeps_graph_counter_gap_distinct_from_reference_inventory(graph_case, monkeypatch):
-    import etalon.research.research_context as module
-    from etalon.research.graph_memory import build_research_graph
+    import moldarwin.research.research_context as module
+    from moldarwin.research.graph_memory import build_research_graph
     c = graph_case
     graph = build_research_graph(c["workspace"], checkpoint_ref=c["checkpoint"])
     graph["truncated"] = True
@@ -175,13 +175,13 @@ def test_legacy_card_exposes_each_branch_authored_conclusion_without_claims(grap
 
 def test_mcp_card_and_manifest_use_existing_tool(graph_case):
     from mcp.server.fastmcp import FastMCP
-    from etalon.mcp.evidence import register
+    from moldarwin.mcp.evidence import register
     server = FastMCP("continuation-card-fixture")
     register(server)
     schemas = {item.name: item.inputSchema for item in asyncio.run(server.list_tools())}
-    assert {"card", "manifest"} <= set(schemas["etalon_research_context"]["properties"]["view"]["enum"])
+    assert {"card", "manifest"} <= set(schemas["moldarwin_research_context"]["properties"]["view"]["enum"])
     def call(args):
-        result = asyncio.run(server.call_tool("etalon_research_context", args))
+        result = asyncio.run(server.call_tool("moldarwin_research_context", args))
         blocks = result[0] if isinstance(result, tuple) else result
         return json.loads(next(block.text for block in blocks if hasattr(block, "text")))
     card = call({"entry": str(graph_case["entry"]), "view": "card"})
@@ -192,8 +192,8 @@ def test_mcp_card_and_manifest_use_existing_tool(graph_case):
 
 
 def test_large_counter_body_remains_exact_paged_evidence_not_index_coverage(graph_case):
-    from etalon.research import Artifact
-    from etalon.research.evidence_refs import make_ref
+    from moldarwin.research import Artifact
+    from moldarwin.research.evidence_refs import make_ref
     c = graph_case
     body = ("SYNTHETIC_COUNTER_SCOPE_ONLY\n" * 2400).encode()
     path = c["entry"].parent / "large-counter.txt"
@@ -221,19 +221,19 @@ def test_large_counter_body_remains_exact_paged_evidence_not_index_coverage(grap
 
 @pytest.mark.parametrize("view", ["manifest", "card", "summary"])
 def test_reverse_counter_member_checks_member_bytes_not_only_parent_metadata(graph_case, view):
-    from etalon.research.evidence_refs import make_ref
+    from moldarwin.research.evidence_refs import make_ref
     c = graph_case
     member = c["entry"].parent / "raw.bin"
     member.write_bytes(b"member-original")
     identity = file_identity(member)
     parent = {"members": [{"member": "raw.bin", "path": str(member), **identity, "visibility": "released"}]}
     member_ref = {**make_ref("extra", "snapshot-owner", parent), "member": "raw.bin", **identity}
-    reverse = {"schema": "etalon-research-claim/1", "question": "Which route?",
+    reverse = {"schema": "moldarwin-research-claim/1", "question": "Which route?",
         "statement": "Synthetic reverse claim with an exact snapshot-member counter",
         "epistemic_status": "interpretation", "subjects": [], "conditions": [], "limitations": [],
         "support_refs": [], "counter_refs": [c["claim"], member_ref], "method_refs": [], "supersedes": []}
     manifest = c["entry"].parent / "external-manifest.json"
-    manifest.write_text(json.dumps({"schema": "etalon-artifact-manifest/1", "records": [
+    manifest.write_text(json.dumps({"schema": "moldarwin-artifact-manifest/1", "records": [
         {"record_id": "snapshot-owner", "record_type": "data_snapshot", "record": parent, "visibility": "released"},
         {"record_id": "reverse-counter", "record_type": "claim", "record": reverse, "visibility": "released"}]}))
     ws = json.loads(c["workspace"].read_text())

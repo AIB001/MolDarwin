@@ -9,8 +9,8 @@ import time
 
 import pytest
 
-from etalon.research import execution_recovery as recovery
-from etalon.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research import execution_recovery as recovery
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
 
 
 def wait_for(predicate, timeout=15):
@@ -46,7 +46,7 @@ def test_controller_is_actually_killed_native_survives_and_duplicate_entry_never
     code = """
 import json,sys,time
 from pathlib import Path
-from etalon.research.execution_recovery import launch_detached_attempt
+from moldarwin.research.execution_recovery import launch_detached_attempt
 root=Path(sys.argv[1]);config=json.loads((root/'controller-input.json').read_text('utf-8'))
 launch_detached_attempt(root/'attempt',config['request'],config['command'],cwd=root,outputs=config['outputs'])
 (root/'controller-ready').write_text('controller handed off',encoding='utf-8')

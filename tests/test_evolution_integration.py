@@ -7,12 +7,12 @@ from pathlib import Path
 
 import pytest
 
-from etalon import host, skills
-from etalon.active.schema import digest
-from etalon.boundary.prism_v1 import file_identity
-from etalon.research import MethodUse, MethodVersion, ResearchJournal
-from etalon.research.evidence_refs import EvidenceResolver
-from etalon.research.journal import audit_json
+from moldarwin import host, skills
+from moldarwin.active.schema import digest
+from moldarwin.boundary.prism_v1 import file_identity
+from moldarwin.research import MethodUse, MethodVersion, ResearchJournal
+from moldarwin.research.evidence_refs import EvidenceResolver
+from moldarwin.research.journal import audit_json
 from test_research_journal import setup
 
 
@@ -20,7 +20,7 @@ def workspace(root, *, original, local, source=None, maps=()):
     source = source or {'source_id': 'released', 'kind': 'artifact_manifest',
                         'location': 'archive.json',
                         'identity': {'kind': 'snapshot_sha256', 'value': 'a' * 64}}
-    payload = {'schema': 'etalon-evidence-workspace/1', 'workspace_id': 'fixture',
+    payload = {'schema': 'moldarwin-evidence-workspace/1', 'workspace_id': 'fixture',
                'sources': [source], 'location_map': [
                    {'source_id': source['source_id'], 'original': original,
                     'location': local.relative_to(root).as_posix(), **file_identity(local)}, *maps]}
@@ -48,7 +48,7 @@ def test_foreign_artifact_is_consumed_without_rewriting_identity_or_cost(tmp_pat
 
 def test_mapped_skill_snapshot_checks_semantic_and_member_bytes(tmp_path):
     saved = skills.persist_snapshot('research', tmp_path / 'relocated')
-    original = '/old/posix/skill/etalon-bundle-manifest.json'
+    original = '/old/posix/skill/moldarwin-bundle-manifest.json'
     manifest = workspace(tmp_path, original=original, local=Path(saved['manifest_path']))
     resolver = EvidenceResolver(manifest, 'released')
     historical = {**saved, 'manifest_path': original}
@@ -84,14 +84,14 @@ def test_subject_scope_maps_only_to_the_verified_same_journal(tmp_path):
 
 
 def test_mcp_evidence_reads_same_ref_and_original_bytes_as_sdk(tmp_path):
-    from etalon.mcp.server import register_tools, costs
-    from etalon.research.evidence import query_evidence
+    from moldarwin.mcp.server import register_tools, costs
+    from moldarwin.research.evidence import query_evidence
     blob = tmp_path / 'released.txt'
     blob.write_bytes(b'released fixture original\r\n')
     record = {'path': str(blob), **file_identity(blob), 'role': 'diagnostic',
               'source_kind': 'fixture', 'bindings': {}}
     archive = tmp_path / 'archive.json'
-    archive.write_text(json.dumps({'schema': 'etalon-artifact-manifest/1', 'records': [
+    archive.write_text(json.dumps({'schema': 'moldarwin-artifact-manifest/1', 'records': [
         {'record_id': 'artifact-' + digest(record), 'record_type': 'artifact',
          'record': record, 'visibility': 'released'}]}), encoding='utf-8')
     manifest = workspace(tmp_path, original=str(blob), local=blob, source={
@@ -105,13 +105,13 @@ def test_mcp_evidence_reads_same_ref_and_original_bytes_as_sdk(tmp_path):
                 return function
             return save
     register_tools(Collector())
-    query = json.loads(found['etalon_evidence_query'](str(manifest)))
+    query = json.loads(found['moldarwin_evidence_query'](str(manifest)))
     assert query['items'] == query_evidence(manifest)['items']
-    result = json.loads(found['etalon_evidence_read'](str(manifest), query['items'][0]['ref'], view='artifact'))
+    result = json.loads(found['moldarwin_evidence_read'](str(manifest), query['items'][0]['ref'], view='artifact'))
     assert base64.b64decode(result['fragment']['content']) == blob.read_bytes()
     assert result['verification']['artifact'] == 'verified'
-    assert costs()['etalon_evidence_read'] == costs()['etalon_evidence_query'] == 'free'
-    assert not json.loads(found['etalon_evidence_query'](str(manifest), filters={'unknown': []}))['ok']
+    assert costs()['moldarwin_evidence_read'] == costs()['moldarwin_evidence_query'] == 'free'
+    assert not json.loads(found['moldarwin_evidence_query'](str(manifest), filters={'unknown': []}))['ok']
 
 
 def test_host_export_guides_are_separate_verified_files(tmp_path):
@@ -127,12 +127,12 @@ def test_host_export_guides_are_separate_verified_files(tmp_path):
 
 
 def test_mcp_host_resource_preserves_crlf_bytes(tmp_path, monkeypatch):
-    from etalon.mcp import server
+    from moldarwin.mcp import server
     role = tmp_path / 'HOST.md'
     role.write_bytes(b'fixture\r\nrole\r\n')
     monkeypatch.setattr(server, 'ROLE_PATH', role)
     mcp = server.build()
     async def read():
-        result = await mcp.read_resource('etalon://host')
+        result = await mcp.read_resource('moldarwin://host')
         return next(iter(result)).content
     assert asyncio.run(read()).encode() == role.read_bytes()

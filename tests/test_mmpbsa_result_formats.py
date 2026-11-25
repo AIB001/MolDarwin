@@ -8,7 +8,7 @@ layer withholds a measurement with no expensive value and records the reason, so
 calculation would have been filed as one that produced no result.
 
 The fixture here is not synthetic. It is the 6,837-byte output of this project's own
-pipeline: 1,000 BRICS-recombined ligands screened through MolCascade against 1IEP, the
+pipeline: 1,000 BRICS-recombined ligands screened through MolCat against 1IEP, the
 best redock-consistent pose built with amber14sb/GAFF2/AM1-BCC, 0.5 ns of production MD,
 then gmx_MMPBSA driven by ``run_mmpbsa``. The ``=`` reader scored zero matches on it.
 
@@ -25,7 +25,7 @@ from pathlib import Path
 
 import pytest
 
-from etalon.boundary.simulate import read_binding_energy
+from moldarwin.boundary.simulate import read_binding_energy
 
 FIXTURE = Path(__file__).parent / "fixtures" / "mmpbsa" / "tabular-FINAL_RESULTS_MMPBSA.dat"
 

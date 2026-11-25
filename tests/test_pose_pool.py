@@ -3,8 +3,8 @@ import pytest
 
 Chem = pytest.importorskip("rdkit.Chem")
 from rdkit.Chem import AllChem
-from etalon.research.pose_pool import diagnose_cpu_pool
-from etalon.research.evidence_refs import file_identity
+from moldarwin.research.pose_pool import diagnose_cpu_pool
+from moldarwin.research.evidence_refs import file_identity
 
 
 @pytest.fixture

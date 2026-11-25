@@ -6,11 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active.schema import canonical
-from etalon.research.decision_reading import build_decision_reading
-from etalon.research.evidence import StaleCursorError, read_evidence
-from etalon.research.evidence_refs import EvidenceError, file_identity, make_ref
-from etalon.research.graph_memory import node_identity
+from moldarwin.active.schema import canonical
+from moldarwin.research.decision_reading import build_decision_reading
+from moldarwin.research.evidence import StaleCursorError, read_evidence
+from moldarwin.research.evidence_refs import EvidenceError, file_identity, make_ref
+from moldarwin.research.graph_memory import node_identity
 from test_research_graph_memory import graph_case
 
 
@@ -67,7 +67,7 @@ def test_default_selection_is_concrete_readonly_and_preserves_counter_direction(
 
 def test_counter_other_branch_is_never_top_k_filtered(graph_case):
     c = graph_case
-    contrary = c["save"]({"schema": "etalon-research-claim/1", "question": "Other task",
+    contrary = c["save"]({"schema": "moldarwin-research-claim/1", "question": "Other task",
         "statement": "Cross-task conflict", "epistemic_status": "interpretation", "subjects": [],
         "conditions": [], "limitations": [], "support_refs": [], "counter_refs": [c["decision"]],
         "method_refs": [], "supersedes": []})
@@ -101,7 +101,7 @@ def test_new_or_changed_source_invalidates_cursor(graph_case):
         build_decision_reading(first["read_context"], question="choose", cursor=first["next_cursor"])
     second = build_decision_reading(c["entry"], question="choose", limit=1)
     external = c["entry"].parent / "empty.json"
-    external.write_text(json.dumps({"schema": "etalon-artifact-manifest/1", "records": []}))
+    external.write_text(json.dumps({"schema": "moldarwin-artifact-manifest/1", "records": []}))
     ws = json.loads(c["workspace"].read_text())
     ws["sources"].append({"source_id": "new-source", "kind": "artifact_manifest", "location": str(external),
                           "identity": {"kind": "snapshot_sha256", "value": file_identity(external)["sha256"]}})
@@ -148,7 +148,7 @@ def test_original_corruption_is_not_bypassed_by_status_mode(graph_case):
     ({"state": None}, "unknown"), ({"state": "neutral"}, "match"), ({"state": "charged"}, "conflict")])
 def test_experience_conditions_are_retained_even_when_conflicting(graph_case, monkeypatch, conditions, expected):
     # Projection-only synthetic experience: tests delivery, never RSI validity.
-    import etalon.research.decision_reading as module
+    import moldarwin.research.decision_reading as module
     real = module.build_research_graph
     def inject(*args, **kwargs):
         graph = copy.deepcopy(real(*args, **kwargs))
@@ -200,7 +200,7 @@ def test_relevance_cannot_smuggle_unselected_reference(graph_case):
 def test_discovered_experience_is_conditional_but_counter_to_root_is_required(graph_case):
     c = graph_case
     # Manifest records are explicit engineering fixtures, not validated RSI outcomes.
-    experience = {"schema": "etalon-method-experience/1", "task_id": "snd1-fixture",
+    experience = {"schema": "moldarwin-method-experience/1", "task_id": "snd1-fixture",
         "conditions": {"state": "neutral"}, "invalid_when": "charged", "outcome": "unresolved",
         "capability_id": "fixture", "scope": "fixture", "lesson": "UNRELATED_DISCOVERED_LESSON",
         "support_refs": [], "counter_refs": [], "supersedes": []}
@@ -208,7 +208,7 @@ def test_discovered_experience_is_conditional_but_counter_to_root_is_required(gr
     sealed = {**experience, "role": "sealed_holdout", "lesson": "SEALED_SENTINEL"}
     bodies = [experience, conflicting, sealed]
     manifest = c["entry"].parent / "experiences.json"
-    manifest.write_text(json.dumps({"schema": "etalon-artifact-manifest/1", "records": [
+    manifest.write_text(json.dumps({"schema": "moldarwin-artifact-manifest/1", "records": [
         {"record_id": str(i), "record_type": "experience", "record": body, "visibility": "released"}
         for i, body in enumerate(bodies)]}))
     config = json.loads(c["workspace"].read_text())
@@ -232,7 +232,7 @@ def test_discovered_experience_is_conditional_but_counter_to_root_is_required(gr
 
 
 def test_applicability_never_promotes_empty_or_undeclared_dimensions():
-    from etalon.research.decision_reading import _applicability
+    from moldarwin.research.decision_reading import _applicability
     empty = _applicability({"conditions": {}, "invalid_when": "unknown"}, {"state": "neutral"})
     missing = _applicability({"conditions": {"state": "neutral"}}, {"state": "neutral", "endpoint": "new"})
     assert empty["status"] == missing["status"] == "unknown"
@@ -242,7 +242,7 @@ def test_applicability_never_promotes_empty_or_undeclared_dimensions():
 
 def test_boundary_basis_counter_scope_is_unknown_until_explicitly_expanded(graph_case):
     c = graph_case
-    claim = c["save"]({"schema": "etalon-research-claim/1", "question": "New basis",
+    claim = c["save"]({"schema": "moldarwin-research-claim/1", "question": "New basis",
         "statement": "Fixture boundary basis", "epistemic_status": "interpretation", "subjects": [],
         "conditions": [], "limitations": [], "support_refs": [], "counter_refs": [c["unrelated"]],
         "method_refs": [], "supersedes": []})

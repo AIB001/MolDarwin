@@ -8,10 +8,10 @@ import sqlite3
 
 import pytest
 
-from etalon.__main__ import main
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active import cli as active_cli
-from etalon.boundary.screen import Screen
+from moldarwin.__main__ import main
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active import cli as active_cli
+from moldarwin.boundary.screen import Screen
 
 
 def make_store(tmp_path):

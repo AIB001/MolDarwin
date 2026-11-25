@@ -3,7 +3,7 @@ import json
 import sqlite3
 from pathlib import Path
 
-from etalon.mcp.server import register_tools
+from moldarwin.mcp.server import register_tools
 
 
 class Collector:
@@ -27,19 +27,19 @@ def test_missing_monitoring_inputs_do_not_create_state(tmp_path):
     api = tools()
     before = list(tmp_path.iterdir())
     for name, args in (
-        ("etalon_sweep_status", {
+        ("moldarwin_sweep_status", {
             "workspace": str(tmp_path / "absent-workspace"),
             "pool": str(tmp_path / "absent-pool.sqlite"),
             "ledger": str(tmp_path / "absent-ledger.jsonl"),
         }),
-        ("etalon_sweep_progress", {
+        ("moldarwin_sweep_progress", {
             "workspace": str(tmp_path / "absent-workspace"), "run_id": "unseen",
         }),
-        ("etalon_calibrate_gates", {
+        ("moldarwin_calibrate_gates", {
             "workspace": str(tmp_path / "absent-workspace"), "run_id": "unseen",
             "panel_json": '[{"parent_id":"fixture","known_active":true}]',
         }),
-        ("etalon_authorize_gates", {
+        ("moldarwin_authorize_gates", {
             "workspace": str(tmp_path / "absent-workspace"), "run_id": "unseen",
             "panel_json": '[{"parent_id":"fixture","known_active":true}]',
         }),
@@ -62,20 +62,20 @@ def test_monitoring_old_pool_neither_migrates_nor_requires_workspace_or_ledger(t
             INSERT INTO batch VALUES ('old',1,'then','worker','then','run','rev',NULL,NULL);
         """)
     original = pool.read_bytes()
-    result = json.loads(tools()["etalon_sweep_status"](
+    result = json.loads(tools()["moldarwin_sweep_status"](
         workspace=str(tmp_path / "unused-workspace"), pool=str(pool),
         ledger=str(tmp_path / "unused-ledger"),
     ))
     assert result["ok"] is True
     assert result["sweep"]["batches"]["outstanding"] == 1
-    assert result["sweep"]["etalon_revisions"] == []
+    assert result["sweep"]["moldarwin_revisions"] == []
     assert pool.read_bytes() == original
     assert list(tmp_path.iterdir()) == [pool]
 
 
 def test_productivity_can_be_queried_without_a_plan_or_skill(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    result = json.loads(tools()["etalon_generation_productivity"](
+    result = json.loads(tools()["moldarwin_generation_productivity"](
         loops_json=json.dumps([{
             "tag": "already-measured", "model": "engineering-fixture", "pocket": "box",
             "chunks": [{"requested": 100, "delivered": 90, "unique": 0, "seconds": 2}] * 3,
@@ -99,7 +99,7 @@ def test_productivity_in_cold_stdio_server_returns_and_session_stays_usable(tmp_
         params = StdioServerParameters(
             command=sys.executable,
             args=["-c", (
-                "import sys; from etalon.mcp.server import main; "
+                "import sys; from moldarwin.mcp.server import main; "
                 "assert 'numpy' not in sys.modules and 'scipy' not in sys.modules; main()"
             )],
             cwd=str(tmp_path),
@@ -111,7 +111,7 @@ def test_productivity_in_cold_stdio_server_returns_and_session_stays_usable(tmp_
                 reader, writer, read_timeout_seconds=timedelta(seconds=20)
             ) as session:
                 await session.initialize()
-                response = await session.call_tool("etalon_generation_productivity", {
+                response = await session.call_tool("moldarwin_generation_productivity", {
                     "loops_json": json.dumps([{
                         "tag": "cold", "model": "fixture", "pocket": "fixture",
                         "chunks": [
@@ -124,7 +124,7 @@ def test_productivity_in_cold_stdio_server_returns_and_session_stays_usable(tmp_
                 assert result["ok"] and "cold" in result["retire"]
                 assert result["loops"][0]["uniqueness"]["cost_multiplier"] is None
                 # A successful arithmetic response must not leave stdout or the session broken.
-                next_response = await session.call_tool("etalon_capabilities", {})
+                next_response = await session.call_tool("moldarwin_capabilities", {})
                 assert not next_response.isError
                 assert json.loads(next_response.content[0].text)["ok"]
     asyncio.run(check())

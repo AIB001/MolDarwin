@@ -1,6 +1,6 @@
 # Batch result archival
 
-`etalon.research.batch_results` is an optional adapter over an already configured
+`moldarwin.research.batch_results` is an optional adapter over an already configured
 `ResearchJournal`. It archives explicit native receipts, original outputs and
 counterevidence, builds bounded indexes, and writes an ordinary `node`
 research-step. It submits no scientific work, settles no execution charges,
@@ -9,7 +9,7 @@ database table. The strings below identify ordinary JSON Artifact formats, not
 new kernel record types or mandatory stages.
 
 ```python
-from etalon.research.batch_results import (
+from moldarwin.research.batch_results import (
     ingest_batch_results, verify_batch_results, read_batch_results,
 )
 
@@ -34,7 +34,7 @@ I/O and storage overhead are unmetered (`ingestion_compute_cost=null`).
 
 ```json
 {
-  "schema": "etalon-batch-results-input/1",
+  "schema": "moldarwin-batch-results-input/1",
   "batch_id": "p1-block-001",
   "task_id": "snd1-scale-20261024",
   "question": "Can the frozen method preserve quality at lower cost?",
@@ -262,7 +262,7 @@ and their missing required counterevidence. The measured source hash and
 per-file byte inventory are in the separate integration `continuation/BATCH_IO.json`.
 
 The separate 2026-10-24 integration under
-`integration/etalon-snd1-scale-run-20261024/harness/` uses two **actual new** P1
+`integration/moldarwin-snd1-scale-run-20261024/harness/` uses two **actual new** P1
 native receipts: fixed-core completion and an identity-precheck failure. It
 preserves their exact request/protocol/freeze/output bytes and measured cost.
 The missing independent verifier is explicit; it is not a scientific quality

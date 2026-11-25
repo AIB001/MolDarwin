@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import pytest
 
-from etalon.active import (
+from moldarwin.active import (
     ActiveCampaign,
     CampaignSpec,
     CampaignStore,
@@ -28,8 +28,8 @@ from etalon.active import (
     Endpoint,
     Evaluation,
 )
-from etalon.active.budget import confirmation_guard
-from etalon.active.rounds import (
+from moldarwin.active.budget import confirmation_guard
+from moldarwin.active.rounds import (
     EXPLAINS_A_SHORT_ROUND,
     READY,
     READY_EXHAUSTED,
@@ -315,7 +315,7 @@ def test_the_advisory_hook_derives_the_vocabulary_instead_of_keeping_a_second_co
     repair is the direction of the dependency, not a second list kept in step by hand.
     """
 
-    import etalon.hooks.budget_floor as hook
+    import moldarwin.hooks.budget_floor as hook
 
     assert set(hook.EXPLAINED_STOPS) == set(EXPLAINS_A_SHORT_ROUND)
     assert set(hook.REASON_NOT_OBTAINED_STOPS) == set(SHORT_ROUND_REASON_NOT_OBTAINED)

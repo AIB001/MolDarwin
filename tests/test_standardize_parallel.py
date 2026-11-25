@@ -5,14 +5,14 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from molcascade.artifacts import ArtifactRef, ArtifactProducer, LocalArtifactStore
-from molcascade.contracts import RAW_MOLECULE_V1, RAW_MOLECULE_V2
-from molcascade.plugins.api import StageContext, StageInput, StageRequest
-from molcascade.plugins.builtin.standardize import RDKitStandardizePlugin
-from molcascade.plugins.builtin.registered_source import RegisteredParentSourcePlugin
-from molcascade.parallel import StageResources, count_completed_shards
-from molcascade.parallel.progress import read_progress
-from molcascade.errors import PluginError
+from molcat.artifacts import ArtifactRef, ArtifactProducer, LocalArtifactStore
+from molcat.contracts import RAW_MOLECULE_V1, RAW_MOLECULE_V2
+from molcat.plugins.api import StageContext, StageInput, StageRequest
+from molcat.plugins.builtin.standardize import RDKitStandardizePlugin
+from molcat.plugins.builtin.registered_source import RegisteredParentSourcePlugin
+from molcat.parallel import StageResources, count_completed_shards
+from molcat.parallel.progress import read_progress
+from molcat.errors import PluginError
 
 
 SMILES = ['CCO', 'C(C)O', 'CCN.Cl', 'C[C@H](O)C(=O)O', 'C[C@@H](O)C(=O)O',
@@ -64,7 +64,7 @@ def test_spawn_equivalence_global_duplicates_and_stereo(tmp_path, v2):
 
 
 def test_resume_after_interrupted_map_and_corrupt_shard(tmp_path, monkeypatch):
-    import molcascade.parallel.shards as shards
+    import molcat.parallel.shards as shards
     req = make_request(tmp_path / 'raw')
     checkpoints = tmp_path / 'checkpoints'
     real = shards._run_tasks
@@ -114,7 +114,7 @@ def committed_bundle(tmp_path):
 
 
 def test_registered_reuse_keeps_negative_evidence_no_chemistry(tmp_path, monkeypatch):
-    from molcascade.chemistry.identity import ParentStandardizer
+    from molcat.chemistry.identity import ParentStandardizer
     store, manifest, req = committed_bundle(tmp_path)
     request = StageRequest('reuse', config={'path': str(tmp_path / 'store'),
         'artifact_id': manifest.artifact_id, **dict(req.config)})
@@ -140,10 +140,10 @@ def test_registered_reuse_keeps_negative_evidence_no_chemistry(tmp_path, monkeyp
 
 
 def test_cascade_registered_source_runs_through_existing_runner(tmp_path):
-    from molcascade.cascade.models import CascadeConfig
-    from molcascade.cascade.lower import lower_cascade
-    from molcascade.runtime.runner import LocalRunner
-    from molcascade.plugins.registry import create_builtin_registry
+    from molcat.cascade.models import CascadeConfig
+    from molcat.cascade.lower import lower_cascade
+    from molcat.runtime.runner import LocalRunner
+    from molcat.plugins.registry import create_builtin_registry
     store, manifest, req = committed_bundle(tmp_path)
     cascade = CascadeConfig.model_validate({
         'name': 'reuse-registration', 'library': {'format': 'registered'},
@@ -164,11 +164,11 @@ def test_cascade_registered_source_runs_through_existing_runner(tmp_path):
 def test_cli_and_mcp_report_same_progress(tmp_path, capsys, monkeypatch):
     from datetime import datetime, timezone
     from types import SimpleNamespace
-    from molcascade.parallel.progress import write_progress, stage_progress
-    from molcascade.runtime.cache import checkpoint_directory_name
-    from molcascade.runtime.models import StageRunState, StageRunStatus, RunState, RunStatus
-    from molcascade import cli
-    from molcascade.mcp import screening
+    from molcat.parallel.progress import write_progress, stage_progress
+    from molcat.runtime.cache import checkpoint_directory_name
+    from molcat.runtime.models import StageRunState, StageRunStatus, RunState, RunStatus
+    from molcat import cli
+    from molcat.mcp import screening
     key = 'cache:sha256:' + 'b' * 64
     stage = StageRunState(stage_id='standardize', plugin_key='chemistry.rdkit_standardize@0.1.0',
                           status=StageRunStatus.RUNNING, cache_key=key)
@@ -183,7 +183,7 @@ def test_cli_and_mcp_report_same_progress(tmp_path, capsys, monkeypatch):
     state = RunState(run_id='progress', revision_id='c' * 64,
                      status=RunStatus.RUNNING, stages=(stage,), started_at=now, updated_at=now)
     (tmp_path / 'runs').mkdir()
-    from molcascade.artifacts import canonical_json_bytes
+    from molcat.artifacts import canonical_json_bytes
     (tmp_path / 'runs/progress.json').write_bytes(canonical_json_bytes(state))
     assert cli._status('progress', workspace=tmp_path, include_events=False, as_json=True) == 0
     payload = json.loads(capsys.readouterr().out)
@@ -206,7 +206,7 @@ def test_cli_and_mcp_report_same_progress(tmp_path, capsys, monkeypatch):
 
 
 def test_device_rebinding_preserves_side_inputs(tmp_path):
-    from molcascade.parallel.shards import ShardTask, _replace_device
+    from molcat.parallel.shards import ShardTask, _replace_device
     task = ShardTask(index=0, input_files=(tmp_path / 'input',), row_offset=0,
                      row_count=1, output_paths={'primary': tmp_path / 'out'},
                      side_inputs={'conformers': (tmp_path / 'conformers',)},

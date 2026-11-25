@@ -11,11 +11,11 @@ import hashlib
 import json
 from pathlib import Path
 
-from etalon.boundary.quarry import DataBudget
-from etalon.boundary.screen import Screen
-from etalon.data.artifacts import read_snapshot, write_json
-from etalon.data.service import plan_data, run_data
-from etalon.data.source_archive import source_archive_status
+from moldarwin.boundary.quarry import DataBudget
+from moldarwin.boundary.screen import Screen
+from moldarwin.data.artifacts import read_snapshot, write_json
+from moldarwin.data.service import plan_data, run_data
+from moldarwin.data.source_archive import source_archive_status
 from quarry_cascade_research import review, review_records
 
 
@@ -96,7 +96,7 @@ def verify(root: Path, previous: Path, *, capture: bool):
     handoff = screen.handoff(result)
     if handoff != read(previous / "handoff.json"):
         raise ValueError("verified handoff differs from the retained original")
-    return {"schema": "etalon-component-reuse-verification/1", "mode": "capture" if capture else "read",
+    return {"schema": "moldarwin-component-reuse-verification/1", "mode": "capture" if capture else "read",
             "sources": sources, "new_http_requests": new_requests,
             "source_identity_matches_prior_review": True,
             "scientific_execution_count": 0, "proposal_count": 0,

@@ -15,12 +15,12 @@ import pytest
 
 sys.path.insert(0,str(Path(__file__).parents[1]/'examples'))
 import snd1_integrity_research as w
-from etalon.research import Artifact
-from etalon.active.store import StateError
-from etalon.research.components import record_json
-from etalon.research.continuation import record_content
-from etalon.research.evidence_refs import file_identity
-from etalon.research.publication import resume_publication
+from moldarwin.research import Artifact
+from moldarwin.active.store import StateError
+from moldarwin.research.components import record_json
+from moldarwin.research.continuation import record_content
+from moldarwin.research.evidence_refs import file_identity
+from moldarwin.research.publication import resume_publication
 
 
 def save(path,value):

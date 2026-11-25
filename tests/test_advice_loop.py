@@ -6,11 +6,11 @@ import sys
 
 import pytest
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.research import ResearchJournal
-from etalon.research.advice import advice
-from etalon.research.handoff import export_research_handoff, plan_research_handoff
-from etalon.research.notes import (
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.research import ResearchJournal
+from moldarwin.research.advice import advice
+from moldarwin.research.handoff import export_research_handoff, plan_research_handoff
+from moldarwin.research.notes import (
     entry_value, find_notes, original, patch_progress, read_current, read_entry,
     read_note, save_progress,
 )
@@ -73,7 +73,7 @@ def slot(project):
 
 
 def mcp_call(server, action, entry, payload=None, *, key=KEY):
-    raw = asyncio.run(server.call_tool("etalon_research_advice", {
+    raw = asyncio.run(server.call_tool("moldarwin_research_advice", {
         "entry": str(entry), "action": action, "topic": TOPIC,
         "review_key": key, "payload": payload,
     }))
@@ -84,7 +84,7 @@ def mcp_call(server, action, entry, payload=None, *, key=KEY):
 
 
 def cli_call(tmp_path, action, entry, payload=None, *, key=KEY):
-    command = [sys.executable, "-m", "etalon", "research", "advice",
+    command = [sys.executable, "-m", "moldarwin", "research", "advice",
                "--entry", str(entry), "--action", action, "--topic", TOPIC, "--review-key", key]
     if payload is not None:
         path = tmp_path / (action + "-payload.json")
@@ -324,8 +324,8 @@ def test_failed_native_handle_can_be_explicitly_replaced_without_erasing_history
 ])
 def test_interrupted_prepare_recovers_same_key_without_losing_work(project, monkeypatch,
                                                                   previous_closed, failure_stage):
-    import etalon.research.advice as advisory_module
-    import etalon.research.notes as notes_module
+    import moldarwin.research.advice as advisory_module
+    import moldarwin.research.notes as notes_module
 
     main = project["entry"]
     feedback = {"decision_id": "close-old", "outcome": "no_change", "reason": "Earlier scope complete"}
@@ -380,7 +380,7 @@ def test_interrupted_prepare_recovers_same_key_without_losing_work(project, monk
 
 
 def test_collect_retries_interrupted_main_publication_after_later_progress(project, monkeypatch):
-    import etalon.research.notes as notes_module
+    import moldarwin.research.notes as notes_module
 
     main = project["entry"]
     prepared = prepare(project)
@@ -418,8 +418,8 @@ def test_collect_retries_interrupted_main_publication_after_later_progress(proje
 
 @pytest.mark.parametrize("failure_stage", ["before_private_write", "before_private_entry_advance"])
 def test_decision_retry_repairs_private_feedback_without_erasing_later_progress(project, monkeypatch, failure_stage):
-    import etalon.research.advice as advisory_module
-    import etalon.research.notes as notes_module
+    import moldarwin.research.advice as advisory_module
+    import moldarwin.research.notes as notes_module
 
     main = project["entry"]
     prepared = prepare(project)
@@ -480,7 +480,7 @@ def test_decision_retry_repairs_private_feedback_without_erasing_later_progress(
 
 def test_fresh_cli_and_mcp_resume_one_advice_loop(project, tmp_path):
     from mcp.server.fastmcp import FastMCP
-    from etalon.mcp.evidence import register
+    from moldarwin.mcp.evidence import register
 
     server = FastMCP("advice-contract")
     register(server)

@@ -4,12 +4,12 @@ import json
 
 import pytest
 
-from etalon.active.schema import canonical
-from etalon.research import Artifact
-from etalon.research.evidence import read_evidence
-from etalon.research.evidence_refs import EvidenceError, file_identity, make_ref
-from etalon.research.graph_memory import node_identity
-from etalon.research.research_context import build_research_context
+from moldarwin.active.schema import canonical
+from moldarwin.research import Artifact
+from moldarwin.research.evidence import read_evidence
+from moldarwin.research.evidence_refs import EvidenceError, file_identity, make_ref
+from moldarwin.research.graph_memory import node_identity
+from moldarwin.research.research_context import build_research_context
 from test_research_graph_memory import graph_case
 
 
@@ -36,7 +36,7 @@ def archived_audit(graph_case):
     steps = [c["decision"]] + [c["save"]({**c["step"], "reason": f"Prior archived review {number}"})
                                for number in range(15)]
     predecessor = _advance(c, steps)
-    audit = _artifact(c, "audit-fixture.json", {"schema": "etalon-hook-readback-audit/1",
+    audit = _artifact(c, "audit-fixture.json", {"schema": "moldarwin-hook-readback-audit/1",
         "marker": "BYTE_AUDIT_V3_FIXTURE", "scientific_conclusion_changed": False,
         "scientific_runs_submitted": 0, "rsi_triggered": False})
     tail = c["save"]({**c["step"], "reason": "BYTE_AUDIT_V3_FIXTURE: archived original-byte audit for review",
@@ -148,8 +148,8 @@ def test_many_branch_controls_and_latest_output_fit_a_16k_first_read(graph_case)
 
 def test_frontier_reports_source_and_counter_coverage_gaps(graph_case, monkeypatch):
     # Deterministic projection fault fixture; no unavailable original is invented.
-    from etalon.research import research_context as module
-    from etalon.research.graph_memory import build_research_graph
+    from moldarwin.research import research_context as module
+    from moldarwin.research.graph_memory import build_research_graph
     c = graph_case
     graph = build_research_graph(c["workspace"], checkpoint_ref=c["checkpoint"])
     graph["issues"].append({"code": "fixture_incomplete_source", "message": "Explicit test fault"})

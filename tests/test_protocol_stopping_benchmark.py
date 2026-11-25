@@ -4,7 +4,7 @@ from copy import deepcopy
 
 import pytest
 
-from etalon.active.protocol_stopping_benchmark import (
+from moldarwin.active.protocol_stopping_benchmark import (
     ECONOMIC_STOP,
     GROUPS,
     OPPORTUNITY_COSTS,
@@ -64,7 +64,7 @@ def test_explicit_alternative_grid_is_reported_completely_not_selected_by_result
 
 
 def test_stop_is_explicit_replayable_and_no_stop_is_same_acquisition_prefix():
-    module = importlib.import_module("etalon.active.protocol_stopping_benchmark")
+    module = importlib.import_module("moldarwin.active.protocol_stopping_benchmark")
     report = protocol_stopping_benchmark(seeds=(0, 1), budget=6)
     count = 0
     for row in report["runs"]:
@@ -97,7 +97,7 @@ def test_stop_is_explicit_replayable_and_no_stop_is_same_acquisition_prefix():
 
 
 def test_unaffordable_positive_net_arm_cannot_prevent_economic_stop():
-    module = importlib.import_module("etalon.active.protocol_stopping_benchmark")
+    module = importlib.import_module("moldarwin.active.protocol_stopping_benchmark")
     features = {"seen": [1.0], "expensive": [10.0], "affordable": [0.0]}
     costs = {"seen": 1.0, "expensive": 1.01, "affordable": 1.0}
     observed = [{"id": "seen", "reward": 0.4, "evidence_hash": "only-acquired"}]
@@ -124,7 +124,7 @@ def test_changed_observed_incumbent_can_change_stop_without_any_future_label():
 
 
 def test_future_oracle_does_not_change_first_choice_or_cold_stop(monkeypatch):
-    module = importlib.import_module("etalon.active.protocol_stopping_benchmark")
+    module = importlib.import_module("moldarwin.active.protocol_stopping_benchmark")
     original = module._scenario
 
     def costly(seed, name):
@@ -154,7 +154,7 @@ def test_future_oracle_does_not_change_first_choice_or_cold_stop(monkeypatch):
 
 
 def test_no_transfer_has_matched_prior_variance_and_stable_vocabulary():
-    module = importlib.import_module("etalon.active.protocol_stopping_benchmark")
+    module = importlib.import_module("moldarwin.active.protocol_stopping_benchmark")
     catalog, _ = module._scenario(0, SCENARIOS[0])
     features, costs = catalog["features"], catalog["costs"]
     first = _decision(features, costs, [], list(features), group="audit_ei", seed=0, opportunity_cost=0.1)
@@ -234,7 +234,7 @@ def test_snapshots_are_detached_from_mutable_observation_output():
     ({"opportunity_costs": (True,)}, "opportunity_costs"),
 ])
 def test_invalid_inputs_rejected_before_constructing_oracle(monkeypatch, overrides, match):
-    module = importlib.import_module("etalon.active.protocol_stopping_benchmark")
+    module = importlib.import_module("moldarwin.active.protocol_stopping_benchmark")
 
     def forbidden(*args, **kwargs):
         raise AssertionError("invalid inputs reached oracle construction")

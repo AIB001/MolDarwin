@@ -49,7 +49,7 @@ def compute(request, result):
                    "compute_seconds": time.perf_counter()-started}
         feedback = {"identical_input_repetition": len(values) > len(cache),
                     "candidate": "memoize_exact_smiles", "scope": "same RDKit descriptor and exact input strings"}
-    Path(result).write_text(json.dumps({"schema": "etalon-method-result/1",
+    Path(result).write_text(json.dumps({"schema": "moldarwin-method-result/1",
         "summary": "CPU descriptor method result; not a molecular efficacy result",
         "outputs": outputs, "feedback": feedback}), encoding="utf-8")
 
@@ -71,17 +71,17 @@ async def run(workspace):
     sample = node("sample", dict(algorithm="literal", repeats=20))
     bulk = node("bulk", dict(algorithm="literal", repeats=10000), ["sample"])
     next_batch = node("next", dict(algorithm="literal", repeats=10000), ["bulk"])
-    spec = {"schema": "etalon-workflow/1", "objective": "Continuous CPU methods with side-channel feedback",
+    spec = {"schema": "moldarwin-workflow/1", "objective": "Continuous CPU methods with side-channel feedback",
             "nodes": [sample, bulk, next_batch], "limits": {"wall_second": 600}, "max_seconds": 240}
     env = {**os.environ, "PYTHONPATH": str(Path(__file__).absolute().parents[1]/"src") + os.pathsep + os.environ.get("PYTHONPATH", "")}
     started = time.perf_counter()
     calls = []
-    server = StdioServerParameters(command=sys.executable, args=["-m", "etalon.mcp"], env=env)
+    server = StdioServerParameters(command=sys.executable, args=["-m", "moldarwin.mcp"], env=env)
     async with stdio_client(server) as (read, write), ClientSession(read, write, read_timeout_seconds=timedelta(seconds=45)) as session:
         await session.initialize()
         async def call(name, **arguments):
             before = time.perf_counter()
-            result = await session.call_tool("etalon_"+name, arguments)
+            result = await session.call_tool("moldarwin_"+name, arguments)
             data = json.loads(result.content[0].text)
             calls.append({"name": name, "seconds": time.perf_counter()-before})
             if result.isError or not data.get("ok"):

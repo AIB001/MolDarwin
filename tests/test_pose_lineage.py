@@ -12,20 +12,20 @@ import pyarrow.parquet as pq
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
-from etalon.boundary.infra import load
+from moldarwin.boundary.infra import load
 
-load("molcascade")
+load("molcat")
 
-from molcascade.contracts import DOCKING_SCORE_V1, PARENT_V1, POSE_LINEAGE_V1, validate_table
-from molcascade.parallel import ShardOutcome, ShardTask
-from molcascade.parallel.shards import _write_checkpoint
-from molcascade.plugins.builtin.docking import pose_quality as quality
-from molcascade.plugins.builtin.docking import unidock
-from molcascade.plugins.api import PendingOutput, StageResponse
-from molcascade.plugins.manifest import PluginKind
-from molcascade.plugins.registry import create_builtin_registry
-from molcascade.runtime.runner import LocalRunner
-from etalon.screening_delivery import _pose_tags, export_screen_delivery
+from molcat.contracts import DOCKING_SCORE_V1, PARENT_V1, POSE_LINEAGE_V1, validate_table
+from molcat.parallel import ShardOutcome, ShardTask
+from molcat.parallel.shards import _write_checkpoint
+from molcat.plugins.builtin.docking import pose_quality as quality
+from molcat.plugins.builtin.docking import unidock
+from molcat.plugins.api import PendingOutput, StageResponse
+from molcat.plugins.manifest import PluginKind
+from molcat.plugins.registry import create_builtin_registry
+from molcat.runtime.runner import LocalRunner
+from moldarwin.screening_delivery import _pose_tags, export_screen_delivery
 
 
 def _molblock():
@@ -203,8 +203,8 @@ def test_committed_pose_sidecar_exports_scores_and_coordinates_without_recomputa
     assert export_screen_delivery(runner.store.root, "fixture", output)["reused"]
     if not with_lineage:
         # A completed old-version export stays readable and is never rewritten.
-        from etalon.active.schema import digest
-        from etalon.runtime.files import file_identity
+        from moldarwin.active.schema import digest
+        from moldarwin.runtime.files import file_identity
 
         old_key = digest({"version": 4, "run": "fixture", "revision": report["revision_id"],
                           "artifacts": [("poses", report["stages"][0]["artifact_id"])],
@@ -232,9 +232,9 @@ def test_delivery_does_not_attach_another_pose_quality(tmp_path):
 
 
 def test_lineage_plugin_is_explicit_and_defaults_remain_v04():
-    from molcascade.backends.catalog import BUILTIN_BACKEND_SPECS
-    from molcascade.backends.preflight import _BY_PLUGIN_REF
-    from molcascade.errors import PluginError
+    from molcat.backends.catalog import BUILTIN_BACKEND_SPECS
+    from molcat.backends.preflight import _BY_PLUGIN_REF
+    from molcat.errors import PluginError
 
     registry = create_builtin_registry()
     assert registry.get("docking.unidock@0.5.0").descriptor.output_ports["lineage"] == POSE_LINEAGE_V1.id

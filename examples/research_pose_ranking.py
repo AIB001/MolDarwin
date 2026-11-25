@@ -10,22 +10,22 @@ import json
 from pathlib import Path
 import sqlite3
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.schema import digest
-from etalon.research import Artifact, MethodVersion, MethodUse, TaskSplit, ResearchJournal
-from etalon.research import improvement as imp
-from etalon.research.components import record_json
-from etalon.research.composition import node_step, record_evaluation
-from etalon.research.continuation import STEP, CHECKPOINT, record_content, resume_research
-from etalon.research.evaluation_contract import build_evaluation_contract, evaluate_contract, record_evaluation_artifact
-from etalon.research.evidence_refs import file_identity, make_ref
-from etalon.research.method_revision import build_method_revision, record_method_revision, resolve_method_revision
-from etalon.research.opportunity_state import build_opportunity_disposition, resolve_opportunity_state
-from etalon.research.publication import _save, prepare_publication, resume_publication
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.schema import digest
+from moldarwin.research import Artifact, MethodVersion, MethodUse, TaskSplit, ResearchJournal
+from moldarwin.research import improvement as imp
+from moldarwin.research.components import record_json
+from moldarwin.research.composition import node_step, record_evaluation
+from moldarwin.research.continuation import STEP, CHECKPOINT, record_content, resume_research
+from moldarwin.research.evaluation_contract import build_evaluation_contract, evaluate_contract, record_evaluation_artifact
+from moldarwin.research.evidence_refs import file_identity, make_ref
+from moldarwin.research.method_revision import build_method_revision, record_method_revision, resolve_method_revision
+from moldarwin.research.opportunity_state import build_opportunity_disposition, resolve_opportunity_state
+from moldarwin.research.publication import _save, prepare_publication, resume_publication
 
 TASK='ranking-confirmation-20261025'
 SID='ranking-confirmation-science'
-CAP='molcascade.pose-ranking.contact-relaxation-v1'
+CAP='molcat.pose-ranking.contact-relaxation-v1'
 QUESTION='Does a frozen contact/relaxation heuristic improve same-pool native-like top1 recovery on new structures?'
 SCOPE='24 externally predeclared project-new PB308 structure/scaffold units; known-pocket redocking; heuristic sequence exclusion; no affinity or remote-homology claim'
 
@@ -60,7 +60,7 @@ class Archive:
             with self.store.connection() as src,sqlite3.connect(snapshot) as dst:
                 src.backup(dst)
         ws=self.root/(name+'-workspace.json')
-        _save(ws,{'schema':'etalon-evidence-workspace/1','workspace_id':TASK,'sources':[{'source_id':SID,'kind':'journal','location':str(snapshot),
+        _save(ws,{'schema':'moldarwin-evidence-workspace/1','workspace_id':TASK,'sources':[{'source_id':SID,'kind':'journal','location':str(snapshot),
             'identity':{'kind':'snapshot_sha256','value':file_identity(snapshot)['sha256']}}],
             'status_refs':[str(self.root/'AUTHORITY.json')],'location_map':[]})
         return ws

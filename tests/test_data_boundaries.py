@@ -12,14 +12,14 @@ import pytest
 from test_data_integration import assay_fixture
 from test_data_integration import library as _library_fixture
 
-from etalon.__main__ import main
-from etalon.active import CampaignSpec, CampaignStore, Candidate, Endpoint
-from etalon.active.adapters import MOLECULAR_REPRESENTATION
-from etalon.boundary.quarry import DataBudget, Quarry
-from etalon.data.artifacts import new_run, read_snapshot, seal, status, write_json
-from etalon.data.ingress import import_assays, review_template
-from etalon.data.library import import_candidates, prepare_library
-from etalon.data.service import plan_data, run_data
+from moldarwin.__main__ import main
+from moldarwin.active import CampaignSpec, CampaignStore, Candidate, Endpoint
+from moldarwin.active.adapters import MOLECULAR_REPRESENTATION
+from moldarwin.boundary.quarry import DataBudget, Quarry
+from moldarwin.data.artifacts import new_run, read_snapshot, seal, status, write_json
+from moldarwin.data.ingress import import_assays, review_template
+from moldarwin.data.library import import_candidates, prepare_library
+from moldarwin.data.service import plan_data, run_data
 
 library = _library_fixture
 
@@ -102,7 +102,7 @@ def test_catalog_selection_is_validated_before_local_import(tmp_path, selection)
     with pytest.raises(ValueError):
         plan_data({"kind": "import_catalog", "source": "chembl", "path": str(path),
                    "options": {"source_version": "fixture"}, "search": selection})
-    assert not (tmp_path / ".molquarry").exists()
+    assert not (tmp_path / ".molorigin").exists()
 
 
 def test_active_pool_limit_is_checked_before_writing_resources(tmp_path, library):
@@ -275,7 +275,7 @@ def test_dossier_measurements_keep_their_own_state_after_inchikey_inventory_grou
     identities = json.loads((library / "identity-map.json").read_text())
     assert len(inventory["compounds"]) == 1  # Standard InChI groups these tautomers upstream.
     assert result["result"]["candidates"] == 2
-    assert len({row["etalon_source_record_id"] for row in inventory["measurements"]}) == 2
+    assert len({row["moldarwin_source_record_id"] for row in inventory["measurements"]}) == 2
     assert all(row["chemical_state_changed"] is False for row in identities)
     store = CampaignStore(tmp_path / "campaign.sqlite")
     endpoint = Endpoint("kd", "P12345", "Kd", "nM", "fixture-assay", 0,
@@ -293,7 +293,7 @@ def test_dossier_measurements_keep_their_own_state_after_inchikey_inventory_grou
 
 
 def test_changed_chemistry_environment_cannot_silently_reuse_a_library(tmp_path, library, monkeypatch):
-    from molcascade.chemistry import identity
+    from molcat.chemistry import identity
 
     original = identity.rdkit_identity_metadata
     monkeypatch.setattr(identity, "rdkit_identity_metadata", lambda policy: {
@@ -308,7 +308,7 @@ def test_changed_chemistry_environment_cannot_silently_reuse_a_library(tmp_path,
 
 
 def test_campaign_setup_validates_before_creation_and_refuses_sqlite_sidecars(tmp_path):
-    from etalon.active.setup import create_campaign
+    from moldarwin.active.setup import create_campaign
 
     database = tmp_path / "campaign.sqlite"
     spec = {"objective": "kd", "budget": 0, "cost_unit": "q", "representation": "test"}

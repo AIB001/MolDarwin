@@ -5,10 +5,10 @@ import json
 
 import pytest
 
-from etalon.active.schema import canonical
-from etalon.active.store import StateError
-from etalon.boundary.prism_v1 import file_identity
-from etalon.research import (
+from moldarwin.active.schema import canonical
+from moldarwin.active.store import StateError
+from moldarwin.boundary.prism_v1 import file_identity
+from moldarwin.research import (
     Artifact, MethodEvaluation, MethodUse, MethodVersion, TaskSplit, method_record_from_dict,
 )
 from test_research_journal import setup
@@ -143,7 +143,7 @@ def test_relabelled_seen_bytes_cannot_become_independent_test(tmp_path):
 
 
 def test_trigger_event_is_committed_and_cannot_certify_use(tmp_path):
-    from etalon.runtime.api import read_events
+    from moldarwin.runtime.api import read_events
     store, journal, _ = setup(tmp_path)
     page = read_events({'kind': 'campaign', 'database': str(store.path)})
     ref = {**page['events'][-1]['event_ref'], 'log_ref': page['log_ref']}
@@ -163,7 +163,7 @@ def test_mutated_nested_payload_is_revalidated_before_persisting(tmp_path):
 
 
 def test_content_verified_requires_actual_saved_bytes_and_never_implies_use(tmp_path):
-    from etalon.skills import persist_snapshot
+    from moldarwin.skills import persist_snapshot
 
     store, journal, _ = setup(tmp_path)
     source = tmp_path / 'custom'
@@ -188,7 +188,7 @@ def test_content_verified_requires_actual_saved_bytes_and_never_implies_use(tmp_
 
 
 def test_upstream_calibration_preserves_unknown_direction_and_rejects_constant_ranking():
-    from etalon.campaign.calibrate import PanelMember, separation
+    from moldarwin.campaign.calibrate import PanelMember, separation
     panel = [PanelMember('active', True), PanelMember('inactive', False)]
     scores = [{'parent_id': name, 'engine_id': 'fixture', 'score': 1, 'direction': 'maximize'}
               for name in ('active', 'inactive')]
@@ -203,7 +203,7 @@ def test_upstream_calibration_preserves_unknown_direction_and_rejects_constant_r
 
 
 def test_upstream_enrichment_counts_molecules_not_repeated_poses():
-    from etalon.campaign.calibrate import PanelMember, enrichment
+    from moldarwin.campaign.calibrate import PanelMember, enrichment
     panel = [PanelMember('active', True), PanelMember('inactive', False)]
     scores = [{'parent_id': name, 'engine_id': 'fixture', 'score': score, 'direction': 'minimize'}
               for name, score in (('active', 1), ('inactive', 5))]

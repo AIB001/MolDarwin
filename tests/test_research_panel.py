@@ -1,9 +1,9 @@
 """Panel provenance/refusal tests. All chemistry and scores in this file are fixtures."""
 from dataclasses import replace
 import pytest
-from etalon.active.store import StateError
-from etalon.research import Artifact, Coupling, Experiment, Observation
-from etalon.research.panel import (PanelSpec, freeze_panel, record_cell, summarize_panel,
+from moldarwin.active.store import StateError
+from moldarwin.research import Artifact, Coupling, Experiment, Observation
+from moldarwin.research.panel import (PanelSpec, freeze_panel, record_cell, summarize_panel,
     choose_development_policy, propose_joint_revision, preparation_contrast, freeze_selection, execute_frozen_policies)
 from test_research_journal import setup
 

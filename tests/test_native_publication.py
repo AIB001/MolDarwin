@@ -9,12 +9,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from etalon.active.schema import digest
-from etalon.boundary import native_result, runtime_profile
-from etalon.research import execution_recovery as recovery
-from etalon.research.continuation import read_content, _handle
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research.publication import prepare_result_publication, resume_publication, prepare_publication
+from moldarwin.active.schema import digest
+from moldarwin.boundary import native_result, runtime_profile
+from moldarwin.research import execution_recovery as recovery
+from moldarwin.research.continuation import read_content, _handle
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research.publication import prepare_result_publication, resume_publication, prepare_publication
 from test_research_publication import case
 
 
@@ -31,7 +31,7 @@ def test_compact_result_resume_keeps_counters_and_exact_idempotency(case):
     request = helper_request(case)
     prepared = prepare_result_publication(**request)
     # Intent is the checkpoint across a genuine fresh Python host process.
-    code = "from etalon.research.publication import resume_publication; import sys; resume_publication(sys.argv[1])"
+    code = "from moldarwin.research.publication import resume_publication; import sys; resume_publication(sys.argv[1])"
     subprocess.run([sys.executable, "-c", code, prepared["intent_path"]], check=True)
     assert prepare_result_publication(**request)["status"] == "published"
     selected = json.loads(case["entry"].read_text())
@@ -54,7 +54,7 @@ def test_compact_result_retains_original_check_and_rejects_unknown_typed_results
 
 
 def descriptor(tmp_path):
-    profile = {"schema": "etalon-runtime-profile/1", "spec": {
+    profile = {"schema": "moldarwin-runtime-profile/1", "spec": {
         "python": "/fixed/venv/bin/python", "pythonpath": ["/fixed/source"]}}
     profile["manifest_digest"] = digest(profile)
     return recovery.bind_native_handle(tmp_path, native={
@@ -95,10 +95,10 @@ def test_native_result_reentry_reads_same_binding_without_execution(tmp_path, mo
         frozen = json.loads(kwargs["input"])
         calls.append((argv, frozen))
         return SimpleNamespace(returncode=0, stderr="", stdout=json.dumps({
-            "schema": "etalon-native-action-result/1", "request_id": handle["request_id"],
+            "schema": "moldarwin-native-action-result/1", "request_id": handle["request_id"],
             "profile_digest": frozen["profile"]["manifest_digest"], "execution_state": "completed"}))
     monkeypatch.setattr(subprocess, "run", read)
-    from etalon.runtime.api import read_action_result
+    from moldarwin.runtime.api import read_action_result
     first, second = read_action_result(handle), read_action_result(handle)
     assert first["execution_state"] == second["execution_state"] == "completed"
     assert calls[0] == calls[1]
@@ -116,17 +116,17 @@ def test_declared_profile_cannot_silently_change_interpreter(tmp_path):
 
 
 def test_pending_set_cannot_be_cleared_without_result_lineage(case, tmp_path, monkeypatch):
-    from etalon.research.publication import _check_handle_update
+    from moldarwin.research.publication import _check_handle_update
     handle = descriptor(tmp_path)
     parent = {**case["checkpoint"], "pending_handles": [handle]}
     request = {**case["request"], "handle_update": {"expected": [handle], "replacement": []}}
     with pytest.raises(EvidenceError, match="result step"):
         _check_handle_update(request, parent)
     request["steps"] = [{"content": {"operation": "result", "detail": {"action_handles": [handle]}}}]
-    monkeypatch.setattr("etalon.runtime.api.read_action_result", lambda h: {"execution_state": "unresolved"})
+    monkeypatch.setattr("moldarwin.runtime.api.read_action_result", lambda h: {"execution_state": "unresolved"})
     with pytest.raises(EvidenceError, match="nonterminal"):
         _check_handle_update(request, parent)
-    monkeypatch.setattr("etalon.runtime.api.read_action_result", lambda h: {
+    monkeypatch.setattr("moldarwin.runtime.api.read_action_result", lambda h: {
         "execution_state": "completed", "verification": {"state": "passed"}})
     _check_handle_update(request, parent)
     request["handle_update"]["expected"] = []

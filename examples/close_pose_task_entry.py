@@ -6,11 +6,11 @@ checkpoint/entry update and is independently idempotent.
 """
 import argparse,json
 from pathlib import Path
-from etalon.research.continuation import STEP,read_content
-from etalon.research.entry import resolve_entry
-from etalon.research.evidence import _collect
-from etalon.research.evidence_refs import file_identity,load_workspace,make_ref
-from etalon.research.publication import prepare_publication,_save
+from moldarwin.research.continuation import STEP,read_content
+from moldarwin.research.entry import resolve_entry
+from moldarwin.research.evidence import _collect
+from moldarwin.research.evidence_refs import file_identity,load_workspace,make_ref
+from moldarwin.research.publication import prepare_publication,_save
 
 def prepare_step_index(entry):
     entry=Path(entry).absolute();workspace,ref,_,_=resolve_entry(entry)

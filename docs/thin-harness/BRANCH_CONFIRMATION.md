@@ -28,6 +28,6 @@ change. No result silently changes the default baseline.
 
 The actual source/data hashes, two-stage pre-execution review, source strata,
 negative evidence, receipts and final decision live in the controller's explicit
-`integration/etalon-default-research-20261025/science/` evidence package. Follow
+`integration/moldarwin-default-research-20261025/science/` evidence package. Follow
 that package's final entry and report rather than treating this example's
 existence as scientific validation or general adoption.

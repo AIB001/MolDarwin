@@ -9,13 +9,13 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active import CampaignStore
-from etalon.research import MethodUse, MethodVersion, ResearchJournal
-from etalon.research.continuation import read_content
-from etalon.research.evidence_refs import file_identity, make_ref
-from etalon.research.method_execution import bind_method_execution, collect_method_results
-from etalon.runtime import service
-from etalon.runtime.store import RuntimeStore
+from moldarwin.active import CampaignStore
+from moldarwin.research import MethodUse, MethodVersion, ResearchJournal
+from moldarwin.research.continuation import read_content
+from moldarwin.research.evidence_refs import file_identity, make_ref
+from moldarwin.research.method_execution import bind_method_execution, collect_method_results
+from moldarwin.runtime import service
+from moldarwin.runtime.store import RuntimeStore
 from test_research_publication import case
 from test_runtime_methods import method_node, spec, until
 
@@ -58,7 +58,7 @@ def checkpoint(entry):
 
 
 def test_live_launcher_covers_bootstrap_but_does_not_imply_completion(tmp_path, monkeypatch):
-    from etalon.runtime import native
+    from moldarwin.runtime import native
     popen = native.subprocess.Popen
     processes = []
     def delayed(*args, **kwargs):
@@ -99,7 +99,7 @@ def test_event_to_research_without_inventing_decision(bound, tmp_path, failed):
 
 
 def test_publication_crash_replays_archival_work_only(bound, tmp_path, monkeypatch):
-    from etalon.research import publication
+    from moldarwin.research import publication
     case, node, _ = bound
     store = finish_fixture(tmp_path, node)
     original = publication._stage
@@ -114,7 +114,7 @@ def test_publication_crash_replays_archival_work_only(bound, tmp_path, monkeypat
     published = file_identity(case["parent"])
     monkeypatch.setattr(publication, "_stage", original)
     # A separate interpreter resumes from only the durable runtime locator.
-    script = "from etalon.research.method_execution import collect_method_results; import sys; print(collect_method_results(sys.argv[1], 'job')['status'])"
+    script = "from moldarwin.research.method_execution import collect_method_results; import sys; print(collect_method_results(sys.argv[1], 'job')['status'])"
     done = subprocess.run([sys.executable, "-c", script, str(store.workspace)], capture_output=True, text=True)
     assert done.returncode == 0, done.stderr
     assert "caught_up" in done.stdout
@@ -134,10 +134,10 @@ def test_binding_is_not_computation_identity_and_cannot_follow_unreviewed_edit(b
 
 def test_published_results_feed_existing_evaluation_with_external_use_links(bound, tmp_path):
     import shutil
-    from etalon.research import TaskSplit
-    from etalon.research.composition import record_evaluation
-    from etalon.research.continuation import STEP, record_content
-    from etalon.research.method_execution import execution_evaluation_inputs
+    from moldarwin.research import TaskSplit
+    from moldarwin.research.composition import record_evaluation
+    from moldarwin.research.continuation import STEP, record_content
+    from moldarwin.research.method_execution import execution_evaluation_inputs
     case, node, use = bound
     store = finish_fixture(tmp_path, node)
     collect_method_results(store.workspace, "job")
@@ -170,11 +170,11 @@ def test_published_results_feed_existing_evaluation_with_external_use_links(boun
 
 @pytest.mark.parametrize("outcome", ["adopt", "retain", "rollback"])
 def test_resolution_activates_exact_method_and_new_context_recovers_it(bound, tmp_path, outcome):
-    from etalon.research import Artifact, MethodEvaluation, TaskSplit
-    from etalon.research.method_revision import build_method_revision, record_method_revision, resolve_method_revision
-    from etalon.research.meta_context import (build_task_workset, describe_resource, index_resources,
+    from moldarwin.research import Artifact, MethodEvaluation, TaskSplit
+    from moldarwin.research.method_revision import build_method_revision, record_method_revision, resolve_method_revision
+    from moldarwin.research.meta_context import (build_task_workset, describe_resource, index_resources,
         publish_task_workset, read_task_workset)
-    from etalon.research.publication import resume_publication
+    from moldarwin.research.publication import resume_publication
     from test_meta_context import setup, profile, part, review
     case, node, use_ref = bound
     journal = ResearchJournal(CampaignStore(case["old"] / "research.sqlite"))
@@ -239,9 +239,9 @@ def test_resolution_activates_exact_method_and_new_context_recovers_it(bound, tm
 
 @pytest.mark.skipif(os.name != "posix", reason="native runtime requires Linux /proc")
 def test_native_method_publishes_and_fresh_process_only_resumes(bound, tmp_path):
-    from etalon.runtime.api import prepare_action, submit_action, read_action_result
+    from moldarwin.runtime.api import prepare_action, submit_action, read_action_result
     case, node, use = bound
-    request = dict(schema="etalon-action/1", request_id="native", operation=node["operation"],
+    request = dict(schema="moldarwin-action/1", request_id="native", operation=node["operation"],
         arguments=node["arguments"], limits=node["resources"], research=node["research"], max_seconds=60)
     prepared = prepare_action(request)
     handle = submit_action(request, workspace=tmp_path / "native", plan_id=prepared["plan_id"])

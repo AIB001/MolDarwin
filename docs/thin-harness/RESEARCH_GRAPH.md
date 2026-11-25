@@ -2,13 +2,13 @@
 
 The research graph is a read-only projection of existing Journal records,
 Artifacts, research steps, workflows and checkpoints. It is not a new database
-or scheduler. Search, Judge, Quick and Deep are work areas; MolQuarry,
-MolCascade and PRISM remain capability providers that can serve several areas.
+or scheduler. Search, Judge, Quick and Deep are work areas; MolOrigin,
+MolCat and PRISM remain capability providers that can serve several areas.
 
 ## Record identity and graph structure
 
 `build_research_graph(workspace, checkpoint_ref=...)` returns
-`etalon-research-graph/1`. A node has one stable ID derived from the source,
+`moldarwin-research-graph/1`. A node has one stable ID derived from the source,
 record ID, record digest and optional member. Several branches refer to that
 same node; raw structures, trajectories and observations are not copied.
 An alias published under another source ID remains a separate provenance
@@ -23,7 +23,7 @@ R, and a claim displayed in Search remains J. `kind_basis` identifies explicit
 trace phase or `legacy_record_semantics_inferred`; it never infers scientific
 status from the work area. Older computational records default to Quick with
 `home_basis=legacy_record_projection`; no resource cost is inferred from a PRISM
-or MolCascade name. Deep attribution must be explicit when history lacks it.
+or MolCat name. Deep attribution must be explicit when history lacks it.
 
 Edges link existing record identities and retain a basis reference. They include
 dependency, derivation, support, refutation, testing, supersession and workflow
@@ -41,7 +41,7 @@ tasks do not enter through text resemblance. Nodes from another task are marked
 ## Research context entry point
 
 ```python
-from etalon.research.research_context import build_research_context
+from moldarwin.research.research_context import build_research_context
 
 context = build_research_context(
     "path/to/existing/entry.json",
@@ -79,7 +79,7 @@ mandatory metadata exceeds its cap switches to the [small continuation card](CON
 That card retains the tail reference and exposes full navigation through pinned
 manifest pages; optional excerpts do not establish that original bodies were read.
 Full checkpoint content is still available
-through `etalon_evidence_read`.
+through `moldarwin_evidence_read`.
 
 Node and ordinary summary views keep directional counter edges and readable endpoint refs even
 when detailed cards are omitted. `coverage_complete=false` distinguishes a

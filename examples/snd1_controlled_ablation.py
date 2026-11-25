@@ -21,7 +21,7 @@ import traceback
 import numpy as np
 from rdkit import Chem
 import snd1_scale_methods as w
-from etalon.research.pose_check_bridge import freeze_posebusters_dock, audit_pose_verification
+from moldarwin.research.pose_check_bridge import freeze_posebusters_dock, audit_pose_verification
 
 CELLS={
     'narrow_off': {'half_width_degrees':[10,10,10,20],'pocket_terms':False},
@@ -133,7 +133,7 @@ def freeze(root,parent):
             'pair':pair_diagnostics(mol,w.read(root/system['parameters']))})
     w.write(root/'historical-diagnostics.json',diagnostics)
     modules={}
-    for name in ['rdkit','rdkit.Chem.rdForceFieldHelpers','rdkit.Chem.rdMolTransforms','scipy.optimize._lbfgsb','numpy._core._multiarray_umath','posebusters','posebusters.modules.intermolecular_distance','etalon.research.geometry_input','etalon.research.scientific_input','etalon.research.result_integrity','etalon.research.pose_check_bridge']:
+    for name in ['rdkit','rdkit.Chem.rdForceFieldHelpers','rdkit.Chem.rdMolTransforms','scipy.optimize._lbfgsb','numpy._core._multiarray_umath','posebusters','posebusters.modules.intermolecular_distance','moldarwin.research.geometry_input','moldarwin.research.scientific_input','moldarwin.research.result_integrity','moldarwin.research.pose_check_bridge']:
         module=importlib.import_module(name);modules[name]={'path':module.__file__,**w.pin(module.__file__)}
     source={str(p):w.pin(p) for p in sorted((root/'source').rglob('*.py'))}
     frozen={'schema':'snd1-controlled-ablation-freeze/2','candidate_id':CANDIDATE,'frozen_before_new_execution':True,
@@ -215,7 +215,7 @@ def run_attempt(root,condition,cell,system):
 
 def verifier(root):
     path=Path(root)/'source'/'pose_verifier.py'
-    spec=importlib.util.spec_from_file_location('etalon.research.controlled_frozen_pose_verifier',path)
+    spec=importlib.util.spec_from_file_location('moldarwin.research.controlled_frozen_pose_verifier',path)
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module);return module
 
 

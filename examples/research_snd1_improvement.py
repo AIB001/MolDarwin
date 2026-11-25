@@ -1,4 +1,4 @@
-"""SND1 normal research driver using the delivered ETALON research interfaces."""
+"""SND1 normal research driver using the delivered MolDarwin research interfaces."""
 import hashlib
 import importlib.util
 import json
@@ -11,23 +11,23 @@ import time
 
 ROOT=REPO=PRISM=INSTALLED=AUTH=CHAIN=None
 
-def configure(*, root, etalon_source, prism_source, authority, installed=None):
+def configure(*, root, moldarwin_source, prism_source, authority, installed=None):
     global ROOT, REPO, PRISM, INSTALLED, AUTH, CHAIN
-    import etalon
-    ROOT=Path(root).absolute(); REPO=Path(etalon_source).absolute(); PRISM=Path(prism_source).absolute()
-    INSTALLED=Path(installed).absolute() if installed else Path(etalon.__file__).parents[1]
+    import moldarwin
+    ROOT=Path(root).absolute(); REPO=Path(moldarwin_source).absolute(); PRISM=Path(prism_source).absolute()
+    INSTALLED=Path(installed).absolute() if installed else Path(moldarwin.__file__).parents[1]
     AUTH=Path(authority).absolute(); CHAIN=ROOT/'chain-final'
     sys.path.insert(0,str(ROOT/'prism-source'))
     importlib.invalidate_caches()
-from etalon.active.store import CampaignStore
-from etalon.active.schema import CampaignSpec, Endpoint
-from etalon.research.journal import ResearchJournal
-from etalon.research.schema import Artifact,MethodVersion,MethodUse,TaskSplit
-from etalon.research.components import record_json
-from etalon.research.method_revision import journal_ref,build_method_revision,record_method_revision,resolve_method_revision
-from etalon.research.continuation import record_content,STEP,CHECKPOINT,resume_research
-from etalon.research.composition import WORKFLOW,node_step,record_evaluation
-from etalon.research import improvement as imp
+from moldarwin.active.store import CampaignStore
+from moldarwin.active.schema import CampaignSpec, Endpoint
+from moldarwin.research.journal import ResearchJournal
+from moldarwin.research.schema import Artifact,MethodVersion,MethodUse,TaskSplit
+from moldarwin.research.components import record_json
+from moldarwin.research.method_revision import journal_ref,build_method_revision,record_method_revision,resolve_method_revision
+from moldarwin.research.continuation import record_content,STEP,CHECKPOINT,resume_research
+from moldarwin.research.composition import WORKFLOW,node_step,record_evaluation
+from moldarwin.research import improvement as imp
 
 SID,TASK='snd1','snd1-c26-pose-preparation'
 QUESTION='Can template-constrained pose preparation improve SND1 C26 geometry and guide the next branch?'
@@ -53,8 +53,8 @@ def file(j,path,kind):
     return ref(j,j.record(Artifact(str(Path(path).absolute()),**pin(path),source_kind='existing_real_artifact',role='diagnostic',bindings={'kind':kind})))
 def save(j,obj):return ref(j,record_content(j,obj,CHAIN/'memory',source_id=SID,source_kind='new_execution'))
 def publish(j):
-    path=CHAIN/'etalon-workspace.json'
-    write(path,{'schema':'etalon-evidence-workspace/1','workspace_id':TASK,'sources':[{'source_id':SID,'kind':'journal',
+    path=CHAIN/'moldarwin-workspace.json'
+    write(path,{'schema':'moldarwin-evidence-workspace/1','workspace_id':TASK,'sources':[{'source_id':SID,'kind':'journal',
          'location':str(j.store.path),'identity':{'kind':'snapshot_sha256','value':pin(j.store.path)['sha256']}}],
          'status_refs':[str(AUTH)],'location_map':[]})
     return path
@@ -110,8 +110,8 @@ def init():
     j=ResearchJournal(store)
     protocol=file(j,ROOT/'PROTOCOL.md','frozen-scientific-protocol')
     inputref=file(j,ROOT/'inputs-first/input.json','real-molecular-input')
-    sources=[file(j,ROOT/'data/data'/name/'snapshot.json','molquarry-source-snapshot') for name in ['entry-7knw','polymer-7knw','ccd-qoy','ccd-qov']]
-    history=file(j,REPO/'src/etalon/campaign/calibrate.py','historical-summary-not-raw-baseline')
+    sources=[file(j,ROOT/'data/data'/name/'snapshot.json','molorigin-source-snapshot') for name in ['entry-7knw','polymer-7knw','ccd-qoy','ccd-qov']]
+    history=file(j,REPO/'src/moldarwin/campaign/calibrate.py','historical-summary-not-raw-baseline')
     problem=art(j,{'schema':'snd1-structural-question/1','question':QUESTION,'basis':[inputref,history,*sources],
         'problem':'Prior SND1 docking gates and rankings did not supply pose-fidelity evidence. Prepare the related C26-A6 graph in the known C26-A2 receptor frame.',
         'not_claimed':'The new baseline is not the missing historical campaign execution.'})
@@ -299,7 +299,7 @@ def followup():
     state.update(followup={'selected':selected,'score':score,'result_ref':result,'out_of_domain':negative})
     state['checkpoint']=cp(j,state,state['steps'],[state['comparison'],state['experience'],state['selection_step'],result],previous=[state['checkpoint']])
     write(CHAIN/'state.json',state)
-    ctx=resume_research(CHAIN/'etalon-workspace.json',state['checkpoint'])
+    ctx=resume_research(CHAIN/'moldarwin-workspace.json',state['checkpoint'])
     assert not ctx['issues'],ctx['issues']
     before=len(j.store.events())
     duplicate=imp.register_opportunity(j,state['context'],CHAIN/'memory',source_id=SID,source_kind='new_execution')
@@ -317,9 +317,9 @@ if __name__=='__main__':
     import argparse
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('stage',choices=['init','compare','followup'])
-    for name in ['root','etalon-source','prism-source','authority']:
+    for name in ['root','moldarwin-source','prism-source','authority']:
         parser.add_argument('--'+name,type=Path,required=True)
     parser.add_argument('--installed',type=Path)
     args=parser.parse_args()
-    configure(root=args.root,etalon_source=args.etalon_source,prism_source=args.prism_source,authority=args.authority,installed=args.installed)
+    configure(root=args.root,moldarwin_source=args.moldarwin_source,prism_source=args.prism_source,authority=args.authority,installed=args.installed)
     {'init':init,'compare':compare,'followup':followup}[args.stage]()

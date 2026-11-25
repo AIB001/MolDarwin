@@ -3,9 +3,9 @@ import copy
 
 import pytest
 
-from etalon.research import research_model as rm
-from etalon.research.action_learning import compare_action_feedback, gather_rule_revision_context
-from etalon.research.evidence_refs import EvidenceError
+from moldarwin.research import research_model as rm
+from moldarwin.research.action_learning import compare_action_feedback, gather_rule_revision_context
+from moldarwin.research.evidence_refs import EvidenceError
 from test_research_continuation import case, publish
 from test_research_decision import prepared
 from test_action_learning import brief, output_node
@@ -63,7 +63,7 @@ def test_unbound_prediction_is_visible_without_inventing_a_rule_cause(case, prep
 
 def test_changed_feedback_cannot_be_used_as_a_false_learning_signal(case, prepared):
     feedback, model = setup(case, prepared)
-    from etalon.research.improvement import read_material
+    from moldarwin.research.improvement import read_material
     changed = copy.deepcopy(read_material(publish(case), feedback)["content"])
     changed["comparisons"][0]["comparison"] = "match"
     forged = prepared["artifact"](changed)

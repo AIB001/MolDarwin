@@ -1,6 +1,6 @@
 """Synthetic counterexamples for same-loss versus ensemble pose objectives."""
 import pytest
-from etalon.research.pose_selection import selection_diagnostic
+from moldarwin.research.pose_selection import selection_diagnostic
 
 
 def test_minimax_single_pose_differs_from_ensemble_and_preserves_ties():

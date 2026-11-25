@@ -5,13 +5,13 @@ import json
 
 import pytest
 
-from etalon import skills
-from etalon.active.schema import canonical, digest
-from etalon.research.entry import make_read_context
-from etalon.research.evidence import StaleCursorError
-from etalon.research.evidence_refs import EvidenceError, file_identity, make_ref
-from etalon.research.meta_context import describe_resource, index_resources
-from etalon.research.resource_catalog import build_resource_catalog
+from moldarwin import skills
+from moldarwin.active.schema import canonical, digest
+from moldarwin.research.entry import make_read_context
+from moldarwin.research.evidence import StaleCursorError
+from moldarwin.research.evidence_refs import EvidenceError, file_identity, make_ref
+from moldarwin.research.meta_context import describe_resource, index_resources
+from moldarwin.research.resource_catalog import build_resource_catalog
 from test_evidence_query import publish, row
 from test_evidence_scoped import source, watch
 
@@ -66,7 +66,7 @@ def test_all_resource_kinds_preserve_declarations_without_activation(tmp_path):
 
 
 def test_empty_filtered_page_is_explicitly_incomplete_and_resume_finds_later_kind(tmp_path):
-    method = row(2, schema="etalon-method-version/1", name="fixture", content_ref={"opaque": True})
+    method = row(2, schema="moldarwin-method-version/1", name="fixture", content_ref={"opaque": True})
     ws = publish(tmp_path, [row(1), method])
     first = build_resource_catalog(ws, kinds=["method"], scan_limit=1)
     assert first["items"] == [] and first["next_cursor"]

@@ -3,7 +3,7 @@
 The generator only consumes a graph and a known template. Evaluation coordinates
 are accepted by a separate command after generation manifests have been sealed.
 PRISM supplies chemical identity and receptor geometry, RDKit supplies native
-ETKDG/MMFF. ETALON's research driver owns method selection and memory.
+ETKDG/MMFF. MolDarwin's research driver owns method selection and memory.
 """
 from __future__ import annotations
 

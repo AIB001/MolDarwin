@@ -10,7 +10,7 @@ turning a class of document/code drift from something a reader may notice into s
 that fails here.
 
 **J1 -- version strings.** `learn/admission_view.VIEW_VERSION` is the version
-`ADMISSION_PROPAGATION.md` currently declares, and every older `etalon-admission-view/N`
+`ADMISSION_PROPAGATION.md` currently declares, and every older `moldarwin-admission-view/N`
 string in that document sits where the accretive style puts it. The style is deliberate:
 §1-§9 are the v1 record, §10 amends them for v2, §11 for v3, and superseded statements are
 kept with the heading annotated rather than deleted. These tests accommodate that rather
@@ -49,7 +49,7 @@ import pytest
 import normative_invariant_registry as reg
 
 ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / "src" / "etalon"
+SRC = ROOT / "src" / "moldarwin"
 DESIGN = "docs/thin-harness/ADMISSION_PROPAGATION.md"
 REGIMES = "docs/thin-harness/ASSESSMENT_REGIMES.md"
 STATUS_DOC = "docs/thin-harness/FIXED_TERMINOLOGY_STATUS.md"
@@ -60,7 +60,7 @@ def read(rel: str) -> str:
 
 
 def src_files() -> list[Path]:
-    """Every Python module under `src/etalon`. `asset/` is not reachable from here."""
+    """Every Python module under `src/moldarwin`. `asset/` is not reachable from here."""
 
     return sorted(SRC.rglob("*.py"))
 
@@ -72,15 +72,15 @@ def rel_src(path: Path) -> str:
 # ====================================================================== J1
 
 
-_VERSION = re.compile(r"etalon-admission-view/(\d+)")
+_VERSION = re.compile(r"moldarwin-admission-view/(\d+)")
 _HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 _SUPERSEDED = re.compile(r"supersede", re.IGNORECASE)
 #: The two forms in which a section of the design doc declares *its own* output version.
-#: §1: "Output schema `etalon-admission-view/1`, carrying `view_version`".
-#: §10/§11: "`view_version` becomes `\"etalon-admission-view/2\"`".
+#: §1: "Output schema `moldarwin-admission-view/1`, carrying `view_version`".
+#: §10/§11: "`view_version` becomes `\"moldarwin-admission-view/2\"`".
 _DECLARES = re.compile(
-    r"`view_version`\s+becomes\s+`\"etalon-admission-view/(\d+)\"`"
-    r"|Output schema\s+`etalon-admission-view/(\d+)`"
+    r"`view_version`\s+becomes\s+`\"moldarwin-admission-view/(\d+)\"`"
+    r"|Output schema\s+`moldarwin-admission-view/(\d+)`"
 )
 
 
@@ -136,8 +136,8 @@ def declared_versions(design_doc: str) -> dict[int, list[tuple[int, int, str]]]:
     declared = _sections_declaring_versions(design_doc)
     assert declared, (
         f"{DESIGN} declares no output version at all. A section declares one by writing "
-        "either 'Output schema `etalon-admission-view/N`' or '`view_version` becomes "
-        '`"etalon-admission-view/N"`\'. Restore one of those forms.'
+        "either 'Output schema `moldarwin-admission-view/N`' or '`view_version` becomes "
+        '`"moldarwin-admission-view/N"`\'. Restore one of those forms.'
     )
     return declared
 
@@ -151,12 +151,12 @@ def test_j1_view_version_constant_is_the_version_the_design_doc_declares_current
     declares v3, and all three stay in the file.
     """
 
-    from etalon.learn.admission_view import VIEW_VERSION
+    from moldarwin.learn.admission_view import VIEW_VERSION
 
     current = max(declared_versions)
-    expected = f"etalon-admission-view/{current}"
+    expected = f"moldarwin-admission-view/{current}"
     assert VIEW_VERSION == expected, (
-        f"src/etalon/learn/admission_view.py declares VIEW_VERSION = {VIEW_VERSION!r}, but "
+        f"src/moldarwin/learn/admission_view.py declares VIEW_VERSION = {VIEW_VERSION!r}, but "
         f"{DESIGN} declares {expected!r} as its current output version (highest declared: "
         f"v{current}, in section {declared_versions[current][-1][2]!r}).\n"
         "Pick one of two repairs, do not touch both ends to meet in the middle:\n"
@@ -172,7 +172,7 @@ def test_j1_view_version_constant_is_the_version_the_design_doc_declares_current
 
 def test_j1_older_version_strings_sit_only_where_the_accretive_style_permits(
         design_doc: str, declared_versions: dict[int, list[tuple[int, int, str]]]) -> None:
-    """Every superseded `etalon-admission-view/N` is in an annotated or declaring section.
+    """Every superseded `moldarwin-admission-view/N` is in an annotated or declaring section.
 
     Two placements are legitimate, and this test accepts both rather than demanding the
     historical sections be rewritten:
@@ -199,7 +199,7 @@ def test_j1_older_version_strings_sit_only_where_the_accretive_style_permits(
             if not (annotated or own_section):
                 where = chain[-1][2] if chain else "(before the first heading)"
                 misplaced.append(
-                    f"{DESIGN}:{lineno}: 'etalon-admission-view/{version}' under heading "
+                    f"{DESIGN}:{lineno}: 'moldarwin-admission-view/{version}' under heading "
                     f"{where!r}"
                 )
     assert not misplaced, (
@@ -211,7 +211,7 @@ def test_j1_older_version_strings_sit_only_where_the_accretive_style_permits(
         "  (a) annotate that section's heading in place, the way §1 is annotated: "
         '"## 1. What the view is (... output schema version superseded by §11)";\n'
         f"  (b) if the statement is still live, update the string to "
-        f"'etalon-admission-view/{current}'.\n"
+        f"'moldarwin-admission-view/{current}'.\n"
         "Do not delete the historical text: superseded statements are kept and the "
         "heading is annotated (CLAUDE.md hard constraint 3, `supersedes` semantics)."
     )
@@ -235,19 +235,19 @@ def test_j1_the_section_declaring_the_current_version_is_not_itself_marked_super
 def test_j1_no_other_module_in_src_pins_a_stale_output_version_string() -> None:
     """Only `admission_view.py` may carry the literal, and only at the current value."""
 
-    from etalon.learn.admission_view import VIEW_VERSION
+    from moldarwin.learn.admission_view import VIEW_VERSION
 
     offenders: list[str] = []
     for path in src_files():
         for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
             for m in _VERSION.finditer(line):
                 if m.group(0) != VIEW_VERSION:
-                    offenders.append(f"src/etalon/{rel_src(path)}:{lineno}: {m.group(0)}")
+                    offenders.append(f"src/moldarwin/{rel_src(path)}:{lineno}: {m.group(0)}")
     assert not offenders, (
         "A superseded output-version literal is pinned in source, where it will be "
         f"compared against the live {VIEW_VERSION!r} and silently disagree:\n  "
         + "\n  ".join(offenders)
-        + "\nUse `etalon.learn.admission_view.VIEW_VERSION` instead of a literal."
+        + "\nUse `moldarwin.learn.admission_view.VIEW_VERSION` instead of a literal."
     )
 
 
@@ -269,7 +269,7 @@ def test_j1_design_doc_status_line_names_the_version_it_declares(
     assert int(m.group(1)) == current, (
         f"{DESIGN} header says 'Status: design v{m.group(1)}' while the body declares "
         f"v{current} as current (section {declared_versions[current][-1][2]!r}, which sets "
-        f"`view_version` to 'etalon-admission-view/{current}'). Update the header to "
+        f"`view_version` to 'moldarwin-admission-view/{current}'). Update the header to "
         f"'Status: design v{current}' and extend its supersession sentence to name the new "
         "amendment section, the way it already names §10."
     )
@@ -316,7 +316,7 @@ def collected() -> set[str]:
     """Function-level pytest node ids collected from the files the registry points at.
 
     Basis: a `pytest --collect-only -q` subprocess over exactly `reg.files()`, run with
-    PYTHONPATH=src because `etalon` is not pip-installed in this environment. Parametrised
+    PYTHONPATH=src because `moldarwin` is not pip-installed in this environment. Parametrised
     ids lose their `[param]` suffix, so the registry can name a parametrised test once.
     """
 
@@ -519,7 +519,7 @@ def withdrawn_tokens() -> dict[str, tuple[str, ...]]:
     stops the write being refused. One definition, one place to change it.
     """
 
-    from etalon.research.reserved_bindings import WITHDRAWN
+    from moldarwin.research.reserved_bindings import WITHDRAWN
 
     terms = sorted(set(WITHDRAWN) | {"precision"})
     return {term: (term, *WITHDRAWN_ENUM_VALUES.get(term, ())) for term in terms}
@@ -597,7 +597,7 @@ def status_rows() -> dict[str, tuple[str, str]]:
 
 
 def _code_token_sites(term: str) -> list[tuple[str, int, str]]:
-    """Sites in `src/etalon` where `term` is a code token, not an English word.
+    """Sites in `src/moldarwin` where `term` is a code token, not an English word.
 
     A code token is the term as a quoted string literal, a bound name (`x =`, `x +=`), a
     `def`/`class` name, or an annotated name (`x: T`). Prose in a docstring or comment is
@@ -623,10 +623,10 @@ def _code_token_sites(term: str) -> list[tuple[str, int, str]]:
 
 
 def _word_line_count(term: str) -> int:
-    """Lines under `src/etalon` containing `term`. The counting basis of the status doc.
+    """Lines under `src/moldarwin` containing `term`. The counting basis of the status doc.
 
     `FIXED_TERMINOLOGY_STATUS.md` states counts without naming the basis; matching lines
-    over `src/etalon/**/*.py` reproduces every count it gives (Admission 29, precision 7,
+    over `src/moldarwin/**/*.py` reproduces every count it gives (Admission 29, precision 7,
     validity 50), so that is the basis used here and stated wherever a count is asserted.
     """
 
@@ -645,15 +645,15 @@ def _contains(rel: str, needle: str) -> bool:
 
 
 def _derive_admission() -> tuple[str, str]:
-    from etalon.learn.admissible import Admission
+    from moldarwin.learn.admissible import Admission
 
     values = {m.value for m in Admission}
     count = _word_line_count("admission")
     if values == {"admitted", "admitted_under_waiver", "withheld"} and count > 1:
         return STATUS_IMPLEMENTED, (
             f"learn/admissible.py defines Admission with exactly {sorted(values)} and the "
-            f"token occurs on {count} lines of src/etalon (basis: matching lines over "
-            "src/etalon/**/*.py)"
+            f"token occurs on {count} lines of src/moldarwin (basis: matching lines over "
+            "src/moldarwin/**/*.py)"
         )
     return "not implemented", f"Admission values are {sorted(values)}; token lines={count}"
 
@@ -666,8 +666,8 @@ def _derive_structure(term: str) -> tuple[str, str]:
     own name appeared, the status would have to move to `implemented`.
     """
 
-    from etalon.learn.admissible import Ruling
-    from etalon.research.evaluation_contract import STATUSES
+    from moldarwin.learn.admissible import Ruling
+    from moldarwin.research.evaluation_contract import STATUSES
 
     own_enum = [s for s in _code_token_sites(term)
                 if re.search(r"\bclass\s+%s\b" % term, s[2], re.IGNORECASE)]
@@ -688,7 +688,7 @@ def _derive_structure(term: str) -> tuple[str, str]:
     if absent:
         return "carrier missing", f"the structures the status doc names are gone: {absent}"
     return STATUS_AS_STRUCTURE, (
-        "no enum or class of that name in src/etalon, and all four carriers the status "
+        "no enum or class of that name in src/moldarwin, and all four carriers the status "
         f"document names are present: {sorted(carriers)}"
     )
 
@@ -697,8 +697,8 @@ def _derive_relied_on() -> tuple[str, str]:
     """`relied_on` / `used`: computed in the export view, absent from the emission edge
     vocabulary and from the record schemas."""
 
-    import etalon.learn.admission_view as av
-    from etalon.research.graph_memory import EDGES
+    import moldarwin.learn.admission_view as av
+    from moldarwin.research.graph_memory import EDGES
 
     in_edges = sorted({t for t in ("relied_on", "used") if t in EDGES})
     in_view = {"relied_on", "used"} <= set(av._LABEL_VALUES)
@@ -831,7 +831,7 @@ CITED_EVIDENCE = (
 def test_j3_every_code_site_the_status_document_cites_still_exists() -> None:
     """A status claim resting on a citation that has moved is no longer a status claim."""
 
-    gone = [f"src/etalon/{rel}: {why} -- {token!r} not found"
+    gone = [f"src/moldarwin/{rel}: {why} -- {token!r} not found"
             for rel, token, why in CITED_EVIDENCE if not _contains(rel, token)]
     assert not gone, (
         f"{STATUS_DOC} rests on code sites that no longer carry what it cites:\n  "
@@ -848,7 +848,7 @@ def test_j3_the_word_appearing_is_not_the_concept_being_implemented(
     The status stays `implemented as structure` either way -- that is settled by the
     carriers, and is asserted in the parametrised test above. What this test checks is the
     narrower factual claim the document makes alongside it, that neither word is an
-    identifier in `src/etalon`, because that is the claim a future reader would use to
+    identifier in `src/moldarwin`, because that is the claim a future reader would use to
     conclude the word is free.
     """
 
@@ -856,7 +856,7 @@ def test_j3_the_word_appearing_is_not_the_concept_being_implemented(
     # change, so asserting they are free would make this test permanently red and assert a
     # false requirement. What is checkable, and what the docstring above actually describes,
     # is whether the document still makes the ABSOLUTE claim while an occupation exists.
-    ABSOLUTE = ("neither word is an identifier in `src/etalon`", "术语本身不是标识符")
+    ABSOLUTE = ("neither word is an identifier in `src/moldarwin`", "术语本身不是标识符")
     doc = read(STATUS_DOC)
     unqualified = [claim for claim in ABSOLUTE if claim in doc]
     occupied = {term: _code_token_sites(term) for term in ("completion", "verification")}
@@ -868,11 +868,11 @@ def test_j3_the_word_appearing_is_not_the_concept_being_implemented(
         "the way §2.3 records `precision` and `validity`.\n  "
         + "\n  ".join(
             f"{term}: {len(sites)} code-token sites, e.g. "
-            + "; ".join(f"src/etalon/{f}:{n}" for f, n, _ in sites[:3])
+            + "; ".join(f"src/moldarwin/{f}:{n}" for f, n, _ in sites[:3])
             + (f"\n      first: {sites[0][2]}" if sites else "")
             for term, sites in sorted(claimed_absent.items()))
         + "\n(basis: quoted literals, bound names, def/class names and annotated names "
-        "over src/etalon/**/*.py; docstring and comment prose excluded.)\n"
+        "over src/moldarwin/**/*.py; docstring and comment prose excluded.)\n"
         "The status itself is unaffected -- an occupied word is not an implementation of "
         "the fixed concept, which is the whole point of the distinction. What needs "
         "repair is the absolute claim: qualify it to say the word is not an identifier "
@@ -895,14 +895,14 @@ def _unrecorded(terms: tuple[str, ...]) -> dict[str, list[tuple[str, int, str]]]
 
 def _render(unrecorded: dict[str, list[tuple[str, int, str]]]) -> str:
     return "\n  ".join(
-        f"{term}:\n    " + "\n    ".join(f"src/etalon/{f}:{n}: {text}" for f, n, text in sites)
+        f"{term}:\n    " + "\n    ".join(f"src/moldarwin/{f}:{n}: {text}" for f, n, text in sites)
         for term, sites in sorted(unrecorded.items()))
 
 
 def test_j3_no_unrecorded_occupation_of_precision_or_validity() -> None:
     """The precision/validity row's hazard list covers every code token of the two words.
 
-    The row's claim is that the two words are occupied in `src/etalon` and name no field
+    The row's claim is that the two words are occupied in `src/moldarwin` and name no field
     of the reporting concept. Keeping that checkable means the occupations it names have
     to be all of them, or a later reader will take an unnamed one for the fixed meaning.
     """
@@ -914,7 +914,7 @@ def test_j3_no_unrecorded_occupation_of_precision_or_validity() -> None:
         "research/result_semantics.py. These code-token sites are in files it does not "
         "mention:\n  " + _render(unrecorded)
         + "\n(basis: quoted literals, bound names, def/class names and annotated names "
-        "over src/etalon/**/*.py; prose excluded.)\n"
+        "over src/moldarwin/**/*.py; prose excluded.)\n"
         "Repair: extend §2.3 with each site and what it means there. The §4 status stays "
         "报告用语,无字段 unless one of them turns out to name a record field, which the "
         "parametrised status test checks separately."
@@ -978,8 +978,8 @@ def test_j4_the_withdrawn_names_are_refused_at_a_write_not_asked_for_in_prose() 
     `tests/test_reserved_bindings.py`, against a real record.
     """
 
-    from etalon.research.reserved_bindings import WITHDRAWN, validate_bindings
-    from etalon.research.reserved_bindings import ReservedBindingError
+    from moldarwin.research.reserved_bindings import WITHDRAWN, validate_bindings
+    from moldarwin.research.reserved_bindings import ReservedBindingError
 
     assert set(WITHDRAWN) == {"soundness", "progress"}, (
         "the source registry's withdrawn set changed; CLAUDE.md's 已撤回的固定术语 note and "
@@ -1007,8 +1007,8 @@ def test_j4_a_withdrawn_name_exists_in_source_only_as_a_name_that_is_refused() -
     carry the fact more finely.
     """
 
-    from etalon.research.reserved_bindings import WITHDRAWN, ReservedBindingError
-    from etalon.research.reserved_bindings import validate_bindings
+    from moldarwin.research.reserved_bindings import WITHDRAWN, ReservedBindingError
+    from moldarwin.research.reserved_bindings import validate_bindings
 
     # Scoped to the record schemas, and the scope is the honest part. `progress` has ten
     # legitimate code-token sites -- a CLI subcommand at `research/cli.py:62`, a dataclass
@@ -1018,7 +1018,7 @@ def test_j4_a_withdrawn_name_exists_in_source_only_as_a_name_that_is_refused() -
     # vocabulary monopoly nobody decided. What the withdrawal means is narrower and exact:
     # the name may not be a field of a record, and may not be carried in `bindings`.
     for term in sorted(WITHDRAWN):
-        in_schemas = [f"src/etalon/{f}:{n}: {text}"
+        in_schemas = [f"src/moldarwin/{f}:{n}: {text}"
                       for f, n, text in _code_token_sites(term) if f in SCHEMA_MODULES]
         assert not in_schemas, (
             f"`{term}` is a withdrawn field name ({STATUS_DOC} §6) and now appears in a "
@@ -1041,7 +1041,7 @@ def test_j4_the_registry_is_the_only_definition_the_conventions_and_the_tests_re
     of them may be the authority.
     """
 
-    from etalon.research.reserved_bindings import WITHDRAWN
+    from moldarwin.research.reserved_bindings import WITHDRAWN
 
     assert set(withdrawn_tokens()) >= set(WITHDRAWN), (
         "withdrawn_tokens() must cover every term the source registry refuses")

@@ -16,7 +16,7 @@ Today the constraints work, and this session is the evidence: five agents editin
 repository honored all seven, verified afterwards by hand. That works because a human or a
 host reads `CLAUDE.md` before editing and chooses to comply.
 
-The RSI goal is that ETALON self-tunes its skills and parts of its harness while doing
+The RSI goal is that MolDarwin self-tunes its skills and parts of its harness while doing
 research. A host doing that is not stopped by prose. So each constraint has to move from
 *stated* to *refused*, and the test for whether it has moved is blunt:
 
@@ -38,7 +38,7 @@ Status values: **executable** (a check in the suite refuses the violation) · **
 | 3 | An admission state change keeps the old value and claim scope, per `supersedes`, without erasing | **promise** | `test_i8_dangling_supersedes_refused`, `test_i8_supersedes_cycle_refused` and `test_s10_1_supersedes_with_two_entries_is_refused` refuse malformed `supersedes`; **nothing checks that the old value and its claim scope survive** |
 | 4 | `admission` is written at dispatch, never backfilled | **partial** | I20 via `test_a_record_predating_the_argument_parses_with_no_basis_and_is_refused_reliance`; adjacent checks exist in other subsystems (`test_method_feedback_delivery.py:191`, `test_parallel_harness_mcp.py:56`); no check that admission specifically is never backfilled |
 | 5 | Every new number carries an Evidence provenance; `convention` is never presented as a measurement | **partial** (was `promise`) | per-site instances (`test_faults.py:380`, `ENSEMBLE_REPLICAS_EVIDENCE`), plus — new on 2026-11-10 — the clause now holds for the number that decides a verdict: an evaluation contract's `threshold_evidence` is **required** and validated against one shared `PROVENANCE`, held by `test_contract_spec.py::test_the_contract_schema_requires_a_provenance_tag_from_the_one_vocabulary`. Still **no check that a new number in general carries one**; §"cheapest next check" item 1 is unchanged |
-| 6 | Do not touch `asset/`'s MolCascade / MolQuarry / PRISM; do not merge RuntimeStore / CampaignStore / ResearchJournal | **executable** (was `partial, second half not well-formed`) | first half: `tests/test_vendoring.py` has the tree digest, the dirt detector and `test_the_asset_readme_names_the_commits_the_manifest_pins`; second half: **restated 2026-11-10 as one record namespace** and held by `test_c6_the_research_journal_writes_only_inside_its_own_key_namespace`, `test_c6_the_namespaces_the_shared_table_carries_are_pairwise_disjoint` and `test_c6_a_recorded_research_identity_still_cannot_be_rewritten`, alongside the two type checks. See below |
+| 6 | Do not touch `asset/`'s MolCat / MolOrigin / PRISM; do not merge RuntimeStore / CampaignStore / ResearchJournal | **executable** (was `partial, second half not well-formed`) | first half: `tests/test_vendoring.py` has the tree digest, the dirt detector and `test_the_asset_readme_names_the_commits_the_manifest_pins`; second half: **restated 2026-11-10 as one record namespace** and held by `test_c6_the_research_journal_writes_only_inside_its_own_key_namespace`, `test_c6_the_namespaces_the_shared_table_carries_are_pairwise_disjoint` and `test_c6_a_recorded_research_identity_still_cannot_be_rewritten`, alongside the two type checks. See below |
 | 7 | A quantity that cannot be counted is reported as not obtained, never estimated | **partial** | per-site: `test_a_value_that_was_not_obtained_is_insufficient_and_never_estimated`, `test_an_uncountable_reserve_is_not_obtained_rather_than_zero`, two in `test_sweep.py`; a global check is probably impossible — no test can assert nobody estimated anywhere |
 
 ## Constraint 6's second half cannot be enforced as written
@@ -46,7 +46,7 @@ Status values: **executable** (a check in the suite refuses the violation) · **
 "Do not merge RuntimeStore / CampaignStore / ResearchJournal" reads as three peer stores
 to keep apart. The code is not shaped that way:
 
-- `RuntimeStore` (`runtime/store.py:22`) owns `etalon-runtime.sqlite` and creates its own
+- `RuntimeStore` (`runtime/store.py:22`) owns `moldarwin-runtime.sqlite` and creates its own
   tables.
 - `CampaignStore` (`active/store.py:44`) owns a caller-supplied path.
 - `ResearchJournal` (`research/journal.py:18`) **has no store of its own.** It takes a
@@ -149,7 +149,7 @@ The status column is about whether a **check** exists, not about whether the cod
 correct. A constraint marked `promise` may be perfectly respected everywhere today; the
 claim is only that nothing would refuse a change that stopped respecting it.
 
-Nor does enforcement reach a host with shell access. ETALON cannot make a Zone-C edit
+Nor does enforcement reach a host with shell access. MolDarwin cannot make a Zone-C edit
 impossible for a host that can write files; what it can do is make the edit **detectable
 and non-propagating**, which is the same move the assessment-regime membrane makes one
 level down (`ASSESSMENT_REGIMES.md`). Under the first principle that is sufficient: the

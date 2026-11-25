@@ -4,19 +4,19 @@
 
 ## 来源、文件与环境
 
-复用 `F:/life_healthy/ETALON` checkout，起点 HEAD `5927aceb346475a6f97550f561e7eb3b291611da`；I 已保全完整基线至 `integration/thin-harness-engineering-20261020/`。C 逐文件导入 thin `d3889e6c0600605f018fb81ce3df1b420d6dcbf9` 的产品 skill 短入口、完整 references/scripts、skills.py、host.py、HOST.md、HOST_SETUP.md、mcp/host.py 和 test_host_capabilities.py。现场 `git diff 5927ace main -- .claude/skills` 为空；该范围无需再覆写一遍 main。没有目录级覆盖、stash、reset、暂存、提交或推送。
+复用 `F:/life_healthy/MolDarwin` checkout，起点 HEAD `5927aceb346475a6f97550f561e7eb3b291611da`；I 已保全完整基线至 `integration/thin-harness-engineering-20261020/`。C 逐文件导入 thin `d3889e6c0600605f018fb81ce3df1b420d6dcbf9` 的产品 skill 短入口、完整 references/scripts、skills.py、host.py、HOST.md、HOST_SETUP.md、mcp/host.py 和 test_host_capabilities.py。现场 `git diff 5927ace main -- .claude/skills` 为空；该范围无需再覆写一遍 main。没有目录级覆盖、stash、reset、暂存、提交或推送。
 
 C 增量：开放 bundle 引用与真实快照；使用记录薄适配；同步一页事件消费；宿主说明；`tests/test_host_bundles_hooks.py`（I 已登记 C 所有权）。共享注册、打包由 I 维护；research 验证由 B 维护；执行/事件读取由 A 维护。
 
-实际解释器 `F:/life_healthy/ETALON/.venv/Scripts/python.exe`，Python 3.13.12。实测导入路径：
+实际解释器 `F:/life_healthy/MolDarwin/.venv/Scripts/python.exe`，Python 3.13.12。实测导入路径：
 
-- `F:/life_healthy/ETALON/src/etalon/skills.py`
-- `F:/life_healthy/ETALON/src/etalon/host.py`
-- `F:/life_healthy/ETALON/src/etalon/mcp/host.py`
+- `F:/life_healthy/MolDarwin/src/moldarwin/skills.py`
+- `F:/life_healthy/MolDarwin/src/moldarwin/host.py`
+- `F:/life_healthy/MolDarwin/src/moldarwin/mcp/host.py`
 
 ## 公共接口与接缝
 
-- `skills.snapshot(slug, *, bundle_ref=None)` / `read_member(slug, member="SKILL.md", *, bundle_ref=None)`：内置调用兼容；外部 `bundle_ref={"root": absolute_dir, "manifest_sha256": optional_expected_digest}`。MCP `etalon_skill_read` 的外部引用要求 expected digest。只读取合法 SKILL bundle 的精确成员；拒绝重定向、穿越、无效元数据和超限内容。上限 512 项、256 KiB/文件、4 MiB/包。
+- `skills.snapshot(slug, *, bundle_ref=None)` / `read_member(slug, member="SKILL.md", *, bundle_ref=None)`：内置调用兼容；外部 `bundle_ref={"root": absolute_dir, "manifest_sha256": optional_expected_digest}`。MCP `moldarwin_skill_read` 的外部引用要求 expected digest。只读取合法 SKILL bundle 的精确成员；拒绝重定向、穿越、无效元数据和超限内容。上限 512 项、256 KiB/文件、4 MiB/包。
 - `skills.persist_snapshot(slug, target, *, bundle_ref=None)`：只创建新目录，保留全部实际字节，返回 `{"manifest_path": absolute_json, "manifest_sha256": digest}`。`verify_snapshot(content_ref)` 校验真实清单与字节；B 在 content_verified 记录入口直接调用。沿用薄分支 manifest 算法；不把记录 ID 与内容版本混同。
 - `host.record_method_use(journal, **fields)`：直接构造 B 的 MethodUse 并调用原 ResearchJournal.record；无新账本。空选用、局部使用、组合和停止通过既有字段表示；仅目录可见/返回内容不标 tool_observed。探索不要求晋升。
 - `host.hook_request_id(event_ref, handler_method_version)`：稳定派生 request ID。
@@ -44,7 +44,7 @@ MET-01/02/06/07 的内容版本与探索工程能力有组件检查；MET-03/04 
 
 ## 保留与回退
 
-C 没有修改 PRISM、历史科学原件、本地 molcascade 修复或共享科学进程。外部快照与宿主导出不覆盖旧版本；恢复代码时按 I 的完整基线逐文件恢复 C 文件，并保留本次与旧快照，不重置整个 checkout。依赖接口变化通过对应所有者修复，不修改 V 验收使其通过。最终wheel、跨入口和独立组合结论以 DELIVERY_I/V 为准。
+C 没有修改 PRISM、历史科学原件、本地 molcat 修复或共享科学进程。外部快照与宿主导出不覆盖旧版本；恢复代码时按 I 的完整基线逐文件恢复 C 文件，并保留本次与旧快照，不重置整个 checkout。依赖接口变化通过对应所有者修复，不修改 V 验收使其通过。最终wheel、跨入口和独立组合结论以 DELIVERY_I/V 为准。
 
 ## 2026-10-21 接续：真实原生宿主与 Linux action
 
@@ -54,10 +54,10 @@ C 没有修改 PRISM、历史科学原件、本地 molcascade 修复或共享科
 
 ### 实际宿主、运行条件与身份
 
-- Codex `0.163.0-alpha.10.2`：`C:/Users/21734/AppData/Local/OpenAI/Codex/bin/896a0166b774037a/codex.exe exec --json`。初始 `login status` 显示 ChatGPT 登录；6 个真正原生进程均正常完成。使用 `--ignore-user-config --ignore-rules --ephemeral` 与单次 `-c mcp_servers.etalon.*`，没有改 `CODEX_HOME`、复制认证文件或修改全局 MCP。模型使用 CLI 默认；该 JSONL 没有输出解析后的模型 ID，因此记录 `model=null`，不根据当前宿主或宣传名称推测。
+- Codex `0.163.0-alpha.10.2`：`C:/Users/21734/AppData/Local/OpenAI/Codex/bin/896a0166b774037a/codex.exe exec --json`。初始 `login status` 显示 ChatGPT 登录；6 个真正原生进程均正常完成。使用 `--ignore-user-config --ignore-rules --ephemeral` 与单次 `-c mcp_servers.moldarwin.*`，没有改 `CODEX_HOME`、复制认证文件或修改全局 MCP。模型使用 CLI 默认；该 JSONL 没有输出解析后的模型 ID，因此记录 `model=null`，不根据当前宿主或宣传名称推测。
 - Claude Code `2.1.150`：`C:/Users/21734/.local/bin/claude.exe -p --output-format stream-json`，独立 `.mcp.json`、`--strict-mcp-config --setting-sources "" --no-session-persistence`。`auth status` 显示已有环境 API key，但真正原生请求返回 **401 `Invalid API key`**、退出码 1；初始化报告 `claude-opus-4-7[1m]`。该宿主的实际方法调用为 **blocked**，不是通过；没有读取/输出凭证、修复全局认证或循环重试。
-- 本地 ETALON：`F:/life_healthy/ETALON/.venv/Scripts/python.exe`，Python 3.13.12，模块来自 `F:/life_healthy/ETALON/src/etalon/`。每次导出和调用配置留在各 run 目录。Linux 原生 action 使用已授权主机的新目录 `/root/zx/prism-minimal-20261017/engineering/etalon-thin-native-20261021-01/`；Python `env/bin/python` 为 3.11.17，模块来自其 `source/src/etalon/`。环境/源码现场核验与依赖条件见 A 交付。
-- Linux MCP 为真正 `python -m etalon.mcp`。`ssh_mcp.py` 只转发标准输入/输出字节，不解析 JSON-RPC、不调用 SDK、不合成响应。宿主正式 CLI 实际发现和调用远端工具。源码哈希及模块实际路径在远端原件的 `final-capture.json`；例如 `runtime/api.py` SHA256 `8c15c65c71e2529484ebcea34dd7ede1e5d530c86bbb3f1de84294c3714f03d6`、`runtime/executors.py` `06832fbe751d9598633bb01962d3a085a33324d1ce6a24a5825466bd7bc55e6a`。Linux 固定快照的 MCP docstring 是修订前版本；后述本地 discovery/revision 进程使用 I 的修订版本。
+- 本地 MolDarwin：`F:/life_healthy/MolDarwin/.venv/Scripts/python.exe`，Python 3.13.12，模块来自 `F:/life_healthy/MolDarwin/src/moldarwin/`。每次导出和调用配置留在各 run 目录。Linux 原生 action 使用已授权主机的新目录 `/root/zx/prism-minimal-20261017/engineering/moldarwin-thin-native-20261021-01/`；Python `env/bin/python` 为 3.11.17，模块来自其 `source/src/moldarwin/`。环境/源码现场核验与依赖条件见 A 交付。
+- Linux MCP 为真正 `python -m moldarwin.mcp`。`ssh_mcp.py` 只转发标准输入/输出字节，不解析 JSON-RPC、不调用 SDK、不合成响应。宿主正式 CLI 实际发现和调用远端工具。源码哈希及模块实际路径在远端原件的 `final-capture.json`；例如 `runtime/api.py` SHA256 `8c15c65c71e2529484ebcea34dd7ede1e5d530c86bbb3f1de84294c3714f03d6`、`runtime/executors.py` `06832fbe751d9598633bb01962d3a085a33324d1ce6a24a5825466bd7bc55e6a`。Linux 固定快照的 MCP docstring 是修订前版本；后述本地 discovery/revision 进程使用 I 的修订版本。
 
 本地原生进程从 checkout 直接导入 MCP，不是最终 wheel 安装。`discovery` 和 `discovery-isolated` 的 `trial-inputs.json` 保存启动前 `mcp/runtime.py` 内容哈希；早期 direct/methods 未逐模块冻结运行前哈希，不能把后来当前文件哈希冒充其原始绑定。本轮 A 的 service 修改、I 的 docstring 修改与本地进程启动存在不同时间点；本地回放没有使用 durable service。Linux CPU case 则明确绑定上述远端 first-phase 固定快照。I/V 最终 wheel 校验和原生行为证据是两个独立验证范围，不声称所有原生调用来自最终 wheel。
 
@@ -75,7 +75,7 @@ CLI 资料以实际 `--help` 和官方 [Codex 非交互模式](https://learn.cha
 | `codex-discovery`，HOST-01 输入发现性修复复测 | 在 I 修订工具说明后，新原生进程只调用 status/events 两次，首次参数均合法；只读解释 QC 拒绝和实际支出，未编造 runtime handle。 | 行为 passed，但本次只读引用 `codex-methods` 原数据库，未满足每次独立测试数据要求；前后 SHA 相同仍不能补作独立数据副本。历史试验保留，随后补运行下一行。 |
 | `codex-discovery-isolated`，同目标独立数据复测 | 新导出/配置、通过 SQLite backup 取得新独立数据库副本；记录来源与副本哈希。真实原生只调用 status/events 两次，均首次成功；正确报告拒绝原因与保留支出后停止。 | passed；副本及来源数据库前后 SHA 均不变。数据是已见工程材料的新副本，不是独立科学任务；单次成功不证明总体错误率下降。 |
 | `codex-revision`，MET-02/06/07 / HOST-01 | 宿主根据已发生误用修改本地 receipt-review 候选，新增有关执行/准入、offline action ID 与 durable handle 的区别；保存新 snapshot、MCP 读取新内容并用于只读审计，追加 1 个新版本和 1 个 host-reported 使用记录。 | passed：实际本地改版/读取/探索试用，旧 snapshot 可核验、原版本引用保留。首次缺失 live manifest 的文件读取和一次错误 `evidence_refs` 类型写入均保留，后者被拒绝后宿主自行简化正确记录。无新科学执行。 |
-| `claude-direct`，HOST-01 Claude | 真 CLI 发起请求后 401，未产生成功 ETALON 调用。 | blocked：需要可用的原生 Claude 认证。后续 Claude methods/revision/Linux 均 not_run，不由 Codex 替代。 |
+| `claude-direct`，HOST-01 Claude | 真 CLI 发起请求后 401，未产生成功 MolDarwin 调用。 | blocked：需要可用的原生 Claude 认证。后续 Claude methods/revision/Linux 均 not_run，不由 Codex 替代。 |
 
 Linux 两个 request/job ID 是 `codex-native-20261021-ethanol-01` 和 `codex-native-20261021-benzene-01`；action ID 分别为 `f3dac09c9ae54f008f9da1cf0e74a2a6`、`f097c78bb11640e599ea1c66bae2612d`。原始账本、worker 收据和输出在 [c-native-fixture.tar.gz](../../../integration/thin-harness-native-20261021/c_host/c-native-fixture.tar.gz)，SHA256 **`02be71654fcbb624760918406e4d18a2e688f7c97bb4bc97412bb165ac68f768`**；C 逐项复核其中 50 个记录文件的大小/SHA，无不符，V 独立复核另列。
 
@@ -113,7 +113,7 @@ V 在运行前也复核了原生任务目标，未给宿主完整强制调用顺
 四个既有入口补全可实际使用的方法内容：单批筛选、gate 校准、生成产率、
 只读监控均给出适用问题、实际参数、输出解释、失败及停止边界。它们可单独
 或部分使用；没有增加全局必先规划、默认阶段推进或新的产品 registry。
-`etalon-campaign` 增加一个按需 reference：
+`moldarwin-campaign` 增加一个按需 reference：
 `references/factorial-diagnostic.md`，直接对齐既有
 `ResearchJournal.factorial(contrast_id: str) -> dict`。输入为已有 Contrast
 和观测；正常例 interaction=3、缺格保持 None、混合单位拒绝、诊断角色与
@@ -134,7 +134,7 @@ V 在运行前也复核了原生任务目标，未给宿主完整强制调用顺
 解压到 `integration/thin-harness-functions-20261021/c/fixed-source`，运行前后
 1164 文件逐项核验无变化；该快照不含 `.git`，不是新工作树。
 真实 Python 3.13.12 位于原 `.venv/Scripts/python.exe`，MCP 实际模块来自
-固定快照 `src/etalon`；原生 capabilities 响应也返回该路径。
+固定快照 `src/moldarwin`；原生 capabilities 响应也返回该路径。
 没有把 checkout 后续文档变更、最终 wheel 和本次运行源混为一体。
 
 CLI 为 `codex-cli 0.163.0-alpha.10.2`，原生登录状态为 ChatGPT。
@@ -147,7 +147,7 @@ resolved model 未被日志暴露，故仍记 unknown；货币成本也未知。
 | --- | --- | --- |
 | `native-monitor` / FM-08、HOST-01 | 4 次真实 MCP：capabilities/status/events/executor-list；无 skill 内容读取。宿主区分 journaled running 与活跃进程，读到 0 observations、0 admitted、reserved=2、spent=.25、remaining=3.75，然后停止。 | 只读监控通过；原 DB SHA、所有记录及导出字节不变。人工状态不证明真实 worker 执行或取消。宿主还指出 fixture 的 wall_second 与 fixture-cost 标签不代表已验证换算或实际计算成本。 |
 | `native-lineage` / FM-10、MET-02/03/07、HOST-01 | 18 次真实 MCP；按需读旧/新局部 bundle，新内容保存在独立 snapshot；成功追加派生版本的 structured parents、一个无父 root 和 host-reported partial MethodUse，共 3 条方法 provenance。 | 结构化父版本追加通过；旧 parentless record、旧 snapshot、历史原 DB、原事件前缀、观测和预算保持。不是修写上轮 parents=[]，也不证明改进收益。 |
-| `native-productivity` 首次 / FM-07、HOST-01 | capabilities 成功，真实 `etalon_generation_productivity` 等待 120 秒后 timeout，无数值响应。宿主保留未知，明确检查未完成，基于原输入和已有库存停止；无 skill、全局规划、campaign 或科学派发。 | 数值验收 **失败**，退出 0 不算通过；反馈后停止有真实行为证据。完整错误、等待和费用保留。 |
+| `native-productivity` 首次 / FM-07、HOST-01 | capabilities 成功，真实 `moldarwin_generation_productivity` 等待 120 秒后 timeout，无数值响应。宿主保留未知，明确检查未完成，基于原输入和已有库存停止；无 skill、全局规划、campaign 或科学派发。 | 数值验收 **失败**，退出 0 不算通过；反馈后停止有真实行为证据。完整错误、等待和费用保留。 |
 
 派生版本 ID 为
 `methodversion-5f61d7cfe848ef7a3bdfa485702379ae5d9a10a0a0e369a7611575b53298a3fd`，
@@ -220,7 +220,7 @@ output **5604**、reasoning-output **189**，含首轮失败，货币成本未�
 
 本轮沿用 C 产品 skill 唯一写入权，并使用本机 `skill-creator` 指引。
 只修改 campaign 的 SKILL 入口并新增
-[`references/finite-diagnostics.md`](../../.claude/skills/etalon-campaign/references/finite-diagnostics.md)：
+[`references/finite-diagnostics.md`](../../.claude/skills/moldarwin-campaign/references/finite-diagnostics.md)：
 对齐已有 `calibration.bind_outcome`、`diagnostics.condition`、
 `diagnostics.exact_program`，明确具体输入/返回、支持外停止、role/hash/身份
 拒绝和引用费用。三者可以单用或部分组合，没有规定必经调用顺序，也没有
@@ -242,7 +242,7 @@ I 新封存 `pre-native-source.zip` 的 SHA256 为
 **`e88a7ba697bdb0f61e9f7fe9e9bd00415f5dba889e72b76c81d4e3b1ad5604ea`**。
 C 解压到本轮 `c/fixed-source`，1175 文件运行前后逐 hash 一致；不覆盖前轮
 snapshot、原始超时或失败。实际 Python 为原
-`F:/life_healthy/ETALON/.venv/Scripts/python.exe` 3.13.12，模块从该固定源
+`F:/life_healthy/MolDarwin/.venv/Scripts/python.exe` 3.13.12，模块从该固定源
 导入；路径与模块 hash 见 `native-diagnostic/binding.json`。正式 Codex CLI
 现场版本仍为 `0.163.0-alpha.10.2`，原生 auth status 为 ChatGPT。
 每次运行使用本轮新配置、导出、数据和 cwd，不读写凭证或全局 MCP 配置。
@@ -261,7 +261,7 @@ snapshot、原始超时或失败。实际 Python 为原
 [`c/native-summary.json`](../../../integration/thin-harness-research-20261021/c/native-summary.json)。
 实际观察如下，最终通过判定由 V 独立复核：
 
-- **真实 MCP**：`etalon_capabilities` 后只通过 `etalon_skill_read` 返回
+- **真实 MCP**：`moldarwin_capabilities` 后只通过 `moldarwin_skill_read` 返回
   campaign 的 `references/finite-diagnostics.md`，文件 SHA
   `e4f9daf0d9511f2c1d323bf4ff1f093e4f63c5c27f9899d33f53c5b220e72cf6`。
   宿主另作源码检索和局部读取；没有通过 MCP 读取整份入口或历史 reference，
@@ -297,7 +297,7 @@ Claude 继续沿用前轮真实 401 的 blocked 状态，本轮未重试。R4b �
 ## 配对开发模型与记录/编译/反馈接缝（2026-10-21）
 
 本轮按 `skill-creator` 指引继续维护同一个 campaign skill，仅增按需入口和
-[`paired-models-and-segments.md`](../../.claude/skills/etalon-campaign/references/paired-models-and-segments.md)。
+[`paired-models-and-segments.md`](../../.claude/skills/moldarwin-campaign/references/paired-models-and-segments.md)。
 它对齐现有 `empirical_model` 的完整配对 rows、group/split/evidence 约束、
 默认拒绝相关行及可选 group-balanced 权重；纯构造不冒充 artifact 准入或收益。
 同一 reference 说明 `record_program/compile_first_segment/observed_branch`
@@ -321,7 +321,7 @@ I 固定来源 `pre-native-source.zip` SHA256
 **`cd99711db238f5c57c1927cc40ff520da7f8a25cd6f798c3002a7a2059c30d5c`**，
 独立解压到本轮 `c/fixed-source`。1183 文件运行前后逐 hash 一致。
 使用正式 Codex CLI `0.163.0-alpha.10.2`、原生 ChatGPT auth，以及原
-`F:/life_healthy/ETALON/.venv/Scripts/python.exe` 3.13.12；实际 source/import
+`F:/life_healthy/MolDarwin/.venv/Scripts/python.exe` 3.13.12；实际 source/import
 路径及模块 hash 在 `c/native-paired/binding.json`。未改全局配置、凭证或旧证据。
 
 V 在运行前阅读 prompt：只有 paired-model 目标、数据/预算/副作用约束，
@@ -368,8 +368,8 @@ Claude 沿用真实 401 的 blocked 结论，未重试。R4b 暂停，无新科�
 新增的兼容接口为：
 
 ```python
-etalon_capabilities(detail="full", skills=None, tools=None, operations=None)
-from etalon.skills import catalog
+moldarwin_capabilities(detail="full", skills=None, tools=None, operations=None)
+from moldarwin.skills import catalog
 catalog(detail="full", skills=None)
 ```
 
@@ -388,7 +388,7 @@ reference 内容**，也不声称 summary 已消除这部分文件 IO。
 需要成员清单时，用同范围 `detail="full"` 展开。外部/修改后的本地 bundle
 继续通过原 `bundle_ref` 读取，目录筛选不是方法授权白名单。
 已知工具或成员可直接调用，不新增“先发现/先skill/先方法记录”的门槛。
-CLI 增加 `python -m etalon.host catalog --detail summary --skills campaign`；
+CLI 增加 `python -m moldarwin.host catalog --detail summary --skills campaign`；
 裸 `catalog` 保持原行为，`--skills` 不带值明确选择空。
 
 两个既有 research reference 末尾加入 B 验证的完整可运行 Python 例，
@@ -421,7 +421,7 @@ LLM 轮次，也没有任意代码执行 MCP、后台循环或新 SDK 框架。
   然后完整目录、campaign summary、tool/operation summary、未知范围拒绝。
   完整原始 response、参数、实际模块 hash 和分段 wall 在
   `stdio-results.json`；不是原生宿主行为验收。该组件运行的实际 Python 是
-  `F:/life_healthy/ETALON/.venv/Scripts/python.exe`，从当前 checkout `src`
+  `F:/life_healthy/MolDarwin/.venv/Scripts/python.exe`，从当前 checkout `src`
   导入；并不冒称后续 E 固定来源或最终安装包。
 - 该次所见文本字节分别为 direct member **4134**、完整目录 **10437**、
   campaign summary **1411**、tool/operation summary **1299**、拒绝 **267**。
@@ -439,7 +439,7 @@ LLM 轮次，也没有任意代码执行 MCP、后台循环或新 SDK 框架。
 ## I2 全量能力覆盖：可选使用与改进（2026-10-21）
 
 本轮 C `/root/c_usage_improvement` 仅维护 WORKSTREAMS 所分配的 HOST.md、
-HOST_SETUP.md、新 `etalon-skill-improvement`、SDK 示例和测试；共享注册、
+HOST_SETUP.md、新 `moldarwin-skill-improvement`、SDK 示例和测试；共享注册、
 MCP、host.py 和打包交 I2。已应用 skill-creator 和本地工程重构指引；后者
 保留 local-only，不进入产品库。
 
@@ -457,8 +457,8 @@ usage 各两个版本，实际读一份 paired reference，记录 partial/host_r
 晋升或 independent_validation 伪记录。未来任务 ID 是明确未分配占位，不
 是已冻结/执行的独立评价。该示例随源码交付，不声称 wheel 内置命令。
 
-实际验证使用 `F:/life_healthy/ETALON/.venv/Scripts/python.exe`、checkout
-`src/etalon`，原件在 `integration/thin-harness-skills-20261021/c/`：
+实际验证使用 `F:/life_healthy/MolDarwin/.venv/Scripts/python.exe`、checkout
+`src/moldarwin`，原件在 `integration/thin-harness-skills-20261021/c/`：
 
 - `tests/test_skill_improvement.py tests/test_host_bundles_hooks.py`：13 passed，
   `c-tests.xml`；新例单独 1 passed 已包含，不重复相加。
@@ -499,7 +499,7 @@ revision 与金额未知；shell/MCP 次数不是所有模型请求数。第一�
 采用证据分列：第一项直接调用安装 SDK；第二项自主局部修改外部方法并形成
 实际 review。两项均未观察到内置 skill/reference 的显式读取，不能用导出
 存在或语义结果冒称新增库采用；导出的 HOST 指引可能已进入宿主上下文，
-也不据此断言全部指引未生效。第二项没有调用 ETALON snapshot/journal；
+也不据此断言全部指引未生效。第二项没有调用 MolDarwin snapshot/journal；
 它保存完整原件和各成员 SHA，C 事后只读使用已安装 snapshot 核实完整旧新
 版本不同，该核实不算宿主 SDK 使用。S/usage 独立收益、生产频率和科学
 改进仍 not_run。

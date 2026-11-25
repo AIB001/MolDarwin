@@ -9,27 +9,27 @@ import pytest
 
 
 def test_skill_names_slugs_and_uris_share_canonical_version(tmp_path):
-    from etalon import skills
+    from moldarwin import skills
     baseline = skills.read_member('sweep')
-    for name in ('etalon-screening-sweep', 'etalon://skills/sweep', 'etalon://skills/etalon-screening-sweep'):
+    for name in ('moldarwin-screening-sweep', 'moldarwin://skills/sweep', 'moldarwin://skills/moldarwin-screening-sweep'):
         assert skills.read_member(name) == baseline
         assert skills.catalog(skills=[name])['skills'][0]['manifest_sha256'] == baseline['manifest_sha256']
-    selected, snapshots = skills.snapshot_selection([{'slug':'etalon-screening-sweep'}])
+    selected, snapshots = skills.snapshot_selection([{'slug':'moldarwin-screening-sweep'}])
     assert selected[0]['slug'] == 'sweep'
     assert snapshots[0][0]['manifest_sha256'] == baseline['manifest_sha256']
     with pytest.raises(ValueError, match='ambiguous'):
-        skills.snapshot_selection([{'slug':'sweep'}, {'slug':'etalon-screening-sweep'}])
-    from etalon.host import export, verify
+        skills.snapshot_selection([{'slug':'sweep'}, {'slug':'moldarwin-screening-sweep'}])
+    from moldarwin.host import export, verify
     target = tmp_path/'host'
-    export(target, host='claude', selected_skills=['etalon-screening-sweep'])
-    assert (target/'.claude/skills/etalon-screening-sweep/SKILL.md').is_file()
+    export(target, host='claude', selected_skills=['moldarwin-screening-sweep'])
+    assert (target/'.claude/skills/moldarwin-screening-sweep/SKILL.md').is_file()
     verified = verify(target)
     assert verified['export_matches_manifest'] and verified['matches_current_source']
 
-from etalon import host, skills
+from moldarwin import host, skills
 
 ROOT = Path(__file__).resolve().parents[1]
-MQ = {"molquarry-" + name for name in (
+MQ = {"molorigin-" + name for name in (
     "analogue-search", "assay-literature", "compound-sourcing",
     "selectivity-evidence", "structure-templates", "target-modulators")}
 OLD = {"campaign", "sweep", "gate-calibration", "generation-planning", "monitoring", "install"}
@@ -43,13 +43,13 @@ def test_v_original_sources_complete_and_zero_argument_shape_remains_additive():
     assert set(rows) == set(skills.WORKFLOWS)
     # The RSI procedure creator is discoverable and shipped like the other skills.
     originals = list((ROOT / ".claude/skills").glob("*/SKILL.md"))
-    originals += list((ROOT / "asset/molquarry/skills").glob("*/SKILL.md"))
-    # Unix host-discovery symlinks point at the same original MolQuarry bundles.
+    originals += list((ROOT / "asset/molorigin/skills").glob("*/SKILL.md"))
+    # Unix host-discovery symlinks point at the same original MolOrigin bundles.
     assert {(skills.bundle_root(s) / "SKILL.md").resolve() for s in rows} == {
         path.resolve() for path in originals}
     for slug in MQ:
         manifest, content = skills.snapshot(slug)
-        original = ROOT / "asset/molquarry/skills" / slug
+        original = ROOT / "asset/molorigin/skills" / slug
         assert set(content) == {p.relative_to(original).as_posix() for p in original.rglob("*") if p.is_file()}
         assert all(content[p] == (original / p).read_bytes() for p in content)
         assert manifest == rows[slug]
@@ -58,7 +58,7 @@ def test_v_original_sources_complete_and_zero_argument_shape_remains_additive():
 
 def test_v_partial_mixed_scope_and_empty_scope_do_not_resolve_other_bundles(monkeypatch):
     original = skills.bundle_root
-    selected = ["molquarry-target-modulators", "research"]
+    selected = ["molorigin-target-modulators", "research"]
     calls = []
     def selected_only(slug):
         assert slug in selected, "unrelated bundle resolved"
@@ -85,7 +85,7 @@ def test_v_partial_mixed_scope_and_empty_scope_do_not_resolve_other_bundles(monk
 
 def test_v_external_supporting_deletion_changes_full_version_preserves_original(tmp_path, monkeypatch):
     root = tmp_path / "external"
-    shutil.copytree(skills.bundle_root("molquarry-target-modulators"), root)
+    shutil.copytree(skills.bundle_root("molorigin-target-modulators"), root)
     def no_builtin(*args, **kwargs):
         raise AssertionError("external bundle requested built-in discovery")
     monkeypatch.setattr(skills, "bundle_root", no_builtin)
@@ -114,7 +114,7 @@ def test_v_exports_keep_every_original_member_and_detect_supporting_drift(tmp_pa
         for name, content in contents.items():
             assert (target / base / manifest["name"] / name).read_bytes() == content
     assert host.verify(target)["matches_current_source"]
-    supporting = f"{base}/molquarry-target-modulators/references/workflow.md"
+    supporting = f"{base}/molorigin-target-modulators/references/workflow.md"
     (target / supporting).write_bytes(b"local revision\n")
     assert supporting in host.verify(target)["changed"]
     (target / supporting).unlink()
@@ -123,18 +123,18 @@ def test_v_exports_keep_every_original_member_and_detect_supporting_drift(tmp_pa
 
 
 def test_v_legacy_mq_uri_resources_and_main_reader_share_complete_source():
-    from etalon.mcp.server import build
+    from moldarwin.mcp.server import build
     server = build()
     async def read(uri):
         response = await server.read_resource(uri)
         return list(response)[0].content
     async def check():
-        listed = json.loads(await read("etalon://skills/molquarry"))["skills"]
+        listed = json.loads(await read("moldarwin://skills/molorigin"))["skills"]
         assert {row["name"] for row in listed} == MQ
         for row in listed:
             manifest, contents = skills.snapshot(row["name"])
             assert await read(row["uri"]) == contents["SKILL.md"].decode()
-            assert await read("etalon://skills/" + row["name"]) == contents["SKILL.md"].decode()
+            assert await read("moldarwin://skills/" + row["name"]) == contents["SKILL.md"].decode()
             assert set(row["resources"]) == set(contents)
             for resource in row["references"]:
                 member = resource.removeprefix(row["uri"] + "/")
@@ -144,10 +144,10 @@ def test_v_legacy_mq_uri_resources_and_main_reader_share_complete_source():
 
 
 def test_v_known_data_and_partial_research_calls_need_no_skill_or_method_gate(tmp_path, monkeypatch):
-    from etalon.active import CampaignSpec, CampaignStore, Endpoint
-    from etalon.active.adapters import MOLECULAR_REPRESENTATION
-    from etalon.data.design import import_bundle, verify_import
-    from etalon.research.fixed_pool import subset_rank_outcome
+    from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+    from moldarwin.active.adapters import MOLECULAR_REPRESENTATION
+    from moldarwin.data.design import import_bundle, verify_import
+    from moldarwin.research.fixed_pool import subset_rank_outcome
     def forbidden(*args, **kwargs):
         raise AssertionError("known API tried to require skill discovery")
     monkeypatch.setattr(skills, "catalog", forbidden)
@@ -169,9 +169,9 @@ def test_v_known_data_and_partial_research_calls_need_no_skill_or_method_gate(tm
 
 
 def test_v_invalid_design_does_not_replace_existing_admissible_state(tmp_path):
-    from etalon.active import CampaignSpec, CampaignStore, Endpoint
-    from etalon.active.adapters import MOLECULAR_REPRESENTATION
-    from etalon.data.design import design_index, import_bundle
+    from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+    from moldarwin.active.adapters import MOLECULAR_REPRESENTATION
+    from moldarwin.data.design import design_index, import_bundle
     endpoint = Endpoint("fixture", "fixture", "engineering", "count", "fixture/1", 1, requires_handoff=True)
     store = CampaignStore(tmp_path / "isolated.sqlite")
     store.configure(CampaignSpec(endpoint.id, 2, "wall_second", MOLECULAR_REPRESENTATION), [endpoint])

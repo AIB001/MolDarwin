@@ -14,13 +14,13 @@ import time
 import research_snd1_improvement as h
 import snd1_evidence_workflow as science
 from snd1_evidence_evaluation import evaluate
-from etalon.active.schema import CampaignSpec, Endpoint
-from etalon.research.schema import MethodVersion, MethodUse, TaskSplit
-from etalon.research import improvement as imp
-from etalon.research.composition import WORKFLOW, node_step, record_evaluation
-from etalon.research.continuation import STEP, CHECKPOINT
-from etalon.research.method_revision import build_method_revision, record_method_revision, resolve_method_revision
-from etalon.research.scientific_input import compile_input, consumption_receipt
+from moldarwin.active.schema import CampaignSpec, Endpoint
+from moldarwin.research.schema import MethodVersion, MethodUse, TaskSplit
+from moldarwin.research import improvement as imp
+from moldarwin.research.composition import WORKFLOW, node_step, record_evaluation
+from moldarwin.research.continuation import STEP, CHECKPOINT
+from moldarwin.research.method_revision import build_method_revision, record_method_revision, resolve_method_revision
+from moldarwin.research.scientific_input import compile_input, consumption_receipt
 
 TASK='snd1-evidence-conditioned-refinement'
 QUESTION='Can grounded pocket, contact and activity evidence improve local refinement over fixed-core preparation?'
@@ -32,7 +32,7 @@ ROOT=PRIOR=AUTH=None
 def configure(root,prior,authority):
     global ROOT,PRIOR,AUTH
     ROOT,PRIOR,AUTH=map(lambda x:Path(x).absolute(),(root,prior,authority))
-    h.configure(root=ROOT,etalon_source=ROOT,prism_source=PRIOR/'prism-source',authority=AUTH)
+    h.configure(root=ROOT,moldarwin_source=ROOT,prism_source=PRIOR/'prism-source',authority=AUTH)
     h.SID='snd1-evidence';h.TASK=TASK;h.QUESTION=QUESTION
 
 
@@ -51,7 +51,7 @@ def checkpoint(s,basis):
 
 
 def claim(j,status,statement,support,methods=()):
-    return h.save(j,{'schema':'etalon-research-claim/1','question':QUESTION,'statement':statement,
+    return h.save(j,{'schema':'moldarwin-research-claim/1','question':QUESTION,'statement':statement,
         'epistemic_status':status,'subjects':['SND1','C26-A2','C26-A6'],'conditions':COND,
         'limitations':['Retrospective two related compounds; no affinity or independent-transfer validation'],
         'support_refs':support,'counter_refs':[],'method_refs':list(methods),'supersedes':[]})
@@ -76,7 +76,7 @@ def initialize():
             if h.read(path)!=bundle:raise ValueError('frozen input differs')
         else:h.write(path,bundle)
         bundles[name]=h.file(j,path,'layered-scientific-input')
-        summaries[name]=h.art(j,{'schema':'etalon-scientific-input-summary/1','full_input_ref':bundles[name],
+        summaries[name]=h.art(j,{'schema':'moldarwin-scientific-input-summary/1','full_input_ref':bundles[name],
             'subject':bundle['subject'],'bindings':compiled['bindings'],
             'parameter_value_hashes':{k:hashlib.sha256(json.dumps(v,sort_keys=True).encode()).hexdigest() for k,v in compiled['parameters'].items()},
             'binding_support':compiled['parameters']['binding_support'],
@@ -87,7 +87,7 @@ def initialize():
         for layer in ['sources','observations','interpretations']:
             for row in bundle[layer]:
                 if layer=='sources':r=h.file(j,row['path'],'scientific-source')
-                else:r=h.art(j,{'schema':'etalon-scientific-'+layer+'/1','record':row,
+                else:r=h.art(j,{'schema':'moldarwin-scientific-'+layer+'/1','record':row,
                       'basis_refs':[mapped[x] for x in row['basis_ids']]},'scientific-'+layer)
                 mapped[row['id']]=r
         layer_refs[name]=mapped
@@ -95,7 +95,7 @@ def initialize():
     for method in ['fixed_core','local_contact']:
         content[method]=h.art(j,{'method':method,'source':h.file(j,Path(science.__file__),'frozen-domain-adapter'),
             'baseline_source':h.file(j,Path(science.old.__file__),'reused-pose-recipe'),
-            'protocol_ref':protocol,'input_contract':'etalon-scientific-input/1',
+            'protocol_ref':protocol,'input_contract':'moldarwin-scientific-input/1',
             'procedure':'reuse exact fixed-core output' if method=='fixed_core' else 'reuse prepared pose -> grounded local relaxation'})
     base=h.ref(j,j.record(MethodVersion('snd1-fixed-core-with-grounded-assessment',('domain_skill','usage_method'),{'artifact_ref':content['fixed_core']['record_id']})))
     cand=h.ref(j,j.record(MethodVersion('snd1-local-contact-refinement',('domain_skill','usage_method'),{'artifact_ref':content['local_contact']['record_id']},

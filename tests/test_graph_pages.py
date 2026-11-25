@@ -5,13 +5,13 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active.schema import canonical, digest
-from etalon.mcp import evidence
-from etalon.research.evidence import StaleCursorError
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research.graph_memory import _build_research_graph, build_research_graph
-from etalon.research.graph_scope import assemble_graph_pages, audit_graph_pages, graph_page
-from etalon.research.research_context import build_research_context
+from moldarwin.active.schema import canonical, digest
+from moldarwin.mcp import evidence
+from moldarwin.research.evidence import StaleCursorError
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research.graph_memory import _build_research_graph, build_research_graph
+from moldarwin.research.graph_scope import assemble_graph_pages, audit_graph_pages, graph_page
+from moldarwin.research.research_context import build_research_context
 from test_mcp import Collector
 from test_research_graph_memory import graph_case
 
@@ -99,8 +99,8 @@ def test_context_and_mcp_scoped_overflow_have_bounded_complete_continuation(grap
     scope = {'root_refs': [c['decision']], 'ordinary_hops': 0}
     graph = _build_research_graph(c['workspace'], checkpoint_ref=c['checkpoint'], scope=scope, max_nodes=128)
     for tool_name, kwargs in (
-        ('etalon_research_graph', {'workspace': str(c['workspace']), 'checkpoint_ref': c['checkpoint']}),
-        ('etalon_research_context', {'entry': str(c['entry']), 'view': 'summary'}),
+        ('moldarwin_research_graph', {'workspace': str(c['workspace']), 'checkpoint_ref': c['checkpoint']}),
+        ('moldarwin_research_context', {'entry': str(c['entry']), 'view': 'summary'}),
     ):
         def call(cursor):
             raw = collector.tools[tool_name](**kwargs, scope=scope, cursor=cursor, max_bytes=4096)

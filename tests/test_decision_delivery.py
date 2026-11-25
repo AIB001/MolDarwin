@@ -5,11 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active.schema import canonical
-from etalon.research import Artifact
-from etalon.research.decision_reading import build_decision_delivery, build_decision_reading
-from etalon.research.evidence import read_evidence, StaleCursorError
-from etalon.research.evidence_refs import EvidenceError, file_identity, make_ref
+from moldarwin.active.schema import canonical
+from moldarwin.research import Artifact
+from moldarwin.research.decision_reading import build_decision_delivery, build_decision_reading
+from moldarwin.research.evidence import read_evidence, StaleCursorError
+from moldarwin.research.evidence_refs import EvidenceError, file_identity, make_ref
 from test_research_graph_memory import graph_case
 from test_decision_reading import pages as reading_pages
 from test_decision_reading_mcp import reader
@@ -76,7 +76,7 @@ def test_pages_preserve_utf8_fragments_and_do_not_repeat_metadata(graph_case):
     artifact = Artifact(str(path), **file_identity(path), source_kind="fixture", role="diagnostic", bindings={})
     c["journal"].record(artifact)
     blob = make_ref("science", artifact.id, c["journal"].get(artifact.id))
-    large = c["save"]({"schema": "etalon-research-claim/1", "question": "fixture?", "statement": "UTF-8 fixture",
+    large = c["save"]({"schema": "moldarwin-research-claim/1", "question": "fixture?", "statement": "UTF-8 fixture",
         "epistemic_status": "interpretation", "subjects": ["fixture"], "conditions": [],
         "limitations": [], "support_refs": [blob], "counter_refs": [c["counter"]],
         "method_refs": [], "supersedes": []})

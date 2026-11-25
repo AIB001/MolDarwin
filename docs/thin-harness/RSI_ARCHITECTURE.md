@@ -95,9 +95,9 @@ module has no code path to `evaluate_contract`, and a test pins the absence by A
 
 Sending work to a wet lab, spending, relaxing a check: these cannot be self-approved.
 
-This is the fixed point ETALON holds least well, and saying so is the point of writing it
+This is the fixed point MolDarwin holds least well, and saying so is the point of writing it
 down. Three holes are already recorded in the architecture review:
-`etalon_screen_submit` is a route around the gate; `method.run` and `screen.run` nodes spend
+`moldarwin_screen_submit` is a route around the gate; `method.run` and `screen.run` nodes spend
 with no authority object; and **no MCP tool accepts a spend token at all**.
 
 An external result makes the cost concrete: memory accumulated over ordinary low-risk chores
@@ -168,11 +168,11 @@ mechanism Zone A or Zone C?" has no answer and will not acquire one, while "what
 write?" always does.
 
 Applied: a consolidation pass that writes only Zone A artifacts is safe by construction; one
-that writes `etalon-method-experience/1` records is Zone B and needs §2.4's field first; one
+that writes `moldarwin-method-experience/1` records is Zone B and needs §2.4's field first; one
 that rewrites an existing record, a derived view, the fault catalogue or a decision rule is
 Zone C and is already refused without a new rule.
 
-**ETALON cannot make a Zone C edit impossible for a host with shell access.** The aim is
+**MolDarwin cannot make a Zone C edit impossible for a host with shell access.** The aim is
 *detectable and non-propagating*, via a Zone C digest folded into every result's identity.
 Under P1 that is sufficient: the harm is a record claiming more than was established, and a
 changed judge carrying a changed digest cannot silently carry anything across.
@@ -244,7 +244,7 @@ prevent.
 
 What does transfer is narrower and is already built: the useful shadow of an offline pass in
 this domain is **precomputing the acceptance criterion and handing it over**, which is
-`etalon_method_criterion`, and it is synchronous.
+`moldarwin_method_criterion`, and it is synchronous.
 
 **A replicate floor (`min_replicates`).** Refused, with four measurements against it, in
 [STOCHASTIC_MEASUREMENT](STOCHASTIC_MEASUREMENT.md) §5, and a named reopening trigger.

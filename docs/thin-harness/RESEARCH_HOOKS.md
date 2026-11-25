@@ -1,6 +1,6 @@
 # Optional research lifecycle hooks
 
-ETALON can prepare bounded, sourced research context for Codex or Claude Code
+MolDarwin can prepare bounded, sourced research context for Codex or Claude Code
 without submitting science, resuming paused work, or triggering RSI. This bridge
 uses `build_research_context`, the existing continuation and evidence readers,
 and the host adapter's OS lock and atomic receipt writer. It does not replace
@@ -9,7 +9,7 @@ the host's private memory or intercept every host action.
 ## Entry points
 
 ```python
-from etalon.research_hooks import handle_event
+from moldarwin.research_hooks import handle_event
 
 result = handle_event(
     "research-entry.json",
@@ -32,7 +32,7 @@ a fresh baseline, and conflicts with a replay of an already used strong event ID
 The command adapter reads one JSON event from stdin:
 
 ```text
-python -m etalon.research_hooks --host codex --entry ENTRY.json --state-dir TRACE_DIR
+python -m moldarwin.research_hooks --host codex --entry ENTRY.json --state-dir TRACE_DIR
 ```
 
 Only the host-compatible JSON output is written to stdout. Invalid input,
@@ -49,8 +49,8 @@ retains its existing behavior; native MCP hooks share the same handler, context
 reader and durable receipt protocol.
 
 ```text
-python -m etalon.host export --host codex --target NEW_PROJECT --research-entry ENTRY.json
-python -m etalon.host verify --target NEW_PROJECT
+python -m moldarwin.host export --host codex --target NEW_PROJECT --research-entry ENTRY.json
+python -m moldarwin.host verify --target NEW_PROJECT
 ```
 
 Use `--host claude` for Claude Code. The target must not already exist. Existing
@@ -77,7 +77,7 @@ Before starting a model session, inspect the exported project's actual config
 layers and hook metadata:
 
 ```text
-python -m etalon.codex_hooks --target NEW_PROJECT
+python -m moldarwin.codex_hooks --target NEW_PROJECT
 ```
 
 This bounded, read-only app-server check calls `config/read` and `hooks/list`.
@@ -107,15 +107,15 @@ definitions require the host's review again.
 | Event | Behavior | Persistence |
 | --- | --- | --- |
 | SessionStart (startup/resume/compact/clear/fork) | Read the entry and return a self-contained summary baseline | Exact prepared context, selection policy, source watermarks, reference inventory and output hash/bytes |
-| PreToolUse for ETALON MCP tools | Read current summary and return baseline, delta, or unchanged notice | Same injection receipt, exact base identity, recovery request and host-observed request fingerprint |
+| PreToolUse for MolDarwin MCP tools | Read current summary and return baseline, delta, or unchanged notice | Same injection receipt, exact base identity, recovery request and host-observed request fingerprint |
 | PostToolUse | Record the observed return; explicit MCP errors remain failures | Tool identity, input/output fingerprints; no scientific admission |
 | PostToolUseFailure (Claude) | Record host-observed failure | Failure observation, without pretending to know a scientific endpoint |
 | PreCompact / Stop | Read and acknowledge the existing published entry/checkpoint; retain unfinished publication status | Checkpoint acknowledgment and publication attention flag; PreCompact invalidates the prior delivery baseline |
 
-The tool matcher targets ETALON MCP names, including a single plugin prefix.
+The tool matcher targets MolDarwin MCP names, including a single plugin prefix.
 Unrelated tools and the optional `research_hook` tool itself are ignored. No
 tool is blocked, permitted, rewritten, retried or dispatched by this bridge.
-Arbitrary shell-based ETALON calls are not automatically observed. Codex uses
+Arbitrary shell-based MolDarwin calls are not automatically observed. Codex uses
 PostToolUse for returned errors; its export does not declare Claude's separate
 PostToolUseFailure event.
 
@@ -150,7 +150,7 @@ and handler version, the output has one of three `delivery.mode` values:
 Delta and unchanged outputs retain current checkpoint, continuation, branch,
 pending/authority, source and publication controls. They name the exact base
 context hash and receipt and always include the entry and parameters for a fresh
-`etalon_research_context` summary read. A host with a missing or uncertain base
+`moldarwin_research_context` summary read. A host with a missing or uncertain base
 must re-read that entry; it must not infer that omitted evidence was consumed.
 Every delivery states `consumption_verified: false`.
 

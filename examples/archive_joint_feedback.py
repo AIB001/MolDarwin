@@ -4,8 +4,8 @@ import argparse
 import json
 import sqlite3
 from pathlib import Path
-from etalon.active.schema import canonical,digest
-from etalon.boundary.prism_v1 import file_identity
+from moldarwin.active.schema import canonical,digest
+from moldarwin.boundary.prism_v1 import file_identity
 
 
 def archive(database: Path, output: Path):
@@ -31,7 +31,7 @@ def archive(database: Path, output: Path):
                           'reservation':body['reservation'],'unit':body['unit'],
                           'provenance':body['provenance'],'receipt':body['receipt']})
         if key.startswith('research:controllerfeedback-'):research_states.append({'record_id':key,**body})
-    body={'schema':'etalon-research-archive/1','database_snapshot':{'path':str(snapshot.resolve()),**file_identity(snapshot)},
+    body={'schema':'moldarwin-research-archive/1','database_snapshot':{'path':str(snapshot.resolve()),**file_identity(snapshot)},
           'research_records':index,'artifacts':artifacts,'all_execution_cost_records':costs,
           'event_count':events[0],'event_cutoff':events[1],'feedback_states':research_states,
           'H_scope':'full immutable journal snapshot plus every artifact identity and all execution receipts, including failed smoke before controller registration',

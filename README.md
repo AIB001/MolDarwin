@@ -1,36 +1,36 @@
-# ETALON
+# MolDarwin
 
 Scientific tools, reliable execution and evidence for host-driven CADD research.
 
 ## Host-driven research
 
-Codex or Claude Code owns the research question and next action. ETALON supplies
+Codex or Claude Code owns the research question and next action. MolDarwin supplies
 domain tools, optional skills, bounded execution and scientific evidence. Existing
 workflow graphs and numerical active policies remain available as local methods.
 
-The first thin-harness increment adds `etalon_capabilities`, `etalon_skill_read`,
+The first thin-harness increment adds `moldarwin_capabilities`, `moldarwin_skill_read`,
 complete versioned skill bundles and project-local host adapters. Export with the
 interpreter that will run the server:
 
 ```bash
 pip install -e '.[mcp]'
-python -m etalon.host export --target /absolute/new/research-project --host codex
-python -m etalon.host verify --target /absolute/new/research-project
+python -m moldarwin.host export --target /absolute/new/research-project --host codex
+python -m moldarwin.host verify --target /absolute/new/research-project
 ```
 
 Use `--host claude` for Claude Code. The target must not exist; exports never
 overwrite existing project instructions or configuration. Both adapters use the
 same skill sources, supporting references and separately versioned usage guide.
 Native host discovery must be checked in that host; an export or SDK handshake
-does not establish it. See the [host setup and migration status](src/etalon/HOST_SETUP.md)
+does not establish it. See the [host setup and migration status](src/moldarwin/HOST_SETUP.md)
 for usage, compatibility, validation and the source-migration gaps.
 
 Detailed reviews and validation records under `docs/` are maintained locally and excluded from Git.
 The public [thin-harness contracts and deliveries](docs/thin-harness/README.md) are an explicit exception.
-The [durable runtime guide and research references](src/etalon/runtime/README.md), this overview
+The [durable runtime guide and research references](src/moldarwin/runtime/README.md), this overview
 and runnable examples are tracked and included with the implementation.
 
-ETALON provides the `doctor` command, persistent background screening
+MolDarwin provides the `doctor` command, persistent background screening
 (`screen plan / submit / status`), and interchangeable OpenAI,
 Anthropic and DeepSeek HTTP advisors. Screening jobs survive client disconnects and
 duplicate submissions retain one job. The standalone screening API retains its own journal.
@@ -38,8 +38,8 @@ The unified runtime below links data, screening and registered active execution 
 
 ## Durable CADD workflows and LLM control
 
-`etalon.runtime` connects MolQuarry evidence acquisition, MolCascade screening and registered
-MolCascade/PRISM executors through the existing campaign journal and scientific admission rules.
+`moldarwin.runtime` connects MolOrigin evidence acquisition, MolCat screening and registered
+MolCat/PRISM executors through the existing campaign journal and scientific admission rules.
 It provides plan, submit, status, cancel, reconcile, configuration generation and bounded artifact
 reading through both CLI and MCP. SQLite records cross-stage state, resource reservations, costs,
 heartbeats, execution receipts and the next undispatched step; workers survive client disconnection.
@@ -52,22 +52,22 @@ retain separate units. Unknown outcomes keep their reservations until reconcilia
 ```bash
 pip install -e '.[cascade,quarry,active,mcp]'
 python examples/durable_campaign.py --workspace /absolute/new/runtime-demo
-python -m etalon workflow status --workspace /absolute/new/runtime-demo --job-id database-campaign
-python -m etalon workflow artifact --workspace /absolute/new/runtime-demo --job-id database-campaign \
+python -m moldarwin workflow status --workspace /absolute/new/runtime-demo --job-id database-campaign
+python -m moldarwin workflow artifact --workspace /absolute/new/runtime-demo --job-id database-campaign \
   --node-id learn --kind result --member /observations --limit 10
-python -m etalon workflow capabilities
+python -m moldarwin workflow capabilities
 ```
 
 The example executes real CPU properties for three fixture molecules with zero HTTP requests.
 The live PRISM executor requires a receptor-bound handoff, explicit runtime environment and a real
 MM-PBSA readout; it does not supply a complete FEP or independent-replica workflow. This is bounded
-automation of configured science. Read the [runtime guide](src/etalon/runtime/README.md), also served
-as `etalon://runtime`, for operation contracts, recovery semantics, limitations and literature.
+automation of configured science. Read the [runtime guide](src/moldarwin/runtime/README.md), also served
+as `moldarwin://runtime`, for operation contracts, recovery semantics, limitations and literature.
 
 ## Executable active learning and composable cascades
 
 The current implementation adds a persistent **select → reserve → execute → admit → retrain**
-controller in `etalon.active`. MolCascade is a component library, **not a mandatory sequence of
+controller in `moldarwin.active`. MolCat is a component library, **not a mandatory sequence of
 default screening tiers**: use an individual component, author a new cascade, or compile a flat
 pipeline. Register redesigned protocols under new endpoint ids while retaining historical labels
 and a fixed scientific objective.
@@ -87,7 +87,7 @@ of a complete audit with an explicitly authorized score/cost exchange rate. It p
 searches, never truncates an ongoing panel, and includes a separate stopping/no-stopping ablation.
 Use a dedicated virtual environment for the optional dependencies below. Run these commands from
 the complete checkout root and retain `asset/MANIFEST.json` and all three vendored trees. Wheels
-also contain these pinned assets under `etalon/_assets`; external docking engines, PRISM build
+also contain these pinned assets under `moldarwin/_assets`; external docking engines, PRISM build
 tools, models and optional Python dependencies still require their own environments.
 
 The architecture distinguishes the inner molecule–endpoint loop, bounded protocol-search loop,
@@ -96,27 +96,27 @@ claims about protocol learning, evidence admission and budget protection require
 
 ```bash
 pip install -e '.[active]'                # numeric controller and offline oracle replay
-python -m etalon active demo --workspace runs/demo --rounds 5
-python -m etalon active plan --database runs/demo/campaign.sqlite
-python -m etalon active benchmark --workspace runs/benchmark --output runs/benchmark/report.json
-python -m etalon active demo --workspace runs/decision --policy decision_aware --rounds 100
-python -m etalon active recommend --database runs/decision/campaign.sqlite
-python -m etalon active decision-benchmark --workspace runs/decision-ablation \
+python -m moldarwin active demo --workspace runs/demo --rounds 5
+python -m moldarwin active plan --database runs/demo/campaign.sqlite
+python -m moldarwin active benchmark --workspace runs/benchmark --output runs/benchmark/report.json
+python -m moldarwin active demo --workspace runs/decision --policy decision_aware --rounds 100
+python -m moldarwin active recommend --database runs/decision/campaign.sqlite
+python -m moldarwin active decision-benchmark --workspace runs/decision-ablation \
   --output runs/decision-ablation/report.json
 
-pip install -e '.[cascade]'               # actual CPU MolCascade components and molecular features
+pip install -e '.[cascade]'               # actual CPU MolCat components and molecular features
 python examples/component_learning.py --workspace runs/components
-python -m etalon active components        # criteria AND individual plugin contracts
+python -m moldarwin active components        # criteria AND individual plugin contracts
 python examples/protocol_learning.py --workspace runs/protocols --output runs/protocols/report.json
-python -m etalon active protocols --database runs/protocols/campaign.sqlite  # read-only
+python -m moldarwin active protocols --database runs/protocols/campaign.sqlite  # read-only
 python examples/protocol_search.py --workspace runs/protocol-search --output runs/protocol-search/report.json
-python -m etalon active searches --database runs/protocol-search/campaign.sqlite  # read-only
-python -m etalon active protocol-benchmark --output runs/protocol-benchmark/report.json
+python -m moldarwin active searches --database runs/protocol-search/campaign.sqlite  # read-only
+python -m moldarwin active protocol-benchmark --output runs/protocol-benchmark/report.json
 python examples/protocol_search.py --workspace runs/protocol-stopping --policy audit_ei \
   --opportunity-cost 0.025 --campaign-rounds 2 --output runs/protocol-stopping/report.json
-python -m etalon active protocol-stopping-benchmark --output runs/protocol-stopping-benchmark/report.json
+python -m moldarwin active protocol-stopping-benchmark --output runs/protocol-stopping-benchmark/report.json
 
-pip install -e '.[cascade,bundles,dev]'   # optional RF → ONNX → real MolCascade CPU prediction + pytest
+pip install -e '.[cascade,bundles,dev]'   # optional RF → ONNX → real MolCat CPU prediction + pytest
 python -m pytest -q tests/test_bundle_roundtrip.py
 ```
 
@@ -132,27 +132,27 @@ It reports unrestricted predictions separately from attainable and evidence-back
 `mf_kg` is an established-method baseline, not a claimed invention. These policies use one real
 observation per round; the new ablation harness matches this feedback frequency across all groups.
 
-In metrology an *etalon* is the primary standard every other instrument is calibrated
-against. In optics a Fabry–Pérot etalon extracts information from the interference between
+In metrology an *moldarwin* is the primary standard every other instrument is calibrated
+against. In optics a Fabry–Pérot moldarwin extracts information from the interference between
 two beams — that is, from their disagreement. Both meanings are the point.
 
-ETALON runs three packages as infrastructure, keeping their pinned source trees intact:
+MolDarwin runs three packages as infrastructure, keeping their pinned source trees intact:
 
 | | | |
 |---|---|---|
-| **MolCascade** | `asset/molcascade` | ligand triage, docking, the handoff contract |
+| **MolCat** | `asset/molcat` | ligand triage, docking, the handoff contract |
 | **PRISM** | `asset/prism` | system building, MD, MM-PBSA, FEP |
-| **MolQuarry** | `asset/molquarry` | database queries/downloads, target evidence, local catalogs and sourcing |
+| **MolOrigin** | `asset/molorigin` | database queries/downloads, target evidence, local catalogs and sourcing |
 
-The [three-module review and research plan](src/etalon/runtime/SCREENING_REVIEW.md) describes
+The [three-module review and research plan](src/moldarwin/runtime/SCREENING_REVIEW.md) describes
 the new search workflows, redock policy, implemented admission fixes and proposed scientific
-validation. New MolCascade default cascades include an independent Uni-Dock redock gate after
+validation. New MolCat default cascades include an independent Uni-Dock redock gate after
 docking: symmetry-corrected heavy-atom RMSD must be **< 2.0 Å** in the receptor coordinate frame.
 The original scored pose is retained. This measures prediction consistency; experimental pose
 accuracy and binding activity require separate evidence. Explicit component recipes remain
 caller-authored, and existing saved configurations are not silently upgraded.
 
-ETALON admits a component-cascade readout only when the candidate survives its final population.
+MolDarwin admits a component-cascade readout only when the candidate survives its final population.
 An earlier score from a candidate rejected by a later gate remains in provenance but cannot train
 the endpoint as an accepted result. MD handoffs can explicitly bind their pose/conformer producer
 through `Screen.with_handoff(..., evidence_from={"docking_score/v1": "docking_score"})`.
@@ -164,25 +164,25 @@ It requires Meeko, PoseBusters and an installed Uni-Dock GPU executable in addit
 
 All are vendored as digest-pinned trees and recorded in `asset/MANIFEST.json`. They are
 dependencies *and* evidence: every measurement here cites a commit, so the code that ran
-has to be the code the citation names. `src/etalon/boundary/infra.py` enforces that at
+has to be the code the citation names. `src/moldarwin/boundary/infra.py` enforces that at
 import and refuses when an editable install shadows the vendored copy — which it did,
 silently, the first time it was checked.
 
 ## Database evidence in the campaign
 
-MolQuarry is the data boundary: **acquire → seal evidence → register chemical states → screen /
-learn → inspect shortlist sourcing**. It reuses the existing CADD controller and MolCascade
+MolOrigin is the data boundary: **acquire → seal evidence → register chemical states → screen /
+learn → inspect shortlist sourcing**. It reuses the existing CADD controller and MolCat
 identity policy. HTTP requests are bounded independently of simulation quotes; a catalog record
 does not become an activity measurement, and a generated 3D ligand does not become a docked pose.
 
 ```bash
 pip install -e '.[cascade,active,quarry,mcp]'
-python -m etalon doctor --require quarry --require cascade
-python -m etalon data sources --source chembl
+python -m moldarwin doctor --require quarry --require cascade
+python -m moldarwin data sources --source chembl
 python examples/database_campaign.py --workspace runs/database-demo  # new directory; zero HTTP
 ```
 
-The example uses an explicitly labeled local fixture catalog and real MolCascade CPU components.
+The example uses an explicitly labeled local fixture catalog and real MolCat CPU components.
 It preserves a salt-to-parent transformation, imports canonical candidates, acquires three
 molecular-weight readouts, exports an SDF and performs a local sourcing check. Molecular weight
 is an integration readout, not an affinity claim.
@@ -196,18 +196,18 @@ A bounded target request, saved as `request.json`, looks like:
 ```
 
 ```bash
-python -m etalon data plan --request request.json --max-requests 100
-python -m etalon data run --request request.json --workspace runs/target --run-id collection \
+python -m moldarwin data plan --request request.json --max-requests 100
+python -m moldarwin data run --request request.json --workspace runs/target --run-id collection \
   --max-requests 100 --plan-id PLAN_ID_FROM_PREVIOUS_COMMAND
-python -m etalon data status --snapshot runs/target/data/collection
-python -m etalon data prepare --snapshot runs/target/data/collection \
+python -m moldarwin data status --snapshot runs/target/data/collection
+python -m moldarwin data prepare --snapshot runs/target/data/collection \
   --workspace runs/target --run-id library
 ```
 
 Runs are synchronous and preserve failed/interrupted directories. Each successful run seals
 the request, input copies, raw QueryResults/workflow files, coverage and actual HTTP usage.
 The timeout is a cooperative network deadline, not a CPU/process kill. `max_requests=0` forbids
-HTTP; retries and redirects share the allowance. Credentials remain managed by MolQuarry.
+HTTP; retries and redirects share the allowance. Credentials remain managed by MolOrigin.
 The HTTP allowance is per run, not a shared provider/account daily quota.
 
 An incomplete collection requires explicit `--allow-partial` before library preparation.
@@ -218,7 +218,7 @@ Use the same identity policy for the subsequent screen; the default matches `cam
 Large libraries belong in bulk screening; the exact active GP retains its existing pool limits.
 
 Create a new empty journal with `active init --config campaign.json --database campaign.sqlite`
-(the JSON contains `spec` and `endpoints`), or use `etalon_active_create` from MCP. Initialization
+(the JSON contains `spec` and `endpoints`), or use `moldarwin_active_create` from MCP. Initialization
 does not launch experiments and refuses an existing journal. The runnable example shows actual
 recipe/executor configuration for subsequent live component execution through the Python API.
 
@@ -244,19 +244,19 @@ matches. Supplier listings do not confirm live stock, and SA/BRICS scores do not
 `data attach-handoffs --database ... --workspace ... --artifact-id ... --rationale ...` binds
 verified `md_system_input/v1` geometry to existing candidates between rounds. Chemical state and
 features remain immutable. The normal receptor-bound preflight and PRISM spend authorization
-still run at execution. MolQuarry experimental/aligned structures need explicit receptor/ligand
+still run at execution. MolOrigin experimental/aligned structures need explicit receptor/ligand
 preparation before entering that contract.
 
 The optional `[quarry-deliverables]` extra enables structure/workbook bundle dependencies.
 A `bundle` request takes an absolute collection `snapshot`, a `curation_path` following the
-upstream MolQuarry review schema, and bounded `options`; purchasing defaults to false.
+upstream MolOrigin review schema, and bounded `options`; purchasing defaults to false.
 Its AF3 files are prepared jobs, not automatically submitted predictions. All six upstream
-skills are discoverable at `etalon://skills/molquarry`: `target-modulators`, `compound-sourcing`,
+skills are discoverable at `moldarwin://skills/molorigin`: `target-modulators`, `compound-sourcing`,
 `analogue-search`, `selectivity-evidence`, `structure-templates` and `assay-literature`.
-Read each at `etalon://skills/molquarry/<name>` and follow its indexed reference URIs.
-MolQuarry also exposes bounded PubChem `substructure` queries alongside similarity search.
-ETALON's data tools wrap the pinned SDK; upstream
-tool names in these reference documents are not additional ETALON tools.
+Read each at `moldarwin://skills/molorigin/<name>` and follow its indexed reference URIs.
+MolOrigin also exposes bounded PubChem `substructure` queries alongside similarity search.
+MolDarwin's data tools wrap the pinned SDK; upstream
+tool names in these reference documents are not additional MolDarwin tools.
 
 > **Kept locally.** `findings/` — the measurement records — and `docs/` — the documentation,
 > including architectural decisions — are excluded from Git. Links to findings below do not resolve here. The
@@ -269,43 +269,43 @@ A screening cascade is cheap and wrong in ways nobody can see. A free energy cal
 expensive and right in ways nobody can check. The obvious move is to let the expensive stage
 retune the cheap one, and that move is old and well made: DeepDriveMD drives adaptive MD
 from a learned latent space, IMPECCABLE retrains a surrogate from downstream results,
-Colmena steers ensembles from a thinker process. ETALON claims nothing over them; an earlier
+Colmena steers ensembles from a thinker process. MolDarwin claims nothing over them; an earlier
 draft did and was wrong.
 
 What those loops assume, nowhere stated because it is too obvious to state, is that a number
 arriving from the expensive stage is a measurement of the molecule it is filed under. Here
 that is false, and it was measured rather than argued:
 
-- MolCascade's shortlist exporter rebuilds geometry from SMILES. On propranolol: **19 heavy
+- MolCat's shortlist exporter rebuilds geometry from SMILES. On propranolol: **19 heavy
   atoms, 0 explicit hydrogens, z range 0.00 to 0.00** — a drawing.
 - PRISM's ligand validator accepts it. It checks existence, size, suffix and a positive atom
   count.
 - Across **41 gaff2 builds from hydrogen-free input, the topology carried zero hydrogens in
   41 of 41**, with no warning at any stage. *That third one was measured in the vendored PRISM
-  rather than by ETALON — `asset/prism/prism/generation/handoff.py` at the pinned commit — which is
+  rather than by MolDarwin — `asset/prism/prism/generation/handoff.py` at the pinned commit — which is
   why it is the only headline number here with no `findings/` entry. The first two were measured
   here.*
 
 A loop without a gate there does not record one bad number. It fits the thresholds applied
-to every later molecule to a label from a molecule that was never simulated. So ETALON's
+to every later molecule to a label from a molecule that was never simulated. So MolDarwin's
 contribution is the admissibility criterion on the feedback, and the refusal to accept an
 update it cannot distinguish from noise.
 
 ## The shape
 
 ```
-src/etalon/
+src/moldarwin/
   runtime/      durable workflows across data, screening and registered active execution
     service.py      submit/status/cancel/reconcile; fenced local workers and receipts
     controller.py   bounded ordered/advisor/external decisions from verified artifacts
-    executors.py    immutable MolCascade/PRISM registrations in the campaign journal
+    executors.py    immutable MolCat/PRISM registrations in the campaign journal
     operations.py   existing scientific services, artifact verification and cost reconciliation
     artifacts.py    immutable screening configurations and bounded evidence reads
   boundary/     reach the infrastructure, and prove which copy was reached
-    infra.py        pinned MolCascade, PRISM and MolQuarry; refuses a shadowed import
+    infra.py        pinned MolCat, PRISM and MolOrigin; refuses a shadowed import
     quarry.py       bounded database SDK access and actual HTTP usage
     toolchain.py    a gmx shim that seeds the one command PRISM calls unseeded
-    screen.py       MolCascade: plan → run → read back verified
+    screen.py       MolCat: plan → run → read back verified
     simulate.py     PRISM: build → drive → verify products and controlled process completion
   faults/       would a number from this be about the molecule it is filed under?
     taxonomy.py     15 causes, each with a magnitude band and a consequence
@@ -316,10 +316,10 @@ src/etalon/
     admissible.py   the gate on the feedback
     calibrate.py    AUC with its standard error, and a refusal below it
   learn/        ... and what it predicts, and where to spend next
-    surrogate.py    a forest over MolCascade's own feature blocks, on pIC50
+    surrogate.py    a forest over MolCat's own feature blocks, on pIC50
     conformal.py    cross-conformal intervals; calibration-residual diagnostics, not test coverage
     acquire.py      the next batch, with an explicit share spent on the unfamiliar
-    bundle.py       ship the model through MolCascade's prediction.custom_model slot
+    bundle.py       ship the model through MolCat's prediction.custom_model slot
   judgment/     who may decide what
     proposal.py     an advisor proposes; the autonomy of each act is stated once
     advisor.py      the claude CLI, and an answer of the wrong shape is refused
@@ -374,7 +374,7 @@ src/etalon/
 ## Driving it from a language model
 
 ```bash
-python -m etalon.mcp            # MCP server over stdio
+python -m moldarwin.mcp            # MCP server over stdio
 ```
 
 Thirty tools, and **each declares what it spends in its own description** so the classification is
@@ -398,9 +398,9 @@ below.
 
 The complete workflow — generation through relative free energy, with the order, the decision points,
 and the measurement behind every refusal — is
-[`.claude/skills/etalon-campaign/SKILL.md`](.claude/skills/etalon-campaign/SKILL.md), served to MCP
-clients as `etalon://skills/campaign`. One file, two consumers: a second copy would drift, and the
-numbers are the part that must not. `etalon://findings` and `etalon://decisions` serve the
+[`.claude/skills/moldarwin-campaign/SKILL.md`](.claude/skills/moldarwin-campaign/SKILL.md), served to MCP
+clients as `moldarwin://skills/campaign`. One file, two consumers: a second copy would drift, and the
+numbers are the part that must not. `moldarwin://findings` and `moldarwin://decisions` serve the
 measurements and the ADRs, because a refusal quoted without its measurement looks like fussiness.
 
 ## The language model inside the campaign
@@ -437,7 +437,7 @@ looks like the number is the same operation that turns a hallucination into a re
 ## The gate is an argument, not a suggestion
 
 Count this server's tools by what they spend: ten free, one cheap, one no model may complete. Until
-recently **none of them spent anything.** A model ran `etalon_check_handoff`, read a refusal, and
+recently **none of them spent anything.** A model ran `moldarwin_check_handoff`, read a refusal, and
 then called PRISM's own server to build the system, because that is where building lives. Nothing
 connected the two. Every refusal was advice offered beside an action it had no relationship with,
 and the sentence above about guards rested on a model choosing to be guarded in round nine of a
@@ -574,7 +574,7 @@ it is the precision that is unestablished.
 ## The model that learns
 
 A random forest on pIC50 over nine named RDKit descriptors and a 1024-bit Morgan counts
-fingerprint — computed by **MolCascade's** featuriser, so the bundle manifest cannot declare a
+fingerprint — computed by **MolCat's** featuriser, so the bundle manifest cannot declare a
 featurisation the model was not trained on. On the real STK17B panel: scaffold-grouped CV MAE
 **0.569 pIC50** (≈0.8 kcal/mol), Spearman 0.718, against a training MAE of 0.216 — the 2.6×
 gap being the overfitting made visible.
@@ -644,16 +644,16 @@ those two is normally left to convention: the funnel has the tiers the field's f
   mechanism, not rank, so **it is not a tier**. Spend it on the few molecules whose mechanism is
   the question.
 
-`python -m etalon plan` renders a whole campaign for free — no GPU, no vendored asset, nothing
+`python -m moldarwin plan` renders a whole campaign for free — no GPU, no vendored asset, nothing
 touched. On 750,000 molecules from five generative models, a GPU-year, and a 0.1% active rate:
 
 ```bash
-python -m etalon plan --pool 750000 --budget 8760 --active 0.001 --deliver 10
-python -m etalon plan --measured docking=0.52      # substitute your own number
-python -m etalon tune --established rescore_ml     # what to change, ranked by actives gained
-python -m etalon fep candidates.csv --cycles 2     # the edge network, and what it cannot reach
-python -m etalon stages                            # the priced catalogue, with sources
-python -m etalon infra                             # which MolCascade and which PRISM would load
+python -m moldarwin plan --pool 750000 --budget 8760 --active 0.001 --deliver 10
+python -m moldarwin plan --measured docking=0.52      # substitute your own number
+python -m moldarwin tune --established rescore_ml     # what to change, ranked by actives gained
+python -m moldarwin fep candidates.csv --cycles 2     # the edge network, and what it cannot reach
+python -m moldarwin stages                            # the priced catalogue, with sources
+python -m moldarwin infra                             # which MolCat and which PRISM would load
 ```
 
 
@@ -745,7 +745,7 @@ and the ordering is not the one a configuration file suggests: **the scoring fun
 the sampler is close to interchangeable** — DiffDock-L sampling scored with Gnina matched Vina
 sampling (BEDROC 0.33 vs 0.36, EF1% 16.22 vs 17.88), and DOCK3.x ranks on a single pose.
 
-`python -m etalon tune` puts engineer-hours and GPU-years in the same units
+`python -m moldarwin tune` puts engineer-hours and GPU-years in the same units
 ([`findings/0006`](findings/0006-eight-engineer-hours-equals-a-gpu-year.json)):
 
 | action | added GPU-h | engineer-hours | actives gained |
@@ -864,7 +864,7 @@ molecules a relative method cannot relate.
 ways out and says the choice belongs before generation, not after.
 
 ```bash
-python -m etalon fep candidates.csv --reference lead --cycles 2
+python -m moldarwin fep candidates.csv --reference lead --cycles 2
 ```
 
 Exits 1 when any molecule is unreachable. And each edge beyond a spanning forest closes one
@@ -925,7 +925,7 @@ argument.
 
 ## Running it
 
-MolCascade and MolQuarry can share the harness environment installed with the extras above.
+MolCat and MolOrigin can share the harness environment installed with the extras above.
 PRISM builds need a separate environment providing AmberTools; the original setup used
 `AmberTools23`. `boundary.simulate.discover()` probes for
 `antechamber`, `parmchk2`, `acpype` and `tleap` and names what is absent **before** a build
@@ -934,11 +934,11 @@ starts, because "PRISM failed" an hour into a parameterisation is a much worse m
 ```python
 from pathlib import Path
 from datetime import date
-from etalon.boundary.infra import load
-from etalon.boundary.simulate import Simulate, discover
-from etalon.campaign import Campaign, PrismStage, Waiver, WaiverSet
+from moldarwin.boundary.infra import load
+from moldarwin.boundary.simulate import Simulate, discover
+from moldarwin.campaign import Campaign, PrismStage, Waiver, WaiverSet
 
-load("molcascade")                       # refuses a shadowed import
+load("molcat")                       # refuses a shadowed import
 
 campaign = Campaign("work/ws", "work/campaign.jsonl", waivers=WaiverSet((
     Waiver("F_PROTONATION_UNDECIDED",
@@ -955,7 +955,7 @@ outcome = campaign.round("r1", "cascade.yaml", "library.csv", measure=stage)
 print(outcome.admission.as_dict()["withholding_reasons"])
 ```
 
-The handoff tier is composed by ETALON, not by editing the operator's config:
+The handoff tier is composed by MolDarwin, not by editing the operator's config:
 `Screen.with_handoff(config, out, prefer="docked_pose" | "embedded_conformer")`.
 
 ## Changing the infrastructure
@@ -965,7 +965,7 @@ Edit the live repo, run *its* test suite, **commit there**, then re-vendor:
 ```bash
 python tools/vendor_assets.py --write
 # Or refresh one source without advancing the other pinned assets:
-python tools/vendor_assets.py --asset molquarry --write
+python tools/vendor_assets.py --asset molorigin --write
 ```
 
 `tools/measure_council.py` is the other falsification probe, beside `tools/falsify_determinism.py`:
@@ -987,9 +987,9 @@ python tools/verify_assets.py --deep
 ```
 
 The count is a pass count. It used to be a collection count — `277 tests` was what pytest *collected*,
-and one of them failed on any machine without pydantic v2, which the vendored MolCascade needs. The
+and one of them failed on any machine without pydantic v2, which the vendored MolCat needs. The
 suite's real requirements are now declared (`pip install -e '.[test]'`) and the two tests that cannot
-run without a CUDA device or a usable MolCascade skip with a reason naming what is missing, rather
+run without a CUDA device or a usable MolCat skip with a reason naming what is missing, rather
 than one of them failing and the headline reporting the other number.
 
 The failure detection is written to be judged from files on disk precisely so that the part
@@ -1003,9 +1003,9 @@ most likely to be wrong is not the part that needs a GPU to exercise.
 
 ## License
 
-ETALON is released under the [Apache License 2.0](LICENSE).
+MolDarwin is released under the [Apache License 2.0](LICENSE).
 
 The trees under `asset/` are pinned, byte-for-byte copies of their source repositories and are not
 edited in place (`tools/verify_assets.py` reports any edit), so a licence an asset declares for itself
 still applies to that asset: PRISM currently states MIT in its own README, and the third-party code
-under `asset/molcascade/vendor/` keeps its upstream licence files.
+under `asset/molcat/vendor/` keeps its upstream licence files.

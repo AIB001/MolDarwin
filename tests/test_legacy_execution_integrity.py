@@ -16,8 +16,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from etalon.boundary import simulate as module
-from etalon.boundary.simulate import (
+from moldarwin.boundary import simulate as module
+from moldarwin.boundary.simulate import (
     DriveRecord,
     Environment,
     Simulate,
@@ -26,7 +26,7 @@ from etalon.boundary.simulate import (
     Warnings,
     read_binding_energy,
 )
-from etalon.campaign.expensive import PrismStage
+from moldarwin.campaign.expensive import PrismStage
 
 
 @pytest.fixture
@@ -253,7 +253,7 @@ def test_failed_manifest_replacement_keeps_previous_evidence(simulation, monkeyp
     with pytest.raises(OSError, match="simulated disk failure"):
         runner.drive(built)
     assert path.read_bytes() == before
-    assert list(built.output_dir.glob(".etalon-manifest-*")) == []
+    assert list(built.output_dir.glob(".moldarwin-manifest-*")) == []
 
 
 def test_empty_or_missing_stage_records_never_claim_success():
@@ -294,9 +294,9 @@ def test_prism_stage_configuration_is_checked_before_spending(tmp_path, options)
 
 
 def test_duplicate_rows_are_rejected_before_authorization_or_materialization(tmp_path, monkeypatch):
-    from etalon.authority.grant import NotAuthorized
+    from moldarwin.authority.grant import NotAuthorized
 
-    monkeypatch.setattr("etalon.authority.grant.require", lambda *a, **k: pytest.fail("duplicate dispatch"))
+    monkeypatch.setattr("moldarwin.authority.grant.require", lambda *a, **k: pytest.fail("duplicate dispatch"))
     stage = PrismStage(SimpleNamespace(workspace=tmp_path), tmp_path / "protein")
     with pytest.raises(NotAuthorized, match="unique"):
         stage([{"parent_id": "same"}, {"parent_id": "same"}], grants={})
@@ -319,9 +319,9 @@ def test_parent_ids_with_common_prefix_do_not_reuse_one_run_directory(tmp_path):
 
 
 def test_campaign_duplicate_handoff_cannot_spend(tmp_path):
-    from etalon.campaign.ledger import Ledger
-    from etalon.campaign.loop import Campaign
-    from etalon.judgment.waiver import WaiverSet
+    from moldarwin.campaign.ledger import Ledger
+    from moldarwin.campaign.loop import Campaign
+    from moldarwin.judgment.waiver import WaiverSet
 
     campaign = Campaign.__new__(Campaign)
     campaign.ledger = Ledger(tmp_path / "ledger.jsonl")
@@ -391,9 +391,9 @@ def test_even_equal_bytes_from_external_product_symlink_are_not_a_build(simulati
 
 
 def test_authorization_is_rechecked_before_each_individual_spend(tmp_path, monkeypatch):
-    from etalon.authority.grant import NotAuthorized
-    from etalon.boundary.simulate import Materialized
-    from etalon.learn.admissible import Measurement
+    from moldarwin.authority.grant import NotAuthorized
+    from moldarwin.boundary.simulate import Materialized
+    from moldarwin.learn.admissible import Measurement
 
     checks = []
     spent = []
@@ -407,8 +407,8 @@ def test_authorization_is_rechecked_before_each_individual_spend(tmp_path, monke
         spent.append(identifier)
         return Measurement(identifier, None, None)
 
-    monkeypatch.setattr("etalon.authority.grant.require", require)
-    monkeypatch.setattr("etalon.campaign.expensive.materialize_ligands", lambda rows, directory: [
+    monkeypatch.setattr("moldarwin.authority.grant.require", require)
+    monkeypatch.setattr("moldarwin.campaign.expensive.materialize_ligands", lambda rows, directory: [
         Materialized(row["parent_id"], tmp_path / "unused") for row in rows
     ])
     monkeypatch.setattr(PrismStage, "_one", one)
@@ -710,7 +710,7 @@ def test_different_run_ids_have_independent_execution_locks(simulation, monkeypa
 def test_separate_controller_process_cannot_be_bypassed_by_recovery_confirmation(simulation):
     runner, protein, ligand, calls, _ = simulation
     built = runner.build(protein, ligand, run_id="r")
-    lock_path = runner.workspace / ".etalon_execution_locks" / (hashlib.sha256(b"r").hexdigest() + ".lock")
+    lock_path = runner.workspace / ".moldarwin_execution_locks" / (hashlib.sha256(b"r").hexdigest() + ".lock")
     program = (
         "import fcntl,sys,time\n"
         "lock=open(sys.argv[1],'a')\n"
@@ -738,13 +738,13 @@ def test_separate_controller_process_cannot_be_bypassed_by_recovery_confirmation
 def test_internal_lock_directory_cannot_itself_be_overwritten_as_a_run(simulation):
     runner, protein, ligand, calls, _ = simulation
     with pytest.raises(SimulationError, match="run_id"):
-        runner.build(protein, ligand, run_id=".etalon_execution_locks", overwrite=True)
+        runner.build(protein, ligand, run_id=".moldarwin_execution_locks", overwrite=True)
     assert calls == []
 
 
 def test_execution_lock_symlink_is_not_followed(simulation, tmp_path):
     runner, protein, ligand, calls, _ = simulation
-    directory = runner.workspace / ".etalon_execution_locks"
+    directory = runner.workspace / ".moldarwin_execution_locks"
     directory.mkdir()
     victim = tmp_path / "unrelated"
     victim.write_text("preserved")
@@ -771,12 +771,12 @@ def test_execution_lock_refuses_missing_nofollow_instead_of_weakening_safety(sim
     monkeypatch.delattr(module.os, "O_NOFOLLOW")
     with pytest.raises(SimulationError, match="O_NOFOLLOW"):
         runner.build(protein, ligand, run_id="r")
-    assert not calls and not (runner.workspace / ".etalon_execution_locks").exists()
+    assert not calls and not (runner.workspace / ".moldarwin_execution_locks").exists()
 
 
 def test_fifo_cannot_be_an_execution_lock_and_open_is_nonblocking(simulation, monkeypatch):
     runner, protein, ligand, calls, _ = simulation
-    directory = runner.workspace / ".etalon_execution_locks"
+    directory = runner.workspace / ".moldarwin_execution_locks"
     directory.mkdir()
     lock_path = directory / (hashlib.sha256(b"r").hexdigest() + ".lock")
     os.mkfifo(lock_path)
@@ -852,7 +852,7 @@ def test_a_product_this_attempt_rewrote_is_reported_as_its_own(simulation, monke
 
 
 # --------------------------------------------------------------------------------------
-# FINAL_RESULTS_MMPBSA.dat is written by gmx_MMPBSA, which nothing in ETALON runs: the
+# FINAL_RESULTS_MMPBSA.dat is written by gmx_MMPBSA, which nothing in MolDarwin runs: the
 # operator runs mmpbsa_run.sh. So the number is always older than the drive that reads it,
 # and "did this drive produce it" is the wrong question. The answerable one is whether it
 # predates the system it is now attributed to -- a rebuild replaces topol.top and leaves the
@@ -931,13 +931,13 @@ def test_the_withheld_reason_is_a_code_the_admissibility_layer_can_read(
 ):
     """A reason in provenance is prose. The layer that decides reads codes.
 
-    ``etalon.learn.admissible.rule`` raises ``KeyError`` on an observation naming a fault
+    ``moldarwin.learn.admissible.rule`` raises ``KeyError`` on an observation naming a fault
     outside the taxonomy, so emitting the finding as an observation is not optional
     decoration -- either the code is registered and the withholding is machine-readable and
     waivable, or the stage that reports it crashes the loop that consumes it.
     """
 
-    from etalon.learn.admissible import Admission, rule
+    from moldarwin.learn.admissible import Admission, rule
 
     stage = _driving(simulation, monkeypatch)
     ligand = tmp_path / "lig.sdf"

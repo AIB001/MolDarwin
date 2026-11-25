@@ -13,16 +13,16 @@ import statistics
 import sys
 import time
 
-from etalon import host
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.schema import digest
-from etalon.research import Artifact, MethodUse, MethodVersion, ResearchJournal, TaskSplit
-from etalon.research import continuation, evidence
-from etalon.research.components import record_json
-from etalon.research.composition import WORKFLOW, node_step, record_evaluation
-from etalon.research.continuation import CHECKPOINT, STEP, record_content, resume_research
-from etalon.research.evidence_refs import file_identity
-from etalon.research.method_revision import build_method_revision, journal_ref, record_method_revision, resolve_method_revision
+from moldarwin import host
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.schema import digest
+from moldarwin.research import Artifact, MethodUse, MethodVersion, ResearchJournal, TaskSplit
+from moldarwin.research import continuation, evidence
+from moldarwin.research.components import record_json
+from moldarwin.research.composition import WORKFLOW, node_step, record_evaluation
+from moldarwin.research.continuation import CHECKPOINT, STEP, record_content, resume_research
+from moldarwin.research.evidence_refs import file_identity
+from moldarwin.research.method_revision import build_method_revision, journal_ref, record_method_revision, resolve_method_revision
 
 SID, TASK = "rsi", "rsi-continuation-method"
 QUESTION = "Can one frozen evidence view reduce continuation cost without changing research context?"
@@ -46,7 +46,7 @@ def helpers(root):
 def hook_args(root, handler):
     return dict(log_ref={"kind": "campaign", "database": str(root / "research.sqlite")},
         state_path=root / "trigger-cursor.json", handler_method_version="rsi-continuation-problem-v1",
-        handler=handler, event_types=["research_recorded"], record_types=["etalon-method-use/1"], limit=100)
+        handler=handler, event_types=["research_recorded"], record_types=["moldarwin-method-use/1"], limit=100)
 
 
 def prepare(root, protocol_path):
@@ -64,7 +64,7 @@ def prepare(root, protocol_path):
     quality_path = Path(protocol["quality_receipt"])
     quality_ref = ref(j.record(Artifact(str(quality_path), **file_identity(quality_path), source_kind="new_execution", role="diagnostic", bindings={"kind":"correctness_test_receipt"})))
     code_refs = [ref(j.record(Artifact(str(Path(m.__file__).absolute()), **file_identity(m.__file__), source_kind="new_execution", role="diagnostic", bindings={"kind":"method_implementation"}))) for m in (continuation,evidence)]
-    base_content = artifact({"entrypoint":"etalon.research.continuation.resume_research", "kwargs":{"read_mode":"fresh"}, "implementation_refs":code_refs})
+    base_content = artifact({"entrypoint":"moldarwin.research.continuation.resume_research", "kwargs":{"read_mode":"fresh"}, "implementation_refs":code_refs})
     base = ref(j.record(MethodVersion("resume-fresh", ("domain_skill",), {"artifact_ref":base_content}, evidence_refs=tuple(r["record_id"] for r in [base_content,*code_refs]))))
     g_content = artifact({"recipe":"Use an observed repeated source read to propose one call-local frozen-view candidate; preserve all verification and the original method; compare one fixed panel; stop at adopt or retain.", "producer":"current host authored one code candidate from the observed trace", "independent_generator_benefit":"not_tested"})
     generator = ref(j.record(MethodVersion("bounded-read-revision", ("improvement_method",), {"artifact_ref":g_content}, evidence_refs=(g_content["record_id"],))))
@@ -80,7 +80,7 @@ def prepare(root, protocol_path):
             {"kind":"request","id":request_id,"scope":str(j.store.path)}),
             ({"method_version_ref":generator["record_id"],"scope":"One host-authored frozen-view modification"},),
             visible_evidence_refs=(problem_ref["record_id"],trigger["record_id"]), reason="Host-reported application of the bounded revision recipe; not native telemetry")))
-        content = artifact({"entrypoint":"etalon.research.continuation.resume_research", "kwargs":{"read_mode":"frozen_view"},
+        content = artifact({"entrypoint":"moldarwin.research.continuation.resume_research", "kwargs":{"read_mode":"frozen_view"},
             "implementation_refs":code_refs, "eligibility":"Closed complete frozen source set only; else fresh fallback; recheck bytes before returning; no cross-call cache"})
         candidate = ref(j.record(MethodVersion("resume-frozen-view", ("domain_skill",), {"artifact_ref":content},
             parents=(base["record_id"],), evidence_refs=tuple(r["record_id"] for r in [content,*code_refs]), change_summary="Reuse one closed frozen evidence view within one continuation call")))
@@ -217,8 +217,8 @@ def finalize(root):
         "branches":[{"branch_id":"comparison","state":"resolved","basis_refs":[evaluated["step_ref"],resolution["step_ref"]],"next_read_refs":[summary],"reconsider_when":"New counterevidence or a new workload; do not retune on this panel"},
             {"branch_id":"science","state":"stopped","basis_refs":[state["initial"]],"next_read_refs":[],"reconsider_when":"Explicit resumption of the paused scientific work"}],
         "pending_handles":[],"source_watermarks":[],"supersedes":[],"status_guards":[{"location":protocol["paused_status"],**file_identity(protocol["paused_status"]),"state":"paused"}]})
-    ws=root / "etalon-workspace.json"
-    write(ws,{"schema":"etalon-evidence-workspace/1","workspace_id":TASK,"sources":[{"source_id":SID,"kind":"journal","location":str(j.store.path),"identity":{"kind":"snapshot_sha256","value":file_identity(j.store.path)["sha256"]}}],"status_refs":[protocol["paused_status"]],"location_map":[]})
+    ws=root / "moldarwin-workspace.json"
+    write(ws,{"schema":"moldarwin-evidence-workspace/1","workspace_id":TASK,"sources":[{"source_id":SID,"kind":"journal","location":str(j.store.path),"identity":{"kind":"snapshot_sha256","value":file_identity(j.store.path)["sha256"]}}],"status_refs":[protocol["paused_status"]],"location_map":[]})
     entry={"workspace":str(ws),"checkpoint_ref":cp}
     write(root / "entry.json",entry)
     context=resume_research(ws,cp)

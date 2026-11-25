@@ -4,11 +4,11 @@ import argparse
 import json
 from pathlib import Path
 
-from etalon.active import CampaignStore
-from etalon.active.schema import canonical, digest
-from etalon.boundary.prism_v1 import file_identity
-from etalon.research import Artifact, Coupling, Experiment, Observation, ResearchJournal
-from etalon.research.calibration import OutcomeRule, bind_outcome
+from moldarwin.active import CampaignStore
+from moldarwin.active.schema import canonical, digest
+from moldarwin.boundary.prism_v1 import file_identity
+from moldarwin.research import Artifact, Coupling, Experiment, Observation, ResearchJournal
+from moldarwin.research.calibration import OutcomeRule, bind_outcome
 
 
 def audit(database: Path, frozen_decision: Path, output: Path):
@@ -43,7 +43,7 @@ def audit(database: Path, frozen_decision: Path, output: Path):
                            1, 'below_one', 'at_least_one')
         outcomes.append(bind_outcome(journal, obs.id, rule, task_id=ex.task_id,
                                      expected_bindings={'condition_action_id': action}))
-    result = {'schema': 'etalon-calibration-readiness/1', 'decision_sha256': sha,
+    result = {'schema': 'moldarwin-calibration-readiness/1', 'decision_sha256': sha,
               'observed_proxy_outcomes': outcomes,
               'rule_timing': 'post hoc development projection; not a prospectively tested selection rule',
               'independent_development_tasks': 1, 'independent_pose_replicates': 0,

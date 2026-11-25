@@ -5,13 +5,13 @@ from pathlib import Path
 import subprocess
 import sys
 
-import etalon
+import moldarwin
 import pytest
 
-from etalon.research.continuation import resume_research
-from etalon.research.entry import resolve_entry
-from etalon.research.evidence_refs import file_identity
-from etalon.research.handoff import export_research_handoff, plan_research_handoff
+from moldarwin.research.continuation import resume_research
+from moldarwin.research.entry import resolve_entry
+from moldarwin.research.evidence_refs import file_identity
+from moldarwin.research.handoff import export_research_handoff, plan_research_handoff
 from test_research_graph_memory import graph_case
 
 
@@ -31,7 +31,7 @@ def test_resume_cli_resolves_entry_relative_to_its_file_and_remains_read_only(gr
     cwd = tmp_path / "unrelated-cwd"
     cwd.mkdir()
     before = {p: file_identity(p) for p in tmp_path.rglob("*") if p.is_file()}
-    env = {**os.environ, "PYTHONPATH": str(Path(etalon.__file__).parent.parent), "PYTHONDONTWRITEBYTECODE": "1"}
+    env = {**os.environ, "PYTHONPATH": str(Path(moldarwin.__file__).parent.parent), "PYTHONDONTWRITEBYTECODE": "1"}
     example = Path(__file__).resolve().parents[1] / "examples/research_continuation.py"
     result = subprocess.run([sys.executable, "-B", str(example), "resume", "--entry", str(entry)],
                             cwd=cwd, env=env, capture_output=True, text=True, encoding="utf-8", check=True)

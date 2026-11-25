@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from etalon.boundary import runtime_profile as runtime
+from moldarwin.boundary import runtime_profile as runtime
 
 
 @pytest.fixture
@@ -56,10 +56,10 @@ def test_import_available_is_distinct_from_required_verifier_and_real_run(spec):
 
 
 def test_optional_import_cannot_waive_required_check(spec):
-    spec["modules"].append({"name": "etalon_missing_optional_fixture"})
-    spec["checks"][0]["argv"][-1] = "import etalon_missing_optional_fixture"
+    spec["modules"].append({"name": "moldarwin_missing_optional_fixture"})
+    spec["checks"][0]["argv"][-1] = "import moldarwin_missing_optional_fixture"
     profile = runtime.capture(spec)
-    assert not profile["inventory"]["modules"]["etalon_missing_optional_fixture"]["available"]
+    assert not profile["inventory"]["modules"]["moldarwin_missing_optional_fixture"]["available"]
     assert profile["capabilities"]["fixture"]["available"]
     assert not profile["capabilities"]["fixture"]["verified"]
     assert runtime.verify(profile, "fixture")["checks"]["implementation"]["state"] == "failed"
@@ -126,21 +126,21 @@ def test_overlay_import_redirection_is_detected_even_when_original_files_survive
 
 def test_asset_loader_reuses_infra_and_pins_actual_manifest(spec, tmp_path):
     assets = tmp_path / "assets"
-    package = assets / "molquarry" / "src" / "molquarry"
+    package = assets / "molorigin" / "src" / "molorigin"
     package.mkdir(parents=True)
     (package / "__init__.py").write_text("__version__ = 'fixture'\n", encoding="utf-8")
     manifest = assets / "MANIFEST.json"
-    manifest.write_text(json.dumps({"assets": {"molquarry": {
+    manifest.write_text(json.dumps({"assets": {"molorigin": {
         "source_commit": "fixture-not-a-real-commit", "tree_sha256": "fixture-not-a-verified-tree"}}}), encoding="utf-8")
     spec["pythonpath"].append(str(Path(runtime.__file__).parents[2]))
-    spec["modules"] = [{"name": "molquarry", "loader": "asset", "asset_dir": str(assets),
+    spec["modules"] = [{"name": "molorigin", "loader": "asset", "asset_dir": str(assets),
                         "expected_root": str(package)}]
-    spec["capabilities"]["fixture"]["modules"] = ["molquarry"]
+    spec["capabilities"]["fixture"]["modules"] = ["molorigin"]
     spec["checks"][0]["argv"][-1] = (
-        "from pathlib import Path; from etalon.boundary.infra import load; "
-        f"assert load('molquarry', asset_dir=Path({str(assets)!r})).version == 'fixture'")
+        "from pathlib import Path; from moldarwin.boundary.infra import load; "
+        f"assert load('molorigin', asset_dir=Path({str(assets)!r})).version == 'fixture'")
     profile = runtime.capture(spec)
-    module = profile["inventory"]["modules"]["molquarry"]
+    module = profile["inventory"]["modules"]["molorigin"]
     assert module["infra_provenance"]["source_commit"] == "fixture-not-a-real-commit"
     assert module["asset_manifest"]["sha256"] == runtime._file(str(manifest))["sha256"]
     assert profile["capabilities"]["fixture"]["verified"]

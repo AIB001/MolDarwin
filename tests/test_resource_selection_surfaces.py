@@ -9,9 +9,9 @@ import sys
 
 import pytest
 
-from etalon.active import CampaignStore, CampaignSpec, Endpoint
-from etalon.research import ResearchJournal
-from etalon.research.notes import read_entry, save_progress
+from moldarwin.active import CampaignStore, CampaignSpec, Endpoint
+from moldarwin.research import ResearchJournal
+from moldarwin.research.notes import read_entry, save_progress
 
 
 class Collector:
@@ -31,7 +31,7 @@ def _json(path, value):
 
 
 def _cli(*args):
-    completed = subprocess.run([sys.executable, "-m", "etalon", "research", *map(str, args)],
+    completed = subprocess.run([sys.executable, "-m", "moldarwin", "research", *map(str, args)],
         capture_output=True, text=True, timeout=30)
     assert completed.returncode == 0, completed.stderr + completed.stdout
     body = json.loads(completed.stdout)
@@ -55,8 +55,8 @@ def _snapshot(entry, database):
 
 @pytest.fixture
 def surface(tmp_path):
-    from etalon.mcp.evidence import register as evidence_register
-    from etalon.mcp.methods import register as methods_register
+    from moldarwin.mcp.evidence import register as evidence_register
+    from moldarwin.mcp.methods import register as methods_register
     collector = Collector()
     evidence_register(collector)
     methods_register(collector)
@@ -77,7 +77,7 @@ def surface(tmp_path):
     descriptor = {"arguments": {"method_id": "geometry/fixture", "command": [sys.executable, str(script)],
         "files": [str(script)], "inputs": {}}, "summary": "Geometry fixture with target-specific residues",
         "conditions": {"target": "SND1"}, "family": "geometry", "parts": [kernel, residues], "definitions": definitions}
-    published = _mcp(collector, "etalon_method_publish", entry=str(entry), resource_id="geometry", **descriptor)
+    published = _mcp(collector, "moldarwin_method_publish", entry=str(entry), resource_id="geometry", **descriptor)
     query = {"conditions": {"target": "PB", "format": "coordinates"},
              "available_stages": ["planning"], "definitions": definitions}
     return {"collector": collector, "entry": entry, "database": database, "marker": marker,
@@ -93,7 +93,7 @@ def _feedback(surface, usage_id="same-use", outcome="negative"):
 
 def test_registered_mcp_and_new_cli_process_share_partial_selection_without_mutation(surface):
     collector, entry = surface["collector"], surface["entry"]
-    selected = _mcp(collector, "etalon_research_context", entry=str(entry), view="resources",
+    selected = _mcp(collector, "moldarwin_research_context", entry=str(entry), view="resources",
         view_options={"families": ["geometry"], "query": surface["query"]})
     assert len(selected["items"]) == 1
     row = selected["items"][0]
@@ -102,13 +102,13 @@ def test_registered_mcp_and_new_cli_process_share_partial_selection_without_muta
     assert row["definitions"] == surface["descriptor"]["definitions"]
     pin = _json(surface["directory"] / "selected-entry.json", row["content_ref"])
     query_path = _json(surface["directory"] / "query.json", surface["query"])
-    _mcp(collector, "etalon_research_progress", entry=str(entry), patch={"summary": "Later unrelated progress"})
+    _mcp(collector, "moldarwin_research_progress", entry=str(entry), patch={"summary": "Later unrelated progress"})
     before = _snapshot(entry, surface["database"])
     resolved = _cli("method", "--entry", pin, "--pointer", row["pointer"], "--query", query_path)
     assert resolved["record_id"] == row["content_ref"]["record_id"]
     assert resolved["resource_version"] == surface["published"]["resource_version"]
     assert resolved["selection"] == row["selection"]
-    _mcp(collector, "etalon_method_resolve", entry=row["content_ref"], pointer=row["pointer"], query=surface["query"])
+    _mcp(collector, "moldarwin_method_resolve", entry=row["content_ref"], pointer=row["pointer"], query=surface["query"])
     cli_catalog = _cli("resources", "--entry", entry, "--family", "geometry", "--query", query_path)
     assert [r["resource_id"] for r in cli_catalog["items"]] == ["geometry"]
     assert _snapshot(entry, surface["database"]) == before
@@ -122,10 +122,10 @@ def test_same_feedback_replays_across_mcp_and_cli_with_nested_and_outer_evidence
     contrary = _json(directory / "contrary.json", {"counterexample": True, "fixture": True})
     payload = {**_feedback(surface), "branch_id": "main", "evidence": [str(observed)],
                "counterevidence": [str(contrary)]}
-    first = _mcp(collector, "etalon_research_progress", entry=str(entry), patch={}, resource_feedback=payload,
+    first = _mcp(collector, "moldarwin_research_progress", entry=str(entry), patch={}, resource_feedback=payload,
         evidence=[str(observed), str(context)], counterevidence=[str(contrary)])
-    _mcp(collector, "etalon_research_progress", entry=str(entry), patch={"summary": "Later facts remain current"})
-    replay = _mcp(collector, "etalon_research_progress", entry=str(entry), patch={}, resource_feedback=payload,
+    _mcp(collector, "moldarwin_research_progress", entry=str(entry), patch={"summary": "Later facts remain current"})
+    replay = _mcp(collector, "moldarwin_research_progress", entry=str(entry), patch={}, resource_feedback=payload,
         evidence=[str(observed), str(context)], counterevidence=[str(contrary)])
     assert replay["replayed"] and replay["record_id"] == first["record_id"]
     payload_path = _json(directory / "feedback.json", payload)
@@ -142,7 +142,7 @@ def test_same_feedback_replays_across_mcp_and_cli_with_nested_and_outer_evidence
 
 def test_family_discovery_keeps_earlier_negative_feedback_after_cli_method_replacement(surface):
     collector, entry, directory = surface["collector"], surface["entry"], surface["directory"]
-    _mcp(collector, "etalon_research_progress", entry=str(entry), patch={}, resource_feedback=_feedback(surface))
+    _mcp(collector, "moldarwin_research_progress", entry=str(entry), patch={}, resource_feedback=_feedback(surface))
     replacement = {**surface["descriptor"], "family": "geometry-v2",
         "summary": "New current geometry fixture", "parts": [surface["descriptor"]["parts"][0]]}
     descriptor_file = _json(directory / "replacement.json", replacement)
@@ -150,14 +150,14 @@ def test_family_discovery_keeps_earlier_negative_feedback_after_cli_method_repla
     failed = {**_feedback(surface, "new-use", "failed"), "resource_version": published["resource_version"]}
     failed_file = _json(directory / "failed.json", failed)
     _cli("progress", "--entry", entry, "--resource-feedback", failed_file)
-    old_family = _mcp(collector, "etalon_research_context", entry=str(entry), view="resources",
+    old_family = _mcp(collector, "moldarwin_research_context", entry=str(entry), view="resources",
         view_options={"families": ["geometry"], "query": surface["query"]})
     assert [r["resource_id"] for r in old_family["items"]] == ["feedback:geometry"]
     assert old_family["items"][0]["feedback"]["outcome_counts"] == {"negative": 1, "failed": 1}
     assert old_family["items"][0]["selection"]["disposition"] == "reference"
     new_family = _cli("resources", "--entry", entry, "--family", "geometry-v2")
     assert {r["resource_id"] for r in new_family["items"]} == {"geometry", "feedback:geometry"}
-    resolved = _mcp(collector, "etalon_method_resolve", entry=str(entry), pointer="/resources/geometry")
+    resolved = _mcp(collector, "moldarwin_method_resolve", entry=str(entry), pointer="/resources/geometry")
     assert resolved["description"]["definitions"] == replacement["definitions"]
     assert resolved["description"]["parts"] == replacement["parts"]
     assert resolved["description"]["family"] == "geometry-v2"

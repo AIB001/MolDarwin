@@ -1,6 +1,6 @@
 """Bounded organizer and same-pool ranking validation; never changes deployment.
 
-Run in an isolated task environment with pinned ETALON and scientific packages.
+Run in an isolated task environment with pinned MolDarwin and scientific packages.
 The task-local helper is a byte-identical snapshot of snd1_scale_screen.py.
 No result is imported into research memory automatically; the controller owns it.
 """
@@ -23,17 +23,17 @@ import threading
 import time
 from pathlib import Path
 
-from etalon.active.schema import digest
-from etalon.research.scientific_input import identity
-from etalon.research.pose_task import compile_task
-from etalon.research import pose_engine
-from etalon.research.result_integrity import result_binding, validate_verifier, validate_native_receipt, top1_observation
+from moldarwin.active.schema import digest
+from moldarwin.research.scientific_input import identity
+from moldarwin.research.pose_task import compile_task
+from moldarwin.research import pose_engine
+from moldarwin.research.result_integrity import result_binding, validate_verifier, validate_native_receipt, top1_observation
 
 
 QUESTION = "Independent known-pocket same-pool contact/relaxation pose ranking"
-REMOTE = Path('/home/zx/etalon/runs')
+REMOTE = Path('/home/zx/moldarwin/runs')
 PRIOR = [REMOTE/'posebusters24-20261023', REMOTE/'pose-selection24-20261023']
-RELEASE = Path('/home/zx/etalon/releases/20261024-integrity-eca6c9be84ac')
+RELEASE = Path('/home/zx/moldarwin/releases/20261024-integrity-eca6c9be84ac')
 INPUT_GUARD_VERSION = 'target-component-residue-absence/1'
 
 
@@ -63,7 +63,7 @@ def load_module(name, path):
 
 
 def modules(root):
-    ranking = load_module('etalon.research.pose_ranking', root/'source/pose_ranking.py')
+    ranking = load_module('moldarwin.research.pose_ranking', root/'source/pose_ranking.py')
     helper = load_module('ranking_native_helper', root/'source/snd1_scale_screen.py')
     return ranking, helper
 
@@ -110,9 +110,9 @@ def prepare(root):
     from rdkit.Chem import AllChem, rdFingerprintGenerator
     from rdkit.Chem.Scaffolds import MurckoScaffold
     ranking, _ = modules(root)
-    design = {'schema': 'etalon-ranking-design-freeze/1', 'frozen_at_ns': time.time_ns(),
+    design = {'schema': 'moldarwin-ranking-design-freeze/1', 'frozen_at_ns': time.time_ns(),
         'candidate': ranking.METHOD, 'independent_case_count': 24, 'seed': 41,
-        'selection_salt': 'etalon-ranking-confirmation-20261025-v1:',
+        'selection_salt': 'moldarwin-ranking-confirmation-20261025-v1:',
         'selection': 'fixed SHA256 order of PB308 IDs; exclude both earlier 24-case panels and their inspected/rejected IDs, SND1 IDs; single organic ligand 10-45 heavy atoms; unique nonempty Murcko scaffold; Morgan radius2/2048 Tanimoto <0.4; max chain SequenceMatcher ratio <0.4 against all prior and accepted new cases; graph-only ETKDGv3/MMFF preparation must succeed',
         'independence_limit': 'project-unseen structure/operational series; sequence-string heuristic does not certify remote homology or model-training absence',
         'preparation': {'ETKDGv3_seed': 20261025, 'MMFF_max_iterations': 200, 'box_A': [24., 24., 24.]},
@@ -260,7 +260,7 @@ def prepare(root):
         seqs.extend(currentseqs)
         if len(rows) == 24:
             break
-    panel = {'schema':'etalon-independent-ranking-panel/1', 'design':identity(root/'design-freeze.json'), 'cases':rows, 'rejected':rejected,
+    panel = {'schema':'moldarwin-independent-ranking-panel/1', 'design':identity(root/'design-freeze.json'), 'cases':rows, 'rejected':rejected,
         'historical_panel_identities':provenance, 'excluded_historical_ids':sorted(seenids),
         'sources':{'archive':{'path':str(archive), **identity(archive)}, 'pb308':{'path':str(idsfile), **identity(idsfile)},
             'data_url':'https://zenodo.org/records/8278563', 'repository_url':'https://github.com/maabuu/posebusters'},
@@ -280,10 +280,10 @@ def freeze(root, binary):
     contract = helper.pose_check_contract()
     if len(contract['required_checks']) != 22:
         raise ValueError('expected 22 required PoseBusters checks')
-    names = ['etalon','etalon.research.pose_task','etalon.research.pose_engine','etalon.research.scientific_input',
-        'etalon.research.pose_verifier','etalon.research.result_integrity','molcascade.plugins.builtin.docking.common','rdkit','posebusters','numpy']
+    names = ['moldarwin','moldarwin.research.pose_task','moldarwin.research.pose_engine','moldarwin.research.scientific_input',
+        'moldarwin.research.pose_verifier','moldarwin.research.result_integrity','molcat.plugins.builtin.docking.common','rdkit','posebusters','numpy']
     imports = {name: {'path': importlib.import_module(name).__file__, **identity(importlib.import_module(name).__file__)} for name in names}
-    value = {'schema':'etalon-ranking-execution-freeze/1', 'frozen_at_ns':time.time_ns(), 'design':identity(root/'design-freeze.json'),
+    value = {'schema':'moldarwin-ranking-execution-freeze/1', 'frozen_at_ns':time.time_ns(), 'design':identity(root/'design-freeze.json'),
         'panel':identity(root/'panel.json'), 'candidate':ranking.METHOD, 'check_contract':contract,
         'source':{str(p):identity(p) for p in sorted((root/'source').rglob('*')) if p.is_file() and p.suffix in {'.py','.md'}},
         'runtime':{'executable':sys.executable, 'python':sys.version, 'imports':imports,
@@ -306,10 +306,10 @@ def task(root, row):
     sources = [{'id':key,'path':str(folder/name),'locator':'PB308 known-pocket conditioning input; no gold atoms',
         'role':'conditioning','scope':QUESTION,**identity(folder/name)} for key,name in [('receptor','receptor.pdb'),('ligand','ligand.sdf'),('settings','settings.json')]]
     params = {'receptor':str(folder/'receptor.pdb'),'ligand':str(folder/'ligand.sdf'), 'box':settings['box'], 'seed':41,'num_modes':10,'exhaustiveness':8}
-    return {'schema':'etalon-pose-task/1','task_id':'ranking-independent-20261025','case_id':row['id'],'question':QUESTION,'split':'validation',
+    return {'schema':'moldarwin-pose-task/1','task_id':'ranking-independent-20261025','case_id':row['id'],'question':QUESTION,'split':'validation',
         'method':{'engine':'GNINA1.3.3', 'pool':'empirical vina', 'candidate':'contact-relaxation-v1'},
         'output_contract':{'poses':'SDF','scores':'typed-with-direction','receipt':'request-and-file-identities','failure':'retained'},
-        'input':{'schema':'etalon-scientific-input/1','task_id':'ranking-independent-20261025','scope':QUESTION,
+        'input':{'schema':'moldarwin-scientific-input/1','task_id':'ranking-independent-20261025','scope':QUESTION,
           'subject':{'molecule':row['smiles'],'series_id':row['series_id']},'sources':sources,'observations':[],'interpretations':[],
           'bindings':[{'id':k,'target':k,'value':v,'use':'constraint' if k in {'receptor','ligand','box'} else 'selection',
               'basis_ids':[k if k in {'receptor','ligand'} else 'settings'],'rationale':'Predeclared parameters, graph-generated ligand, no reference pose constraint'} for k,v in params.items()]}}
@@ -374,7 +374,7 @@ class Runner:
             except (ValueError,IndexError):
                 pass
         cpu = resource['user_second']+resource['system_second'] if resource else None
-        receipt = {'schema':'etalon-ranking-native-receipt/1','request_id':key,'attempt_id':'trial-1','case_id':compiled['case_id'],
+        receipt = {'schema':'moldarwin-ranking-native-receipt/1','request_id':key,'attempt_id':'trial-1','case_id':compiled['case_id'],
             'stage':stage,'status':'failed' if error else 'completed','execution_mode':'new_execution','wall_seconds':wall,'cpu_second':cpu,
             'gpu_device_second':wall if stage=='cnn' else 0.,'native_resource':resource,'error':error,
             'artifacts':{str(p):identity(p) for p in (output,folder/'stdout.log',folder/'native-resource.txt',folder/'same-pool.json') if p.exists()}}
@@ -439,7 +439,7 @@ class Runner:
         ranks = {'empirical':self.helper.ranking(folder/'empirical.sdf','minimizedAffinity'),'candidate':candidate}
         if cnn['status'] == 'completed':
             ranks['cnn'] = self.helper.ranking(folder/'cnn.sdf','CNNscore',True)
-        result = {'schema':'etalon-ranking-case-result/1','case_id':row['id'],'series_id':row['series_id'],'status':'completed','binding':binding,
+        result = {'schema':'moldarwin-ranking-case-result/1','case_id':row['id'],'series_id':row['series_id'],'status':'completed','binding':binding,
             'stages':{'empirical':empirical['status'],'cnn':cnn['status']}, 'integrity':integrity,
             'candidate_fallback':candidate['fallback'],'rankings':ranks,
             'top1':{name:top1_observation(verifier,rank,count,check_contract=self.freeze['check_contract'],expected_binding=binding) for name,rank in ranks.items()},
@@ -516,7 +516,7 @@ def evaluate(root):
         'physical_valid_retention':metrics['candidate']['physical_valid_top1']>=metrics['empirical']['physical_valid_top1'],
         'candidate_cpu_fraction':costs['candidate_cpu_fraction_of_search'] is not None and costs['candidate_cpu_fraction_of_search']<=rules['candidate_cpu_fraction_of_search_max'],
         'candidate_wall':costs['candidate_mean_wall_seconds']<=rules['candidate_mean_wall_second_max']}
-    value = {'schema':'etalon-independent-ranking-evaluation/1','denominator':24,'series_count':24,'seeds_per_case':1,
+    value = {'schema':'moldarwin-independent-ranking-evaluation/1','denominator':24,'series_count':24,'seeds_per_case':1,
         'freeze':identity(root/'freeze.json'),'panel':identity(root/'panel.json'),'metrics':metrics,'paired_candidate_vs':comparisons,
         'complete_verifier_cases':complete,'pool_any_success':sum(r.get('pool_any_success') is True for r in results),
         'candidate_fallbacks':sum(r.get('candidate_fallback') is True for r in results),'costs':costs,'adoption_checks':checks,

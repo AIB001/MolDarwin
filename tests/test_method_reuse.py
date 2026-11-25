@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from etalon.research.method_reuse import execute_or_reuse, request_identity
+from moldarwin.research.method_reuse import execute_or_reuse, request_identity
 
 
 def request(**parameters):

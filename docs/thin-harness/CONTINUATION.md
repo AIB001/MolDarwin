@@ -9,7 +9,7 @@ and R4b execution are outside this engineering batch.
 ## SDK
 
 ```python
-from etalon.research.continuation import (
+from moldarwin.research.continuation import (
     validate_content, record_content, read_content,
     capture_watermarks, resume_research,
 )
@@ -38,7 +38,7 @@ a claim of filesystem/DB atomicity. Old sources and records are never migrated.
 
 ## Content contracts
 
-`etalon-research-step/1` requires `task_id`, `question`, `branch_id`, `operation`,
+`moldarwin-research-step/1` requires `task_id`, `question`, `branch_id`, `operation`,
 `reason`, `input_refs`, `output_refs`, `method_refs`, `accounting_refs`,
 `source_watermarks`, `supersedes`, and `detail`. Reference lists contain ordinary
 source-qualified EvidenceRefs. Branch IDs name logical research branches, not
@@ -65,7 +65,7 @@ A changed decision creates a new Artifact with supersedes. Support/counter
 relationships remain in claims; input/output references express data flow;
 decision/plan details express conditions. They are not a compulsory execution DAG.
 
-`etalon-research-checkpoint/1` requires task_id/question, step_refs/claim_refs/
+`moldarwin-research-checkpoint/1` requires task_id/question, step_refs/claim_refs/
 counter_refs/method_refs, branches, pending_handles, source_watermarks,
 status_guards, and supersedes. Each branch has branch_id, state
 (open/active/waiting/resolved/stopped), basis_refs, next_read_refs, reconsider_when.

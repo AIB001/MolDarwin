@@ -11,19 +11,19 @@ import json
 import sqlite3
 from pathlib import Path
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.schema import canonical
-from etalon.research import Artifact, MethodVersion, MethodUse, ResearchJournal, TaskSplit
-from etalon.research import research_decision as rd
-from etalon.research import improvement as imp
-from etalon.research.action_learning import gather_action_basis, compare_action_feedback
-from etalon.research.components import record_json
-from etalon.research.composition import node_step, record_evaluation
-from etalon.research.continuation import CHECKPOINT, STEP, record_content
-from etalon.research.evidence_refs import file_identity
-from etalon.research.method_revision import journal_ref
-from etalon.research.opportunity_state import build_opportunity_disposition
-from etalon.research.publication import _save
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.schema import canonical
+from moldarwin.research import Artifact, MethodVersion, MethodUse, ResearchJournal, TaskSplit
+from moldarwin.research import research_decision as rd
+from moldarwin.research import improvement as imp
+from moldarwin.research.action_learning import gather_action_basis, compare_action_feedback
+from moldarwin.research.components import record_json
+from moldarwin.research.composition import node_step, record_evaluation
+from moldarwin.research.continuation import CHECKPOINT, STEP, record_content
+from moldarwin.research.evidence_refs import file_identity
+from moldarwin.research.method_revision import journal_ref
+from moldarwin.research.opportunity_state import build_opportunity_disposition
+from moldarwin.research.publication import _save
 
 TASK = "snd1-source-qualified-route-learning"
 SID = "snd1-action-learning"
@@ -62,7 +62,7 @@ class Session:
 
     def workspace(self):
         path = self.root / "workspace.json"
-        _save(path, dict(schema="etalon-evidence-workspace/1", workspace_id=TASK,
+        _save(path, dict(schema="moldarwin-evidence-workspace/1", workspace_id=TASK,
             sources=[*self.prior_sources, dict(source_id=SID, kind="journal", location=str(self.store.path),
                 identity=dict(kind="snapshot_sha256", value=file_identity(self.store.path)["sha256"]))],
             status_refs=[], location_map=[]), replace=True)
@@ -93,7 +93,7 @@ class Session:
             raise ValueError("Phase already published; use saved phase entry")
         with sqlite3.connect(self.store.path) as src, sqlite3.connect(snapshot) as dst:
             src.backup(dst)
-        ws = dict(schema="etalon-evidence-workspace/1", workspace_id=TASK,
+        ws = dict(schema="moldarwin-evidence-workspace/1", workspace_id=TASK,
             sources=[*self.prior_sources, dict(source_id=SID, kind="journal", location=str(snapshot),
                 identity=dict(kind="snapshot_sha256", value=file_identity(snapshot)["sha256"]))],
             status_refs=[], location_map=[])
@@ -261,12 +261,12 @@ def finish(root, judgment_path):
     if predecessors_path.exists():
         predecessors=load(predecessors_path)
     else:
-        prior_experience=imp.retrieve_experience(s.workspace(),source_ids=[SID],capability_id="molcascade.retrosynthesis",
+        prior_experience=imp.retrieve_experience(s.workspace(),source_ids=[SID],capability_id="molcat.retrosynthesis",
             conditions=CONDITIONS,limit=10)
         predecessors=[row["ref"] for row in prior_experience["matches"] if row["experience"]["patch_ref"]==r["patch_ref"]]
         _save(predecessors_path,predecessors)
     experience=imp.record_experience(s.journal,patch_ref=r["patch_ref"],outcome=j["outcome"],lesson=j["lesson"],
-        invalid_when=" ".join(j["invalid_when"]),capability_id="molcascade.retrosynthesis",support_refs=[o["output_ref"],o["feedback_ref"]],
+        invalid_when=" ".join(j["invalid_when"]),capability_id="molcat.retrosynthesis",support_refs=[o["output_ref"],o["feedback_ref"]],
         counter_refs=[reaction,o["feedback_ref"]],evaluation_ref=evaluation["evaluation_ref"],resolution_ref=resolution,
         supersedes=predecessors,directory=s.root / "content",source_id=SID,source_kind="new_execution")
     disposition=s.save(build_opportunity_disposition(s.journal,opportunity_ref=r["opportunity_ref"],
@@ -275,7 +275,7 @@ def finish(root, judgment_path):
         reconsider_when=[dict(condition_id="changed-route-bottleneck",condition=j["reconsider_when"])],
         source_id=SID,candidate_ref=p["methods"][2],evaluation_ref=evaluation["evaluation_ref"],
         resolution_ref=resolution,external_workspace=s.workspace()))
-    readback=imp.retrieve_experience(s.workspace(),source_ids=[SID],capability_id="molcascade.retrosynthesis",
+    readback=imp.retrieve_experience(s.workspace(),source_ids=[SID],capability_id="molcat.retrosynthesis",
         conditions=CONDITIONS,limit=10)
     readback_ref=s.artifact(readback)
     next_choice=s.save(dict(schema=STEP,task_id=TASK,question=j["next_question"],branch_id="conditions-aware-route",

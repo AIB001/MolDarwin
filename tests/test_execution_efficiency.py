@@ -1,7 +1,7 @@
 """Execution facts guide optional RSI; they neither schedule work nor adopt methods."""
 import pytest
 
-from etalon.economics.execution import execution_feedback, compare_execution_costs
+from moldarwin.economics.execution import execution_feedback, compare_execution_costs
 
 
 def sample(**updates):
@@ -28,12 +28,12 @@ def test_reused_rows_not_credited_as_new_throughput_and_age_is_visible():
 
 
 def test_feedback_has_readable_exact_skill_and_stable_decision_identity():
-    from etalon.skills import read_member
+    from moldarwin.skills import read_member
     report = feedback(sample())
     opportunity = report['improvement_opportunities'][0]
     reference = opportunity['skill']
     assert read_member(reference['name']) == read_member(reference['read']['arguments']['slug'])
-    assert reference['read']['tool'] == 'etalon_skill_read'
+    assert reference['read']['tool'] == 'moldarwin_skill_read'
     assert opportunity['decision_key'] == report['observation_key']
     newer = feedback({**sample(), 'rows_completed': 99, 'updated_at':'2026-10-28T00:00:09+00:00'})
     assert newer['improvement_opportunities'][0]['decision_key'] == opportunity['decision_key']
@@ -42,7 +42,7 @@ def test_feedback_has_readable_exact_skill_and_stable_decision_identity():
 
 
 def test_success_is_also_an_opportunity_for_learning_not_only_failure():
-    from etalon.economics.execution import improvement_review
+    from moldarwin.economics.execution import improvement_review
     result = improvement_review('stage_complete', {'stage':'a','artifact':'new'})
     assert 'reuse_or_replace_computation' in result['agenda']
     assert 'retain_callable_methods' in result['agenda']

@@ -10,7 +10,7 @@ root = args.workspace.resolve()
 rounds = [r for r in json.loads((root / 'round-trace.json').read_text()) if r['outcome']['actions']]
 payload = json.dumps(rounds, ensure_ascii=False).replace('<', '\\u003c')
 html = '''<!doctype html><html lang="zh-CN"><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>ETALON CPU 实测追踪</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>MolDarwin CPU 实测追踪</title>
 <style>
 body{font:16px/1.7 system-ui,sans-serif;background:#f4f6f9;color:#182438;margin:0}
 main{max-width:1100px;margin:32px auto;padding:0 24px}h1{font-size:30px;line-height:1.3}
@@ -24,7 +24,7 @@ svg{width:100%;height:auto}code{font-size:14px}.orange{color:#a84d18}
 </style><main>
 <div class="pill">真实 CPU 计算 · 8 个分子 · 16/16 观测准入 · 8 轮</div>
 <h1>一条观测如何进入下一轮选择</h1>
-<p>ETALON 5927aceb + 已记录的 Windows 文件 I/O 兼容补丁。目标是最小化分子量；第 1 轮后加入 logP 端点。这里展示软件执行证据，不代表药效验证。</p>
+<p>MolDarwin 5927aceb + 已记录的 Windows 文件 I/O 兼容补丁。目标是最小化分子量；第 1 轮后加入 logP 端点。这里展示软件执行证据，不代表药效验证。</p>
 <div class="card"><strong>选择轮次</strong><div id="rounds"></div><p id="status" class="muted"></p>
 <table><thead><tr><th>本轮候选</th><th>计算端点</th><th>选择原因</th><th>选择分数</th><th>实际读数</th><th>准入</th></tr></thead><tbody id="choices"></tbody></table></div>
 <div class="card"><strong>本轮前后：目标分子量的模型预测</strong>

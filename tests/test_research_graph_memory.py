@@ -4,12 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.schema import canonical
-from etalon.research import Artifact, ResearchJournal
-from etalon.research.continuation import CHECKPOINT, STEP, record_content
-from etalon.research.evidence_refs import EvidenceError, file_identity, make_ref
-from etalon.research.graph_memory import build_research_graph, node_identity, validate_research_graph
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.schema import canonical
+from moldarwin.research import Artifact, ResearchJournal
+from moldarwin.research.continuation import CHECKPOINT, STEP, record_content
+from moldarwin.research.evidence_refs import EvidenceError, file_identity, make_ref
+from moldarwin.research.graph_memory import build_research_graph, node_identity, validate_research_graph
 
 
 @pytest.fixture
@@ -30,7 +30,7 @@ def graph_case(tmp_path):
     def save(content):
         rid = record_content(journal, content, tmp_path / "content", source_id="science", source_kind="fixture")
         return make_ref("science", rid, journal.get(rid))
-    claim = save({"schema": "etalon-research-claim/1", "question": "Which route?", "statement": "Fixture result is conditional",
+    claim = save({"schema": "moldarwin-research-claim/1", "question": "Which route?", "statement": "Fixture result is conditional",
         "epistemic_status": "interpretation", "subjects": ["SND1-fixture"], "conditions": ["fixture protocol"],
         "limitations": ["Not a science run"], "support_refs": [evidence], "counter_refs": [counter], "method_refs": [], "supersedes": []})
     step = {"schema": STEP, "task_id": "snd1-fixture", "question": "Which route?", "branch_id": "fixed-core",
@@ -49,7 +49,7 @@ def graph_case(tmp_path):
     cp = save(checkpoint)
     workspace = tmp_path / "workspace.json"
     def publish():
-        workspace.write_text(json.dumps({"schema": "etalon-evidence-workspace/1", "workspace_id": "graph-fixture",
+        workspace.write_text(json.dumps({"schema": "moldarwin-evidence-workspace/1", "workspace_id": "graph-fixture",
             "sources": [{"source_id": "science", "kind": "journal", "location": str(store.path),
                          "identity": {"kind": "snapshot_sha256", "value": file_identity(store.path)["sha256"]}}],
             "status_refs": [str(authority)], "location_map": []}))
@@ -122,9 +122,9 @@ def test_bounds_and_historical_semantics(graph_case):
 
 
 def test_workflow_edges_do_not_infer_execution_order(graph_case):
-    from etalon.research.composition import node_step
+    from moldarwin.research.composition import node_step
     c = graph_case
-    workflow = c["save"]({"schema": "etalon-research-workflow/1", "name": "fixture-route", "scope": "snd1-fixture",
+    workflow = c["save"]({"schema": "moldarwin-research-workflow/1", "name": "fixture-route", "scope": "snd1-fixture",
         "nodes": [{"node_id": nid, "capability_id": None, "method_refs": [], "views": ["X"],
                    "purpose": "fixture planning", "skip_when": "evidence already exists"} for nid in ("quick", "deep")],
         "edges": [{"from": "quick", "to": "deep", "kind": "control", "condition": "only if justified"}],
@@ -145,12 +145,12 @@ def test_counterevidence_from_other_published_source_and_scope_denial(graph_case
     c = graph_case
     body = c["journal"].get(c["counter"]["record_id"])
     external = make_ref("lab-fixture", c["counter"]["record_id"], body)
-    claim = c["save"]({"schema": "etalon-research-claim/1", "question": "Which route?", "statement": "External counter must remain visible",
+    claim = c["save"]({"schema": "moldarwin-research-claim/1", "question": "Which route?", "statement": "External counter must remain visible",
         "epistemic_status": "interpretation", "subjects": ["fixture"], "conditions": ["fixture"], "limitations": [],
         "support_refs": [c["evidence"]], "counter_refs": [external], "method_refs": [], "supersedes": []})
     cp = c["save"]({**c["checkpoint_content"], "claim_refs": [claim], "counter_refs": [external], "supersedes": [c["checkpoint"]]})
     manifest = c["entry"].parent / "lab-manifest.json"
-    manifest.write_text(json.dumps({"schema": "etalon-artifact-manifest/1", "records": [{"record_id": external["record_id"],
+    manifest.write_text(json.dumps({"schema": "moldarwin-artifact-manifest/1", "records": [{"record_id": external["record_id"],
         "record_type": "artifact", "record": body, "visibility": "released"}]}))
     ws = c["publish"]()
     config = json.loads(ws.read_text())

@@ -9,11 +9,11 @@ import json
 import sqlite3
 from pathlib import Path
 
-from etalon.active import CampaignStore
-from etalon.active.schema import canonical, finite
-from etalon.boundary.prism_v1 import file_identity
-from etalon.research import Artifact, ResearchJournal
-from etalon.research.validation import attach_decision_validation
+from moldarwin.active import CampaignStore
+from moldarwin.active.schema import canonical, finite
+from moldarwin.boundary.prism_v1 import file_identity
+from moldarwin.research import Artifact, ResearchJournal
+from moldarwin.research.validation import attach_decision_validation
 
 
 def attach(*, database: Path, report: Path, release: Path, decision_sha256: str, output: Path) -> dict:

@@ -1,5 +1,5 @@
 {
-  "schema": "etalon-r4b-retained-baseline-config/1",
+  "schema": "moldarwin-r4b-retained-baseline-config/1",
   "scope": "TEMPLATE: replace preparation admission IDs after real prepare; root reviews and freezes this file",
   "strategy": "retained_baseline_due_insufficient_intervention_support",
   "evaluation_cost_weight": 0.001,

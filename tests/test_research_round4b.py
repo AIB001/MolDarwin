@@ -3,12 +3,12 @@ from copy import deepcopy
 from dataclasses import replace
 import json
 import pytest
-from etalon.active.schema import digest,canonical
-from etalon.research.transfer import unpack,next_action,evaluate_policies,GroupSplit
-from etalon.research.support import support_report,loss_interval,bounded_panel,fallback_action
-from etalon.research.online import execute_visible_task
-from etalon.research.workflows import legacy_bindings,validate_bindings,validate_receptor_binding
-from etalon.research.transfer_checks import outcome_improvement_diagnostic
+from moldarwin.active.schema import digest,canonical
+from moldarwin.research.transfer import unpack,next_action,evaluate_policies,GroupSplit
+from moldarwin.research.support import support_report,loss_interval,bounded_panel,fallback_action
+from moldarwin.research.online import execute_visible_task
+from moldarwin.research.workflows import legacy_bindings,validate_bindings,validate_receptor_binding
+from moldarwin.research.transfer_checks import outcome_improvement_diagnostic
 from test_research_online import policy_fixture,callbacks
 
 
@@ -94,11 +94,11 @@ def test_receptor_bytes_are_pinned_and_cross_group_relation_failure_is_retained(
 
 
 def test_seen_release_preserves_old_role_and_requires_exact_original_labels(tmp_path):
-    from etalon.active import CampaignSpec,CampaignStore,Endpoint
-    from etalon.research import ResearchJournal,Artifact
-    from etalon.research.seen import register_seen_labels
-    from etalon.boundary.prism_v1 import file_identity
-    from etalon.active.store import StateError
+    from moldarwin.active import CampaignSpec,CampaignStore,Endpoint
+    from moldarwin.research import ResearchJournal,Artifact
+    from moldarwin.research.seen import register_seen_labels
+    from moldarwin.boundary.prism_v1 import file_identity
+    from moldarwin.active.store import StateError
     store=CampaignStore(tmp_path/'fixture.sqlite')
     store.configure(CampaignSpec('unmeasured',1200,'wall_second','fixture'),
         [Endpoint('unmeasured','fixture','not_measured','count','fixture',0,queryable=False)])

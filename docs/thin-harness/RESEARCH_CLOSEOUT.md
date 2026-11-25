@@ -36,7 +36,7 @@ Results are an **as-of observation**, not a heartbeat. A resolved branch means i
 declared archival question is answered; it does not mean affinity, convergence or
 generalization has been demonstrated. An empty list of runtime handles is not an
 inventory of external processes. Legacy native receipts stay receipts, without
-inventing ETALON execution handles. Other branches, guards and negative evidence
+inventing MolDarwin execution handles. Other branches, guards and negative evidence
 survive a publication unchanged.
 
 Independent scientific timing and journal timing also remain distinct. If a

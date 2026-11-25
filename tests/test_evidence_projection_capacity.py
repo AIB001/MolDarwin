@@ -1,6 +1,6 @@
 """A normal multi-step journal must keep recent typed records readable."""
-from etalon.research import evidence
-from etalon.research.evidence_refs import load_workspace
+from moldarwin.research import evidence
+from moldarwin.research.evidence_refs import load_workspace
 from test_research_graph_memory import graph_case
 
 

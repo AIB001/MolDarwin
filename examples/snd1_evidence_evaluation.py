@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 from rdkit import Chem
 from rdkit.Numerics import rdAlignment
-from etalon.research.scientific_input import compile_input
+from moldarwin.research.scientific_input import compile_input
 from snd1_evidence_workflow import TARGETS, read, metrics, old
 
 

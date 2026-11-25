@@ -9,14 +9,14 @@ import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CONTRACTS = Path("src/etalon/research/contracts")
+CONTRACTS = Path("src/moldarwin/research/contracts")
 
 
 def pinned_contracts():
     modules = {"producer": "diagnostic-action", "pool": "fixed-pool",
                "pose": "pose-diagnostic", "preparation": "receptor-preparation"}
     for module, prefix in modules.items():
-        tree = ast.parse((ROOT / "src/etalon/research" / f"{module}.py").read_text(encoding="utf8"))
+        tree = ast.parse((ROOT / "src/moldarwin/research" / f"{module}.py").read_text(encoding="utf8"))
         pins = next(ast.literal_eval(node.value) for node in tree.body
                     if isinstance(node, ast.Assign) and any(
                         isinstance(target, ast.Name) and target.id == "SCHEMA_HASHES"

@@ -8,7 +8,7 @@ import json
 import numpy as np
 import pytest
 
-from etalon.active.protocol_score import MAX_ARMS, MAX_FEATURES, panel_skill, rank_variants
+from moldarwin.active.protocol_score import MAX_ARMS, MAX_FEATURES, panel_skill, rank_variants
 
 
 def panel(*, values=None, objective=None, costs=None, quoted_cost=1, **kwargs):

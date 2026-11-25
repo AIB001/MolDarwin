@@ -30,7 +30,7 @@ import pytest
 def test_c1_a_complete_observation_set_rules_identically_through_the_tool_and_through_rule():
     """The MCP coverage layer may only touch the INCOMPLETE case.
 
-    `etalon_rule_admissible` grew a minting/coverage layer. If that layer changed what a
+    `moldarwin_rule_admissible` grew a minting/coverage layer. If that layer changed what a
     complete, honest observation set rules, it would have changed `rule`'s semantics by
     way of its caller -- which constraint 1 forbids whether or not `admissible.py` itself
     was edited. Byte identity over `as_dict()` is the form of "unchanged" that leaves no
@@ -38,10 +38,10 @@ def test_c1_a_complete_observation_set_rules_identically_through_the_tool_and_th
     """
     pytest.importorskip("pydantic", reason="the MCP tool surface imports pydantic")
 
-    from etalon.faults.attribution import Observation
-    from etalon.faults.taxonomy import FAULTS
-    from etalon.learn.admissible import Measurement, rule
-    from etalon.mcp.governance import register
+    from moldarwin.faults.attribution import Observation
+    from moldarwin.faults.taxonomy import FAULTS
+    from moldarwin.learn.admissible import Measurement, rule
+    from moldarwin.mcp.governance import register
 
     tools: dict = {}
 
@@ -59,7 +59,7 @@ def test_c1_a_complete_observation_set_rules_identically_through_the_tool_and_th
     payload = json.dumps([{"parent_id": "complete", "cheap_value": -9.1,
                            "expensive_value": -10.4, "observations": rows}])
 
-    through_tool = json.loads(tools["etalon_rule_admissible"](payload))["report"]["rulings"][0]
+    through_tool = json.loads(tools["moldarwin_rule_admissible"](payload))["report"]["rulings"][0]
     direct = rule(Measurement(
         parent_id="complete", cheap_value=-9.1, expensive_value=-10.4,
         observations=tuple(Observation(r["code"], fired=False, detail=r["detail"],
@@ -102,9 +102,9 @@ def test_c1_a_complete_observation_set_rules_identically_through_the_tool_and_th
 
 
 def test_c6_the_three_stores_remain_three_distinct_types():
-    from etalon.active.store import CampaignStore
-    from etalon.research.journal import ResearchJournal
-    from etalon.runtime.store import RuntimeStore
+    from moldarwin.active.store import CampaignStore
+    from moldarwin.research.journal import ResearchJournal
+    from moldarwin.runtime.store import RuntimeStore
 
     three = (RuntimeStore, CampaignStore, ResearchJournal)
     assert len({id(cls) for cls in three}) == 3, "two of the three names now denote one class"
@@ -115,7 +115,7 @@ def test_c6_the_three_stores_remain_three_distinct_types():
                 f"{cls.__name__} became a subclass of {other.__name__}; constraint 6 "
                 "forbids merging the three, and a subclass is a merge with a new name")
     assert {cls.__module__ for cls in three} == {
-        "etalon.runtime.store", "etalon.active.store", "etalon.research.journal"}, (
+        "moldarwin.runtime.store", "moldarwin.active.store", "moldarwin.research.journal"}, (
         "a store moved module; update the ledger entry for constraint 6 with the new home")
 
 
@@ -130,8 +130,8 @@ def test_c6_the_research_journal_stays_a_view_over_a_campaign_store():
     """
     import inspect
 
-    from etalon.active.store import CampaignStore
-    from etalon.research.journal import ResearchJournal
+    from moldarwin.active.store import CampaignStore
+    from moldarwin.research.journal import ResearchJournal
 
     signature = inspect.signature(ResearchJournal.__init__)
     assert "store" in signature.parameters, (
@@ -146,9 +146,9 @@ def test_c6_the_research_journal_stays_a_view_over_a_campaign_store():
 def _configured(tmp_path):
     """A configured campaign and a journal over it, which is the only legal pairing."""
 
-    from etalon.active.schema import CampaignSpec, Endpoint
-    from etalon.active.store import CampaignStore
-    from etalon.research.journal import ResearchJournal
+    from moldarwin.active.schema import CampaignSpec, Endpoint
+    from moldarwin.active.store import CampaignStore
+    from moldarwin.research.journal import ResearchJournal
 
     store = CampaignStore(tmp_path / "campaign.sqlite")
     store.configure(CampaignSpec("c6", 0, "wall_second", "c6-fixture"),
@@ -170,9 +170,9 @@ def test_c6_the_research_journal_writes_only_inside_its_own_key_namespace(tmp_pa
     key expression, and the thing that matters is the keys that actually land.
     """
 
-    from etalon.boundary.prism_v1 import file_identity
-    from etalon.research.journal import PREFIX
-    from etalon.research.schema import Artifact
+    from moldarwin.boundary.prism_v1 import file_identity
+    from moldarwin.research.journal import PREFIX
+    from moldarwin.research.schema import Artifact
 
     store, journal = _configured(tmp_path)
     campaign_keys = _metadata_keys(store)
@@ -203,8 +203,8 @@ def test_c6_the_namespaces_the_shared_table_carries_are_pairwise_disjoint():
     key space and the weaker discipline would govern both, with no error anywhere.
     """
 
-    from etalon.data.design import PREFIX as design_prefix
-    from etalon.research.journal import PREFIX as research_prefix
+    from moldarwin.data.design import PREFIX as design_prefix
+    from moldarwin.research.journal import PREFIX as research_prefix
 
     prefixes = {"research/journal.py": research_prefix, "data/design.py": design_prefix}
     for owner, prefix in prefixes.items():
@@ -226,7 +226,7 @@ def test_c6_a_recorded_research_identity_still_cannot_be_rewritten(tmp_path):
     lost the refusal would pass the two checks above and break the constraint.
     """
 
-    from etalon.active.store import StateError
+    from moldarwin.active.store import StateError
 
     store, journal = _configured(tmp_path)
     with store.connection() as db:
@@ -272,8 +272,8 @@ def test_c2_taking_the_view_leaves_the_leaf_records_and_their_bindings_byte_iden
 
     import copy
 
-    from etalon.active.schema import canonical
-    from etalon.learn.admission_view import admission_view
+    from moldarwin.active.schema import canonical
+    from moldarwin.learn.admission_view import admission_view
 
     graph, bindings = _leaf_inputs()
     pinned_graph, pinned_bindings = copy.deepcopy(graph), copy.deepcopy(bindings)
@@ -298,7 +298,7 @@ def test_c2_taking_the_view_twice_over_the_same_inputs_derives_the_same_view_id(
     write-back, including one this file did not think to pin.
     """
 
-    from etalon.learn.admission_view import admission_view
+    from moldarwin.learn.admission_view import admission_view
 
     graph, bindings = _leaf_inputs()
     first = admission_view(graph, bindings)

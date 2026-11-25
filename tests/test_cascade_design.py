@@ -7,10 +7,10 @@ from dataclasses import replace
 
 import pytest
 
-from etalon.active import ActiveCampaign, CampaignSpec, CampaignStore, Candidate, StateError
-from etalon.active.cascade import CascadeExecutor, CascadeRecipe, Readout
-from etalon.boundary.screen import Screen
-from etalon.campaign.design import catalogue, component, compose
+from moldarwin.active import ActiveCampaign, CampaignSpec, CampaignStore, Candidate, StateError
+from moldarwin.active.cascade import CascadeExecutor, CascadeRecipe, Readout
+from moldarwin.boundary.screen import Screen
+from moldarwin.campaign.design import catalogue, component, compose
 
 
 def recipe(*, two=False):
@@ -42,7 +42,7 @@ def test_single_component_executes_on_real_molecules_without_default_tiers(tmp_p
         assert measured["value"] == pytest.approx(Descriptors.MolWt(Chem.MolFromSmiles(smiles[measured["candidate_id"]])))
         assert measured["provenance"]["plan"]["tiers"][0]["criteria"] == ["properties"]
         assert len(measured["provenance"]["plan"]["tiers"]) == 1
-        assert measured["provenance"]["molcascade_parent_id"]
+        assert measured["provenance"]["molcat_parent_id"]
     assert len(list((tmp_path / "runs").iterdir())) == 3
 
 

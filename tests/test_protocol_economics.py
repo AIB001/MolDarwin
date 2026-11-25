@@ -8,9 +8,9 @@ import math
 import numpy as np
 import pytest
 
-from etalon.active import protocol_score
-from etalon.active.knowledge import knowledge_gradient
-from etalon.active.protocol_score import (
+from moldarwin.active import protocol_score
+from moldarwin.active.knowledge import knowledge_gradient
+from moldarwin.active.protocol_score import (
     AUDIT_RANKER_VERSION,
     _audit_expected_improvement,
     rank_variants,

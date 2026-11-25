@@ -3,9 +3,9 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active.schema import canonical, digest
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research.graph_memory import build_research_graph, node_identity
+from moldarwin.active.schema import canonical, digest
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research.graph_memory import build_research_graph, node_identity
 from test_research_graph_memory import graph_case
 
 
@@ -67,11 +67,11 @@ def test_hop_one_adds_ordinary_dependency_without_rewriting_global_links(graph_c
 
 def test_counter_incidence_closes_reverse_cross_task_edges_and_preserves_direction(graph_case):
     c = graph_case
-    other = c["save"]({"schema": "etalon-research-claim/1", "question": "other task",
+    other = c["save"]({"schema": "moldarwin-research-claim/1", "question": "other task",
         "statement": "Other task counter declaration", "epistemic_status": "hypothesis",
         "subjects": ["other task"], "conditions": [], "limitations": [],
         "support_refs": [], "counter_refs": [c["decision"]], "method_refs": [], "supersedes": []})
-    chain = c["save"]({"schema": "etalon-research-claim/1", "question": "third task",
+    chain = c["save"]({"schema": "moldarwin-research-claim/1", "question": "third task",
         "statement": "Another reverse counter declaration", "epistemic_status": "hypothesis",
         "subjects": ["third task"], "conditions": [], "limitations": [],
         "support_refs": [], "counter_refs": [other], "method_refs": [], "supersedes": []})
@@ -115,7 +115,7 @@ def test_required_scope_cannot_succeed_by_omitting_counter_to_fit_cap(graph_case
     with pytest.raises(EvidenceError, match="bound"):
         build_research_graph(c["workspace"], checkpoint_ref=c["checkpoint"],
             scope={"root_refs": [c["decision"]], "ordinary_hops": 0}, max_nodes=1)
-    from etalon.research.graph_scope import assemble_graph_pages
+    from moldarwin.research.graph_scope import assemble_graph_pages
     pages, cursor = [], None
     while True:
         page = build_research_graph(c["workspace"], checkpoint_ref=c["checkpoint"],

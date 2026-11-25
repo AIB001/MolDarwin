@@ -1,6 +1,6 @@
 # Optional native attempt handoff and recovery
 
-`etalon.research.execution_recovery` is a small opt-in handoff for a host that
+`moldarwin.research.execution_recovery` is a small opt-in handoff for a host that
 explicitly launches a native command. It is not a scheduler, policy, retry
 service, scientific validator, or replacement for existing runtime adapters.
 Use an existing adapter's native recovery when it already owns the attempt.
@@ -9,7 +9,7 @@ uses the existing budget ledger, and archives observations through the existing
 ResearchJournal and batch/publication interfaces.
 
 ```python
-from etalon.research.execution_recovery import (
+from moldarwin.research.execution_recovery import (
     launch_detached_attempt, inspect_attempt, recover_attempt,
 )
 

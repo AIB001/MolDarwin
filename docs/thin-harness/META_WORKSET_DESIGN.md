@@ -1,8 +1,8 @@
-# ETALON 元层与任务工作集设计
+# MolDarwin 元层与任务工作集设计
 
 日期：2026-10-23。状态：第一批已实现画像、跨类型索引、适配审阅、工作集、checkpoint 发布、上下文及 hook/导出接缝；具体 API 与验收边界见 [第一批工程说明](META_WORKSET.md)。本文其余内容保留总体设计，未列入该批交付的部分仍是后续设计。不据此声称 PRO6000 的默认版本已更新。资源分配不在范围内；R4b 保持暂停；PoseBusters 原生 hook 验收继续等待既定审阅。
 
-核心设计：**宿主 agent 负责当前问题及其方法选择；元层是它管理知识继承、适配和组合的职责。资源分散保存、统一索引；每项任务固定自己的工作集；hook 交付工作集变化。** 跨领域适配可委派给独立小上下文 agent 审阅，由宿主采纳或调整结论。科学执行继续使用 MolQuarry、MolCascade、PRISM 及已有 SDK/MCP。
+核心设计：**宿主 agent 负责当前问题及其方法选择；元层是它管理知识继承、适配和组合的职责。资源分散保存、统一索引；每项任务固定自己的工作集；hook 交付工作集变化。** 跨领域适配可委派给独立小上下文 agent 审阅，由宿主采纳或调整结论。科学执行继续使用 MolOrigin、MolCat、PRISM 及已有 SDK/MCP。
 
 ## 1 元层的位置与决策权
 
@@ -16,8 +16,8 @@ flowchart TB
     H -->|选定版本与采用部分| W[任务工作集\n模板 资源 条件 停用理由]
     W --> K[薄 harness\n身份 契约 发布 恢复 核验]
     H -->|调用 MCP 或 SDK| K
-    K --> Q[MolQuarry\n查询 来源 目录]
-    K --> C[MolCascade\n准备 筛选 对接]
+    K --> Q[MolOrigin\n查询 来源 目录]
+    K --> C[MolCat\n准备 筛选 对接]
     K --> P[PRISM\n体系 MD 自由能等能力]
     Q --> G[研究图承载 memory\nSearch Judge Quick Deep]
     C --> G
@@ -220,8 +220,8 @@ SND1 的问题是具体模板和化合物关系下的姿势准备与局部改进
 | SND1 受体、固定核心、允许转动连接键、关键残基与活性证据 | 默认不激活，保留引用 | 尚无条件说明它们适用于新案例；也不能把靶点活性当姿势或亲和力迁移收益 |
 | SND1 固定核心或求解器改进经验 | 参考或适配候选 | 优势依赖具体问题和评价；不能直接成为通用 docking 默认 |
 | 参数配置、候选修改、随正常执行评价的 skill | 继承通用部分 | 重新绑定姿势任务的输入、方法、评价与使用记录 |
-| MolQuarry 来源读取 | 按需启用 | 已有校验过的输入时可跳过下载；来源缺失才展开相关节点 |
-| MolCascade 等可用对接能力 | 根据实际执行接口绑定 | 当前 PoseBusters 示例使用 `pose_engine` 的真实 GNINA 路径，不把它写成已调用完整 Screen 工作流 |
+| MolOrigin 来源读取 | 按需启用 | 已有校验过的输入时可跳过下载；来源缺失才展开相关节点 |
+| MolCat 等可用对接能力 | 根据实际执行接口绑定 | 当前 PoseBusters 示例使用 `pose_engine` 的真实 GNINA 路径，不把它写成已调用完整 Screen 工作流 |
 | PRISM 的 MD/FEP 等深入能力 | 本任务默认不选 | 当前对照不需要；以后有明确问题可展开 Deep，不是全局禁用 PRISM |
 | PoseBusters verifier 与任务协议 | 作为当前任务的明确基准 | 输入和评价材料按角色分离；参考答案不送给适配或选择 agent |
 
@@ -237,14 +237,14 @@ SND1 的问题是具体模板和化合物关系下的姿势准备与局部改进
 
 若以后加入口袋和 CPU 姿势池诊断，应新建适配候选，明确选择发生于 **CPU 搜索后、CNN 前**。决策冻结时只可用那时已生成的诊断；CPU 成本已经发生，不能算成被选择策略省掉。新方法要用新评价任务验证，不能把这批已看过的案例重新称为未见。
 
-实际结果与恢复范围见 [新面板验收](../../../integration/etalon-pose-selection-20261023/ACCEPTANCE.md)。该记录证明任务 API 和进程恢复，明确没有补做本轮原生 chat/hook 验收。[SND1 示例](SND1_NORMAL_USE.md)也限定了其几何结果范围。
+实际结果与恢复范围见 [新面板验收](../../../integration/moldarwin-pose-selection-20261023/ACCEPTANCE.md)。该记录证明任务 API 和进程恢复，明确没有补做本轮原生 chat/hook 验收。[SND1 示例](SND1_NORMAL_USE.md)也限定了其几何结果范围。
 
 ## 7 新 chat 如何只拿入口接续
 
 入口保留现有 `{workspace, checkpoint_ref}` 形状，或现有一跳服务器 locator。新工作集沿 checkpoint 的研究步骤可达；不需要用户再手动提供一堆 skill 文件。
 
-1. 调用现有 `etalon_research_context(entry=..., view="summary")`，固定返回的 `read_context`。接续摘要增加任务画像、活动工作集及其激活决定的精确引用。
-2. 先读暂停、pending、发布状态、已完成节点，再按需展开工作集资源。后续 `etalon_evidence_read/query` 沿同一 `read_context`，由证据所在服务器定位原件。
+1. 调用现有 `moldarwin_research_context(entry=..., view="summary")`，固定返回的 `read_context`。接续摘要增加任务画像、活动工作集及其激活决定的精确引用。
+2. 先读暂停、pending、发布状态、已完成节点，再按需展开工作集资源。后续 `moldarwin_evidence_read/query` 沿同一 `read_context`，由证据所在服务器定位原件。
 3. 同任务同条件，复用已发布审阅与工作集；新 chat 本身不触发一次新 RSI。索引中出现新版本也不静默替换当前版本。
 4. 工作集被替代或条件变化时，明确刷新入口，核对差异；有不完整 publication 时先恢复落档。恢复旧任务仍使用它原先固定的版本。
 5. 需要继续科学运行时，核查原请求、输入、方法、种子及收据。完成的请求读回；pending 查询/恢复原句柄；状态未知先对账，不能新建一个请求冒充恢复。
@@ -286,7 +286,7 @@ OpenAI 官方文档说明，当前 Codex 客户端支持 subagent，并可在应
 
 App Server 区分 `thread/start`、`thread/resume` 和复制历史的 `thread/fork`。设计上隔离旧任务上下文应选择 fresh start；fork 是保留历史的分支。[App Server](https://learn.chatgpt.com/docs/app-server)
 
-本次会话可用协作工具包含 subagent 创建与消息能力，但工具发现没有返回 `create_thread` 等用户 chat 管理接口。这不等于产品不支持新 chat，也不等于任意独立启动的 app-server 会话一定出现在当前桌面侧栏。后续需核验宿主原生 thread 接口或增加显式宿主适配；ETALON MCP 本身不承担桌面 chat 管理。第一批实现已用两个独立上下文 subagent 验收 SND1 与 PoseBusters 的只读接续，尚未创建或验收侧栏可见新 chat。
+本次会话可用协作工具包含 subagent 创建与消息能力，但工具发现没有返回 `create_thread` 等用户 chat 管理接口。这不等于产品不支持新 chat，也不等于任意独立启动的 app-server 会话一定出现在当前桌面侧栏。后续需核验宿主原生 thread 接口或增加显式宿主适配；MolDarwin MCP 本身不承担桌面 chat 管理。第一批实现已用两个独立上下文 subagent 验收 SND1 与 PoseBusters 的只读接续，尚未创建或验收侧栏可见新 chat。
 
 ## 8 与现有接口的工程对应
 
@@ -294,7 +294,7 @@ App Server 区分 `thread/start`、`thread/resume` 和复制历史的 `thread/fo
 
 | 接缝 | 可直接复用 | 需新增或扩展 | 生产端与消费端 |
 | --- | --- | --- | --- |
-| 技能发现与版本 | `skills.library_catalog/catalog/snapshot/read_member`；`etalon_capabilities/etalon_skill_read` | 跨类型描述、来源适配器、索引快照与覆盖信息 | 各原库 → 索引 → 宿主/审阅 skill |
+| 技能发现与版本 | `skills.library_catalog/catalog/snapshot/read_member`；`moldarwin_capabilities/moldarwin_skill_read` | 跨类型描述、来源适配器、索引快照与覆盖信息 | 各原库 → 索引 → 宿主/审阅 skill |
 | 图与证据读取 | `build_research_graph/build_research_context`；evidence query/read；用途过滤 | 画像及工作集投影，范围缺失显式处理；不把 `question` 参数误写成已有语义搜索 | 原记录 → 上下文 → 宿主/hook |
 | 经验匹配 | `retrieve_experience` 的范围、条件、反证、related；已有 supersedes 检查 | 关键维度清单、未知判定、适配审阅；相关命中只能提出迁移假设 | 经验 → 审阅 → 明确选择 |
 | 科学输入与参数 | `scientific_input`；`method_contract`；`compile_screen_revision` 和可比性检查 | 任务画像映射、阶段可见信息、资源到实际参数绑定 | 宿主/参数 skill → 现有后端 → 消费记录 |
@@ -325,12 +325,12 @@ App Server 区分 `thread/start`、`thread/resume` 和复制历史的 `thread/fo
 
 ### 8.2 核对的源码入口
 
-- [skill 内容与目录](../../src/etalon/skills.py)，[宿主全量导出](../../src/etalon/host.py)。
-- [上下文组装](../../src/etalon/research/research_context.py)，[图投影](../../src/etalon/research/graph_memory.py)，[MCP 证据读口](../../src/etalon/mcp/evidence.py)。
-- [条件经验与改进](../../src/etalon/research/improvement.py)，[产生者与父版本](../../src/etalon/research/method_revision.py)。
-- [步骤及 checkpoint 严格契约](../../src/etalon/research/continuation.py)，[节点与评价](../../src/etalon/research/composition.py)。
-- [科学输入](../../src/etalon/research/scientific_input.py)，[方法与参数契约](../../src/etalon/research/method_contract.py)。
-- [可恢复发布](../../src/etalon/research/publication.py)，[远程入口与固定读取视图](../../src/etalon/research/entry.py)，[hook 差量交付](../../src/etalon/research_hooks.py)。
+- [skill 内容与目录](../../src/moldarwin/skills.py)，[宿主全量导出](../../src/moldarwin/host.py)。
+- [上下文组装](../../src/moldarwin/research/research_context.py)，[图投影](../../src/moldarwin/research/graph_memory.py)，[MCP 证据读口](../../src/moldarwin/mcp/evidence.py)。
+- [条件经验与改进](../../src/moldarwin/research/improvement.py)，[产生者与父版本](../../src/moldarwin/research/method_revision.py)。
+- [步骤及 checkpoint 严格契约](../../src/moldarwin/research/continuation.py)，[节点与评价](../../src/moldarwin/research/composition.py)。
+- [科学输入](../../src/moldarwin/research/scientific_input.py)，[方法与参数契约](../../src/moldarwin/research/method_contract.py)。
+- [可恢复发布](../../src/moldarwin/research/publication.py)，[远程入口与固定读取视图](../../src/moldarwin/research/entry.py)，[hook 差量交付](../../src/moldarwin/research_hooks.py)。
 
 ## 9 元层自身如何接受 RSI 评价
 

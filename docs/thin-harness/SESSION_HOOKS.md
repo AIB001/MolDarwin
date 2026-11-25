@@ -1,6 +1,6 @@
 # Session hooks: the recoverable half of the hardening criterion
 
-Status: **implemented**, in `src/etalon/hooks/`. Not installed by any export; a host adds them
+Status: **implemented**, in `src/moldarwin/hooks/`. Not installed by any export; a host adds them
 deliberately. This document is the contract and the installation note.
 
 Terminology follows `CLAUDE.md` verbatim.
@@ -8,7 +8,7 @@ Terminology follows `CLAUDE.md` verbatim.
 ## 1. The criterion that divides this from hardened code
 
 One rule decides whether a measured failure becomes a refusal in code or a hook that interrupts, and
-it is the repository's own. `.claude/skills/etalon-step-corpus/SKILL.md` says of `soundness` and
+it is the repository's own. `.claude/skills/moldarwin-step-corpus/SKILL.md` says of `soundness` and
 `progress`:
 
 > Where a rule does not reach, leave the field empty; an inferred value here is indistinguishable
@@ -43,7 +43,7 @@ applies to a fault's band.
 
 | hook | fires on | reads | can block |
 |---|---|---|---|
-| `rule_replay` | before a submission | an `etalon-evaluation-contract/1`, replayed by `evaluate_contract` | **yes**, one case |
+| `rule_replay` | before a submission | an `moldarwin-evaluation-contract/1`, replayed by `evaluate_contract` | **yes**, one case |
 | `budget_floor` | at `ready` | `CampaignStore(..., read_only=True).snapshot()` | no |
 | `tool_error_loop` | `PostToolUse` / `PostToolUseFailure` | the event, plus its own session memory | no |
 | `regime_drift` | periodically, or at `Stop` | `research_recorded` events, read-only | no |
@@ -54,7 +54,7 @@ Measured: two submissions were already mathematically unable to pass at submissi
 noticed. The rule is already first-class data — `evaluation_contract` metrics carry an `operator` in
 `{le, lt, ge, gt, eq}` and a finite numeric `threshold`, refuse anything else, and pin
 `missing_policy` to `"insufficient"` — and `evaluate_contract` already replays it, read-only, FREE
-on the tool surface as `etalon_method_evaluate`. Nobody was calling it before the hand-in.
+on the tool surface as `moldarwin_method_evaluate`. Nobody was calling it before the hand-in.
 
 The one block: a **declared outcome in the contract's own vocabulary** that contradicts the replay.
 `research_decision.py` already refuses that shape for a recorded decision (*"unsupported judgment
@@ -135,11 +135,11 @@ One entry point, `research_hooks.py`'s transport: event JSON on stdin, host resp
 diagnostics on stderr.
 
 ```bash
-python -m etalon.hooks --hook tool_error_loop --state-dir /absolute/host-state
-python -m etalon.hooks --hook budget_floor     --database /absolute/campaign.sqlite
-python -m etalon.hooks --hook regime_drift     --database /absolute/campaign.sqlite --window 200
-python -m etalon.hooks --hook rule_replay      --contract /absolute/contract.json \
-                       --workspace /absolute/etalon-workspace.json
+python -m moldarwin.hooks --hook tool_error_loop --state-dir /absolute/host-state
+python -m moldarwin.hooks --hook budget_floor     --database /absolute/campaign.sqlite
+python -m moldarwin.hooks --hook regime_drift     --database /absolute/campaign.sqlite --window 200
+python -m moldarwin.hooks --hook rule_replay      --contract /absolute/contract.json \
+                       --workspace /absolute/moldarwin-workspace.json
 ```
 
 Exit `0` means the hook ran — stdout carries `{}` for a quiet hook and a `hookSpecificOutput`
@@ -152,7 +152,7 @@ cannot act on it.
 
 These install **beside** `research_hooks.py`, not instead of it. They share no state directory and
 no receipt identity, so adding one does not invalidate the research hook's receipts and
-`etalon-research-hooks/4` does not move.
+`moldarwin-research-hooks/4` does not move.
 
 `tool_error_loop` needs `--state-dir` because it counts repetitions across calls. That directory is
 **host session state and never a scientific record**: keyed by session, discarded when the session
@@ -168,7 +168,7 @@ journal's `evaluation_plan` step: `research/continuation.py`'s `_fields` is an e
 both directions, `research/composition.py` validated plan metrics against exactly
 `("name", "family", "unit", "denominator", "missing_policy")` with no optional tuple, and the
 contract↔plan cross-check projected only those same five keys. The rule had to be handed in as an
-`etalon-evaluation-contract/1`.
+`moldarwin-evaluation-contract/1`.
 
 `research/decision_rule.py` now makes it representable, and `rule_replay` reads both sources:
 
@@ -188,7 +188,7 @@ One integration point remains open, and it is a different proposal:
 
 | name | in | becomes useful when |
 |---|---|---|
-| `rule_replay.PLAN_RULES_DIGEST_FIELD` (`"rules_digest"`) and `rule_replay.rule_identity_from_plan` | `src/etalon/hooks/rule_replay.py` | the `evaluation_plan` metric validator accepts `rules_digest` as an **optional** field |
+| `rule_replay.PLAN_RULES_DIGEST_FIELD` (`"rules_digest"`) and `rule_replay.rule_identity_from_plan` | `src/moldarwin/hooks/rule_replay.py` | the `evaluation_plan` metric validator accepts `rules_digest` as an **optional** field |
 
 That is the architecture review's P1(a): bind the *contract's* identity into the plan via
 `evaluation_contract.evaluation_rules_digest`, which is deliberately stable under a change of

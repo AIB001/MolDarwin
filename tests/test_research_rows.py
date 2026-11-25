@@ -3,14 +3,14 @@ from dataclasses import asdict
 import json
 from pathlib import Path
 import pytest
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.schema import canonical,digest
-from etalon.active.store import StateError
-from etalon.boundary.prism_v1 import file_identity
-from etalon.research import Artifact,ResearchJournal
-from etalon.research.fixed_pool import two_chunk_catalog
-from etalon.research.rows import assemble_rows,verify_dataset,visible_receipt
-from etalon.research.transfer import fit_policy,record_policy
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.schema import canonical,digest
+from moldarwin.active.store import StateError
+from moldarwin.boundary.prism_v1 import file_identity
+from moldarwin.research import Artifact,ResearchJournal
+from moldarwin.research.fixed_pool import two_chunk_catalog
+from moldarwin.research.rows import assemble_rows,verify_dataset,visible_receipt
+from moldarwin.research.transfer import fit_policy,record_policy
 
 
 def test_actual_artifact_binding_idempotency_and_unreleased_rows(tmp_path):
@@ -54,7 +54,7 @@ def test_actual_artifact_binding_idempotency_and_unreleased_rows(tmp_path):
     repeated,_=assemble_rows(journal,**args)
     assert repeated==rows and store.events()==events
     verify_dataset(journal,rows,role='train',split_sha256=report['split_sha256'])
-    from etalon.research.rows import config_objects
+    from moldarwin.research.rows import config_objects
     split,_=config_objects(json.loads(config.read_text()))
     policy=fit_policy(rows,split=split,catalog=catalog,budget=900,max_depth=2,cost_weight=.001,static_order=('q1','q2'))
     record_policy(journal,policy)

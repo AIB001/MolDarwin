@@ -141,8 +141,8 @@ def prepare(config, root):
                 (pairdir/'frame.gro').read_text(), replacements))
             (folder/'em.mdp').write_text(relaxation.relaxation_mdp(mode='minimize',steps=config['em_steps']))
             gmx = config['gmx']
-            from etalon.research.method_reuse import request_identity,execute_or_reuse
-            from etalon.research.evidence_refs import file_identity
+            from moldarwin.research.method_reuse import request_identity,execute_or_reuse
+            from moldarwin.research.evidence_refs import file_identity
             # This compiled, preprocessed topology includes the actual force-field
             # dependencies; compare it along with coordinates and effective MDP.
             capture(folder,'compile',[gmx,'grompp','-f','em.mdp','-c','start.gro','-r',

@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from etalon.research import continuation, evidence, evidence_refs, read_scope
-from etalon.research.evidence_refs import EvidenceError, load_workspace
-from etalon.research.read_scope import bounded_read, verified_read
-from etalon.research.research_context import build_research_context
+from moldarwin.research import continuation, evidence, evidence_refs, read_scope
+from moldarwin.research.evidence_refs import EvidenceError, load_workspace
+from moldarwin.research.read_scope import bounded_read, verified_read
+from moldarwin.research.research_context import build_research_context
 from test_research_graph_memory import graph_case
 from test_verified_read_scope import _same_size_change
 
@@ -142,7 +142,7 @@ def test_live_journal_view_is_not_registered_for_deferred_frozen_checks(tmp_path
         db.execute("INSERT INTO metadata VALUES (?,?)", ("research:observation-1", json.dumps({"value": "fixture"})))
         db.execute("INSERT INTO events VALUES (1)")
     manifest = tmp_path / "workspace.json"
-    manifest.write_text(json.dumps({"schema": "etalon-evidence-workspace/1", "workspace_id": "live-fixture",
+    manifest.write_text(json.dumps({"schema": "moldarwin-evidence-workspace/1", "workspace_id": "live-fixture",
         "sources": [{"source_id": "science", "kind": "journal", "location": str(path),
             "identity": {"kind": "journal_identity", "key": "resource:identity", "value": {"release": "fixture"}}}]}))
     with verified_read() as scope:

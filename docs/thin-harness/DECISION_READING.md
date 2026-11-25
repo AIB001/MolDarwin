@@ -1,6 +1,6 @@
 # Optional decision-directed reading
 
-`etalon.research.decision_reading.build_decision_reading` reuses the existing
+`moldarwin.research.decision_reading.build_decision_reading` reuses the existing
 entry, scope graph, original validators, policy and publication/workset readers.
 It creates no store, journal record, execution, semantic relevance classifier or
 automatic adoption. The producer is the published archive; the consumer is a

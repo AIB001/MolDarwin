@@ -7,9 +7,9 @@ import json
 import httpx
 import pytest
 
-from etalon.judgment.advisor import AdvisorError, Advisory, Scripted
-from etalon.judgment.proposal import Act
-from etalon.judgment.providers import HttpAdvisor, transport_from_env
+from moldarwin.judgment.advisor import AdvisorError, Advisory, Scripted
+from moldarwin.judgment.proposal import Act
+from moldarwin.judgment.providers import HttpAdvisor, transport_from_env
 
 
 def mock_http(monkeypatch, handler):
@@ -50,7 +50,7 @@ def test_real_advisory_consumes_each_provider_envelope(monkeypatch, provider):
 def test_failures_are_sanitized_and_retries_are_bounded(monkeypatch, status, attempts):
     calls = []
     mock_http(monkeypatch, lambda req: calls.append(req) or httpx.Response(status, text="test-secret-not-for-logs"))
-    monkeypatch.setattr("etalon.judgment.advisor.time.sleep", lambda _: None)
+    monkeypatch.setattr("moldarwin.judgment.advisor.time.sleep", lambda _: None)
     with pytest.raises(AdvisorError) as error:
         Advisory(HttpAdvisor("openai", "chosen"), "chosen").ask(Act.SPEND, "Pick", required=["ids"])
     assert len(calls) == attempts
@@ -67,7 +67,7 @@ def test_transient_failure_is_counted_in_successful_proposal(monkeypatch):
         return httpx.Response(200, json={"choices": [{"finish_reason": "stop", "message": {"content": '{"ids":[]}'}}]})
 
     mock_http(monkeypatch, handler)
-    monkeypatch.setattr("etalon.judgment.advisor.time.sleep", lambda _: None)
+    monkeypatch.setattr("moldarwin.judgment.advisor.time.sleep", lambda _: None)
     result = Advisory(HttpAdvisor("deepseek", "chosen"), "chosen").ask(Act.SPEND, "Pick", required=["ids"])
     assert result.payload["_attempts"] == 2 and "429" in result.payload["_earlier_attempts"][0]
 
@@ -111,12 +111,12 @@ def test_invalid_credential_destinations_are_refused(url):
 
 
 def test_environment_factory_requires_explicit_model(monkeypatch):
-    monkeypatch.setenv("ETALON_LLM_PROVIDER", "deepseek")
-    monkeypatch.setenv("ETALON_LLM_MODEL", "chosen")
-    monkeypatch.delenv("ETALON_LLM_BASE_URL", raising=False)
+    monkeypatch.setenv("MOLDARWIN_LLM_PROVIDER", "deepseek")
+    monkeypatch.setenv("MOLDARWIN_LLM_MODEL", "chosen")
+    monkeypatch.delenv("MOLDARWIN_LLM_BASE_URL", raising=False)
     assert transport_from_env().model == "chosen"
-    monkeypatch.delenv("ETALON_LLM_MODEL")
-    with pytest.raises(ValueError, match="ETALON_LLM_MODEL"):
+    monkeypatch.delenv("MOLDARWIN_LLM_MODEL")
+    with pytest.raises(ValueError, match="MOLDARWIN_LLM_MODEL"):
         transport_from_env()
 
 

@@ -3,7 +3,7 @@ import pytest
 pytest.importorskip('rdkit')
 from rdkit import Chem, DataStructs
 from rdkit.Chem import rdFingerprintGenerator
-from etalon.data.similarity import catalog_neighbors
+from moldarwin.data.similarity import catalog_neighbors
 
 
 def test_neighbors_match_independent_pairwise_scores_and_keep_identity():

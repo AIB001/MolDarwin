@@ -14,15 +14,15 @@ import shutil
 import sys
 import time
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.schema import canonical, digest
-from etalon.research import Artifact, Coupling, Experiment, Observation, ResearchJournal
-from etalon.research.continuation import (
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.schema import canonical, digest
+from moldarwin.research import Artifact, Coupling, Experiment, Observation, ResearchJournal
+from moldarwin.research.continuation import (
     CHECKPOINT, STEP, capture_watermarks, record_content, resume_research,
 )
-from etalon.research.evidence import query_evidence, read_evidence
-from etalon.research.entry import resolve_entry
-from etalon.research.evidence_refs import file_identity, make_ref
+from moldarwin.research.evidence import query_evidence, read_evidence
+from moldarwin.research.entry import resolve_entry
+from moldarwin.research.evidence_refs import file_identity, make_ref
 
 
 def write(path, value):
@@ -49,11 +49,11 @@ def build(released_root, output, status):
                                                      "scope": "released previously seen coordinator evidence"}}
         published_rows.append({"record_id": path.name, "record_type": "artifact", "visibility": "released", "record": body})
     source_manifest = output / "released.json"
-    write(source_manifest, {"schema": "etalon-artifact-manifest/1", "records": published_rows})
+    write(source_manifest, {"schema": "moldarwin-artifact-manifest/1", "records": published_rows})
     source = {"source_id": "released-r4", "kind": "artifact_manifest", "location": str(source_manifest),
               "identity": {"kind": "snapshot_sha256", "value": file_identity(source_manifest)["sha256"]}}
-    ws = output / "etalon-workspace.json"
-    manifest = {"schema": "etalon-evidence-workspace/1", "workspace_id": "r4-cost-reanalysis-continuation",
+    ws = output / "moldarwin-workspace.json"
+    manifest = {"schema": "moldarwin-evidence-workspace/1", "workspace_id": "r4-cost-reanalysis-continuation",
                 "sources": [source], "status_refs": [str(status)], "location_map": []}
     write(ws, manifest)
     page = query_evidence(ws, filters={"source_ids": ["released-r4"]})
@@ -84,7 +84,7 @@ def build(released_root, output, status):
         "coverage": [{"source_id": "released-r4", "status": "complete", "truncated": False, "errors": []}],
         "selected_refs": external_refs, "excluded": [], "refresh_when": "Different tasks, protocol or new released evidence"},
         "Existing released sources suffice; no external search", output_refs=external_refs)
-    hypothesis = save({"schema": "etalon-research-claim/1", "question": question,
+    hypothesis = save({"schema": "moldarwin-research-claim/1", "question": question,
         "statement": "A lower raw loss alone may not establish cost-adjusted improvement.",
         "subjects": ["phi", "phi0", "cdk2", "hif2a", "tnks2"], "conditions": ["frozen R4 comparison"],
         "epistemic_status": "hypothesis", "support_refs": external_refs, "counter_refs": [],
@@ -144,7 +144,7 @@ def build(released_root, output, status):
     conclusion = "The raw-loss improvement is outweighed by additional cost; no promotion under the frozen R4 objective."
     if values["net_objective_change"] <= 0:
         conclusion = "The released arithmetic favors phi under this frozen objective; broader benefit remains untested."
-    claim = save({"schema": "etalon-research-claim/1", "question": question, "statement": conclusion,
+    claim = save({"schema": "moldarwin-research-claim/1", "question": question, "statement": conclusion,
         "subjects": ["phi", "phi0"], "conditions": ["Three seen families; fixed prepared poses", f"cost weight={weight}"],
         "epistemic_status": "interpretation", "support_refs": [ref(observation.id), ref(result_artifact.id)],
         "counter_refs": [], "limitations": ["Derived from released coordinator evidence; no new simulation", "No independent RSI benefit"],

@@ -4,11 +4,11 @@ import shutil
 
 import pytest
 
-from etalon.active.store import StateError
-from etalon.research import Coupling, Experiment, Observation
-from etalon.research.diagnostics import exact_program
-from etalon.research.runtime import compile_first_segment, observed_branch, record_program
-from etalon.runtime import service
+from moldarwin.active.store import StateError
+from moldarwin.research import Coupling, Experiment, Observation
+from moldarwin.research.diagnostics import exact_program
+from moldarwin.research.runtime import compile_first_segment, observed_branch, record_program
+from moldarwin.runtime import service
 from test_research_optional_methods import build_optional_fixture
 
 

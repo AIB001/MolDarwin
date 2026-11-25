@@ -10,7 +10,7 @@
     "protocol_id": "protocol_id-example",
     "replicate": 0,
     "seed": 20261018,
-    "schema_version": "etalon-prism-task/1",
+    "schema_version": "moldarwin-prism-task/1",
     "operation": "new_run",
     "inputs": {
       "protein": {

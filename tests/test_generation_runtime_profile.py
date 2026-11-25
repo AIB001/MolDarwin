@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from etalon.generate.runtime import inspect_runtime, generation_command
-from etalon.runtime.files import file_identity
+from moldarwin.generate.runtime import inspect_runtime, generation_command
+from moldarwin.runtime.files import file_identity
 
 
 def test_profile_binds_actual_source_and_changed_config_requires_new_profile(tmp_path):

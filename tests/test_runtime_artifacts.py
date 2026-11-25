@@ -9,10 +9,10 @@ from pathlib import Path
 
 import pytest
 
-from etalon.boundary.screen import Screen
-from etalon.campaign.design import component, compose
-from etalon.data.artifacts import new_run, seal, write_json
-from etalon.runtime.artifacts import DESIGN_SCHEMA, MAX_RESPONSE_BYTES, configure, read_result
+from moldarwin.boundary.screen import Screen
+from moldarwin.campaign.design import component, compose
+from moldarwin.data.artifacts import new_run, seal, write_json
+from moldarwin.runtime.artifacts import DESIGN_SCHEMA, MAX_RESPONSE_BYTES, configure, read_result
 
 
 def design():
@@ -232,8 +232,8 @@ def test_screen_cannot_read_an_artifact_not_recorded_in_the_node(screened):
 
 
 def test_screen_uses_digest_verification_before_exposing_rows(screened):
-    from molcascade.artifacts.store import LocalArtifactStore
-    from molcascade.errors import ArtifactIntegrityError
+    from molcat.artifacts.store import LocalArtifactStore
+    from molcat.errors import ArtifactIntegrityError
 
     result, artifact_id = screened
     directory = LocalArtifactStore(result["workspace"]).artifact_directory(artifact_id, verify=True)

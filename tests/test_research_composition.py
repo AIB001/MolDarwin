@@ -5,13 +5,13 @@ from dataclasses import replace
 
 import pytest
 
-from etalon.research import MethodUse, MethodVersion, TaskSplit
-from etalon.research.components import record_json
-from etalon.research.composition import WORKFLOW, node_step, record_evaluation
-from etalon.research.continuation import STEP, read_content, record_content, resume_research, validate_content
-from etalon.research.evidence import query_evidence
-from etalon.research.evidence_refs import EvidenceError
-from etalon.research.method_revision import journal_ref
+from moldarwin.research import MethodUse, MethodVersion, TaskSplit
+from moldarwin.research.components import record_json
+from moldarwin.research.composition import WORKFLOW, node_step, record_evaluation
+from moldarwin.research.continuation import STEP, read_content, record_content, resume_research, validate_content
+from moldarwin.research.evidence import query_evidence
+from moldarwin.research.evidence_refs import EvidenceError
+from moldarwin.research.method_revision import journal_ref
 from test_research_continuation import case, checkpoint, publish, save
 
 
@@ -23,7 +23,7 @@ def ref(case, value):
 def workflow(method_refs=()):
     return {"schema": WORKFLOW, "name": "fixture optional workflow", "scope": "engineering only",
             "method_refs": [], "supersedes": [], "nodes": [
-                {"node_id": "read", "capability_id": "molquarry.data", "method_refs": list(method_refs),
+                {"node_id": "read", "capability_id": "molorigin.data", "method_refs": list(method_refs),
                  "views": ["E", "J"], "purpose": "Read existing evidence", "skip_when": "Exact refs already suffice"},
                 {"node_id": "expensive", "capability_id": "prism.general_fep_lab", "method_refs": [],
                  "views": ["X"], "purpose": "Proposed only", "skip_when": "No discriminating question"}],
@@ -33,7 +33,7 @@ def workflow(method_refs=()):
 def node(case, **changes):
     _, evidence, _, _ = case
     return node_step(task_id="case", question="Does existing evidence suffice?", branch_id="available",
-        node_id="read", capability_id="molquarry.data", state="reused", reason="Reuse the fixture evidence",
+        node_id="read", capability_id="molorigin.data", state="reused", reason="Reuse the fixture evidence",
         input_refs=[evidence], output_refs=[evidence], receipt_refs=[evidence], **changes)
 
 
@@ -51,7 +51,7 @@ def test_workflow_partial_adoption_method_use_and_memory_filters(case):
     cp = save(case, checkpoint(case, used, step_refs=[used, skipped], method_refs=[method]))
     ws = publish(case)
     before = j.store.events()
-    for filters in ({"capability_ids": ["molquarry.data"]}, {"node_ids": ["read"]},
+    for filters in ({"capability_ids": ["molorigin.data"]}, {"node_ids": ["read"]},
                     {"branch_ids": ["available"]}, {"workflow_refs": [wf["record_id"]], "statuses": ["reused"]}):
         found = query_evidence(ws, filters={"source_ids": ["research"], **filters})
         assert [r["ref"] for r in found["items"]] == [used]
@@ -175,8 +175,8 @@ def test_comparison_plan_rejects_self_baseline_and_unversioned_targets(case):
 
 
 def test_scientific_subject_names_do_not_become_method_record_dependencies():
-    from etalon.research.evidence import _references
-    claim = {"schema": "etalon-research-claim/1", "subjects": ["phi", "phi0"], "support_refs": []}
+    from moldarwin.research.evidence import _references
+    claim = {"schema": "moldarwin-research-claim/1", "subjects": ["phi", "phi0"], "support_refs": []}
     assert _references(claim) == []
-    evaluation = {"schema": "etalon-method-evaluation/1", "subjects": ["methodversion-a"], "comparators": ["methodversion-b"]}
+    evaluation = {"schema": "moldarwin-method-evaluation/1", "subjects": ["methodversion-a"], "comparators": ["methodversion-b"]}
     assert _references(evaluation) == ["methodversion-a", "methodversion-b"]

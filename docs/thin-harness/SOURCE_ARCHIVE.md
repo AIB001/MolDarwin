@@ -4,7 +4,7 @@ New `run_data` acquisitions retain source responses in the existing data snapsho
 without a second database. `source-archive/index.json` and content addressed
 `source-archive/bodies/<sha256>.body` files enter the existing snapshot file inventory
 and SHA-256 seal. Evidence files have no TTL or cache eviction path. The caller must
-retain an admitted snapshot; the exploratory MolQuarry cache is a separate facility.
+retain an admitted snapshot; the exploratory MolOrigin cache is a separate facility.
 
 The index records sanitized request descriptors, per-attempt HTTP status and allowed
 headers, retrieval time, declared source version when available, partial streams,
@@ -19,13 +19,13 @@ remain redacted; this exception does not allow arbitrary token-suffixed fields.
 Each body declares its representation and digest scope. Normal transport streams
 contain HTTP content-encoded body bytes, excluding HTTP framing and TLS. Buffered
 httpx responses may expose only content-decoded bytes; this is explicit and never
-presented as the unavailable encoded original. MolQuarry's existing
+presented as the unavailable encoded original. MolOrigin's existing
 `response_sha256` remains the content-decoded parser-input digest, with a separate
 link to the archived attempt and body digest. These hashes are not interchangeable.
 Truncated/aborted captures identify their observed prefix and remain incomplete.
 
 Normalized page files link to capture attempts through the index and unchanged
-MolQuarry provenance hashes. Other workflow outputs are inventoried in the index;
+MolOrigin provenance hashes. Other workflow outputs are inventoried in the index;
 their existing provenance carries the response links. A parsed JSON object is
 never reserialized and called an original response.
 

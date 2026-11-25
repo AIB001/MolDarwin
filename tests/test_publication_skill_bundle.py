@@ -4,16 +4,16 @@ from pathlib import Path
 
 import pytest
 
-from etalon import skills
-from etalon.active import CampaignStore
-from etalon.active.schema import digest
-from etalon.research import ResearchJournal, MethodVersion
-from etalon.research import publication
-from etalon.research import improvement, opportunity_state
-from etalon.research.continuation import record_content
-from etalon.research.method_revision import journal_ref
-from etalon.research.evidence_refs import EvidenceError, file_identity, load_workspace
-from etalon.research.skill_sources import resolve_skill_bundle, validate_skill_bundle_map
+from moldarwin import skills
+from moldarwin.active import CampaignStore
+from moldarwin.active.schema import digest
+from moldarwin.research import ResearchJournal, MethodVersion
+from moldarwin.research import publication
+from moldarwin.research import improvement, opportunity_state
+from moldarwin.research.continuation import record_content
+from moldarwin.research.method_revision import journal_ref
+from moldarwin.research.evidence_refs import EvidenceError, file_identity, load_workspace
+from moldarwin.research.skill_sources import resolve_skill_bundle, validate_skill_bundle_map
 from test_research_publication import case
 
 

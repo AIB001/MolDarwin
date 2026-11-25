@@ -1,4 +1,4 @@
-"""A field ETALON does not compute cannot be written into a record.
+"""A field MolDarwin does not compute cannot be written into a record.
 
 This file replaces a mistake worth recording. The hazard it holds was first addressed with a
 regular expression that hunted fill-instructions across 28 skill files -- prose policing
@@ -18,7 +18,7 @@ the answer was measured before anything was built (2026-11-10, throwaway campaig
 * `MethodEvaluation(..., soundness="sound")` already raised `TypeError`, because a typed
   record with fixed fields was never exposed.
 
-So the hole was exactly the free-form slot that is also where ETALON's own annotations live,
+So the hole was exactly the free-form slot that is also where MolDarwin's own annotations live,
 and the refusal belongs there. `test_a_withdrawn_name_in_bindings_is_refused_at_the_write`
 is that measurement turned into a regression test.
 """
@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import pytest
 
-from etalon.research.reserved_bindings import (
+from moldarwin.research.reserved_bindings import (
     IN_USE,
     WITHDRAWN,
     ReservedBindingError,
@@ -36,9 +36,9 @@ from etalon.research.reserved_bindings import (
 
 @pytest.fixture
 def journal(tmp_path):
-    from etalon.active.schema import CampaignSpec, Endpoint
-    from etalon.active.store import CampaignStore
-    from etalon.research.journal import ResearchJournal
+    from moldarwin.active.schema import CampaignSpec, Endpoint
+    from moldarwin.active.store import CampaignStore
+    from moldarwin.research.journal import ResearchJournal
 
     store = CampaignStore(tmp_path / "campaign.sqlite")
     store.configure(CampaignSpec("reserved", 0, "wall_second", "reserved-fixture"),
@@ -48,8 +48,8 @@ def journal(tmp_path):
 
 
 def _artifact(tmp_path, **over):
-    from etalon.boundary.prism_v1 import file_identity
-    from etalon.research.schema import Artifact
+    from moldarwin.boundary.prism_v1 import file_identity
+    from moldarwin.research.schema import Artifact
 
     path = tmp_path / "evidence.txt"
     path.write_text("reserved-bindings fixture")
@@ -107,7 +107,7 @@ def test_a_typed_record_was_never_exposed_and_still_is_not():
     never the hole, and hardening them again would be a mechanism with no subjects.
     """
 
-    from etalon.research.schema import MethodEvaluation
+    from moldarwin.research.schema import MethodEvaluation
 
     with pytest.raises(TypeError):
         MethodEvaluation(subjects=("a",), comparators=("b",), protocol_ref="p",
@@ -119,12 +119,12 @@ def test_a_typed_record_was_never_exposed_and_still_is_not():
 # -- what must keep working ----------------------------------------------------------------
 
 
-def test_bindings_stay_free_form_for_every_name_etalon_has_not_claimed(tmp_path, journal):
+def test_bindings_stay_free_form_for_every_name_moldarwin_has_not_claimed(tmp_path, journal):
     """The refusal must not turn `bindings` into a closed schema.
 
     `bindings` carries exact evidence refs, a task id, a pose label, a purpose -- whatever
     its writer needs. Closing it would break the design, so what is refused is only the
-    names ETALON claimed. A key that merely *contains* a withdrawn word is the caller's own.
+    names MolDarwin claimed. A key that merely *contains* a withdrawn word is the caller's own.
     """
 
     artifact = _artifact(tmp_path, bindings={
@@ -149,18 +149,18 @@ def test_a_withdrawn_word_as_a_value_is_untouched(tmp_path, journal):
     assert journal.get(artifact.id)["bindings"]["kind"].endswith("heartbeat")
 
 
-def test_the_attribution_etalon_writes_itself_passes_its_own_reserved_shape(tmp_path, journal):
-    """`produced_by` is reserved and in use, so the same gate validates ETALON's own write."""
+def test_the_attribution_moldarwin_writes_itself_passes_its_own_reserved_shape(tmp_path, journal):
+    """`produced_by` is reserved and in use, so the same gate validates MolDarwin's own write."""
 
-    from etalon.research.capability_attribution import (
+    from moldarwin.research.capability_attribution import (
         MCP_TOOL, KEY, running_capability, with_attribution)
 
-    with running_capability("etalon_method_criterion"):
+    with running_capability("moldarwin_method_criterion"):
         bindings = with_attribution({"kind": "fixture"})
     artifact = _artifact(tmp_path, bindings=bindings)
     journal.record(artifact)
     assert journal.get(artifact.id)["bindings"][KEY] == {
-        "capability": "etalon_method_criterion", "basis": MCP_TOOL}
+        "capability": "moldarwin_method_criterion", "basis": MCP_TOOL}
 
 
 @pytest.mark.parametrize("malformed", [
@@ -168,29 +168,29 @@ def test_the_attribution_etalon_writes_itself_passes_its_own_reserved_shape(tmp_
     {"capability": "", "basis": "declared"},  # empty name
     {"capability": "x", "basis": "guessed"},  # basis outside BASES
     {"capability": "x", "basis": "declared", "extra": 1},
-    "etalon_method_criterion",                # not a block at all
+    "moldarwin_method_criterion",                # not a block at all
 ])
 def test_a_malformed_reserved_block_is_refused_rather_than_stored(tmp_path, malformed):
-    """A reserved name with the wrong shape reads afterwards as ETALON's own output.
+    """A reserved name with the wrong shape reads afterwards as MolDarwin's own output.
 
     This is the second class the registry holds, and it is a different harm from a withdrawn
-    name: nothing is missing, something is *wearing* a field ETALON does write.
+    name: nothing is missing, something is *wearing* a field MolDarwin does write.
     """
 
-    from etalon.research.capability_attribution import KEY
+    from moldarwin.research.capability_attribution import KEY
 
     with pytest.raises(ReservedBindingError, match="malformed"):
         _artifact(tmp_path, bindings={KEY: malformed})
 
 
-def test_every_reserved_name_in_use_is_one_etalon_actually_writes():
+def test_every_reserved_name_in_use_is_one_moldarwin_actually_writes():
     """A reserved list that outgrows what is written becomes a vocabulary monopoly.
 
-    So each `IN_USE` entry must name a key something in `src/etalon` actually produces, which
+    So each `IN_USE` entry must name a key something in `src/moldarwin` actually produces, which
     keeps the claimed set tied to the implemented one rather than to intentions.
     """
 
-    from etalon.research import capability_attribution
+    from moldarwin.research import capability_attribution
 
     assert set(IN_USE) == {capability_attribution.KEY}
     validator, description = IN_USE[capability_attribution.KEY]

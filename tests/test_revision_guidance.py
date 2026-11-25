@@ -3,11 +3,11 @@ import copy
 
 import pytest
 
-from etalon.research import MethodUse, MethodVersion, TaskSplit
-from etalon.research import candidate_brief as cb, research_decision as rd
-from etalon.research import revision_guidance as rg
-from etalon.research.composition import node_step, record_evaluation
-from etalon.research.evidence_refs import EvidenceError
+from moldarwin.research import MethodUse, MethodVersion, TaskSplit
+from moldarwin.research import candidate_brief as cb, research_decision as rd
+from moldarwin.research import revision_guidance as rg
+from moldarwin.research.composition import node_step, record_evaluation
+from moldarwin.research.evidence_refs import EvidenceError
 from test_candidate_brief import prepared as brief_fixture
 from test_research_continuation import case, publish, save
 
@@ -24,7 +24,7 @@ def prepared(case, brief_fixture):
     split = p["ref"](p["journal"].record(TaskSplit(("fixture-case",), ("validation",), ("transfer",),
         {"fixture-case": "a", "validation": "b", "transfer": "c"}, "fixture comparison")))
     protocol = p["artifact"]({"fixed": "preserve originals and nulls; same denominator"})
-    plan = save(case, {"schema": "etalon-research-step/1", "task_id": "fixture-case", "question": "Same-condition comparison",
+    plan = save(case, {"schema": "moldarwin-research-step/1", "task_id": "fixture-case", "question": "Same-condition comparison",
         "branch_id": "compare", "operation": "evaluation_plan", "reason": "Fixed fixture checks", "input_refs": [case[1]],
         "output_refs": [], "method_refs": methods, "accounting_refs": [], "source_watermarks": [], "supersedes": [],
         "detail": {"target": "branch_selection", "subjects": [candidate], "comparators": [p["base"]],
@@ -180,7 +180,7 @@ def test_different_after_cannot_borrow_old_candidate_execution_or_plan(case, pre
 
 @pytest.mark.parametrize("bind_action,bind_plan,ready", [(True, False, False), (False, True, False), (True, True, True)])
 def test_actual_after_must_bind_the_same_method_in_action_and_comparison(case, prepared, bind_action, bind_plan, ready):
-    from etalon.research.improvement import read_material
+    from moldarwin.research.improvement import read_material
     p = prepared
     after = p["artifact"]({"read": "a_second_real_candidate", "preserve_negative": True})
     method = p["ref"](p["journal"].record(MethodVersion("second candidate", ("usage_method",),
@@ -204,7 +204,7 @@ def test_actual_after_must_bind_the_same_method_in_action_and_comparison(case, p
 
 
 def test_verified_after_content_alias_preserves_existing_candidate_identity(case, prepared):
-    from etalon.research.components import record_json
+    from moldarwin.research.components import record_json
     p = prepared
     alias = p["ref"](record_json(p["journal"], {"preserve_negative": True, "read": "generic"},
         p["root"] / "alias", source_kind="fixture"))
@@ -216,7 +216,7 @@ def test_verified_after_content_alias_preserves_existing_candidate_identity(case
 
 
 def test_fixed_plan_also_needs_the_exact_base_comparator(case, prepared):
-    from etalon.research.improvement import read_material
+    from moldarwin.research.improvement import read_material
     p = prepared
     other = p["ref"](p["journal"].record(MethodVersion("other baseline", ("usage_method",),
         {"artifact_ref": p["before"]["record_id"]})))
@@ -231,8 +231,8 @@ def test_fixed_plan_also_needs_the_exact_base_comparator(case, prepared):
 
 
 def test_workflow_edit_needs_exact_patch_and_selected_after_workflow(case, prepared):
-    from etalon.research import improvement as imp
-    from etalon.research.composition import WORKFLOW
+    from moldarwin.research import improvement as imp
+    from moldarwin.research.composition import WORKFLOW
     p = prepared
     before = {"schema": WORKFLOW, "name": "reader selection", "scope": "fixture readers", "method_refs": p["methods"],
         "nodes": [{"node_id": "read", "capability_id": None, "method_refs": p["methods"], "views": ["E"],
@@ -286,7 +286,7 @@ def test_normal_use_update_attributes_negative_to_fixed_plan_without_reproposing
     assert p["journal"].store.events() == before
     # Normal-use attribution can connect to the existing patch/evaluation/
     # experience chain without creating an adoption or a second workflow.
-    from etalon.research import improvement as imp
+    from moldarwin.research import improvement as imp
     patch = imp.build_method_patch(p["journal"], context_ref=p["args"]["context_ref"],
         opportunity_ref=p["args"]["opportunity_ref"], base_method_ref=p["base"], candidate_method_ref=p["candidate"],
         expected_change="Fewer reader failures", source_id="research")["patch"]
@@ -307,7 +307,7 @@ def test_normal_use_update_attributes_negative_to_fixed_plan_without_reproposing
         candidate(case, p, update_ref=update, patch_ref=patch_ref, experience_refs=[experience])
     # A changed denominator/check plan cannot be silently substituted after seeing the result.
     changed = copy.deepcopy(p["decision_args"])
-    from etalon.research.improvement import read_material
+    from moldarwin.research.improvement import read_material
     plan = read_material(publish(case), p["plan"])["content"]
     plan["detail"]["metrics"][0]["denominator"] = "successful cases only"
     changed["evaluation_refs"] = [save(case, plan)]

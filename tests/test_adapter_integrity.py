@@ -7,19 +7,19 @@ from types import SimpleNamespace
 
 import pytest
 
-from etalon.active.adapters import StageExecutor, molecular_candidates
-from etalon.active.policy import Choice
-from etalon.active.runner import ActiveCampaign
-from etalon.active.schema import Action, CampaignSpec, Candidate, Endpoint, Evaluation
-from etalon.active.store import CampaignStore
-from etalon.authority.grant import NotAuthorized, authorize
-from etalon.campaign.expensive import PrismStage
+from moldarwin.active.adapters import StageExecutor, molecular_candidates
+from moldarwin.active.policy import Choice
+from moldarwin.active.runner import ActiveCampaign
+from moldarwin.active.schema import Action, CampaignSpec, Candidate, Endpoint, Evaluation
+from moldarwin.active.store import CampaignStore
+from moldarwin.authority.grant import NotAuthorized, authorize
+from moldarwin.campaign.expensive import PrismStage
 
 
 @pytest.fixture
 def execution(monkeypatch):
     # Exercise real token signatures and row digests without loading scientific tools.
-    monkeypatch.setattr("etalon.faults.preflight.check_record", lambda *args, **kwargs: ())
+    monkeypatch.setattr("moldarwin.faults.preflight.check_record", lambda *args, **kwargs: ())
     candidate = Candidate("m1", "CCO", (1.0,),
                           handoff={"parent_id": "m1", "parent_smiles": "CCO"}, cheap_value=0.0)
     endpoint = Endpoint("objective", "target", "score", "u", "fake/1", 3.0)
@@ -190,7 +190,7 @@ def test_bad_cost_reader_is_persisted_as_a_failure_charged_at_reservation(execut
     executor = StageExecutor({"objective": execution.factory}, actual_cost=lambda action, rows: cost)
     run = ActiveCampaign(store, executor, receptor_path=receptor)
     monkeypatch.setattr(run, "plan", lambda: (model, [choice], "ready"))
-    monkeypatch.setattr("etalon.active.runner.check_record", lambda *args, **kwargs: ())
+    monkeypatch.setattr("moldarwin.active.runner.check_record", lambda *args, **kwargs: ())
     outcome = run.run_round()
     action = next(action for action in store.actions() if action["round_id"])
     result = next(row["result"] for row in store.observations() if row["action_id"] == action["id"])
@@ -202,8 +202,8 @@ def test_bad_cost_reader_is_persisted_as_a_failure_charged_at_reservation(execut
 
 
 def test_molecular_adapter_keeps_full_library_alignment_without_scientific_tools(monkeypatch):
-    from etalon.boundary import infra
-    from etalon.learn import calibrate, surrogate
+    from moldarwin.boundary import infra
+    from moldarwin.learn import calibrate, surrogate
 
     calls = []
     monkeypatch.setattr(infra, "load", lambda name: calls.append(("load", name)))
@@ -226,7 +226,7 @@ def test_molecular_adapter_keeps_full_library_alignment_without_scientific_tools
     assert [candidate.scaffold for candidate in candidates] == ["acyclic:CCO", "acyclic:CCN"]
     assert candidates[0].cheap_value == 0.0 and candidates[1].cheap_value is None
     assert all(candidate.source == "full library" for candidate in candidates)
-    assert calls == [("load", "molcascade"), ("features", ["CCO", "invalid", "CCN"]),
+    assert calls == [("load", "molcat"), ("features", ["CCO", "invalid", "CCN"]),
                      ("scaffolds", ["CCO", "CCN"])]
     reordered, rejected_again = molecular_candidates(dict(reversed(list(pool.items()))),
                                                      cheap={"a": 0.0}, source="full library")

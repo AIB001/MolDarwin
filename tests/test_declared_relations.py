@@ -5,15 +5,15 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active.schema import canonical
-from etalon.research import Artifact
-from etalon.research.continuation_card import _inventory
-from etalon.research.continuation_pages import _closure_inventory
-from etalon.research.declared_relations import relation_index
-from etalon.research.evidence import _collect
-from etalon.research.evidence_refs import EvidenceError, file_identity, load_workspace, make_ref
-from etalon.research.graph_memory import build_research_graph, node_identity
-from etalon.research.read_scope import verified_read
+from moldarwin.active.schema import canonical
+from moldarwin.research import Artifact
+from moldarwin.research.continuation_card import _inventory
+from moldarwin.research.continuation_pages import _closure_inventory
+from moldarwin.research.declared_relations import relation_index
+from moldarwin.research.evidence import _collect
+from moldarwin.research.evidence_refs import EvidenceError, file_identity, load_workspace, make_ref
+from moldarwin.research.graph_memory import build_research_graph, node_identity
+from moldarwin.research.read_scope import verified_read
 from test_research_graph_memory import graph_case
 
 
@@ -27,7 +27,7 @@ def nested_counter(case, *, target=None):
     body = artifact.as_dict()
     ref = make_ref("other", artifact.id, body)
     manifest = path.with_suffix(".json")
-    manifest.write_text(json.dumps({"schema": "etalon-artifact-manifest/1", "records": [
+    manifest.write_text(json.dumps({"schema": "moldarwin-artifact-manifest/1", "records": [
         {"record_id": artifact.id, "record_type": "artifact", "record": body, "visibility": "released"}]}))
     ws = json.loads(c["workspace"].read_text())
     ws["sources"].append({"source_id": "other", "kind": "artifact_manifest", "location": str(manifest),
@@ -68,7 +68,7 @@ def test_nested_qualified_identity_cannot_disappear_before_incidence(graph_case,
 
 def test_relation_cache_is_disposable_copied_and_policy_isolated(graph_case):
     c = graph_case
-    from etalon.research.graph_memory import restrict_workspace
+    from moldarwin.research.graph_memory import restrict_workspace
     ws = load_workspace(c["workspace"])
     with verified_read() as scope:
         collection = _collect(ws)

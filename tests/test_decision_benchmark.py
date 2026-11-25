@@ -2,8 +2,8 @@ from copy import deepcopy
 
 import pytest
 
-from etalon.active.decision_benchmark import GROUPS, _posthoc, decision_benchmark
-from etalon.active.store import CampaignStore, StateError
+from moldarwin.active.decision_benchmark import GROUPS, _posthoc, decision_benchmark
+from moldarwin.active.store import CampaignStore, StateError
 
 
 def _without_timing(report):
@@ -94,7 +94,7 @@ def test_posthoc_does_not_conflate_recommendation_and_observed_regret():
 def test_resume_refuses_changed_implementation_environment_before_more_queries(tmp_path, monkeypatch):
     import importlib
 
-    module = importlib.import_module("etalon.active.decision_benchmark")
+    module = importlib.import_module("moldarwin.active.decision_benchmark")
     first = decision_benchmark(tmp_path, seeds=(0,), size=8, budget=48, rounds=1)
     path = first["runs"][0]["database"]
     before = CampaignStore(path, read_only=True).actions()
@@ -107,7 +107,7 @@ def test_resume_refuses_changed_implementation_environment_before_more_queries(t
 def test_changing_hidden_oracle_cannot_change_first_action(tmp_path, monkeypatch):
     import importlib
 
-    module = importlib.import_module("etalon.active.decision_benchmark")
+    module = importlib.import_module("moldarwin.active.decision_benchmark")
     original = module.synthetic_manifest
     tamper = [False]
 

@@ -4,18 +4,18 @@ import json
 
 import pytest
 
-from etalon.research import MethodUse
-from etalon.research.components import record_json
-from etalon.research.composition import record_evaluation
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research.improvement import build_revision_context
-from etalon.research.meta_context import (
+from moldarwin.research import MethodUse
+from moldarwin.research.components import record_json
+from moldarwin.research.composition import record_evaluation
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research.improvement import build_revision_context
+from moldarwin.research.meta_context import (
     WORKSET, _dependencies, build_task_workset, describe_resource, index_resources,
     make_task_profile, prepare_adaptation_context, review_adaptation,
 )
-from etalon.research.method_links import method_links
-from etalon.research.method_revision import journal_ref
-from etalon.research.resource_usage import (
+from moldarwin.research.method_links import method_links
+from moldarwin.research.method_revision import journal_ref
+from moldarwin.research.resource_usage import (
     build_resource_usage, read_resource_usage, record_resource_usage,
 )
 from test_research_continuation import case, checkpoint, publish, save, step
@@ -90,7 +90,7 @@ def test_full_chain_reads_and_improvement_reuses_artifact_without_claiming_consu
     context = build_revision_context(ws, task_id="case", scope="fixture", conditions={"target": "SND1"},
         target_ref=payload["method_ref"], problem_refs=[ur])
     assert context["status"] == "ready_for_revision"
-    assert context["observations"][-1]["schema"] in {"etalon-method-version/1", "etalon-resource-usage/1"}
+    assert context["observations"][-1]["schema"] in {"moldarwin-method-version/1", "moldarwin-resource-usage/1"}
     links = method_links(case[0].get(rid), "research", {})
     assert (payload["use_ref"], "declared_attributed_use") in links
     assert file_identity(case[0].store.path) == before and not case[0].store.actions()
@@ -144,7 +144,7 @@ def test_retrospective_and_excluded_parts_do_not_gain_use_or_activation(case):
 
 def test_evaluation_and_decision_need_direct_attribution(case):
     payload = chain(case)
-    from etalon.research.improvement import _local
+    from moldarwin.research.improvement import _local
     content = _local(case[0], payload["evaluation_ref"], "research")
     content["detail"].pop("use_refs")
     content["detail"].pop("node_refs")
@@ -172,7 +172,7 @@ def test_reader_rejects_changed_bytes_and_missing_dependency_bindings(case):
 
 def test_arbitrary_graph_metadata_cannot_claim_verified_use(case):
     evidence = case[1]
-    value = {"bindings": {"schema": "etalon-resource-usage/1", "evidence_refs": [evidence],
+    value = {"bindings": {"schema": "moldarwin-resource-usage/1", "evidence_refs": [evidence],
         "resource_usage_links": [{"ref": evidence, "relation": "verified_execution"},
                                  {"ref": evidence, "relation": "declared_attributed_use"}]}}
     assert method_links(value, "research", {}) == [(evidence, "declared_attributed_use")]
@@ -191,12 +191,12 @@ def test_json_artifact_cannot_impersonate_methoduse(case):
 
 def test_selection_via_exact_experience_preserves_task_and_method_scope(case):
     payload = chain(case)
-    from etalon.research.improvement import _local
+    from moldarwin.research.improvement import _local
     evaluation = _local(case[0], payload["evaluation_ref"], "research")["detail"]["evaluation_ref"]
-    experience = dict(schema="etalon-method-experience/1", task_id="case", scope="fixture", conditions={"target": "SND1"},
+    experience = dict(schema="moldarwin-method-experience/1", task_id="case", scope="fixture", conditions={"target": "SND1"},
         method_refs=[payload["method_ref"]], supersedes=[], patch_ref=case[1], evaluation_ref=evaluation,
         resolution_ref=payload["selection_ref"], outcome="retain", lesson="No improvement", invalid_when="Scope changes",
-        support_refs=[case[1]], counter_refs=[], capability_id="molquarry.data")
+        support_refs=[case[1]], counter_refs=[], capability_id="molorigin.data")
     er = artifact(case, experience)
     choice = step(case[1]); choice["detail"]["basis_refs"] = [er]
     payload["selection_ref"] = save(case, choice)
@@ -212,7 +212,7 @@ def test_selection_via_exact_experience_preserves_task_and_method_scope(case):
 
 def test_supplied_checkpoint_checks_activation_instead_of_guessing_latest(case):
     payload = chain(case)
-    from etalon.research.improvement import _local
+    from moldarwin.research.improvement import _local
     workset = _local(case[0], payload["workset_ref"], "research")
     wr = artifact(case, workset, dict(schema=WORKSET, meta_activation=WORKSET,
         task_id="case", evidence_refs=_dependencies(workset)))

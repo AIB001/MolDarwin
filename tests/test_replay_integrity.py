@@ -7,8 +7,8 @@ import json
 
 import pytest
 
-from etalon.active.replay import from_manifest, synthetic_manifest
-from etalon.mcp.active import register
+from moldarwin.active.replay import from_manifest, synthetic_manifest
+from moldarwin.mcp.active import register
 
 
 @pytest.mark.parametrize("defect", [
@@ -67,7 +67,7 @@ def test_mcp_rejects_invalid_rounds_before_loading_or_bootstrapping(tmp_path, ro
     register(collector)
     manifest = tmp_path / "intentionally-missing.json"
     database = tmp_path / "journal.sqlite"
-    result = json.loads(collector.functions["etalon_active_replay"](str(manifest), str(database), rounds))
+    result = json.loads(collector.functions["moldarwin_active_replay"](str(manifest), str(database), rounds))
     assert result["ok"] is False
     assert result["error"]["code"] == "ValueError"
     assert "rounds" in result["error"]["message"]

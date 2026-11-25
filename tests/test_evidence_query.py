@@ -7,16 +7,16 @@ import sys
 
 import pytest
 
-from etalon.active.schema import canonical, digest
-from etalon.research.evidence import EvidenceError, StaleCursorError, query_evidence, read_evidence
-from etalon.research.evidence_refs import file_identity, make_ref
+from moldarwin.active.schema import canonical, digest
+from moldarwin.research.evidence import EvidenceError, StaleCursorError, query_evidence, read_evidence
+from moldarwin.research.evidence_refs import file_identity, make_ref
 
 
 def publish(tmp_path, records, *, extra_sources=(), location_map=()):
     manifest = tmp_path / "manifest.json"
-    manifest.write_text(json.dumps({"schema": "etalon-artifact-manifest/1", "records": records}))
+    manifest.write_text(json.dumps({"schema": "moldarwin-artifact-manifest/1", "records": records}))
     ws = tmp_path / "workspace.json"
-    ws.write_text(json.dumps({"schema": "etalon-evidence-workspace/1", "workspace_id": "fixture",
+    ws.write_text(json.dumps({"schema": "moldarwin-evidence-workspace/1", "workspace_id": "fixture",
         "sources": [{"source_id": "released", "kind": "artifact_manifest", "location": "manifest.json",
                      "identity": {"kind": "snapshot_sha256", "value": file_identity(manifest)["sha256"]}}, *extra_sources],
         "location_map": list(location_map)}))
@@ -120,7 +120,7 @@ def test_artifact_whole_hash_verified_before_fragment_and_missing(tmp_path):
 def test_claim_cross_source_support_counter_and_lineage(tmp_path):
     original = row(1, effect="uncertain", role="independent_validation")
     ref = make_ref("released", original["record_id"], original["record"])
-    claim = {"schema": "etalon-research-claim/1", "question": "effect?", "subjects": [], "conditions": {},
+    claim = {"schema": "moldarwin-research-claim/1", "question": "effect?", "subjects": [], "conditions": {},
              "statement": "not established", "epistemic_status": "interpretation", "support_refs": [ref],
              "counter_refs": [ref], "limitations": ["previously seen"], "method_refs": [], "supersedes": []}
     ws = publish(tmp_path, [original, {"record_id": "claim-1", "record_type": "claim", "record": claim, "visibility": "released"}])
@@ -130,7 +130,7 @@ def test_claim_cross_source_support_counter_and_lineage(tmp_path):
 
 
 def test_native_data_snapshot_explicit_members(tmp_path):
-    from etalon.data.artifacts import seal
+    from moldarwin.data.artifacts import seal
     data = tmp_path / "data"; data.mkdir()
     (data / "result.txt").write_text("fixture released")
     snapshot = seal(data, kind="fixture", result={}, infrastructure={})
@@ -173,7 +173,7 @@ def test_private_source_not_opened_and_cross_source_derived_hidden(tmp_path, mon
 def test_identical_bytes_across_sources_preserve_source_and_cost_roles(tmp_path):
     original = row(1, role="independent_validation", cost=1.2)
     second = tmp_path / "second.json"
-    second.write_text(json.dumps({"schema": "etalon-artifact-manifest/1", "records": [original]}))
+    second.write_text(json.dumps({"schema": "moldarwin-artifact-manifest/1", "records": [original]}))
     source = {"source_id": "other", "kind": "artifact_manifest", "location": second.name,
               "identity": {"kind": "snapshot_sha256", "value": file_identity(second)["sha256"]}}
     ws = publish(tmp_path, [original], extra_sources=[source])
@@ -227,7 +227,7 @@ def test_lineage_never_rebinds_exact_digest_and_keeps_member_identity(tmp_path, 
     extra = []
     if cross_source:
         path = tmp_path / "other.json"
-        path.write_text(json.dumps({"schema": "etalon-artifact-manifest/1", "records": [target]}))
+        path.write_text(json.dumps({"schema": "moldarwin-artifact-manifest/1", "records": [target]}))
         extra = [{"source_id": "other", "kind": "artifact_manifest", "location": path.name,
                   "identity": {"kind": "snapshot_sha256", "value": file_identity(path)["sha256"]}}]
     ws = publish(tmp_path, [origin] if cross_source else [target, origin], extra_sources=extra)
@@ -247,8 +247,8 @@ def test_legacy_relationship_is_marked_as_current_metadata(tmp_path):
 
 
 def test_normal_claim_artifact_publication_projection_and_tamper(tmp_path):
-    from etalon.active import CampaignSpec, CampaignStore, Endpoint
-    from etalon.research import Artifact, ResearchJournal
+    from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+    from moldarwin.research import Artifact, ResearchJournal
     store = CampaignStore(tmp_path / "campaign.sqlite")
     store.configure(CampaignSpec("x", 1, "fixture", "claim-publication"),
                     [Endpoint("x", "fixture", "unmeasured", "count", "fixture/1", 1, queryable=False)])
@@ -257,12 +257,12 @@ def test_normal_claim_artifact_publication_projection_and_tamper(tmp_path):
     support = Artifact(str(support_path), **file_identity(support_path), source_kind="fixture", role="diagnostic", bindings={})
     support_id = journal.record(support)
     exact = make_ref("journal", support_id, journal.get(support_id))
-    claim = {"schema": "etalon-research-claim/1", "question": "a queryable claim topic", "statement": "bounded interpretation",
+    claim = {"schema": "moldarwin-research-claim/1", "question": "a queryable claim topic", "statement": "bounded interpretation",
              "subjects": [], "conditions": {}, "epistemic_status": "interpretation", "support_refs": [exact],
              "counter_refs": [exact], "limitations": ["fixture"], "method_refs": [], "supersedes": []}
     path = tmp_path / "claim.json"; path.write_text(json.dumps(claim))
     artifact = Artifact(str(path), **file_identity(path), source_kind="fixture", role="diagnostic",
-                        bindings={"schema": "etalon-research-claim/1"})
+                        bindings={"schema": "moldarwin-research-claim/1"})
     identifier = journal.record(artifact)
     before = file_identity(store.path)
     ws = publish(tmp_path, [], extra_sources=[{"source_id": "journal", "kind": "journal", "location": str(store.path),
@@ -275,7 +275,7 @@ def test_normal_claim_artifact_publication_projection_and_tamper(tmp_path):
     assert read_evidence(ws, item["ref"], view="lineage")["items"] == [exact, exact]
     assert read_evidence(ws, item["ref"])["record"] == journal.get(identifier)
     child = subprocess.run([sys.executable, "-c",
-        "import json,sys; from etalon.research.evidence import query_evidence,read_evidence; "
+        "import json,sys; from moldarwin.research.evidence import query_evidence,read_evidence; "
         "p=query_evidence(sys.argv[1],query=sys.argv[2]); r=p['items'][0]['ref']; "
         "print(json.dumps({'ref':r,'lineage':read_evidence(sys.argv[1],r,view='lineage')}))",
         str(ws), "a queryable claim topic"], capture_output=True, check=True, text=True)
@@ -292,7 +292,7 @@ def test_normal_claim_artifact_publication_projection_and_tamper(tmp_path):
 
 
 def test_optional_projection_only_opens_explicit_published_known_records(tmp_path):
-    claim = {"schema": "etalon-research-claim/1", "question": "explicit historical topic", "statement": "claim",
+    claim = {"schema": "moldarwin-research-claim/1", "question": "explicit historical topic", "statement": "claim",
              "subjects": [], "conditions": {}, "epistemic_status": "hypothesis", "support_refs": [],
              "counter_refs": [], "limitations": [], "method_refs": [], "supersedes": []}
     path = tmp_path / "claim.json"; path.write_text(json.dumps(claim))

@@ -7,21 +7,21 @@ from __future__ import annotations
 import argparse, json, time
 from pathlib import Path
 from research_posebusters import Case, read, CONDITIONS
-from etalon.host import _consumer_lock
-from etalon.research import improvement as imp
-from etalon.research.schema import MethodVersion, MethodUse, TaskSplit
-from etalon.research.continuation import STEP
-from etalon.research.composition import node_step, record_evaluation
-from etalon.research.evidence_refs import file_identity
-from etalon.research.pose_selection import input_features, select_with_policy
-from etalon.research.pose_task import select_pose_branch
-from etalon.research.publication import _save
+from moldarwin.host import _consumer_lock
+from moldarwin.research import improvement as imp
+from moldarwin.research.schema import MethodVersion, MethodUse, TaskSplit
+from moldarwin.research.continuation import STEP
+from moldarwin.research.composition import node_step, record_evaluation
+from moldarwin.research.evidence_refs import file_identity
+from moldarwin.research.pose_selection import input_features, select_with_policy
+from moldarwin.research.pose_task import select_pose_branch
+from moldarwin.research.publication import _save
 
 
 class SelectionCase(Case):
     SID='pose-selection24'; TASK='pose-selection24-independent-validation'
     QUESTION='Can an input-only conditional ranking workflow retain CNN pose recovery while avoiding unnecessary or harmful rescoring?'
-    CAP='molcascade.gnina.input-conditioned-ranking'
+    CAP='molcat.gnina.input-conditioned-ranking'
     CONDITIONS={**CONDITIONS,'selection_stage':'before-scientific-execution','policy':'seen-panel-hbd-stump-v1'}
     driver_name='research_pose_selection.py'
     protocol_file='protocol-v2.json'

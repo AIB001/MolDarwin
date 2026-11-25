@@ -21,9 +21,9 @@ flowchart LR
 
 | Surface | Reused producer and consumer | Added behavior |
 | --- | --- | --- |
-| `etalon_research_context(view="resources")` | Published evidence scope, original reader, skill snapshot, existing resource descriptors and worksets | Paginated inventory across skill, method, workflow, claim, evidence, experience, verifier and template; unknown applicability stays unknown |
-| `etalon_research_context(view="branch", branch_id=...)` | Exact checkpoint branch, graph projection, workset and resource-use verifier | Separate task selection, declared relations, verified use associations, experience categories and later decisions |
-| `etalon_method_evaluate(...)` | Original result/accounting refs, protocol, initial conditions, MethodEvaluation, method contract and plan | Fixed declarative checks with separate regression, retention, funnel and cost outcomes |
+| `moldarwin_research_context(view="resources")` | Published evidence scope, original reader, skill snapshot, existing resource descriptors and worksets | Paginated inventory across skill, method, workflow, claim, evidence, experience, verifier and template; unknown applicability stays unknown |
+| `moldarwin_research_context(view="branch", branch_id=...)` | Exact checkpoint branch, graph projection, workset and resource-use verifier | Separate task selection, declared relations, verified use associations, experience categories and later decisions |
+| `moldarwin_method_evaluate(...)` | Original result/accounting refs, protocol, initial conditions, MethodEvaluation, method contract and plan | Fixed declarative checks with separate regression, retention, funnel and cost outcomes |
 
 Old context calls and data schemas remain valid. The first two surfaces are views
 of an existing MCP tool; the third is one optional read-only tool. Python callers

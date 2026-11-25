@@ -16,8 +16,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from etalon.economics.allocate import plan, retention
-from etalon.economics.stage import BY_ID, STAGES, Answers, needs_an_ensemble
+from moldarwin.economics.allocate import plan, retention
+from moldarwin.economics.stage import BY_ID, STAGES, Answers, needs_an_ensemble
 
 FUNNEL = [BY_ID[i] for i in ("lilly_demerits", "docking", "mmgbsa_ensemble", "md_stability", "fep_edge")]
 
@@ -343,7 +343,7 @@ def test_the_correlation_carries_its_own_uncertainty() -> None:
     stages 0.09 apart are not distinguishable however carefully each was measured.
     """
 
-    from etalon.economics.measure import Measured
+    from moldarwin.economics.measure import Measured
 
     panel = Measured(0.45, 231, 0.0, 0.0, "measured IC50")
 
@@ -355,7 +355,7 @@ def test_the_correlation_carries_its_own_uncertainty() -> None:
 
 
 def test_the_resolution_tightens_with_the_panel() -> None:
-    from etalon.economics.measure import Measured
+    from moldarwin.economics.measure import Measured
 
     sizes = [Measured(0.45, n, 0.0, 0.0, "x").resolvable for n in (50, 231, 1000, 5000)]
 
@@ -373,7 +373,7 @@ def test_getting_the_direction_wrong_flips_the_sign_rather_than_degrading_it() -
 
     import numpy as np
 
-    from etalon.economics.measure import measure
+    from moldarwin.economics.measure import measure
 
     rng = np.random.default_rng(0)
     nanomolar = np.exp(rng.normal(3, 2, 200))
@@ -392,7 +392,7 @@ def test_the_interval_stays_inside_minus_one_and_one() -> None:
     """Which the naive interval does not, near the ends."""
 
 
-    from etalon.economics.measure import measure
+    from moldarwin.economics.measure import measure
 
     perfect = list(range(40))
     result = measure([float(v) for v in perfect], [float(v) for v in perfect], truth="x",
@@ -403,7 +403,7 @@ def test_the_interval_stays_inside_minus_one_and_one() -> None:
 
 
 def test_molecules_without_a_score_or_an_answer_are_counted_not_dropped_silently() -> None:
-    from etalon.economics.measure import measure
+    from moldarwin.economics.measure import measure
 
     scores = [float(v) for v in range(20)] + [None, None]
     answers = [float(v) for v in range(20)] + [1.0, None]
@@ -417,7 +417,7 @@ def test_molecules_without_a_score_or_an_answer_are_counted_not_dropped_silently
 def test_too_few_pairs_is_refused() -> None:
     """A correlation on nine molecules contains almost any value, and publishing one invites its use."""
 
-    from etalon.economics.measure import measure
+    from moldarwin.economics.measure import measure
 
     with pytest.raises(ValueError, match="interval wide enough"):
         measure([1.0] * 5, [1.0, 2.0, 3.0, 4.0, 5.0], truth="x")
@@ -426,7 +426,7 @@ def test_too_few_pairs_is_refused() -> None:
 def test_a_measured_stage_replaces_the_placeholder_source() -> None:
     """Rather than appending to it: the old text explains why the number was a convention."""
 
-    from etalon.economics.measure import Measured, as_stage
+    from moldarwin.economics.measure import Measured, as_stage
 
     measured = Measured(0.52, 231, 0.42, 0.61, "measured IC50, nM", dropped=3)
     stage = as_stage(BY_ID["docking"], measured)
@@ -445,7 +445,7 @@ def test_measuring_the_correlation_does_not_relabel_the_cost() -> None:
     three. ``as_stage`` measures a correlation; it has not measured what the tier costs, and used to
     say it had by setting the stage-level evidence."""
 
-    from etalon.economics.measure import Measured, as_stage
+    from moldarwin.economics.measure import Measured, as_stage
 
     measured = Measured(0.52, 231, 0.42, 0.61, "measured IC50, nM")
     substituted = as_stage(BY_ID["docking"], measured)
@@ -464,7 +464,7 @@ def test_measuring_an_enrichment_curve_does_not_relabel_the_correlation() -> Non
     placeholder -- under ``evidence: measured_here``, because ``with_enrichment`` set the stage-level
     label after substituting a curve."""
 
-    from etalon.economics.measure import EnrichmentPoint, with_enrichment
+    from moldarwin.economics.measure import EnrichmentPoint, with_enrichment
 
     points = [
         EnrichmentPoint(0.01, 2, 1, 12, 12 / 231, 0.0182 * 12 / 231 / (12 / 231), 0.8),
@@ -487,7 +487,7 @@ def test_measuring_an_enrichment_curve_does_not_relabel_the_correlation() -> Non
 def test_measuring_a_stage_that_does_not_rank_is_refused() -> None:
     """Giving a validity filter a correlation invites it to be compared with stages that do."""
 
-    from etalon.economics.measure import Measured, as_stage
+    from moldarwin.economics.measure import Measured, as_stage
 
     measured = Measured(0.5, 231, 0.4, 0.6, "x")
 

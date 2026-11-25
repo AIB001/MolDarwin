@@ -1,6 +1,6 @@
 # 固定运行环境档案
 
-`etalon.boundary.runtime_profile` 是显式的 capture → verify → bind → launch 边界。
+`moldarwin.boundary.runtime_profile` 是显式的 capture → verify → bind → launch 边界。
 它不安装依赖、不选择默认环境，也不接管任务调度。现有 `runtime`、MCP 和任务恢复接口未被改成自动选择档案；需要使用本边界的调用方显式采用它。
 
 一个能力的状态分别记录：
@@ -45,7 +45,7 @@
   --timeout 120
 ```
 
-也支持 `python -m etalon.boundary.runtime_profile ...`。独立文件方式只有标准库依赖，适合目标解释器中的 ETALON 尚未安装新模块的情况；实际 probe 使用目标 Python 运行同一份档案工具，工具本身也被摘要绑定。
+也支持 `python -m moldarwin.boundary.runtime_profile ...`。独立文件方式只有标准库依赖，适合目标解释器中的 MolDarwin 尚未安装新模块的情况；实际 probe 使用目标 Python 运行同一份档案工具，工具本身也被摘要绑定。
 
 `capture --no-checks` 只盘点可用性，不能直接建立已验证绑定。`bind` 会重新核验，保存完整 profile、能力、精确 Python 参数及脚本/配置/输入文件摘要；直接脚本入口自动纳入，其他文件由重复的 `--command-file` 显式声明。`-c CODE` 的代码和参数直接进入绑定摘要；`-m MODULE` 要求该模块已在 profile 中显式捕获。入口不能以 `-E`、`-I`、`-S` 等改变预检导入方式的选项开头。
 

@@ -8,7 +8,7 @@ import sys
 
 import pytest
 
-from etalon import host, skills
+from moldarwin import host, skills
 
 
 def make_bundle(tmp_path, slug, *, required=(), optional=(), extra=None):
@@ -18,7 +18,7 @@ def make_bundle(tmp_path, slug, *, required=(), optional=(), extra=None):
         f"---\nname: {slug}\ndescription: Dependency fixture\n---\nSelected fixture.\n",
         encoding="utf-8")
     (root / skills.DEPENDENCIES).write_text(json.dumps({
-        "schema": "etalon-skill-dependencies/1", "required": list(required),
+        "schema": "moldarwin-skill-dependencies/1", "required": list(required),
         "optional": list(optional)}), encoding="utf-8")
     for name, body in (extra or {}).items():
         path = root / name
@@ -53,8 +53,8 @@ def test_context_export_closes_real_links_without_reading_optional_skills(tmp_pa
             if "://" not in link and not link.startswith("#"):
                 assert (path.parent / link.split("#", 1)[0]).is_file(), (path, link)
     assert host.verify(target)["matches_current_source"]
-    assert not (directory / "etalon-skill-improvement").exists()
-    assert not (directory / "etalon-research-decision").exists()
+    assert not (directory / "moldarwin-skill-improvement").exists()
+    assert not (directory / "moldarwin-research-decision").exists()
 
 
 def test_empty_selection_never_reads_a_skill_and_none_preserves_all(tmp_path, monkeypatch):
@@ -79,7 +79,7 @@ def test_optional_decision_member_can_be_read_without_expanding_installation(tmp
     assert member["content"] == contents["references/action-learning.md"].decode("utf-8")
     assert member["manifest_sha256"] == manifest["manifest_sha256"]
     assert (target / host.MANIFEST).read_bytes() == manifest_before
-    assert not (target / ".agents/skills/etalon-research-decision").exists()
+    assert not (target / ".agents/skills/moldarwin-research-decision").exists()
 
 
 def test_required_builtin_dependency_still_exports_its_member(tmp_path, monkeypatch):
@@ -159,7 +159,7 @@ def test_invalid_selection_fails_before_creating_a_project(tmp_path, selected):
 
 def test_cli_selected_export_and_verify(tmp_path):
     target = tmp_path / "cli"
-    result = subprocess.run([sys.executable, "-m", "etalon.host", "export", "--target", str(target),
+    result = subprocess.run([sys.executable, "-m", "moldarwin.host", "export", "--target", str(target),
                              "--skills", "research-context"], capture_output=True, text=True,
                             encoding="utf-8", check=True, timeout=30)
     report = json.loads(result.stdout)

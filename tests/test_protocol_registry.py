@@ -8,7 +8,7 @@ from dataclasses import replace
 
 import pytest
 
-from etalon.active import (
+from moldarwin.active import (
     ActiveCampaign,
     CampaignSpec,
     CampaignStore,
@@ -16,18 +16,18 @@ from etalon.active import (
     Evaluation,
     StateError,
 )
-from etalon.active.cascade import CascadeExecutor, CascadeRecipe, Readout
-from etalon.active.mutations import DesignSpace
-from etalon.active.protocols import (
+from moldarwin.active.cascade import CascadeExecutor, CascadeRecipe, Readout
+from moldarwin.active.mutations import DesignSpace
+from moldarwin.active.protocols import (
     ProtocolRegistry,
     ProtocolUnavailable,
     TrialPolicy,
     protocol_limits,
 )
-from etalon.active.schema import canonical
-from etalon.boundary.screen import Screen
-from etalon.campaign.design import component, compose
-from etalon.faults.attribution import Observation
+from moldarwin.active.schema import canonical
+from moldarwin.boundary.screen import Screen
+from moldarwin.campaign.design import component, compose
+from moldarwin.faults.attribution import Observation
 
 
 @pytest.fixture(scope="module")
@@ -82,7 +82,7 @@ def simulated_attestation(store, endpoint_id, artifact, *, candidate_id="m0", ac
                   if record["body"]["endpoint"]["id"] == endpoint_id)
     graph = record["validation"]["graph"]
     return {
-        "mode": "live_molcascade", "protocol_id": endpoint.protocol,
+        "mode": "live_molcat", "protocol_id": endpoint.protocol,
         "action_id": action_id, "candidate_id": candidate_id,
         "artifact_id": artifact, "unit_test_simulated_executor": True,
         "evidence_graph": {"graph_hash": graph["graph_hash"], "protocol_id": endpoint.protocol,

@@ -14,15 +14,15 @@ import platform
 import sys
 import time
 
-import etalon
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.adapters import MOLECULAR_REPRESENTATION
-from etalon.boundary.quarry import DataBudget, describe
-from etalon.data.artifacts import file_hash, status, write_json
-from etalon.data.design import design_index, import_bundle, read_bundle, verify_import
-from etalon.data.ingress import review_template
-from etalon.data.library import import_candidates, prepare_library
-from etalon.data.service import plan_data, run_data
+import moldarwin
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.adapters import MOLECULAR_REPRESENTATION
+from moldarwin.boundary.quarry import DataBudget, describe
+from moldarwin.data.artifacts import file_hash, status, write_json
+from moldarwin.data.design import design_index, import_bundle, read_bundle, verify_import
+from moldarwin.data.ingress import review_template
+from moldarwin.data.library import import_candidates, prepare_library
+from moldarwin.data.service import plan_data, run_data
 
 
 def local_catalog_example(root: Path) -> dict:
@@ -89,8 +89,8 @@ def design_index_example(bundle: Path, root: Path) -> dict:
 
 def numerical_advice_example() -> dict:
     """Choose only local existing numerical helpers; no Campaign/Supervisor loop."""
-    from etalon.campaign.calibrate import PanelMember, enrichment, separation
-    from etalon.generate.productivity import Chunk, Productivity, allocate
+    from moldarwin.campaign.calibrate import PanelMember, enrichment, separation
+    from moldarwin.generate.productivity import Chunk, Productivity, allocate
 
     panel = [PanelMember("active", True, "synthetic control"),
              PanelMember("inactive", False, "synthetic control")]
@@ -113,9 +113,9 @@ def numerical_advice_example() -> dict:
 
 def configuration_example(root: Path, library: Path) -> dict:
     """Freeze one caller-selected CPU component and plan it without execution."""
-    from etalon.campaign.design import component, compose
-    from etalon.runtime.artifacts import configure
-    from etalon.screening import plan_screen
+    from moldarwin.campaign.design import component, compose
+    from moldarwin.runtime.artifacts import configure
+    from moldarwin.screening import plan_screen
 
     root = root.resolve()
     configuration = compose("properties-only", [{"id": "measure", "title": "CPU properties",
@@ -135,7 +135,7 @@ def main() -> None:
     root.mkdir(parents=True, exist_ok=False)
     started = time.perf_counter()
     report = {"environment": {"executable": sys.executable, "python": platform.python_version(),
-                               "etalon": etalon.__file__},
+                               "moldarwin": moldarwin.__file__},
               "catalog": local_catalog_example(root / "catalog-example"),
               "numerical_advice": numerical_advice_example()}
     report["configuration"] = configuration_example(

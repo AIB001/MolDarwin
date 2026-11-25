@@ -5,9 +5,9 @@ import sys
 
 import pytest
 
-from etalon.research import research_segment as segment
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research.notes import patch_progress, publish_note, read_entry, record_note
+from moldarwin.research import research_segment as segment
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research.notes import patch_progress, publish_note, read_entry, record_note
 from test_research_notes import case as note_case
 from test_research_publication import case
 from test_research_segment import response

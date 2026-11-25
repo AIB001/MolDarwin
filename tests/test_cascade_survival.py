@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from etalon.active import ActiveCampaign, CampaignSpec, CampaignStore
-from etalon.active.cascade import CascadeExecutor, CascadeRecipe, Readout
-from etalon.active.schema import Action, Candidate
-from etalon.boundary.screen import Screen
-from etalon.campaign.design import component, compose
+from moldarwin.active import ActiveCampaign, CampaignSpec, CampaignStore
+from moldarwin.active.cascade import CascadeExecutor, CascadeRecipe, Readout
+from moldarwin.active.schema import Action, Candidate
+from moldarwin.boundary.screen import Screen
+from moldarwin.campaign.design import component, compose
 
 
 def _recipe(*, mode="serial", pass_branch=False, export=False):
@@ -67,7 +67,7 @@ def test_final_join_controls_survival_and_exporter_preserves_it(tmp_path, mode, 
     assert terminal["candidate_survived"] is accepted
     assert terminal["stage_id"] not in {"reject", "accept"}
     if export:
-        # MolCascade's SDF exporter explicitly passes through the final parents.
+        # MolCat's SDF exporter explicitly passes through the final parents.
         assert terminal["stage_id"] == "export"
     assert result.status == ("ok" if accepted else "invalid")
     if accepted:

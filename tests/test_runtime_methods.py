@@ -10,10 +10,10 @@ import time
 
 import pytest
 
-from etalon.active.store import StateError
-from etalon.runtime import operations, service
-from etalon.runtime.revisions import apply_pending
-from etalon.runtime.store import RuntimeStore
+from moldarwin.active.store import StateError
+from moldarwin.runtime import operations, service
+from moldarwin.runtime.revisions import apply_pending
+from moldarwin.runtime.store import RuntimeStore
 
 
 def method_node(tmp_path, name="first", inputs=None):
@@ -28,7 +28,7 @@ if inputs.get('hold'):
     until=time.monotonic()+30
     while not Path(a.result).with_suffix('.release').exists() and time.monotonic()<until: time.sleep(.05)
 value=sum(inputs.get('values',[1,2,3]))*inputs.get('factor',1)
-out={'schema':'etalon-method-result/1','summary':'Numerical integration fixture, not scientific efficacy',
+out={'schema':'moldarwin-method-result/1','summary':'Numerical integration fixture, not scientific efficacy',
      'outputs':{'value':value},'feedback':{'factor':inputs.get('factor',1)}}
 if inputs.get('malformed'):out['schema']='bad'
 Path(a.result).write_text(json.dumps(out))
@@ -39,7 +39,7 @@ Path(a.result).write_text(json.dumps(out))
 
 
 def spec(*nodes):
-    return {"schema": "etalon-workflow/1", "objective": "Continuous methods with optional host advice",
+    return {"schema": "moldarwin-workflow/1", "objective": "Continuous methods with optional host advice",
             "nodes": list(nodes), "limits": {"wall_second": 180}, "max_seconds": 120}
 
 
@@ -143,9 +143,9 @@ def test_output_reference_carries_inputs_not_executable_identity(tmp_path):
 
 @pytest.mark.skipif(os.name != "posix", reason="persistent worker requires Linux /proc")
 def test_single_method_uses_existing_action_handle(tmp_path):
-    from etalon.runtime.api import prepare_action, submit_action, read_action_result
+    from moldarwin.runtime.api import prepare_action, submit_action, read_action_result
     node = method_node(tmp_path)
-    request = dict(schema="etalon-action/1", request_id="direct-method", operation="method.run",
+    request = dict(schema="moldarwin-action/1", request_id="direct-method", operation="method.run",
                    arguments=node["arguments"], limits=node["resources"], max_seconds=60)
     prepared = prepare_action(request)
     handle = submit_action(request, workspace=tmp_path / "action", plan_id=prepared["plan_id"])
@@ -169,7 +169,7 @@ def until(fn, timeout=45):
 @pytest.mark.skipif(os.name != "posix", reason="persistent worker requires Linux /proc")
 def test_live_method_sidecar_then_native_recovery_without_recomputation(tmp_path):
     import signal
-    from etalon.runtime import process
+    from moldarwin.runtime import process
     first = method_node(tmp_path, inputs={"hold": True})
     second = method_node(tmp_path, "next", inputs={"values": [{"$ref": "first.outputs.value"}]})
     original = spec(first, second)

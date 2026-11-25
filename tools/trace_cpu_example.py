@@ -19,11 +19,11 @@ import subprocess
 import sys
 from pathlib import Path
 
-from etalon.active import ActiveCampaign, CampaignSpec, CampaignStore
-from etalon.active.adapters import MOLECULAR_REPRESENTATION, molecular_candidates
-from etalon.active.cascade import CascadeExecutor, CascadeRecipe, Readout
-from etalon.boundary.screen import Screen
-from etalon.campaign.design import component, compose
+from moldarwin.active import ActiveCampaign, CampaignSpec, CampaignStore
+from moldarwin.active.adapters import MOLECULAR_REPRESENTATION, molecular_candidates
+from moldarwin.active.cascade import CascadeExecutor, CascadeRecipe, Readout
+from moldarwin.boundary.screen import Screen
+from moldarwin.campaign.design import component, compose
 
 
 def summarize_state(state):
@@ -146,14 +146,14 @@ def main():
         'git_commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
         'python': sys.version, 'platform': platform.platform(),
         'packages': {name: importlib.metadata.version(name) for name in
-                     ('etalon', 'rdkit', 'numpy', 'scipy', 'pydantic', 'pyarrow')},
+                     ('moldarwin', 'rdkit', 'numpy', 'scipy', 'pydantic', 'pyarrow')},
         'official_state': store.status(), 'actions': store.actions(),
         'feature_width': len(next(iter(store.candidates().values())).features),
         'limits': ['CPU properties only; no docking, MD, FEP, LLM, or bioactivity validation',
                    'MolWt and MolLogP are already input descriptors; this is an integration demonstration',
                    'Costs are declared demonstration quotes, not measured money or CPU time'],
     }
-    patch = subprocess.check_output(['git', 'diff', '--', 'asset/molcascade/src/molcascade'])
+    patch = subprocess.check_output(['git', 'diff', '--', 'asset/molcat/src/molcat'])
     (root / 'local-windows-compat.patch').write_bytes(patch)
     metadata['local_windows_compat_patch_sha256'] = hashlib.sha256(patch).hexdigest()
     metadata['upstream_assets_modified'] = bool(patch)

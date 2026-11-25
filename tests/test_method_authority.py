@@ -28,14 +28,14 @@ import sys
 
 import pytest
 
-from etalon.authority.method import (
+from moldarwin.authority.method import (
     NotAuthorizedMethod,
     authorize_method,
     method_request_subject,
     require_method,
     stage,
 )
-from etalon.runtime import operations
+from moldarwin.runtime import operations
 
 
 class Collector:
@@ -54,7 +54,7 @@ class Collector:
 
 
 def registered() -> dict:
-    from etalon.mcp.runtime import register
+    from moldarwin.mcp.runtime import register
 
     collector = Collector()
     register(collector)
@@ -77,7 +77,7 @@ def declaration(tmp_path, *, inputs=None, name="method.py", method_id="fixture-s
         "from pathlib import Path\n"
         "p=argparse.ArgumentParser();p.add_argument('--request');p.add_argument('--result')\n"
         "a=p.parse_args()\n"
-        "Path(a.result).write_text(json.dumps({'schema':'etalon-method-result/1',"
+        "Path(a.result).write_text(json.dumps({'schema':'moldarwin-method-result/1',"
         "'summary':'fixture, not scientific efficacy','outputs':{}}))\n",
         encoding="utf-8",
     )
@@ -91,7 +91,7 @@ def declaration(tmp_path, *, inputs=None, name="method.py", method_id="fixture-s
 
 def action_request(arguments, request_id="probe-method"):
     return {
-        "schema": "etalon-action/1",
+        "schema": "moldarwin-action/1",
         "request_id": request_id,
         "operation": "method.run",
         "arguments": arguments,
@@ -107,9 +107,9 @@ def action_request(arguments, request_id="probe-method"):
 def test_reachability_the_guard_tool_mints_and_the_spending_tool_rules_on_it(tmp_path):
     """The transcript pair, as the review specifies it.
 
-    Establishes: a model that drives ``etalon_action_prepare`` receives an authorization it did not
-    construct, and ``etalon_action_submit`` refuses a declaration that authorization was not minted
-    on. Before the change ``etalon_action_prepare`` returned no authorization of any kind and the
+    Establishes: a model that drives ``moldarwin_action_prepare`` receives an authorization it did not
+    construct, and ``moldarwin_action_submit`` refuses a declaration that authorization was not minted
+    on. Before the change ``moldarwin_action_prepare`` returned no authorization of any kind and the
     substituted declaration reached dispatch unremarked.
 
     Does not establish: that the argv anybody authorised is safe to run. The token binds identity,
@@ -119,7 +119,7 @@ def test_reachability_the_guard_tool_mints_and_the_spending_tool_rules_on_it(tmp
     tools = registered()
     arguments = declaration(tmp_path)
 
-    prepared = call(tools["etalon_action_prepare"], action_request(arguments))
+    prepared = call(tools["moldarwin_action_prepare"], action_request(arguments))
     assert prepared["ok"] is True
     token = prepared["request"]["arguments"]["authorization"]
     assert token["signature"] and token["method_id"] == "fixture-sum-v1"
@@ -131,7 +131,7 @@ def test_reachability_the_guard_tool_mints_and_the_spending_tool_rules_on_it(tmp
     substituted = dict(arguments, command=[sys.executable, "-c", "import os; os.system('id')"])
     substituted["authorization"] = token
     refused = call(
-        tools["etalon_action_submit"],
+        tools["moldarwin_action_submit"],
         action_request(substituted),
         str(tmp_path / "runtime"),
         prepared["prepared"]["plan_id"],
@@ -139,27 +139,27 @@ def test_reachability_the_guard_tool_mints_and_the_spending_tool_rules_on_it(tmp
     assert refused["ok"] is False
     assert refused["error"]["code"] == "NotAuthorizedMethod"
     assert refused["error"]["retryable"] is False
-    assert "etalon_action_prepare" in refused["error"]["hint"]
+    assert "moldarwin_action_prepare" in refused["error"]["hint"]
     assert "WRONG_SUBJECT" in refused["error"]["message"]
 
 
 def test_reachability_the_plan_tool_mints_for_every_method_node(tmp_path):
-    """``etalon_workflow_plan`` is the workflow half of the same transcript.
+    """``moldarwin_workflow_plan`` is the workflow half of the same transcript.
 
     Establishes: the returned spec carries a token per ``method.run`` node and plans to the
     ``plan_id`` returned beside it, so a host that submits what it was handed is authorised without
     constructing anything.
     """
 
-    from etalon.runtime.service import plan
+    from moldarwin.runtime.service import plan
 
     tools = registered()
     node = {"id": "first", "operation": "method.run", "arguments": declaration(tmp_path),
             "resources": {"wall_second": 40}}
-    spec = {"schema": "etalon-workflow/1", "objective": "probe", "nodes": [node],
+    spec = {"schema": "moldarwin-workflow/1", "objective": "probe", "nodes": [node],
             "limits": {"wall_second": 180}, "max_seconds": 120}
 
-    planned = call(tools["etalon_workflow_plan"], spec)
+    planned = call(tools["moldarwin_workflow_plan"], spec)
     assert planned["ok"] is True
     assert planned["method_authorization"]["first"]["state"] == "minted"
     assert planned["spec"]["nodes"][0]["arguments"]["authorization"]["signature"]
@@ -201,12 +201,12 @@ def test_reachability_stage_two_refuses_a_dispatch_with_no_token(tmp_path, monke
     """
 
     arguments = declaration(tmp_path)
-    monkeypatch.setenv("ETALON_METHOD_AUTHORITY", "required")
+    monkeypatch.setenv("MOLDARWIN_METHOD_AUTHORITY", "required")
     assert stage() == "required"
     with pytest.raises(NotAuthorizedMethod) as refusal:
         operations.preflight("method.run", arguments, {"wall_second": 40})
     message = str(refusal.value)
-    assert "etalon_action_prepare" in message and "etalon_workflow_plan" in message
+    assert "moldarwin_action_prepare" in message and "moldarwin_workflow_plan" in message
     assert "method_id, the argv" in message
 
     # The same declaration carrying its token passes under the same stage.
@@ -224,7 +224,7 @@ def test_stage_one_is_the_default_and_records_the_gap_without_minting_one(tmp_pa
     authorised is worse than the gap it hides.
     """
 
-    monkeypatch.delenv("ETALON_METHOD_AUTHORITY", raising=False)
+    monkeypatch.delenv("MOLDARWIN_METHOD_AUTHORITY", raising=False)
     assert stage() == "optional"
     record = operations.preflight("method.run", declaration(tmp_path), {"wall_second": 40})[
         "method_authorization"
@@ -232,19 +232,19 @@ def test_stage_one_is_the_default_and_records_the_gap_without_minting_one(tmp_pa
     assert record["state"] == "absent"
     assert "authorization" not in record
     assert record["established"].startswith("nothing")
-    assert record["would_refuse_under"] == "ETALON_METHOD_AUTHORITY=required"
+    assert record["would_refuse_under"] == "MOLDARWIN_METHOD_AUTHORITY=required"
 
 
 def test_the_stage_is_read_at_dispatch_and_never_backfilled(tmp_path, monkeypatch):
     """Hard constraint 4: authorization is decided at dispatch, not at import and not afterwards."""
 
     arguments = declaration(tmp_path)
-    monkeypatch.delenv("ETALON_METHOD_AUTHORITY", raising=False)
+    monkeypatch.delenv("MOLDARWIN_METHOD_AUTHORITY", raising=False)
     assert require_method(arguments)["state"] == "absent"
-    monkeypatch.setenv("ETALON_METHOD_AUTHORITY", "required")
+    monkeypatch.setenv("MOLDARWIN_METHOD_AUTHORITY", "required")
     with pytest.raises(NotAuthorizedMethod):
         require_method(arguments)
-    monkeypatch.setenv("ETALON_METHOD_AUTHORITY", "nonsense")
+    monkeypatch.setenv("MOLDARWIN_METHOD_AUTHORITY", "nonsense")
     with pytest.raises(ValueError):
         require_method(arguments)
 
@@ -256,7 +256,7 @@ def test_a_deferred_declaration_is_reported_not_taken_rather_than_minted(tmp_pat
     there would guarantee a refusal at dispatch for the planner's reason, not the host's.
     """
 
-    from etalon.mcp import method_authority
+    from moldarwin.mcp import method_authority
 
     arguments = dict(declaration(tmp_path), inputs={"value": {"$ref": "first.outputs"}})
     _, record = method_authority.authorize_arguments(arguments)
@@ -266,7 +266,7 @@ def test_a_deferred_declaration_is_reported_not_taken_rather_than_minted(tmp_pat
 def test_an_unpinnable_executable_is_recorded_rather_than_refused(tmp_path):
     """``gate.py``'s rule, applied here: "we did not look" must not read as "it is the same"."""
 
-    from etalon.authority.method import EXECUTABLE_NOT_PINNED
+    from moldarwin.authority.method import EXECUTABLE_NOT_PINNED
 
     arguments = dict(declaration(tmp_path), command=["/usr/bin/does-not-exist-here", "--go"])
     _, unchecked = method_request_subject(arguments)
@@ -298,7 +298,7 @@ def test_refusal_is_intercepted_as_permanent_and_not_as_a_transient_oserror():
     program from running tells the model that calling again is reasonable once.
     """
 
-    from etalon.mcp._common import _TRANSIENT, _refusal
+    from moldarwin.mcp._common import _TRANSIENT, _refusal
 
     assert isinstance(NotAuthorizedMethod("x"), _TRANSIENT)
     hint = _refusal(NotAuthorizedMethod("x"))
@@ -313,16 +313,16 @@ def test_refusal_names_the_method_route_and_not_the_gate_route():
     is a wall with directions painted on.
     """
 
-    from etalon.mcp._common import _refusal
+    from moldarwin.mcp._common import _refusal
 
     hint = _refusal(NotAuthorizedMethod("x"))
-    assert "etalon_action_prepare" in hint and "etalon_workflow_plan" in hint
-    assert "etalon_authorize_gates" not in hint
+    assert "moldarwin_action_prepare" in hint and "moldarwin_workflow_plan" in hint
+    assert "moldarwin_authorize_gates" not in hint
 
-    from etalon.authority.grant import NotAuthorized
+    from moldarwin.authority.grant import NotAuthorized
 
     gate_hint = _refusal(NotAuthorized("x"))
-    assert "etalon_authorize_gates" in gate_hint
+    assert "moldarwin_authorize_gates" in gate_hint
 
 
 # --------------------------------------------------------------------------------------------
@@ -340,10 +340,10 @@ def test_extraction_does_not_change_the_signed_bytes(monkeypatch):
     branch -- and this is the test that says so first.
     """
 
-    monkeypatch.setenv("ETALON_AUTHORITY_KEY", "fixed")
-    from etalon.authority.gate import GateAuthorization
-    from etalon.authority.grant import _sign
-    from etalon.authority.subject import sign
+    monkeypatch.setenv("MOLDARWIN_AUTHORITY_KEY", "fixed")
+    from moldarwin.authority.gate import GateAuthorization
+    from moldarwin.authority.grant import _sign
+    from moldarwin.authority.subject import sign
 
     spend = _sign(
         parent_id="m1", record_sha256="a" * 64, receptor_sha256="",
@@ -372,8 +372,8 @@ def test_the_three_refusals_are_one_skeleton_with_three_subjects():
     absorb.
     """
 
-    from etalon.authority import gate, grant, method
-    from etalon.authority.subject import Signed
+    from moldarwin.authority import gate, grant, method
+    from moldarwin.authority.subject import Signed
 
     assert all(issubclass(cls, Signed) for cls in
                (grant.SpendAuthorization, gate.GateAuthorization, method.MethodAuthorization))
@@ -405,9 +405,9 @@ def test_the_spends_census_is_taken_from_the_registration_index():
 
     report = module.census()
     by_tool = {row["tool"]: row for row in report["detail"]}
-    for name in ("etalon_action_submit", "etalon_workflow_submit", "etalon_workflow_advance"):
+    for name in ("moldarwin_action_submit", "moldarwin_workflow_submit", "moldarwin_workflow_advance"):
         assert by_tool[name]["spend_token_parameters"] == ["authorization_json"], name
     assert report["spends_tools_accepting_no_authorization_object"] < report["spends_tools"]
     # The class is not closed: these two remain unauthorized and this test says so out loud.
-    for name in ("etalon_active_submit", "etalon_method_call"):
+    for name in ("moldarwin_active_submit", "moldarwin_method_call"):
         assert by_tool[name]["accepts_an_authorization_object"] is False

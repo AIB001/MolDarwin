@@ -17,7 +17,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 import snd1_evidence_workflow as science
 from snd1_evidence_evaluation import receptor_fit
-from etalon.research.scientific_input import compile_input
+from moldarwin.research.scientific_input import compile_input
 
 read, write, pin = science.read, science.write, science.identity
 

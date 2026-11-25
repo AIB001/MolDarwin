@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from etalon.research import improvement as imp, read_scope
-from etalon.research.evidence_refs import EvidenceError
+from moldarwin.research import improvement as imp, read_scope
+from moldarwin.research.evidence_refs import EvidenceError
 from test_research_continuation import case, publish
 from test_research_improvement import prepared
 
@@ -13,7 +13,7 @@ def test_retrieval_keeps_counterevidence_and_scoped_exclusions_in_one_read(case,
     p = prepared
     ref = imp.record_experience(p['j'], patch_ref=p['patch'], outcome='unresolved',
         lesson='Fixture: potentially reusable, with unresolved negative evidence',
-        invalid_when='Changed objective', capability_id='etalon.evidence',
+        invalid_when='Changed objective', capability_id='moldarwin.evidence',
         support_refs=[case[1]], counter_refs=[case[1]], directory=p['root']/'content',
         source_id='research', source_kind='fixture')
     workspace = publish(case)
@@ -24,7 +24,7 @@ def test_retrieval_keeps_counterevidence_and_scoped_exclusions_in_one_read(case,
         scopes.append(self)
     monkeypatch.setattr(read_scope.ReadScope, '__init__', init)
     result = imp.retrieve_experience(workspace, source_ids=['research'],
-        capability_id='etalon.evidence',
+        capability_id='moldarwin.evidence',
         conditions={**p['conditions'], 'endpoint':'new-objective'},
         related_condition_keys=['problem_kind'])
     assert len(scopes) == 1

@@ -8,9 +8,9 @@ import argparse
 import json
 from pathlib import Path
 import sys
-from etalon.active import CampaignStore
-from etalon.active.schema import canonical,digest
-from etalon.boundary.prism_v1 import file_identity
+from moldarwin.active import CampaignStore
+from moldarwin.active.schema import canonical,digest
+from moldarwin.boundary.prism_v1 import file_identity
 
 
 def audit(database:Path,admissions:list[Path]):
@@ -63,8 +63,8 @@ def audit(database:Path,admissions:list[Path]):
             'per_pose_score_cost_subsets':scores,
             'E0_only_counterfactual_cost':None,
             'cost_scope':'combined action charged once; score timing subsets do not measure a separate E0-only run'})
-    return {'schema':'etalon-r3b-execution-audit/1','python':sys.executable,
-            'consumer_import':__import__('etalon').__file__,'budget':store.balance(),
+    return {'schema':'moldarwin-r3b-execution-audit/1','python':sys.executable,
+            'consumer_import':__import__('moldarwin').__file__,'budget':store.balance(),
             'stages':stages,'executions':rows,'active_affinity_observations':len(store.observations()),
             'slot_comparison':'P0 four seeds xidentity; P1 first seed xfour transforms; only first identity paired',
             'seed_independence':'seed values are algorithmic variation; shared core/receptor errors remain correlated',

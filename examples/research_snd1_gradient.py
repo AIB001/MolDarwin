@@ -1,7 +1,7 @@
 """A bounded SND1 normal-use revision, using existing journal/RSI interfaces.
 
 This is a host-selected example, not a scheduler or mandatory research pipeline.
-Run with the deployed ETALON interpreter and explicitly pinned PRISM helpers.
+Run with the deployed MolDarwin interpreter and explicitly pinned PRISM helpers.
 Each optimizer call has an immutable request, resource reservation and receipt.
 An unresolved reservation without a receipt is never automatically retried.
 """
@@ -12,19 +12,19 @@ import numpy as np
 from rdkit import Chem, rdBase
 import scipy
 import snd1_torsion_workflow as science
-from etalon.active.schema import CampaignSpec, Endpoint, canonical, digest
-from etalon.active.store import CampaignStore
-from etalon.host import _consumer_lock
-from etalon.research.journal import ResearchJournal
-from etalon.research.schema import Artifact, MethodVersion, MethodUse, TaskSplit
-from etalon.research import improvement as imp
-from etalon.research.continuation import STEP, CHECKPOINT, record_content, read_content
-from etalon.research.composition import node_step, record_evaluation, WORKFLOW
-from etalon.research.method_revision import journal_ref, build_method_revision, record_method_revision, resolve_method_revision
-from etalon.research.research_context import load_entry
-from etalon.research.evidence_refs import load_workspace, file_identity
-from etalon.research.scientific_input import compile_input
-from etalon.research.publication import _save, prepare_publication, resume_publication
+from moldarwin.active.schema import CampaignSpec, Endpoint, canonical, digest
+from moldarwin.active.store import CampaignStore
+from moldarwin.host import _consumer_lock
+from moldarwin.research.journal import ResearchJournal
+from moldarwin.research.schema import Artifact, MethodVersion, MethodUse, TaskSplit
+from moldarwin.research import improvement as imp
+from moldarwin.research.continuation import STEP, CHECKPOINT, record_content, read_content
+from moldarwin.research.composition import node_step, record_evaluation, WORKFLOW
+from moldarwin.research.method_revision import journal_ref, build_method_revision, record_method_revision, resolve_method_revision
+from moldarwin.research.research_context import load_entry
+from moldarwin.research.evidence_refs import load_workspace, file_identity
+from moldarwin.research.scientific_input import compile_input
+from moldarwin.research.publication import _save, prepare_publication, resume_publication
 
 SID='snd1-gradient-cost'
 TASK='snd1-specified-torsion-normal-refinement'

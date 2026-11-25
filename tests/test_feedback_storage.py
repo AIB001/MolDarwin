@@ -7,13 +7,13 @@ from unittest.mock import patch
 
 import pytest
 
-from etalon.active import CampaignStore, CampaignSpec, Endpoint
-from etalon.active.schema import digest
-from etalon.research import ResearchJournal, note_resources as resources, notes
-from etalon.research.handoff import (
+from moldarwin.active import CampaignStore, CampaignSpec, Endpoint
+from moldarwin.active.schema import digest
+from moldarwin.research import ResearchJournal, note_resources as resources, notes
+from moldarwin.research.handoff import (
     export_research_handoff, plan_research_handoff, relocate_research_handoff,
 )
-from etalon.research.resource_selection import _feedback_description, record_resource_feedback
+from moldarwin.research.resource_selection import _feedback_description, record_resource_feedback
 
 
 def project(directory):

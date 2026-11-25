@@ -10,8 +10,8 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active.adapters import MOLECULAR_REPRESENTATION
-from etalon.mcp._common import Cost, ok, threaded_tool, tool
+from moldarwin.active.adapters import MOLECULAR_REPRESENTATION
+from moldarwin.mcp._common import Cost, ok, threaded_tool, tool
 
 
 def test_existing_artifact_is_not_a_transient_retry():
@@ -58,25 +58,25 @@ def test_stdio_acquisition_to_campaign_uses_pinned_data_tools_and_skill_resource
     root = Path(__file__).resolve().parents[1]
 
     async def run():
-        server = StdioServerParameters(command=sys.executable, args=["-m", "etalon.mcp"],
+        server = StdioServerParameters(command=sys.executable, args=["-m", "moldarwin.mcp"],
                                        env={"PYTHONPATH": str(root / "src")})
         async with (stdio_client(server) as (read, write),
                     ClientSession(read, write) as session):
             await session.initialize()
             names = {item.name for item in (await session.list_tools()).tools}
-            assert {"etalon_data_run", "etalon_data_prepare", "etalon_data_import_candidates",
-                    "etalon_screen_export", "etalon_active_create"} <= names
-            resource = await session.read_resource("etalon://skills/molquarry/compound-sourcing")
-            assert "MolQuarry" in resource.contents[0].text
+            assert {"moldarwin_data_run", "moldarwin_data_prepare", "moldarwin_data_import_candidates",
+                    "moldarwin_screen_export", "moldarwin_active_create"} <= names
+            resource = await session.read_resource("moldarwin://skills/molorigin/compound-sourcing")
+            assert "MolOrigin" in resource.contents[0].text
             reference = await session.read_resource(
-                "etalon://skills/molquarry/compound-sourcing/references/results.md")
+                "moldarwin://skills/molorigin/compound-sourcing/references/results.md")
             assert reference.contents[0].text
-            index = await session.read_resource("etalon://skills/molquarry")
+            index = await session.read_resource("moldarwin://skills/molorigin")
             workflows = json.loads(index.contents[0].text)["skills"]
             assert {row["name"] for row in workflows} == {
-                "molquarry-target-modulators", "molquarry-compound-sourcing",
-                "molquarry-analogue-search", "molquarry-selectivity-evidence",
-                "molquarry-structure-templates", "molquarry-assay-literature",
+                "molorigin-target-modulators", "molorigin-compound-sourcing",
+                "molorigin-analogue-search", "molorigin-selectivity-evidence",
+                "molorigin-structure-templates", "molorigin-assay-literature",
             }
             for workflow in workflows:
                 text = (await session.read_resource(workflow["uri"])).contents[0].text
@@ -85,7 +85,7 @@ def test_stdio_acquisition_to_campaign_uses_pinned_data_tools_and_skill_resource
                     assert (await session.read_resource(uri)).contents[0].text
             # Only resources in the pinned skill index can be read.
             with pytest.raises(McpError):
-                await session.read_resource("etalon://skills/molquarry/not-a-workflow")
+                await session.read_resource("moldarwin://skills/molorigin/not-a-workflow")
 
             async def call(name, arguments):
                 result = await session.call_tool(name, arguments)
@@ -94,25 +94,25 @@ def test_stdio_acquisition_to_campaign_uses_pinned_data_tools_and_skill_resource
                 assert value["ok"], value
                 return value
 
-            created = await call("etalon_active_create", {"database": str(database),
+            created = await call("moldarwin_active_create", {"database": str(database),
                 "spec": {"objective": "kd", "budget": 0, "cost_unit": "fixture-quotes",
                          "representation": MOLECULAR_REPRESENTATION},
                 "endpoints": [{"id": "kd", "target": "P00533", "quantity": "Kd", "units": "nM",
                     "protocol": "fixture-only", "cost": 0, "queryable": False, "requires_handoff": False}]})
             assert created["executed_actions"] == 0
-            acquired = await call("etalon_data_run", {"request": {"kind": "import_catalog",
+            acquired = await call("moldarwin_data_run", {"request": {"kind": "import_catalog",
                 "source": "chembl", "path": str(fixture),
                 "options": {"source_version": "OFFLINE-FIXTURE-NOT-CHEMBL-DATA"}},
                 "workspace": str(tmp_path), "run_id": "catalog", "max_requests": 0})
             assert acquired["usage"]["requests"] == 0
             assert acquired["file_count"] > 0 and "files" not in acquired
-            prepared = await call("etalon_data_prepare", {"snapshot": acquired["snapshot"],
+            prepared = await call("moldarwin_data_prepare", {"snapshot": acquired["snapshot"],
                 "workspace": str(tmp_path), "run_id": "library", "id_field": "fields.id",
                 "smiles_field": "fields.smiles"})
-            imported = await call("etalon_data_import_candidates", {
+            imported = await call("moldarwin_data_import_candidates", {
                 "database": str(database), "snapshot": prepared["snapshot"]})
             assert imported["added"] == 1
-            inspected = await call("etalon_active_status", {"database": str(database)})
+            inspected = await call("moldarwin_active_status", {"database": str(database)})
             assert inspected["state"]["candidates"] == 1
             assert inspected["state"]["observations"] == 0
             return len(names)

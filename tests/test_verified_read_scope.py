@@ -10,18 +10,18 @@ import sys
 
 import pytest
 
-from etalon import research_hooks as hooks
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.schema import canonical
-from etalon.research import ResearchJournal
-from etalon.research import continuation, evidence, evidence_refs, read_scope
-from etalon.research.continuation import read_content, record_content
-from etalon.research.entry import make_read_context
-from etalon.research.evidence import query_evidence, read_evidence
-from etalon.research.evidence_refs import EvidenceError, file_identity, load_workspace, make_ref
-from etalon.research.graph_memory import build_research_graph, node_identity
-from etalon.research.read_scope import CURRENT, verified_read
-from etalon.research.research_context import build_research_context
+from moldarwin import research_hooks as hooks
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.schema import canonical
+from moldarwin.research import ResearchJournal
+from moldarwin.research import continuation, evidence, evidence_refs, read_scope
+from moldarwin.research.continuation import read_content, record_content
+from moldarwin.research.entry import make_read_context
+from moldarwin.research.evidence import query_evidence, read_evidence
+from moldarwin.research.evidence_refs import EvidenceError, file_identity, load_workspace, make_ref
+from moldarwin.research.graph_memory import build_research_graph, node_identity
+from moldarwin.research.read_scope import CURRENT, verified_read
+from moldarwin.research.research_context import build_research_context
 from test_research_graph_memory import graph_case
 
 
@@ -41,7 +41,7 @@ def _same_size_change(path):
 
 def _hook(c, tmp_path, event_id, *, event="PreToolUse", policy=None):
     return hooks.handle_event(c["entry"], {"hook_event_name": event, "session_id": "fixture-session",
-        "event_id": event_id, "tool_name": "mcp__etalon__etalon_research_context"},
+        "event_id": event_id, "tool_name": "mcp__moldarwin__moldarwin_research_context"},
         host="codex", state_dir=tmp_path / "receipts", policy=policy, max_bytes=65536)
 
 
@@ -142,7 +142,7 @@ def test_exception_clears_current_scope_and_next_read_is_fresh(graph_case):
 
 def test_reverse_counterclaim_from_other_task_and_source_survives_cached_reads(graph_case, tmp_path):
     c = graph_case
-    body = {"schema": "etalon-research-claim/1", "task_id": "independent-other-task",
+    body = {"schema": "moldarwin-research-claim/1", "task_id": "independent-other-task",
             "question": "Does the old interpretation transfer?", "statement": "CROSS_TASK_COUNTER_SENTINEL",
             "epistemic_status": "interpretation", "subjects": ["fixture"], "conditions": ["other task"],
             "limitations": [], "support_refs": [], "counter_refs": [c["claim"]],
@@ -283,11 +283,11 @@ def test_hook_final_verification_failure_never_emits_prebuilt_context(graph_case
 def test_native_hook_processes_reuse_cache_and_reject_changed_projection(graph_case, tmp_path):
     c = graph_case
     state = tmp_path / "native-receipts"
-    command = [sys.executable, "-m", "etalon.research_hooks", "--entry", str(c["entry"]),
+    command = [sys.executable, "-m", "moldarwin.research_hooks", "--entry", str(c["entry"]),
                "--state-dir", str(state), "--host", "codex", "--max-bytes", "65536"]
     def run(event_id, kind):
         return subprocess.run(command, input=json.dumps({"hook_event_name": kind, "session_id": "native-fixture",
-            "event_id": event_id, "tool_name": "mcp__etalon__etalon_research_context"}),
+            "event_id": event_id, "tool_name": "mcp__moldarwin__moldarwin_research_context"}),
             capture_output=True, text=True, encoding="utf-8")
     first = run("one", "SessionStart")
     assert first.returncode == 0, first.stderr

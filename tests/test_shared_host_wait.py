@@ -7,13 +7,13 @@ import time
 
 import pytest
 
-from etalon.runtime.api import read_action_result
-from etalon.runtime.files import EvidenceError, _save
-from etalon.runtime.host_wait import register_wait, read_wait, _condition
+from moldarwin.runtime.api import read_action_result
+from moldarwin.runtime.files import EvidenceError, _save
+from moldarwin.runtime.host_wait import register_wait, read_wait, _condition
 
 
 def specification(path, **updates):
-    return dict(schema="etalon-host-wait/1", poll_seconds=0.1, max_checks=100,
+    return dict(schema="moldarwin-host-wait/1", poll_seconds=0.1, max_checks=100,
                 checks=[dict(kind="json_status", path=str(path), field="state",
                              running=["running"], ready=["done"], failed=["failed"])], **updates)
 
@@ -33,7 +33,7 @@ def test_host_exit_reuse_policy_and_terminal_new_process(tmp_path):
     _save(status, {"state": "running"})
     spec = specification(status)
     # No observing process needs to survive the registration client.
-    script = ("import json; from etalon.runtime.host_wait import register_wait; "
+    script = ("import json; from moldarwin.runtime.host_wait import register_wait; "
               f"print(json.dumps(register_wait({spec!r}, {str(tmp_path)!r})))")
     process = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, check=True)
     registered = json.loads(process.stdout)
@@ -52,7 +52,7 @@ def test_host_exit_reuse_policy_and_terminal_new_process(tmp_path):
     for _ in range(20):
         assert read_wait(handle) == result
     fresh = subprocess.run([sys.executable, "-c",
-        "import json; from etalon.runtime.api import read_action_result; "
+        "import json; from moldarwin.runtime.api import read_action_result; "
         f"print(json.dumps(read_action_result({handle!r})))"], capture_output=True, text=True, check=True)
     assert json.loads(fresh.stdout) == result
     assert register_wait(spec, str(tmp_path))["observation"] == result
@@ -67,16 +67,16 @@ def test_cached_reads_do_not_poll_source(tmp_path, monkeypatch):
     handle = register_wait(spec, str(tmp_path))["handle"]
     result = terminal(handle)
     assert result["state"] == "wait_check_bound" and result["check_count"] == 1
-    import etalon.runtime.host_wait as module
+    import moldarwin.runtime.host_wait as module
     monkeypatch.setattr(module, "_check", lambda _: pytest.fail("consumer polled source"))
     assert all(read_action_result(handle) == result for _ in range(100))
-    import etalon.runtime.native as native
+    import moldarwin.runtime.native as native
     monkeypatch.setattr(native, "launch_detached_attempt", lambda *a, **k: pytest.fail("relaunched observer"))
     assert register_wait(spec, str(tmp_path))["observation"] == result
 
 
 def test_native_task_handle_is_consumed_without_reexecution(tmp_path):
-    from etalon.runtime.native import launch_detached_attempt, inspect_attempt
+    from moldarwin.runtime.native import launch_detached_attempt, inspect_attempt
     job = tmp_path / "science"
     output = tmp_path / "answer.txt"
     request = {"request_id": "fixture-once", "attempt_id": "first"}
@@ -84,7 +84,7 @@ def test_native_task_handle_is_consumed_without_reexecution(tmp_path):
                f"pathlib.Path({str(output)!r}).write_text('one execution')"]
     launch_detached_attempt(job, request, command, outputs={"answer": str(output)})
     original = (job / "intent.json").read_bytes()
-    spec = dict(schema="etalon-host-wait/1", poll_seconds=.1, max_checks=100,
+    spec = dict(schema="moldarwin-host-wait/1", poll_seconds=.1, max_checks=100,
                 checks=[dict(kind="native_attempt", path=str(job), **request)])
     handle = register_wait(spec, str(tmp_path))["handle"]
     assert terminal(handle)["state"] == "ready"
@@ -103,7 +103,7 @@ def test_conditions_not_policy_define_identity(tmp_path):
     assert _condition(a) == _condition(b)
     assert _condition(dict(a, wake_when="all")) != _condition(a)
     assert _condition(dict(first, checks=[dict(first["checks"][0], ready=["stage_done"])])) != _condition(first)
-    n = dict(schema="etalon-host-wait/1", checks=[dict(kind="native_attempt",
+    n = dict(schema="moldarwin-host-wait/1", checks=[dict(kind="native_attempt",
         path=str(tmp_path), request_id="a", attempt_id="1")])
     assert _condition(dict(n, checks=[dict(n["checks"][0], attempt_id="2")])) != _condition(n)
 
@@ -124,7 +124,7 @@ def test_running_reads_coalesce_until_next_interval(tmp_path, monkeypatch):
     status = tmp_path / "status.json"
     _save(status, {"state": "running"})
     handle = register_wait(dict(specification(status), poll_seconds=60), str(tmp_path))["handle"]
-    import etalon.runtime.host_wait as module
+    import moldarwin.runtime.host_wait as module
     monkeypatch.setattr(module, "_check", lambda _: pytest.fail("polled within saved interval"))
     for _ in range(50):
         result = read_action_result(handle)

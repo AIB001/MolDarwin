@@ -2,7 +2,7 @@ from queue import Empty
 
 import pytest
 
-from molcascade.parallel import shards
+from molcat.parallel import shards
 
 
 def test_worker_waits_for_queued_device(monkeypatch):

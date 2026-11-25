@@ -1,20 +1,20 @@
 # Optional opportunity dispositions and reopening
 
-An exact `etalon-revision-opportunity/1` can end with a bounded `no_change` or
+An exact `moldarwin-revision-opportunity/1` can end with a bounded `no_change` or
 `retain` judgment even when there is no candidate, patch or MethodEvaluation.
 `adopt` and `rollback` require an already recorded evaluation and scoped
 resolution. This layer records that authority; it does not create one.
 `waiting` and `awaiting_evidence` remain nonterminal.
 
-The optional JSON schemas `etalon-opportunity-disposition/1` and
-`etalon-opportunity-reopen/1` are ordinary append-only Artifacts in the existing
+The optional JSON schemas `moldarwin-opportunity-disposition/1` and
+`moldarwin-opportunity-reopen/1` are ordinary append-only Artifacts in the existing
 journal. They add no journal record type, database, fixed Probe, proposer,
 scheduler, execution or default-method change. Existing context/opportunity
 identities and the first episode's `revision-<opportunity_key>` stay unchanged.
 
 ## API and publication
 
-`etalon.research.opportunity_state` exports `SCHEMAS`, `validate_content`,
+`moldarwin.research.opportunity_state` exports `SCHEMAS`, `validate_content`,
 `validate_local_links`, `read_opportunity_state`, `build_opportunity_disposition`,
 `build_opportunity_reopen`, and `resolve_opportunity_state`.
 

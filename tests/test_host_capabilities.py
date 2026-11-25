@@ -13,21 +13,21 @@ from pathlib import Path
 
 import pytest
 
-from etalon import host, skills
-from etalon.mcp.server import costs
+from moldarwin import host, skills
+from moldarwin.mcp.server import costs
 
 
 @pytest.mark.parametrize("defect", ["unclassified", "duplicate"])
 def test_cost_index_rejects_tools_without_an_unambiguous_classification(monkeypatch, defect):
-    from etalon.mcp import host as host_tools
-    from etalon.mcp._common import Cost, tool
+    from moldarwin.mcp import host as host_tools
+    from moldarwin.mcp._common import Cost, tool
 
     def register(server):
         def unknown():
             return "{}"
 
         if defect == "duplicate":
-            unknown.__name__ = "etalon_plan_campaign"
+            unknown.__name__ = "moldarwin_plan_campaign"
             server.tool()(tool(Cost.FREE)(unknown))
         else:
             server.tool()(unknown)
@@ -60,16 +60,16 @@ def test_export_contains_identical_bundles_and_refuses_existing_projects(tmp_pat
 def test_export_audit_distinguishes_changed_missing_and_added_members(tmp_path):
     target = tmp_path / "project"
     host.export(target)
-    root = target / ".agents/skills/etalon-campaign"
+    root = target / ".agents/skills/moldarwin-campaign"
     (root / "SKILL.md").write_text("modified", encoding="utf-8")
     (root / "references/legacy-workflow.md").unlink()
     (root / "extra.py").write_text("extra", encoding="utf-8")
     result = host.verify(target)
     assert not result["export_matches_manifest"]
     assert result["matches_current_source"]  # Source did not change; the installation did.
-    assert result["changed"] == [".agents/skills/etalon-campaign/SKILL.md"]
-    assert result["missing"] == [".agents/skills/etalon-campaign/references/legacy-workflow.md"]
-    assert result["unexpected"] == [".agents/skills/etalon-campaign/extra.py"]
+    assert result["changed"] == [".agents/skills/moldarwin-campaign/SKILL.md"]
+    assert result["missing"] == [".agents/skills/moldarwin-campaign/references/legacy-workflow.md"]
+    assert result["unexpected"] == [".agents/skills/moldarwin-campaign/extra.py"]
 
 
 def test_skill_and_usage_method_versions_change_independently(tmp_path, monkeypatch):
@@ -109,7 +109,7 @@ def test_manifest_cannot_hide_a_removed_reference(tmp_path):
     host.export(target)
     path = target / host.MANIFEST
     value = json.loads(path.read_text(encoding="utf-8"))
-    name = ".agents/skills/etalon-campaign/references/legacy-workflow.md"
+    name = ".agents/skills/moldarwin-campaign/references/legacy-workflow.md"
     del value["files"][name]
     (target / name).unlink()
     path.write_text(json.dumps(value), encoding="utf-8")
@@ -132,7 +132,7 @@ def test_wheel_contains_complete_bundles_without_checkout_or_site_packages(tmp_p
     environment = {**os.environ, "PYTHONPATH": str(isolated), "PYTHONUTF8": "1"}
     # -S excludes editable-install .pth files and all site packages. The catalog
     # must work on the standard library and load references out of the wheel.
-    result = subprocess.run([sys.executable, "-S", "-m", "etalon.host", "catalog"],
+    result = subprocess.run([sys.executable, "-S", "-m", "moldarwin.host", "catalog"],
                             env=environment, cwd=tmp_path, check=True, capture_output=True,
                             text=True, encoding="utf-8", timeout=30)
     packaged = json.loads(result.stdout)
@@ -142,9 +142,9 @@ def test_wheel_contains_complete_bundles_without_checkout_or_site_packages(tmp_p
     assert packaged["usage_method"] == current["usage_method"]
     assert packaged["source"]["pythonpath"] == str(isolated)
     target = tmp_path / "wheel-project"
-    subprocess.run([sys.executable, "-S", "-m", "etalon.host", "export", "--target", str(target)],
+    subprocess.run([sys.executable, "-S", "-m", "moldarwin.host", "export", "--target", str(target)],
                    env=environment, cwd=tmp_path, check=True, capture_output=True, timeout=30)
-    result = subprocess.run([sys.executable, "-S", "-m", "etalon.host", "verify", "--target", str(target)],
+    result = subprocess.run([sys.executable, "-S", "-m", "moldarwin.host", "verify", "--target", str(target)],
                             env=environment, cwd=tmp_path, check=True, capture_output=True,
                             text=True, encoding="utf-8", timeout=30)
     assert json.loads(result.stdout)["ok"]
@@ -159,9 +159,9 @@ def test_exported_launch_configuration_serves_real_stdio_from_another_cwd(tmp_pa
     target = tmp_path / consumer
     manifest = host.export(target, consumer)
     if consumer == "codex":
-        config = tomllib.loads((target / ".codex/config.toml").read_text())["mcp_servers"]["etalon"]
+        config = tomllib.loads((target / ".codex/config.toml").read_text())["mcp_servers"]["moldarwin"]
     else:
-        config = json.loads((target / ".mcp.json").read_text())["mcpServers"]["etalon"]
+        config = json.loads((target / ".mcp.json").read_text())["mcpServers"]["moldarwin"]
     assert config["command"] == str(Path(sys.executable).absolute())
 
     async def exercise():
@@ -171,22 +171,22 @@ def test_exported_launch_configuration_serves_real_stdio_from_another_cwd(tmp_pa
             await session.initialize()
             listed = await session.list_tools()
             assert {row.name for row in listed.tools} == set(costs())
-            assert "etalon_sweep_emit" in costs()
-            response = await session.call_tool("etalon_capabilities", {})
+            assert "moldarwin_sweep_emit" in costs()
+            response = await session.call_tool("moldarwin_capabilities", {})
             assert not response.isError
             report = json.loads(response.content[0].text)
             assert report["ok"] and report["tools"] == costs()
             assert report["catalog_sha256"] == manifest["catalog_sha256"]
             assert report["runtime"]["python"] == config["command"]
-            resource = await session.read_resource("etalon://skills")
+            resource = await session.read_resource("moldarwin://skills")
             assert json.loads(resource.contents[0].text)["catalog_sha256"] == manifest["catalog_sha256"]
-            entry = await session.read_resource("etalon://skills/campaign")
+            entry = await session.read_resource("moldarwin://skills/campaign")
             assert entry.contents[0].text == skills.read_member("campaign")["content"]
-            reference = await session.read_resource("etalon://skills/campaign/references/legacy-workflow.md")
+            reference = await session.read_resource("moldarwin://skills/campaign/references/legacy-workflow.md")
             assert reference.contents[0].text == skills.read_member("campaign", "references/legacy-workflow.md")["content"]
-            role = await session.read_resource("etalon://host")
+            role = await session.read_resource("moldarwin://host")
             assert skills.sha256(role.contents[0].text.encode()) == manifest["usage_method"]["sha256"]
-            response = await session.call_tool("etalon_skill_read", {"slug": "campaign", "member": "../HOST.md"})
+            response = await session.call_tool("moldarwin_skill_read", {"slug": "campaign", "member": "../HOST.md"})
             assert not json.loads(response.content[0].text)["ok"]
 
     asyncio.run(asyncio.wait_for(exercise(), timeout=30))

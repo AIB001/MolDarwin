@@ -21,7 +21,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from etalon.faults import (
+from moldarwin.faults import (
     BY_CODE,
     FAULTS,
     Consequence,
@@ -365,7 +365,7 @@ def test_faults_measured_here_cite_a_measurement() -> None:
 
 
 def test_the_convergence_fault_is_postflight_and_names_the_real_setting() -> None:
-    """It is the one fault whose detection depends on a setting ETALON leaves alone."""
+    """It is the one fault whose detection depends on a setting MolDarwin leaves alone."""
 
     fault = BY_CODE["F_CONVERGENCE_NOT_ASSESSABLE"]
 
@@ -403,7 +403,7 @@ def test_a_number_measured_in_an_asset_says_so_and_names_the_file() -> None:
 
 
 def test_no_fault_claims_this_project_measured_the_hydrogen_result() -> None:
-    """The specific regression: ETALON did not run those builds and must not say it did."""
+    """The specific regression: MolDarwin did not run those builds and must not say it did."""
 
     hydrogens = BY_CODE["F_HYDROGENS_IMPLICIT"]
 

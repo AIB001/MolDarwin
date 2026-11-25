@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Copy infrastructure packages into ETALON/asset as pinned, verifiable trees.
+"""Copy infrastructure packages into MolDarwin/asset as pinned, verifiable trees.
 
 Three things about this script are deliberate, and two of them were learned by it going
 wrong.
@@ -9,7 +9,7 @@ beside a tree digest, and a reader is entitled to assume the first describes the
 Copying from a working tree with uncommitted changes breaks that: the bytes would be
 whatever was on disk and the recorded provenance would name a commit that never
 contained them. A provenance record that can be wrong is worse than none, because the
-whole of ETALON rests on this manifest being true. So a dirty source is an error, not a
+whole of MolDarwin rests on this manifest being true. So a dirty source is an error, not a
 warning.
 
 **It does nothing without ``--write``.** The previous version had no argument parsing at
@@ -33,12 +33,12 @@ import shutil
 import subprocess
 from pathlib import Path
 
-ETALON = Path(__file__).resolve().parent.parent
-ASSET = ETALON / "asset"
+MolDarwin = Path(__file__).resolve().parent.parent
+ASSET = MolDarwin / "asset"
 SOURCES = {
-    "molcascade": Path("/mnt/e/My_Project/MolCascade"),
+    "molcat": Path("/mnt/e/My_Project/MolCat"),
     "prism": Path("/mnt/e/My_Project/PRISM/PRISM_Alpha/PRISM-main"),
-    "molquarry": Path("/mnt/e/My_Project/MolQuarry"),
+    "molorigin": Path("/mnt/e/My_Project/MolOrigin"),
 }
 #: Excluded from the asset copy, with the reason recorded rather than implied.
 EXCLUDE_PREFIXES = ("tests/",)
@@ -134,15 +134,15 @@ def lift_reference(*, write: bool) -> dict[str, object]:
     panel = ref / "approved_drugs.py"
     if write:
         ref.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(SOURCES["molcascade"] / "tests/fixtures/approved_drugs.py", panel)
+        shutil.copy2(SOURCES["molcat"] / "tests/fixtures/approved_drugs.py", panel)
     return {
         "approved_drugs.py": {
-            "lifted_from": "molcascade:tests/fixtures/approved_drugs.py",
+            "lifted_from": "molcat:tests/fixtures/approved_drugs.py",
             "sha256": sha256_file(panel),
             "why": (
                 "A panel of 77 approved oral drugs with an in-window/out-of-window split. "
-                "Every threshold in MolCascade's shipped defaults was calibrated against "
-                "it, so it is the reference ETALON measures its own gates on. It lives in "
+                "Every threshold in MolCat's shipped defaults was calibrated against "
+                "it, so it is the reference MolDarwin measures its own gates on. It lives in "
                 "the excluded test tree upstream, which is where a test fixture belongs "
                 "and not where reference data is findable."
             ),
@@ -204,13 +204,13 @@ def main() -> int:
             f"commit {str(entry['source_commit'])[:12]}  "
             f"tree {str(entry['tree_sha256'])[:12]}"
         )
-    if "molcascade" in selected:
+    if "molcat" in selected:
         manifest["reference"] = lift_reference(write=arguments.write)
 
     rendered = json.dumps(manifest, indent=2, sort_keys=True) + "\n"
     if arguments.write:
         target.write_text(rendered, encoding="utf-8")
-        print(f"\nwritten: {target.relative_to(ETALON)}")
+        print(f"\nwritten: {target.relative_to(MolDarwin)}")
         return 0
 
     if not target.is_file():

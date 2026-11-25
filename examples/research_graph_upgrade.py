@@ -14,19 +14,19 @@ from pathlib import Path
 import sys
 import time
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.schema import digest
-from etalon.boundary.screen import Screen
-from etalon.campaign.design import component, compose
-from etalon.research import Artifact, MethodUse, MethodVersion, ResearchJournal, TaskSplit
-from etalon.research.components import record_component_step, record_json
-from etalon.research.composition import record_evaluation
-from etalon.research.continuation import CHECKPOINT, STEP, capture_watermarks, read_content, record_content, resume_research
-from etalon.research.evidence_refs import file_identity
-from etalon.research.method_contract import CONTRACT, COMPARISON, assess_comparability, compile_screen_revision, validate_content as validate_method_content
-from etalon.research.method_revision import journal_ref
-from etalon.research.research_context import build_research_context, load_entry
-from etalon.research.research_trace import project_trace, render_trace_html, trace_event
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.schema import digest
+from moldarwin.boundary.screen import Screen
+from moldarwin.campaign.design import component, compose
+from moldarwin.research import Artifact, MethodUse, MethodVersion, ResearchJournal, TaskSplit
+from moldarwin.research.components import record_component_step, record_json
+from moldarwin.research.composition import record_evaluation
+from moldarwin.research.continuation import CHECKPOINT, STEP, capture_watermarks, read_content, record_content, resume_research
+from moldarwin.research.evidence_refs import file_identity
+from moldarwin.research.method_contract import CONTRACT, COMPARISON, assess_comparability, compile_screen_revision, validate_content as validate_method_content
+from moldarwin.research.method_revision import journal_ref
+from moldarwin.research.research_context import build_research_context, load_entry
+from moldarwin.research.research_trace import project_trace, render_trace_html, trace_event
 
 
 def write(path, value):
@@ -58,9 +58,9 @@ def resume_only(output):
     assert len(comparable) == 1
     comparable = validate_method_content(comparable[0])
     assert comparable["status"] == "ready_for_evaluation", comparable
-    evaluations = [record for record in records if record.get("schema") == "etalon-method-evaluation/1"]
+    evaluations = [record for record in records if record.get("schema") == "moldarwin-method-evaluation/1"]
     assert len(evaluations) == 1
-    traces = [content for _, content in artifacts if isinstance(content, dict) and content.get("schema") == "etalon-research-trace/1"]
+    traces = [content for _, content in artifacts if isinstance(content, dict) and content.get("schema") == "moldarwin-research-trace/1"]
     outputs, native_states = [], {}
     for branch in ("baseline", "candidate"):
         screen = Screen.open_existing(output / branch)
@@ -88,7 +88,7 @@ def resume_only(output):
         "historical_execution_costs": costs, "read_only_validation_wall_seconds": time.perf_counter() - started,
         "default_promotion": "not_performed", "scientific_benefit": "not_established",
         "preserved_failure": file_identity(output / "failure.json") if (output / "failure.json").exists() else None,
-        "python": sys.executable, "etalon_module": __import__("etalon").__file__}
+        "python": sys.executable, "moldarwin_module": __import__("moldarwin").__file__}
     write(destination, report)
     return report
 
@@ -191,7 +191,7 @@ def build(output, entry, library):
             "includes": "Screen.run; excludes compilation/context/package setup", "ordered_pair": True},
             bindings={"kind": "accounting"})
         costs.append(cost)
-        attached = record_component_step(journal, capability_id="molcascade.screen", location=screen.workspace,
+        attached = record_component_step(journal, capability_id="molcat.screen", location=screen.workspace,
             directory=directory, source_id=sid, source_kind="new_execution", task_id=task, question=question,
             branch_id=branch, node_id="properties", reason="Read verified producer outputs from the preceding normal execution",
             run_id="properties", input_refs=[compiled_ref], method_refs=[method], use_refs=[use], accounting_refs=[cost])
@@ -259,7 +259,7 @@ def build(output, entry, library):
             "reconsider_when": "Independent repeats with unchanged obligations; prior research pause remains authoritative"}],
         "source_watermarks": capture_watermarks(old_workspace, source_ids=[s["source_id"] for s in old_manifest["sources"]]),
         "supersedes": [old_ref]})
-    workspace = output / "etalon-workspace.json"
+    workspace = output / "moldarwin-workspace.json"
     write(workspace, {**old_manifest, "workspace_id": task, "sources": [*old_manifest["sources"],
         {"source_id": sid, "kind": "journal", "location": str(store.path),
          "identity": {"kind": "snapshot_sha256", "value": file_identity(store.path)["sha256"]}}]})
@@ -273,7 +273,7 @@ def build(output, entry, library):
         "old_journals_unchanged": True, "old_journal_identities": before,
         "pending_handles": resumed["pending"], "new_docking_md_lab_calls": 0,
         "default_promotion": "not_performed", "scientific_benefit": "not_established",
-        "python": sys.executable, "etalon_module": __import__("etalon").__file__}
+        "python": sys.executable, "moldarwin_module": __import__("moldarwin").__file__}
     write(output / "acceptance.json", report)
     assert comparable["status"] == "ready_for_evaluation", comparable
     assert outputs[0] == outputs[1], "Property rows differ; retain failure and do not claim equivalence"

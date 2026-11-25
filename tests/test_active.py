@@ -11,7 +11,7 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from etalon.active import (
+from moldarwin.active import (
     ActiveCampaign,
     BudgetExhausted,
     CampaignSpec,
@@ -21,10 +21,10 @@ from etalon.active import (
     Evaluation,
     StateError,
 )
-from etalon.active.model import MultiEndpointGP
-from etalon.active.replay import from_manifest, synthetic_manifest
-from etalon.authority.grant import NotAuthorized, authorize, require
-from etalon.faults.attribution import Observation
+from moldarwin.active.model import MultiEndpointGP
+from moldarwin.active.replay import from_manifest, synthetic_manifest
+from moldarwin.authority.grant import NotAuthorized, authorize, require
+from moldarwin.faults.attribution import Observation
 
 
 def setup_store(tmp_path, *, budget=40.0, count=16, replicas=1, batch_size=2, policy="cost_aware"):
@@ -351,7 +351,7 @@ def test_replication_reduces_uncertainty_and_respects_attempt_limit(tmp_path):
 
 
 def test_full_pool_featurization_keeps_ids_aligned_with_invalid_smiles():
-    from etalon.active.adapters import molecular_candidates
+    from moldarwin.active.adapters import molecular_candidates
 
     candidates, rejected = molecular_candidates({"a": "CCO", "b": "not-a-smiles", "c": "c1ccccc1"})
     assert [c.id for c in candidates] == ["a", "c"]
@@ -373,7 +373,7 @@ def test_read_only_inspection_neither_creates_nor_mutates_journals(tmp_path):
 
 
 def test_cli_demo_and_status(tmp_path, capsys):
-    from etalon.__main__ import main
+    from moldarwin.__main__ import main
 
     assert main(["active", "demo", "--workspace", str(tmp_path), "--size", "16", "--rounds", "3"]) == 0
     result = json.loads(capsys.readouterr().out)
@@ -385,7 +385,7 @@ def test_cli_demo_and_status(tmp_path, capsys):
 
 
 def test_cli_existing_output_refuses_before_executing_more_actions(tmp_path, capsys):
-    from etalon.__main__ import main
+    from moldarwin.__main__ import main
 
     output = tmp_path / "report.json"
     output.write_text("existing evidence", encoding="utf-8")
@@ -396,7 +396,7 @@ def test_cli_existing_output_refuses_before_executing_more_actions(tmp_path, cap
 
 
 def test_benchmark_controls_and_reproducibility(tmp_path):
-    from etalon.active.benchmark import benchmark
+    from moldarwin.active.benchmark import benchmark
 
     arguments = {"seeds": (0, 1), "budget": 64, "size": 16, "rounds": 8,
                  "policies": ("random", "cost_only", "cost_aware")}
@@ -420,7 +420,7 @@ def test_the_stop_reason_agrees_with_the_predicate_every_spend_is_gated_on() -> 
 
     import inspect
 
-    import etalon.active.runner as runner
+    import moldarwin.active.runner as runner
 
     source = inspect.getsource(runner)
     assert "remaining < cost_quote" not in source

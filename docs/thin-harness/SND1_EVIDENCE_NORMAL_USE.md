@@ -3,14 +3,14 @@
 The example connects typed scientific inputs to an optional local-relaxation
 node. It uses existing `snd1_pose_workflow` identity, template and evaluation
 functions, PRISM geometry/chemistry helpers, RDKit MMFF and SciPy optimization.
-It does not alter PRISM or MolCascade interfaces, start docking/MD, or allocate
+It does not alter PRISM or MolCat interfaces, start docking/MD, or allocate
 compute resources. Existing resource receipts account for actual executions.
 
 ## Producer and consumer
 
 `snd1_evidence_workflow.build_input` consumes the previous input bundle, a
 normalized activity extraction, source paper/table, and frozen protocol. It emits
-`etalon-scientific-input/1`; the shared compiler validates it. The SND1 adapter
+`moldarwin-scientific-input/1`; the shared compiler validates it. The SND1 adapter
 accepts five parameter groups: `pocket`, `contacts`, `mobility`, `binding_support`,
 and `optimizer`. Other domain adapters declare their own targets.
 

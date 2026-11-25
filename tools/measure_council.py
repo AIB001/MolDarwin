@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Measure a real council of language models, and find out whether it may sit.
 
-``etalon.council.reliability`` refuses a council that has not been shown to discriminate. This
+``moldarwin.council.reliability`` refuses a council that has not been shown to discriminate. This
 script is the measurement that ruling needs, run against the ``claude`` CLI rather than against a
 scripted double, because a qualification threshold that has only ever been exercised on fixtures is
 a threshold nobody knows the height of.
 
 The task is the one the council actually has jurisdiction over. ``F_COORDINATES_ARE_A_DEPICTION``
 fires on a handoff record whose coordinates were rebuilt from SMILES rather than taken from a pose
--- measured on propranolol out of MolCascade's shortlist exporter: 19 heavy atoms, zero explicit
+-- measured on propranolol out of MolCat's shortlist exporter: 19 heavy atoms, zero explicit
 hydrogens, every z exactly 0.00. The deterministic check reads ``coordinate_source`` and is done.
 This experiment removes that field from both seats, which is the situation the council is for: a
 producer that did not declare its origin, or declared it wrongly.
@@ -40,8 +40,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from etalon.council import Evidence, Seat, Vote, charter, composition, rule  # noqa: E402
-from etalon.judgment.advisor import Advisory, ClaudeCli  # noqa: E402
+from moldarwin.council import Evidence, Seat, Vote, charter, composition, rule  # noqa: E402
+from moldarwin.judgment.advisor import Advisory, ClaudeCli  # noqa: E402
 
 #: Real drug-like SMILES, so a seat reading chemistry is reading something plausible rather than a
 #: string this script invented to be guessable.
@@ -157,7 +157,7 @@ def main() -> int:
         ]
     )
 
-    from etalon.council.convene import _ask
+    from moldarwin.council.convene import _ask
 
     jobs = [(seat, index) for seat in seats for index in range(len(records))]
     print(
@@ -223,7 +223,7 @@ def main() -> int:
         "rendered": ruling.render(),
         "transport_errors": errors,
         "what_this_does_not_show": [
-            "That the council is right about real MolCascade output. These records were built by "
+            "That the council is right about real MolCat output. These records were built by "
             "this script with a known answer, so they are cleaner than a real handoff row and the "
             "signal in them is stronger than a campaign would see.",
             "That either seat generalises. A seat qualified on this fault has established nothing "

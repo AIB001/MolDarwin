@@ -10,7 +10,7 @@ import sys
 
 import pytest
 
-from etalon import host, research_hooks as hooks
+from moldarwin import host, research_hooks as hooks
 
 
 @pytest.fixture
@@ -85,9 +85,9 @@ def test_bound_receipt_state_with_parent_components_writes_and_replays(tmp_path,
     state = (parent / ".." / ("long-export-" + "x" * 85) / "receipts").absolute()
     assert ".." in state.parts
     binding = tmp_path / "binding.json"
-    binding.write_text(json.dumps({"schema": "etalon-research-hook-binding/1", "host": "codex",
+    binding.write_text(json.dumps({"schema": "moldarwin-research-hook-binding/1", "host": "codex",
         "entry": str(tmp_path / "entry.json"), "state_dir": str(state), "max_bytes": 16384}), encoding="utf-8")
-    monkeypatch.setenv("ETALON_RESEARCH_HOOK_BINDING", str(binding))
+    monkeypatch.setenv("MOLDARWIN_RESEARCH_HOOK_BINDING", str(binding))
     first = hooks.handle_bound_event(event())
     public_path = Path(first["receipt_path"])
     io_path = hooks._receipt_io_path(public_path)
@@ -121,7 +121,7 @@ def test_native_payload_fallback_refreshes_context_after_compaction(tmp_path, co
 
 
 def test_tool_event_records_do_not_admit_claims_or_preserve_raw_response(tmp_path, context):
-    value = event("PostToolUse", tool_name="mcp__etalon__read_evidence", tool_use_id="tool-1",
+    value = event("PostToolUse", tool_name="mcp__moldarwin__read_evidence", tool_use_id="tool-1",
                   tool_input={"request_id": "already-running"},
                   tool_response={"isError": True, "content": "PRIVATE_RAW_RESULT"})
     report = invoke(tmp_path, value)
@@ -155,14 +155,14 @@ def test_read_failure_is_durable_not_a_successful_injection(tmp_path, monkeypatc
 
 
 def test_ignore_unrelated_tools_and_own_hook_handler(tmp_path, context):
-    for tool in ("Bash", "mcp__other__write", "mcp__etalon__research_hook"):
+    for tool in ("Bash", "mcp__other__write", "mcp__moldarwin__research_hook"):
         report = invoke(tmp_path, event("PostToolUse", tool_name=tool))
         assert report["ignored"] and report["host_output"] == {}
     assert not (tmp_path / "receipts").exists()
 
 
 def test_host_specific_failure_events(tmp_path):
-    value = event("PostToolUseFailure", tool_name="mcp__etalon__query_evidence", error="offline")
+    value = event("PostToolUseFailure", tool_name="mcp__moldarwin__query_evidence", error="offline")
     with pytest.raises(ValueError, match="unsupported"):
         invoke(tmp_path, value)
     report = hooks.handle_event({}, value, host="claude", state_dir=tmp_path)
@@ -182,7 +182,7 @@ def test_host_specific_failure_events(tmp_path):
     ("[" * 1500 + "]" * 1500, []),
 ])
 def test_mcp_error_shapes_are_observed_without_guessing_from_domain_content(tmp_path, response, expected):
-    value = event("PostToolUse", tool_name="mcp__etalon__read_evidence", tool_response=response)
+    value = event("PostToolUse", tool_name="mcp__moldarwin__read_evidence", tool_response=response)
     report = invoke(tmp_path, value)
     observation = report["receipt"]["tool_observation"]
     assert observation["failure_signals"] == expected
@@ -193,7 +193,7 @@ def test_mcp_error_shapes_are_observed_without_guessing_from_domain_content(tmp_
 
 
 def test_cli_failure_has_no_success_stdout(tmp_path):
-    command = [sys.executable, "-m", "etalon.research_hooks", "--host", "codex",
+    command = [sys.executable, "-m", "moldarwin.research_hooks", "--host", "codex",
                "--entry", str(tmp_path / "missing.json"), "--state-dir", str(tmp_path / "receipts")]
     result = subprocess.run(command, input=json.dumps(event()), capture_output=True, text=True,
                             encoding="utf-8", timeout=30)
@@ -204,7 +204,7 @@ def test_cli_failure_has_no_success_stdout(tmp_path):
 def test_cli_json_bytes_are_utf8_even_when_text_streams_are_ascii(tmp_path):
     # A transport-only fixture tests the process boundary, not scientific data.
     program = (
-        "from etalon import research_hooks as h; "
+        "from moldarwin import research_hooks as h; "
         "h._build_context=lambda *a, **k: {'fixture_note': '\\u4e2d\\u6587 \\u03b1 \\U0001f9ea'}; "
         "raise SystemExit(h.main())"
     )
@@ -217,7 +217,7 @@ def test_cli_json_bytes_are_utf8_even_when_text_streams_are_ascii(tmp_path):
     assert "中文 α 🧪" in output["hookSpecificOutput"]["additionalContext"]
 
     # The diagnostic channel follows the same wire encoding on failure.
-    bad = [sys.executable, "-m", "etalon.research_hooks", "--host", "codex",
+    bad = [sys.executable, "-m", "moldarwin.research_hooks", "--host", "codex",
            "--entry", str(tmp_path / "不存在.json"), "--state-dir", str(tmp_path / "failed")]
     failure = subprocess.run(bad, input=json.dumps(event()).encode(), capture_output=True, env=env, timeout=30)
     assert failure.returncode == 1 and not failure.stdout
@@ -237,7 +237,7 @@ def test_project_export_is_opt_in_and_uses_current_host_protocol(tmp_path, adapt
     assert all(h["timeout"] == 30 for groups in config["hooks"].values() for g in groups for h in g["hooks"])
     assert report["research_hooks"]["entry"] == str(entry.absolute())
     if adapter == "claude":
-        assert handler["args"] == [str(target / ".etalon" / "research-hook.py")]
+        assert handler["args"] == [str(target / ".moldarwin" / "research-hook.py")]
         assert "PostToolUseFailure" in config["hooks"]
     else:
         assert "PostToolUseFailure" not in config["hooks"]
@@ -257,7 +257,7 @@ def test_existing_export_without_entry_has_no_hooks(tmp_path):
 
 def test_existing_journal_is_unchanged_through_real_context_builder(tmp_path):
     from test_research_continuation import case, step, save, checkpoint, publish
-    from etalon.research.evidence_refs import file_identity
+    from moldarwin.research.evidence_refs import file_identity
     fixture = case.__wrapped__(tmp_path)
     journal, ref, _, _ = fixture
     step_ref = save(fixture, step(ref))

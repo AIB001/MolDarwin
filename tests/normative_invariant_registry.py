@@ -180,7 +180,7 @@ BOUND: dict[str, tuple[str, ...]] = {
     # I15 -- the diagnostic node keeps its own derived value: asserted on p1 inside the
     # same fixture that demotes the edge.
     "I15": (f"{AV}::test_membrane_diagnostic_premise_degrades_relied_on_to_used",),
-    # I16 -- scope: no schema other than etalon-method-evaluation/1 is demoted by regime.
+    # I16 -- scope: no schema other than moldarwin-method-evaluation/1 is demoted by regime.
     # See PARTIAL for the byte-identity half.
     # I17 was UNBOUND until the two-edge fixture was added: `_membrane_graph` carries
     # exactly one edge, so §11.2's ordering was held only by reading `relied_pairs`.
@@ -221,7 +221,7 @@ BOUND: dict[str, tuple[str, ...]] = {
     ),
     # I21/I22 -- v4 (ADMISSION_PROPAGATION.md s12). A lesson is not an assessment. The
     # label clause of I21 is the one that was false before v4: the membrane's own prose
-    # claimed no label could pierce it, while `etalon-method-experience/1` sat outside its
+    # claimed no label could pierce it, while `moldarwin-method-experience/1` sat outside its
     # scope entirely, so both routes are bound here and the label route is bound explicitly.
     "I21": (
         f"{AV}::test_i21_a_lesson_cannot_be_a_premise_and_no_label_restores_it",

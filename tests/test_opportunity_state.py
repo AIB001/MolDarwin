@@ -4,16 +4,16 @@ import json
 
 import pytest
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.schema import digest
-from etalon.active.store import StateError
-from etalon.research import Artifact, MethodVersion, ResearchJournal
-from etalon.research import improvement as imp
-from etalon.research import opportunity_state as state
-from etalon.research.components import record_json
-from etalon.research.continuation import record_content
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research.method_revision import journal_ref
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.schema import digest
+from moldarwin.active.store import StateError
+from moldarwin.research import Artifact, MethodVersion, ResearchJournal
+from moldarwin.research import improvement as imp
+from moldarwin.research import opportunity_state as state
+from moldarwin.research.components import record_json
+from moldarwin.research.continuation import record_content
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research.method_revision import journal_ref
 from test_method_revision import case as revision_case
 
 SID = "fixture"
@@ -213,7 +213,7 @@ def test_measured_terminal_uses_existing_evaluation_resolution_authority(revisio
         options = {"prior_use_ref": prior["use_ref"], "counterevidence_refs": revision["problem_refs"]}
     resolution = resolve_revision(revision_case, outcome=outcome, evaluation_ref=measured, **options)
     if without_use:
-        from etalon.research.schema import MethodEvaluation
+        from moldarwin.research.schema import MethodEvaluation
         evaluated=journal.get(measured['record_id'])
         evaluated['scope']=scope
         measured=ref(journal.record(MethodEvaluation(**{k:v for k,v in evaluated.items() if k!='schema'})))
@@ -221,7 +221,7 @@ def test_measured_terminal_uses_existing_evaluation_resolution_authority(revisio
         step['output_refs']=[]
         step['input_refs']=[measured if r['record_id'].startswith('methodevaluation-') else r for r in step['input_refs']]
         resolution['step_ref']=ref(record_content(journal,step,directory,source_id=SID,source_kind='fixture'))
-    before_uses = sum(e["kind"] == "research_recorded" and e.get("payload", {}).get("record", {}).get("schema") == "etalon-method-use/1"
+    before_uses = sum(e["kind"] == "research_recorded" and e.get("payload", {}).get("record", {}).get("schema") == "moldarwin-method-use/1"
                       for e in journal.store.events())
     payload = state.build_opportunity_disposition(journal, opportunity_ref=opportunity, outcome=outcome,
         reason="Existing fixture evaluation and scoped selection", reviewer="fixture-host",
@@ -231,7 +231,7 @@ def test_measured_terminal_uses_existing_evaluation_resolution_authority(revisio
     record_content(journal, payload, directory, source_id=SID, source_kind="fixture")
     result = state.resolve_opportunity_state(journal, opportunity, source_id=SID)
     assert result["terminal"] and result["outcome"] == outcome
-    after_uses = sum(e["kind"] == "research_recorded" and e.get("payload", {}).get("record", {}).get("schema") == "etalon-method-use/1"
+    after_uses = sum(e["kind"] == "research_recorded" and e.get("payload", {}).get("record", {}).get("schema") == "moldarwin-method-use/1"
                      for e in journal.store.events())
     assert after_uses == before_uses and journal.store.actions() == []
 
@@ -252,7 +252,7 @@ def test_preflight_reader_validates_exact_chain_without_database_interface(case)
 def test_external_frozen_opportunity_can_have_local_lifecycle_without_mutation(case, tmp_path):
     original_hash = file_identity(case["j"].store.path)["sha256"]
     workspace = case["root"] / "external-workspace.json"
-    workspace.write_text(json.dumps({"schema": "etalon-evidence-workspace/1", "workspace_id": "original-fixture",
+    workspace.write_text(json.dumps({"schema": "moldarwin-evidence-workspace/1", "workspace_id": "original-fixture",
         "sources": [{"source_id": SID, "kind": "journal", "location": str(case["j"].store.path),
                      "identity": {"kind": "snapshot_sha256", "value": original_hash}}],
         "status_refs": [], "location_map": []}), encoding="utf-8")

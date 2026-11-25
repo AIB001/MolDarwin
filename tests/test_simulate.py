@@ -19,7 +19,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from etalon.boundary.simulate import (
+from moldarwin.boundary.simulate import (
     REQUIRED_TOOLS,
     STAGE_PRODUCTS,
     DriveRecord,
@@ -123,13 +123,13 @@ def test_the_shim_goes_ahead_of_the_real_gmx_on_the_child_path() -> None:
 
     assert parts[0] == "/tmp/shim"
     assert parts.index("/tmp/shim") < parts.index("/usr/local/gromacs/bin")
-    assert exported["ETALON_GENION_SEED"] == "11"
+    assert exported["MOLDARWIN_GENION_SEED"] == "11"
     # The pinned tree, or the manifest would cite a commit for work done by something else.
     assert exported["PYTHONPATH"].split(":")[0] == "/assets/prism"
 
 
 def test_an_unready_environment_refuses_to_build(tmp_path: Path) -> None:
-    from etalon.boundary.simulate import Simulate
+    from moldarwin.boundary.simulate import Simulate
 
     unready = Environment(interpreter=Path(sys.executable), gmx=None, missing=("antechamber",))
     # infra is not loaded: the refusal must happen before anything expensive, including
@@ -371,7 +371,7 @@ def test_the_measured_exit_zero_case_is_pinned() -> None:
 def test_a_binding_energy_is_read_with_prisms_own_pattern(tmp_path: Path) -> None:
     """One file, two readers, and they must not disagree about what it says."""
 
-    from etalon.boundary.simulate import read_binding_energy
+    from moldarwin.boundary.simulate import read_binding_energy
 
     (tmp_path / "FINAL_RESULTS_MMPBSA.dat").write_text(
         "GENERALIZED BORN:\n\n"
@@ -395,7 +395,7 @@ def test_a_binding_energy_is_read_with_prisms_own_pattern(tmp_path: Path) -> Non
 def test_no_result_yet_is_none_rather_than_an_exception(tmp_path: Path) -> None:
     """A campaign in progress has molecules with no number, and that is ordinary."""
 
-    from etalon.boundary.simulate import read_binding_energy
+    from moldarwin.boundary.simulate import read_binding_energy
 
     assert read_binding_energy(tmp_path) is None
     assert read_binding_energy(tmp_path / "never-existed") is None
@@ -406,7 +406,7 @@ def test_a_build_is_reused_only_when_the_inputs_match(tmp_path: Path) -> None:
 
     import json
 
-    from etalon.boundary.simulate import Simulate
+    from moldarwin.boundary.simulate import Simulate
 
     runner = Simulate.__new__(Simulate)
     runner.workspace = tmp_path

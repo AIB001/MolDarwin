@@ -5,18 +5,18 @@ from pathlib import Path
 
 import pytest
 
-from etalon import host, skills
-from etalon.active.schema import canonical
-from etalon.research.continuation import read_content
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research.meta_context import (
+from moldarwin import host, skills
+from moldarwin.active.schema import canonical
+from moldarwin.research.continuation import read_content
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research.meta_context import (
     build_task_workset, describe_resource, index_resources, make_task_profile,
     prepare_adaptation_context, publish_task_workset, read_task_workset,
     review_adaptation, selected_skill_members, validate_workset,
 )
-from etalon.research.publication import resume_publication
-from etalon.research.research_context import build_research_context
-from etalon import research_hooks as hooks
+from moldarwin.research.publication import resume_publication
+from moldarwin.research.research_context import build_research_context
+from moldarwin import research_hooks as hooks
 from test_research_publication import case, assert_old_unchanged
 
 
@@ -144,7 +144,7 @@ def test_hook_workset_transition_resets_baseline_and_same_version_can_delta(tmp_
     monkeypatch.setattr(hooks, "_build_context", lambda *a, **k: copy.deepcopy(ctx))
     def run(eid, name="PreToolUse"):
         return hooks.handle_event({}, {"session_id": "same", "event_id": eid, "hook_event_name": name,
-            "tool_name": "mcp__etalon__etalon_research_context"}, host="codex", state_dir=tmp_path)
+            "tool_name": "mcp__moldarwin__moldarwin_research_context"}, host="codex", state_dir=tmp_path)
     first = run("one", "SessionStart")
     ctx["task_workset"] = {"status": "active", "digest": "next", "enabled": []}
     second = run("two")
@@ -179,4 +179,4 @@ def test_export_omits_unselected_skill_members_and_preserves_dependencies(case, 
     exported = tmp_path / "export/.agents/skills/fixture-skill"
     assert (exported / "helper.py").exists() and not (exported / "snd1-only.json").exists()
     assert host.verify(tmp_path / "export")["matches_current_source"]
-    assert not (tmp_path / "export/.agents/skills/etalon-campaign").exists()
+    assert not (tmp_path / "export/.agents/skills/moldarwin-campaign").exists()

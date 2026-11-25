@@ -8,10 +8,10 @@ from dataclasses import replace
 
 import pytest
 
-from etalon.active.schema import canonical
-from etalon.active.store import CampaignStore, StateError
-from etalon.research import MethodVersion, ResearchJournal
-from etalon.runtime import api
+from moldarwin.active.schema import canonical
+from moldarwin.active.store import CampaignStore, StateError
+from moldarwin.research import MethodVersion, ResearchJournal
+from moldarwin.runtime import api
 from test_runtime_actions import fixture_action
 
 
@@ -99,7 +99,7 @@ def test_execution_validation_and_actual_cost_remain_separate(tmp_path, monkeypa
 
 
 def test_two_real_logs_pagination_and_cursor_scope(tmp_path):
-    from etalon.active.schema import CampaignSpec, Endpoint
+    from moldarwin.active.schema import CampaignSpec, Endpoint
     stores = [CampaignStore(tmp_path / f"log-{i}.sqlite") for i in range(2)]
     logs, cursors, histories = [], [], []
     for store in stores:
@@ -152,7 +152,7 @@ def test_prior_exposure_and_self_declared_independence_rejected(tmp_path):
 def test_real_mcp_wrappers_share_action_identity_and_errors(tmp_path, monkeypatch):
     import asyncio
     import json
-    from etalon.mcp.server import register_tools
+    from moldarwin.mcp.server import register_tools
     from test_thin_harness_integration import Collector
 
     store, request, calls, _ = fixture_action(tmp_path, monkeypatch)
@@ -162,19 +162,19 @@ def test_real_mcp_wrappers_share_action_identity_and_errors(tmp_path, monkeypatc
     async def run():
         async def call(name, **args):
             return json.loads(await collector.tools[name](**args))
-        prepared = await call("etalon_action_prepare", request=request)
+        prepared = await call("moldarwin_action_prepare", request=request)
         assert prepared["ok"]
         plan_id = prepared["prepared"]["plan_id"]
-        first = await call("etalon_action_submit", request=request,
+        first = await call("moldarwin_action_submit", request=request,
                            workspace=str(tmp_path / "runtime"), plan_id=plan_id)
         assert first["ok"]
-        result = await call("etalon_action_result", handle=first["handle"])
+        result = await call("moldarwin_action_result", handle=first["handle"])
         assert result["ok"] and result["result"] == api.read_action_result(first["handle"])
         replay = api.submit_action(request, workspace=tmp_path / "runtime", plan_id=plan_id)
         assert replay["job_id"] == first["handle"]["job_id"]
         changed = deepcopy(request)
         changed["arguments"]["candidate_id"] = "two"
-        refused = await call("etalon_action_submit", request=changed,
+        refused = await call("moldarwin_action_submit", request=changed,
                              workspace=str(tmp_path / "runtime"), plan_id=plan_id)
         assert not refused["ok"] and refused["error"]["code"] == "StateError"
         assert not refused["error"]["retryable"]
@@ -183,8 +183,8 @@ def test_real_mcp_wrappers_share_action_identity_and_errors(tmp_path, monkeypatc
 
 
 def test_durable_observer_survives_admission_crash_and_reconciles_same_action(tmp_path, monkeypatch):
-    from etalon.runtime import operations, service
-    from etalon.runtime.store import RuntimeStore
+    from moldarwin.runtime import operations, service
+    from moldarwin.runtime.store import RuntimeStore
     store, request, calls, _ = fixture_action(tmp_path, monkeypatch)
     original = CampaignStore.resolve
     def crash(*args, **kwargs):

@@ -11,13 +11,13 @@ from types import ModuleType, SimpleNamespace
 
 import pytest
 
-from etalon.boundary.infra import load
-from etalon.learn import bundle
+from moldarwin.boundary.infra import load
+from moldarwin.learn import bundle
 
 
 @pytest.fixture
 def export_fixture(monkeypatch):
-    load("molcascade")
+    load("molcat")
     spec = bundle.representation()
     model = SimpleNamespace(n_features_in_=spec.width)
     surrogate = SimpleNamespace(
@@ -54,8 +54,8 @@ def snapshot(path):
     return {entry.name: entry.read_bytes() for entry in path.iterdir()}
 
 
-def test_export_digest_is_exactly_the_real_molcascade_consumer_digest(export_fixture, tmp_path):
-    from molcascade.plugins.builtin.custom_model import inspect_model_bundle
+def test_export_digest_is_exactly_the_real_molcat_consumer_digest(export_fixture, tmp_path):
+    from molcat.plugins.builtin.custom_model import inspect_model_bundle
 
     surrogate, spec, calls, state = export_fixture
     result = write(surrogate, tmp_path / "bundle")
@@ -248,7 +248,7 @@ def test_install_failure_rolls_back_original_bundle(export_fixture, tmp_path, mo
     original = Path.rename
 
     def fail_staging(self, destination):
-        if self.name.startswith(".etalon-bundle-"):
+        if self.name.startswith(".moldarwin-bundle-"):
             raise OSError("simulated install failure")
         return original(self, destination)
 
@@ -287,7 +287,7 @@ def test_nonfinite_calibration_cannot_replace_a_valid_bundle(export_fixture, tmp
 
 def test_export_lock_cannot_be_bypassed_or_removed_by_a_second_exporter(export_fixture, tmp_path):
     target = tmp_path / "bundle"
-    lock = tmp_path / f".etalon-export-{hashlib.sha256(str(target).encode()).hexdigest()}.lock"
+    lock = tmp_path / f".moldarwin-export-{hashlib.sha256(str(target).encode()).hexdigest()}.lock"
     lock.write_text("original owner")
     with pytest.raises(bundle.BundleError, match="another export"):
         write(export_fixture[0], target)
@@ -305,7 +305,7 @@ def test_model_digest_tampering_is_refused_before_overwrite(export_fixture, tmp_
 
 
 def test_real_featurization_and_fitted_forest_preserve_representation_through_export(export_fixture, tmp_path):
-    from etalon.learn.surrogate import Surrogate, featurize
+    from moldarwin.learn.surrogate import Surrogate, featurize
 
     features = featurize(["CCO", "CCN", "CCC", "c1ccccc1"])
     fitted = Surrogate(trees=2, min_samples_leaf=1).fit(features, [1.0, 2.0, 3.0, 4.0])
@@ -316,9 +316,9 @@ def test_real_featurization_and_fitted_forest_preserve_representation_through_ex
 
 
 def test_real_equal_width_alternative_features_cannot_be_exported_as_default(export_fixture, tmp_path):
-    from molcascade.chemistry.featurizers import RepresentationSpec
+    from molcat.chemistry.featurizers import RepresentationSpec
 
-    from etalon.learn.surrogate import Surrogate, featurize, representation
+    from moldarwin.learn.surrogate import Surrogate, featurize, representation
 
     altered = representation().model_dump(mode="json")
     altered["blocks"][1]["radius"] += 1
@@ -331,7 +331,7 @@ def test_real_equal_width_alternative_features_cannot_be_exported_as_default(exp
 
 
 def test_manual_matrix_with_matching_names_is_not_promoted_to_known_representation(export_fixture, tmp_path):
-    from etalon.learn.surrogate import Features, Surrogate, featurize
+    from moldarwin.learn.surrogate import Features, Surrogate, featurize
 
     features = featurize(["CCO", "CCN", "CCC", "c1ccccc1"])
     unknown = Features(features.matrix, features.names)

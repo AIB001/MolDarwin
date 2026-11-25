@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from etalon.research.capability_attribution import (
+from moldarwin.research.capability_attribution import (
     KEY,
     NOT_RECORDED,
     attribution,
@@ -29,29 +29,29 @@ def test_a_caller_that_does_not_say_gets_not_recorded_rather_than_a_guess():
 
 
 def test_a_named_capability_records_its_name_and_basis():
-    block = attribution("etalon_method_criterion", version="etalon-capability-version/1")
-    assert block["capability"] == "etalon_method_criterion"
+    block = attribution("moldarwin_method_criterion", version="moldarwin-capability-version/1")
+    assert block["capability"] == "moldarwin_method_criterion"
     assert block["basis"] == "declared"
-    assert block["version"] == "etalon-capability-version/1"
+    assert block["version"] == "moldarwin-capability-version/1"
 
 
 def test_a_version_is_omitted_rather_than_invented():
-    assert "version" not in attribution("etalon_evidence_query")
+    assert "version" not in attribution("moldarwin_evidence_query")
 
 
 def test_a_named_capability_cannot_claim_it_was_not_recorded():
     with pytest.raises(ValueError):
-        attribution("etalon_method_criterion", basis=NOT_RECORDED)
+        attribution("moldarwin_method_criterion", basis=NOT_RECORDED)
     with pytest.raises(ValueError):
-        attribution("etalon_method_criterion", basis="guessed")
+        attribution("moldarwin_method_criterion", basis="guessed")
 
 
 def test_the_first_writer_keeps_the_attribution():
     """A later layer overwriting it would record its own name for someone else's work."""
 
-    first = with_attribution({"kind": "evidence"}, "etalon_sweep_emit")
-    second = with_attribution(first, "etalon_workflow_advance")
-    assert second[KEY]["capability"] == "etalon_sweep_emit"
+    first = with_attribution({"kind": "evidence"}, "moldarwin_sweep_emit")
+    second = with_attribution(first, "moldarwin_workflow_advance")
+    assert second[KEY]["capability"] == "moldarwin_sweep_emit"
     assert second["kind"] == "evidence", "the rest of the bindings must be untouched"
 
 
@@ -68,16 +68,16 @@ def test_the_census_shows_the_unattributed_rather_than_dropping_them():
     """A rate over only the attributed records would read as coverage it does not have."""
 
     records = [
-        {"bindings": with_attribution(None, "etalon_method_criterion")},
-        {"bindings": with_attribution(None, "etalon_method_criterion")},
-        {"bindings": with_attribution(None, "etalon_evidence_query")},
+        {"bindings": with_attribution(None, "moldarwin_method_criterion")},
+        {"bindings": with_attribution(None, "moldarwin_method_criterion")},
+        {"bindings": with_attribution(None, "moldarwin_evidence_query")},
         {"bindings": {"kind": "poses"}},
         {},
     ]
     out = census(records)
     assert (out["records"], out["attributed"], out["not_recorded"]) == (5, 3, 2)
-    assert list(out["by_capability"]) == ["etalon_method_criterion", NOT_RECORDED,
-                                          "etalon_evidence_query"]
+    assert list(out["by_capability"]) == ["moldarwin_method_criterion", NOT_RECORDED,
+                                          "moldarwin_evidence_query"]
     assert "does_not_establish" in out
 
 
@@ -99,7 +99,7 @@ def test_the_census_over_the_real_record_shape_reports_zero_attributed():
 def test_source_kind_is_not_repurposed_as_attribution():
     """Its vocabulary answers a different question and `rows.py` depends on that reading."""
 
-    from etalon.research.schema import Artifact
+    from moldarwin.research.schema import Artifact
 
     record = {"source_kind": "new_execution", "bindings": {}}
     assert read_attribution(record)["capability"] == NOT_RECORDED, (
@@ -123,7 +123,7 @@ def test_record_json_accepts_the_capability_and_leaves_the_artifact_format_alone
 
     import inspect
 
-    from etalon.research.components import record_json
+    from moldarwin.research.components import record_json
 
     parameters = inspect.signature(record_json).parameters
     for name in ("capability", "capability_basis", "capability_version"):
@@ -138,7 +138,7 @@ def test_record_json_accepts_the_capability_and_leaves_the_artifact_format_alone
 def test_the_running_capability_is_empty_outside_any_dispatched_call():
     """`None`, never a guess. Direct library use genuinely has no verb to name."""
 
-    from etalon.research.capability_attribution import current_capability
+    from moldarwin.research.capability_attribution import current_capability
 
     assert current_capability() is None
 
@@ -146,18 +146,18 @@ def test_the_running_capability_is_empty_outside_any_dispatched_call():
 def test_a_nested_call_restores_the_outer_verb_rather_than_leaking_its_own():
     """One tool calling through another must not rename the outer tool's later records."""
 
-    from etalon.research.capability_attribution import current_capability, running_capability
+    from moldarwin.research.capability_attribution import current_capability, running_capability
 
-    with running_capability("etalon_outer"):
-        assert current_capability() == "etalon_outer"
-        with running_capability("etalon_inner"):
-            assert current_capability() == "etalon_inner"
-        assert current_capability() == "etalon_outer"
+    with running_capability("moldarwin_outer"):
+        assert current_capability() == "moldarwin_outer"
+        with running_capability("moldarwin_inner"):
+            assert current_capability() == "moldarwin_inner"
+        assert current_capability() == "moldarwin_outer"
     assert current_capability() is None
 
 
 def test_a_running_capability_must_be_a_short_nonempty_name():
-    from etalon.research.capability_attribution import running_capability
+    from moldarwin.research.capability_attribution import running_capability
 
     for bad in ("", "   ", "x" * 201, 7):
         with pytest.raises(ValueError):
@@ -176,14 +176,14 @@ def test_the_mcp_tool_wrapper_names_the_verb_it_is_executing():
     was already in `BASES` before anything set it.
     """
 
-    from etalon.mcp._common import Cost, tool
-    from etalon.research.capability_attribution import current_capability
+    from moldarwin.mcp._common import Cost, tool
+    from moldarwin.research.capability_attribution import current_capability
 
     @tool(Cost.FREE)
-    def etalon_probe_verb() -> str:
+    def moldarwin_probe_verb() -> str:
         return current_capability() or "none"
 
-    assert etalon_probe_verb() == "etalon_probe_verb"
+    assert moldarwin_probe_verb() == "moldarwin_probe_verb"
     assert current_capability() is None, "the wrapper must not leak past its own call"
 
 
@@ -194,12 +194,12 @@ def test_a_record_written_inside_a_verb_carries_that_verb_with_basis_mcp_tool(tm
     attribution lines would keep passing after the product stopped attributing anything.
     """
 
-    from etalon.active.schema import CampaignSpec, Endpoint
-    from etalon.active.store import CampaignStore
-    from etalon.research.capability_attribution import (
+    from moldarwin.active.schema import CampaignSpec, Endpoint
+    from moldarwin.active.store import CampaignStore
+    from moldarwin.research.capability_attribution import (
         MCP_TOOL, read_attribution, running_capability)
-    from etalon.research.components import record_json
-    from etalon.research.journal import ResearchJournal
+    from moldarwin.research.components import record_json
+    from moldarwin.research.journal import ResearchJournal
 
     store = CampaignStore(tmp_path / "research.sqlite")
     store.configure(CampaignSpec("attribution", 0, "wall_second", "attribution-fixture"),
@@ -211,26 +211,26 @@ def test_a_record_written_inside_a_verb_carries_that_verb_with_basis_mcp_tool(tm
         rid = record_json(journal, payload, tmp_path / "records", source_kind="fixture", **kwargs)
         return read_attribution(journal.get(rid))
 
-    with running_capability("etalon_method_criterion"):
+    with running_capability("moldarwin_method_criterion"):
         implicit = written({"n": 1})
-        explicit = written({"n": 2}, capability="etalon-step-corpus")
+        explicit = written({"n": 2}, capability="moldarwin-step-corpus")
     outside = written({"n": 3})
 
-    assert implicit == {"capability": "etalon_method_criterion", "basis": MCP_TOOL}
+    assert implicit == {"capability": "moldarwin_method_criterion", "basis": MCP_TOOL}
     # An explicit name outranks the verb: it is the more specific claim, because the verb is
     # only the entry point to whatever skill or executor actually ran.
-    assert explicit == {"capability": "etalon-step-corpus", "basis": "declared"}
+    assert explicit == {"capability": "moldarwin-step-corpus", "basis": "declared"}
     assert outside == {"capability": NOT_RECORDED, "basis": NOT_RECORDED}
 
 
 def test_the_census_separates_a_declared_name_from_a_dispatched_verb():
     """Two bases are not interchangeable evidence for a routing decision."""
 
-    from etalon.research.capability_attribution import MCP_TOOL
+    from moldarwin.research.capability_attribution import MCP_TOOL
 
     records = [
-        {"bindings": {KEY: attribution("etalon_method_criterion", basis=MCP_TOOL)}},
-        {"bindings": {KEY: attribution("etalon-step-corpus")}},
+        {"bindings": {KEY: attribution("moldarwin_method_criterion", basis=MCP_TOOL)}},
+        {"bindings": {KEY: attribution("moldarwin-step-corpus")}},
         {},
     ]
     out = census(records)
@@ -252,16 +252,16 @@ def test_the_running_verb_is_read_where_bindings_are_assembled_not_per_write_sit
 
     import inspect
 
-    from etalon.research.capability_attribution import (
+    from moldarwin.research.capability_attribution import (
         MCP_TOOL, current_capability, running_capability, with_attribution)
-    from etalon.research.components import record_json
+    from moldarwin.research.components import record_json
 
-    with running_capability("etalon_probe_verb"):
-        assert current_capability() == "etalon_probe_verb"
+    with running_capability("moldarwin_probe_verb"):
+        assert current_capability() == "moldarwin_probe_verb"
         assert with_attribution(None)[KEY] == {
-            "capability": "etalon_probe_verb", "basis": MCP_TOOL}
+            "capability": "moldarwin_probe_verb", "basis": MCP_TOOL}
         # An explicit name is the more specific claim and still outranks the verb.
-        assert with_attribution(None, "etalon-step-corpus")[KEY]["basis"] == "declared"
+        assert with_attribution(None, "moldarwin-step-corpus")[KEY]["basis"] == "declared"
     assert with_attribution(None)[KEY]["capability"] == NOT_RECORDED
 
     assert "current_capability" not in inspect.getsource(record_json), (
@@ -273,9 +273,9 @@ def test_the_running_verb_is_read_where_bindings_are_assembled_not_per_write_sit
 
 
 def _journal(tmp_path):
-    from etalon.active.schema import CampaignSpec, Endpoint
-    from etalon.active.store import CampaignStore
-    from etalon.research.journal import ResearchJournal
+    from moldarwin.active.schema import CampaignSpec, Endpoint
+    from moldarwin.active.store import CampaignStore
+    from moldarwin.research.journal import ResearchJournal
 
     store = CampaignStore(tmp_path / "research.sqlite")
     store.configure(CampaignSpec("attribution", 0, "wall_second", "attribution-fixture"),
@@ -287,8 +287,8 @@ def _journal(tmp_path):
 def _artifact(tmp_path, name, payload, **overrides):
     import json
 
-    from etalon.boundary.prism_v1 import file_identity
-    from etalon.research.schema import Artifact
+    from moldarwin.boundary.prism_v1 import file_identity
+    from moldarwin.research.schema import Artifact
 
     path = tmp_path / name
     path.write_text(json.dumps(payload), encoding="utf-8")
@@ -307,7 +307,7 @@ def _stored_records(journal):
 
 
 def test_attribution_reaches_exactly_the_record_types_that_own_a_bindings_mapping():
-    """Scope. The reserved `bindings` block is ETALON's; a record's payload is not.
+    """Scope. The reserved `bindings` block is MolDarwin's; a record's payload is not.
 
     A previous overreach in this area annotated content that belonged to callers' own
     documents. So the stamp is confined to the one mapping `reserved_bindings.py` already
@@ -317,7 +317,7 @@ def test_attribution_reaches_exactly_the_record_types_that_own_a_bindings_mappin
 
     import dataclasses
 
-    from etalon.research import schema
+    from moldarwin.research import schema
 
     types = (schema.Artifact, schema.Experiment, schema.Observation, schema.Contrast,
              schema.Revision, schema.TaskSplit, schema.MethodVersion, schema.MethodUse,
@@ -326,7 +326,7 @@ def test_attribution_reaches_exactly_the_record_types_that_own_a_bindings_mappin
               if "bindings" in {f.name for f in dataclasses.fields(c)}}
     assert owning == {"Artifact", "Experiment"}, (
         "the set of records that can carry attribution changed; the other seven carry no "
-        "bindings mapping and must not be grown one to hold ETALON's annotation")
+        "bindings mapping and must not be grown one to hold MolDarwin's annotation")
 
 
 def test_a_bindings_bearing_record_cannot_reach_the_journal_unattributed(tmp_path):
@@ -343,12 +343,12 @@ def test_a_bindings_bearing_record_cannot_reach_the_journal_unattributed(tmp_pat
     produced nothing).
     """
 
-    from etalon.research.capability_attribution import MCP_TOOL, running_capability
-    from etalon.research.components import record_json
-    from etalon.research.journal import audit_json
+    from moldarwin.research.capability_attribution import MCP_TOOL, running_capability
+    from moldarwin.research.components import record_json
+    from moldarwin.research.journal import audit_json
 
     journal = _journal(tmp_path)
-    with running_capability("etalon_probe_verb"):
+    with running_capability("moldarwin_probe_verb"):
         journal.record(_artifact(tmp_path, "raw.json", {"n": 1}))
         record_json(journal, {"n": 2}, tmp_path / "records", source_kind="fixture")
         audit_json(journal, _artifact(tmp_path, "audited.json", {"n": 3}),
@@ -361,7 +361,7 @@ def test_a_bindings_bearing_record_cannot_reach_the_journal_unattributed(tmp_pat
         f"{out['not_recorded']} of {out['records']} records reached the journal carrying a "
         "bindings mapping and no attribution: the verb census under-counts by that many, and "
         "afterwards they are indistinguishable from records produced outside any verb")
-    assert out["by_capability"] == {"etalon_probe_verb": len(carrying)}
+    assert out["by_capability"] == {"moldarwin_probe_verb": len(carrying)}
     assert out["by_basis"] == {MCP_TOOL: len(carrying)}
 
 
@@ -390,36 +390,36 @@ def test_the_record_the_caller_holds_keeps_the_identity_that_was_stored(tmp_path
     carries, those three would reference records that are not there.
     """
 
-    from etalon.research.capability_attribution import running_capability
+    from moldarwin.research.capability_attribution import running_capability
 
     journal = _journal(tmp_path)
     artifact = _artifact(tmp_path, "identity.json", {"n": 1})
-    with running_capability("etalon_probe_verb"):
+    with running_capability("moldarwin_probe_verb"):
         identifier = journal.record(artifact)
     assert artifact.id == identifier
-    assert journal.get(artifact.id)["bindings"][KEY]["capability"] == "etalon_probe_verb"
+    assert journal.get(artifact.id)["bindings"][KEY]["capability"] == "moldarwin_probe_verb"
 
 
 def test_the_stamp_does_not_reach_into_the_bindings_dict_the_caller_passed(tmp_path):
     """`pose.py:196` hands one caller-owned dict to every artifact in a loop.
 
     That dict is `request['input_identity']` -- the caller's own document. Mutating it in
-    place would stamp ETALON's annotation into the request, and into every other record
+    place would stamp MolDarwin's annotation into the request, and into every other record
     sharing the object. The record carries the block; what the caller passed does not.
     """
 
-    from etalon.research.capability_attribution import running_capability
+    from moldarwin.research.capability_attribution import running_capability
 
     journal = _journal(tmp_path)
     shared = {"kind": "poses"}
-    with running_capability("etalon_probe_verb"):
+    with running_capability("moldarwin_probe_verb"):
         identifiers = [journal.record(_artifact(tmp_path, name, {"n": n}, bindings=shared))
                        for n, name in ((1, "a.json"), (2, "b.json"))]
     assert shared == {"kind": "poses"}, "the caller's own bindings dict was annotated"
     for identifier in identifiers:
         body = journal.get(identifier)
         assert body["bindings"]["kind"] == "poses", "the rest of the bindings must be untouched"
-        assert body["bindings"][KEY]["capability"] == "etalon_probe_verb"
+        assert body["bindings"][KEY]["capability"] == "moldarwin_probe_verb"
 
 
 def test_the_seam_never_overwrites_a_more_specific_name(tmp_path):
@@ -430,19 +430,19 @@ def test_the_seam_never_overwrites_a_more_specific_name(tmp_path):
     whatever skill or executor actually ran, so it never outranks either.
     """
 
-    from etalon.research.capability_attribution import running_capability
-    from etalon.research.components import record_json
+    from moldarwin.research.capability_attribution import running_capability
+    from moldarwin.research.components import record_json
 
     journal = _journal(tmp_path)
-    with running_capability("etalon_probe_verb"):
+    with running_capability("moldarwin_probe_verb"):
         through = record_json(journal, {"n": 1}, tmp_path / "records", source_kind="fixture",
-                              capability="etalon-step-corpus")
+                              capability="moldarwin-step-corpus")
         prestamped = journal.record(_artifact(
             tmp_path, "declared.json", {"n": 2},
-            bindings=with_attribution({"kind": "poses"}, "etalon-step-corpus")))
+            bindings=with_attribution({"kind": "poses"}, "moldarwin-step-corpus")))
     for identifier in (through, prestamped):
         assert read_attribution(journal.get(identifier)) == {
-            "capability": "etalon-step-corpus", "basis": "declared"}
+            "capability": "moldarwin-step-corpus", "basis": "declared"}
 
 
 def test_attribution_is_stamped_at_the_write_and_never_backfilled(tmp_path):
@@ -455,19 +455,19 @@ def test_attribution_is_stamped_at_the_write_and_never_backfilled(tmp_path):
     behind that.
     """
 
-    from etalon.active.store import StateError
-    from etalon.research.capability_attribution import running_capability
+    from moldarwin.active.store import StateError
+    from moldarwin.research.capability_attribution import running_capability
 
     journal = _journal(tmp_path)
     artifact = _artifact(tmp_path, "backfill.json", {"n": 1})
     identifier = journal.record(artifact)
     assert read_attribution(journal.get(identifier))["capability"] == NOT_RECORDED
 
-    with running_capability("etalon_later_verb"):
+    with running_capability("moldarwin_later_verb"):
         assert journal.record(artifact) == identifier, "a second write renamed the producer"
     assert read_attribution(journal.get(identifier))["capability"] == NOT_RECORDED
 
     body = journal.get(identifier)
-    body["bindings"] = {**body["bindings"], KEY: attribution("etalon_later_verb")}
+    body["bindings"] = {**body["bindings"], KEY: attribution("moldarwin_later_verb")}
     with pytest.raises(StateError), journal.store.connection(write=True) as db:
         journal._put(db, identifier, body)

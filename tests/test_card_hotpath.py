@@ -3,19 +3,19 @@ from pathlib import Path
 
 import pytest
 
-from etalon.research.evidence_refs import EvidenceError
-from etalon.research.research_context import build_research_context
-from etalon.research.graph_memory import build_research_graph
-from etalon.research.continuation_card import _inventory, continuation_card
-from etalon.research.entry import make_read_context, continuation_status
-from etalon.research.read_scope import verified_read
+from moldarwin.research.evidence_refs import EvidenceError
+from moldarwin.research.research_context import build_research_context
+from moldarwin.research.graph_memory import build_research_graph
+from moldarwin.research.continuation_card import _inventory, continuation_card
+from moldarwin.research.entry import make_read_context, continuation_status
+from moldarwin.research.read_scope import verified_read
 from test_research_graph_memory import graph_case
 from test_declared_relations import nested_counter
 from test_research_publication import case
 
 
 def test_explicit_card_does_not_construct_display_graph_but_summary_still_does(graph_case, monkeypatch):
-    import etalon.research.research_context as context
+    import moldarwin.research.research_context as context
     calls = []
     def graph(*args, **kwargs):
         calls.append(True)
@@ -31,8 +31,8 @@ def test_explicit_card_does_not_construct_display_graph_but_summary_still_does(g
 
 
 def test_direct_card_matches_old_graph_first_authority_refs_and_counter_inventory(graph_case):
-    from etalon.research.research_context import _publication_context
-    from etalon.research.meta_context import workset_summary
+    from moldarwin.research.research_context import _publication_context
+    from moldarwin.research.meta_context import workset_summary
     c = graph_case
     nested_counter(c)
     with verified_read():
@@ -84,10 +84,10 @@ def test_uncheckpointed_progress_cannot_hide_corrupt_raw_input_after_skipping_gr
 
 def test_real_published_workset_card_preserves_activation_versions_for_hook_transition(case, tmp_path):
     from test_meta_context import workset
-    from etalon.research.meta_context import publish_task_workset
-    from etalon.research.publication import resume_publication
-    from etalon.research_hooks import _delivery_payload
-    from etalon.research.evidence_refs import file_identity
+    from moldarwin.research.meta_context import publish_task_workset
+    from moldarwin.research.publication import resume_publication
+    from moldarwin.research_hooks import _delivery_payload
+    from moldarwin.research.evidence_refs import file_identity
     selected = workset(case)
     intent = publish_task_workset(case["entry"], selected, parent_entry=case["parent"],
                                  operation_id="card-selected", directory=tmp_path / "selected")

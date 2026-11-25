@@ -7,12 +7,12 @@ import sys
 
 import pytest
 
-from etalon.active import ActiveCampaign, CampaignSpec, CampaignStore, Candidate, Endpoint
-from etalon.active.runner import ExecutionPending
-from etalon.active.schema import Action
-from etalon.boundary.prism_v1 import CLITransport, TransportError
-from etalon.runtime import operations
-from etalon.runtime.executors import build_executor, prepare_executor, register_executor, registered_executors
+from moldarwin.active import ActiveCampaign, CampaignSpec, CampaignStore, Candidate, Endpoint
+from moldarwin.active.runner import ExecutionPending
+from moldarwin.active.schema import Action
+from moldarwin.boundary.prism_v1 import CLITransport, TransportError
+from moldarwin.runtime import operations
+from moldarwin.runtime.executors import build_executor, prepare_executor, register_executor, registered_executors
 from test_prism_v1 import setup, FixtureTransport
 
 
@@ -85,7 +85,7 @@ def test_runtime_recovery_reads_existing_result_without_submit_or_resume(tmp_pat
     register_executor(store.path, record, 'fixture')
     class Context:
         root = tmp_path / 'runtime'
-        preflight = {'registry_hash': __import__('etalon.active.schema', fromlist=['digest']).digest(registered_executors(store.path))}
+        preflight = {'registry_hash': __import__('moldarwin.active.schema', fromlist=['digest']).digest(registered_executors(store.path))}
         def __init__(self): self.values = {}
         def receipt(self, key, value): self.values[key] = value
         def receipts(self): return self.values

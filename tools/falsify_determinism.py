@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Try to falsify the claim that a PRISM build is a pure function of its inputs.
 
-This is a falsification test, not a feature, and it is the first thing ETALON had to
+This is a falsification test, not a feature, and it is the first thing MolDarwin had to
 run. The whole question of whether PRISM's build steps can become content-addressed
-MolCascade stages turns on it: a stage declared ``DETERMINISTIC`` is cached
-unconditionally, and MolCascade never verifies that a plugin honours the promise its
+MolCat stages turns on it: a stage declared ``DETERMINISTIC`` is cached
+unconditionally, and MolCat never verifies that a plugin honours the promise its
 descriptor makes. So a wrong answer here does not fail loudly -- it produces a cache
 whose key asserts reproducibility for a result that was drawn from the clock, and
 every measurement taken afterwards inherits the assertion.
@@ -244,7 +244,7 @@ def main() -> int:
     parser.add_argument(
         "--workspace",
         type=Path,
-        default=Path("/tmp/etalon-determinism"),
+        default=Path("/tmp/moldarwin-determinism"),
         help="Scratch directory. Wiped per probe.",
     )
     parser.add_argument("--json", type=Path, help="Write findings here as well as printing them.")

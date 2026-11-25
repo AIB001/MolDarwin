@@ -6,7 +6,7 @@ that all scientific counterevidence is known. The existing graph/context tools
 remain the entrypoints; calls without `scope` keep their previous behavior.
 
 ```python
-from etalon.research.research_context import build_research_context
+from moldarwin.research.research_context import build_research_context
 
 context = build_research_context(
     entry, view="summary", max_bytes=65536,
@@ -25,7 +25,7 @@ records for that task/branch. `root_refs` and `branch_id` are mutually exclusive
 `ordinary_hops` is 0 or 1; omitted means 1. Expanding a boundary is a subsequent
 explicit read using its exact references, not an automatic increase in the limit.
 
-Both `etalon_research_context` (summary/node/full) and `etalon_research_graph`
+Both `moldarwin_research_context` (summary/node/full) and `moldarwin_research_graph`
 accept the same optional `scope`. Resource catalogs and branch resource-usage views
 retain their own selectors and reject this graph option. No new MCP tool or
 permanent index is introduced.
@@ -69,11 +69,11 @@ remain visible in the receipts; narrowing authorization must not turn an unknown
 counter into an assertion that none exists.
 
 Context uses one `reference_index` for full immutable references. Its
-`etalon-research-context-scope/1` receipt uses node IDs for roots, controls,
+`moldarwin-research-context-scope/1` receipt uses node IDs for roots, controls,
 boundaries and counter endpoints; directional relations contain `from`, `to`
 and `basis_node_id`. Ordinary boundary edges are grouped by source and relation
 with `to_node_ids`, retaining their original count. This is lossless reference deduplication, not omission of
-evidence. The direct graph response uses `etalon-research-graph-scope/1` and
+evidence. The direct graph response uses `moldarwin-research-graph-scope/1` and
 retains its corresponding full-reference lists. Always interpret the recorded
 schema. Boundary references receive metadata identity checks; original-byte
 verification covers the included nodes. Expand a boundary through the existing
@@ -87,7 +87,7 @@ because its digest does not match the root's identity.
 
 Read the entry's latest progress and branch state, then choose an explicit scope
 when the broad view is too large. Follow exact boundary/counter refs using existing
-`etalon_evidence_read` pagination and its original-byte checks. An incomplete
+`moldarwin_evidence_read` pagination and its original-byte checks. An incomplete
 summary is not a request to repeat a completed computation or RSI proposal.
 
 The existing hook still delivers the ordinary continuation summary. This feature

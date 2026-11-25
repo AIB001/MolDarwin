@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from etalon.runtime.executors import prepare_executor
+from moldarwin.runtime.executors import prepare_executor
 
 pytest.importorskip("prism", reason="the replicated protocol identity reads PRISM's pinned tree")
 

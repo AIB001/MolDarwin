@@ -8,13 +8,13 @@ import pytest
 Chem = pytest.importorskip("rdkit.Chem")
 from rdkit.Chem import AllChem
 
-from etalon.active.schema import digest
-from etalon.research.evidence_refs import make_ref
-from etalon.research.input_qualification import (
+from moldarwin.active.schema import digest
+from moldarwin.research.evidence_refs import make_ref
+from moldarwin.research.input_qualification import (
     POLICY, build_input_qualification, read_input_qualification, write_input_qualification,
 )
-from etalon.research.schema import Artifact
-from etalon.research.scientific_input import SCHEMA, compile_input, identity
+from moldarwin.research.schema import Artifact
+from moldarwin.research.scientific_input import SCHEMA, compile_input, identity
 
 
 def make_case(tmp_path, molecules, roles=None):
@@ -28,9 +28,9 @@ def make_case(tmp_path, molecules, roles=None):
         sources.append({"id": str(i), "role": "conditioning", "scope": "fixture", "path": str(path),
                         **identity(path), "locator": "SDF record 0", "evidence_ref": make_ref("fixture", artifact.id, artifact.as_dict())})
     manifest = tmp_path / "manifest.json"
-    manifest.write_text(json.dumps({"schema": "etalon-artifact-manifest/1", "records": records}), encoding="utf-8")
+    manifest.write_text(json.dumps({"schema": "moldarwin-artifact-manifest/1", "records": records}), encoding="utf-8")
     workspace = tmp_path / "workspace.json"
-    workspace.write_text(json.dumps({"schema": "etalon-evidence-workspace/1", "workspace_id": "fixture",
+    workspace.write_text(json.dumps({"schema": "moldarwin-evidence-workspace/1", "workspace_id": "fixture",
         "sources": [{"source_id": "fixture", "kind": "artifact_manifest", "location": str(manifest),
                      "identity": {"kind": "snapshot_sha256", "value": identity(manifest)["sha256"]}}], "path_map": []}), encoding="utf-8")
     bundle = {"schema": SCHEMA, "task_id": "fixture", "scope": "fixture", "subject": {"id": "fixture"},
@@ -179,7 +179,7 @@ def test_json_pointer_cannot_strip_container_role(tmp_path, role):
     container.write_text(json.dumps({"role": role, "source": {k: source[k] for k in ("sha256", "bytes")}}))
     artifact = Artifact(str(container), **identity(container), source_kind="fixture", role="diagnostic", bindings={})
     manifest = tmp_path / "manifest.json"
-    manifest.write_text(json.dumps({"schema": "etalon-artifact-manifest/1", "records": [{"record_id": artifact.id,
+    manifest.write_text(json.dumps({"schema": "moldarwin-artifact-manifest/1", "records": [{"record_id": artifact.id,
         "record_type": "artifact", "visibility": "released", "record": artifact.as_dict()}]}))
     workspace = Path(args["workspace"]); doc = json.loads(workspace.read_text())
     doc["sources"][0]["identity"]["value"] = identity(manifest)["sha256"]; workspace.write_text(json.dumps(doc))
@@ -193,8 +193,8 @@ def test_json_pointer_cannot_strip_container_role(tmp_path, role):
 
 
 def test_optional_qualification_artifact_records_in_existing_journal(tmp_path):
-    from etalon.active import CampaignSpec, CampaignStore, Endpoint
-    from etalon.research.journal import ResearchJournal
+    from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+    from moldarwin.research.journal import ResearchJournal
     bundle, args = make_case(tmp_path, [mol("CC")])
     artifact = write_input_qualification(tmp_path / "qualification.json", bundle, **args)
     store = CampaignStore(tmp_path / "fixture-campaign.sqlite")
@@ -212,7 +212,7 @@ def test_sealed_source_is_unavailable(tmp_path):
 
 
 def test_mapping_cap_cannot_be_called_comparable(tmp_path, monkeypatch):
-    import etalon.research.input_qualification as module
+    import moldarwin.research.input_qualification as module
     monkeypatch.setattr(module, "MAX_MAPPINGS", 1)
     report = qualify(tmp_path, ["c1ccccc1", "c1ccccc1"])
     assert report["transitions"][0]["mapping_limit_reached"]
@@ -226,7 +226,7 @@ def test_unsupported_non_tetrahedral_stereo_cannot_be_called_comparable(tmp_path
 
 
 def test_missing_or_different_feature_applicability_is_not_comparable(tmp_path, monkeypatch):
-    import etalon.research.input_qualification as module
+    import moldarwin.research.input_qualification as module
     original = module._inventory
     def changed_inventory(molecule, raw, origin):
         rows, unsupported = original(molecule, raw, origin)

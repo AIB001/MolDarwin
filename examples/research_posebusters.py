@@ -8,22 +8,22 @@ panel, not free measurements attributed to the selective policy.
 from __future__ import annotations
 import argparse, json, os, sqlite3, subprocess, sys, time
 from pathlib import Path
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.schema import digest
-from etalon.host import _consumer_lock
-from etalon.research.journal import ResearchJournal
-from etalon.research.schema import Artifact, MethodVersion, MethodUse, TaskSplit
-from etalon.research import improvement as imp
-from etalon.research.continuation import STEP, CHECKPOINT, record_content
-from etalon.research.composition import node_step, record_evaluation
-from etalon.research.method_revision import journal_ref
-from etalon.research.evidence_refs import file_identity
-from etalon.research.publication import _save, prepare_publication, resume_publication, discover_publications
-from etalon.research.pose_task import compile_task, select_pose_branch
-from etalon.research.pose_verifier import verify_poses
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.schema import digest
+from moldarwin.host import _consumer_lock
+from moldarwin.research.journal import ResearchJournal
+from moldarwin.research.schema import Artifact, MethodVersion, MethodUse, TaskSplit
+from moldarwin.research import improvement as imp
+from moldarwin.research.continuation import STEP, CHECKPOINT, record_content
+from moldarwin.research.composition import node_step, record_evaluation
+from moldarwin.research.method_revision import journal_ref
+from moldarwin.research.evidence_refs import file_identity
+from moldarwin.research.publication import _save, prepare_publication, resume_publication, discover_publications
+from moldarwin.research.pose_task import compile_task, select_pose_branch
+from moldarwin.research.pose_verifier import verify_poses
 
 SID='posebusters24'; TASK='posebusters24-known-pocket'; QUESTION='Does GPU pose rescoring improve valid pose recovery, and can recorded experience guide subsequent selection?'
-CAP='molcascade.gnina.pose-ranking'
+CAP='molcat.gnina.pose-ranking'
 CONDITIONS={'endpoint':'valid-pose-recovery','task':'known-pocket-redocking','pose_pool':'empirical-GNINA-1.3.3',
             'cnn':'crossdock_default2018','scope':'organic-10-45-heavy-atoms; fixed-receptor-frame'}
 
@@ -50,7 +50,7 @@ class Case:
     def state(self):return read(self.root/'state.json')
     def persist(self,s):_save(self.root/'state.json',s,replace=True)
     def workspace(self):
-        p=self.root/'live-workspace.json';_save(p,{'schema':'etalon-evidence-workspace/1','workspace_id':self.TASK,
+        p=self.root/'live-workspace.json';_save(p,{'schema':'moldarwin-evidence-workspace/1','workspace_id':self.TASK,
           'sources':[{'source_id':self.SID,'kind':'journal','location':str(self.database),
                       'identity':{'kind':'snapshot_sha256','value':file_identity(self.database)['sha256']}}],
           'status_refs':[str(self.root/'STATUS.md')],'location_map':[]},replace=True);return p
@@ -87,7 +87,7 @@ class Case:
         _save(self.root/'handoff.json',{'intent_path':prepared['intent_path'],'staged':str(staged),
             'expected_entry':file_identity(entry) if entry.exists() else None,'checkpoint_ref':cp,'complete':False},replace=True)
         if interrupt and not (self.root/'publication-interrupted.json').exists():
-            from etalon.research import publication as pub
+            from moldarwin.research import publication as pub
             original=pub._stage
             def crash(path,phase,payload):
                 result=original(path,phase,payload)
@@ -158,10 +158,10 @@ class Case:
         sources=[{'id':name,'path':str(folder/file),'locator':'PoseBusters released known-pocket input','role':'conditioning','scope':self.QUESTION,
                   **file_identity(folder/file)} for name,file in [('receptor','receptor.pdb'),('ligand','ligand.sdf'),('settings','settings.json')]]
         values={'receptor':str(folder/'receptor.pdb'),'ligand':str(folder/'ligand.sdf'),'box':settings['box'],'seed':seed,'num_modes':10,'exhaustiveness':8}
-        return {'schema':'etalon-pose-task/1','task_id':self.TASK,'case_id':row['id'],'question':self.QUESTION,'split':row['split'],
+        return {'schema':'moldarwin-pose-task/1','task_id':self.TASK,'case_id':row['id'],'question':self.QUESTION,'split':row['split'],
           'method':{'engine':self.protocol['engine'],'search':'empirical','candidate_ranking':'CNNscore'},
           'output_contract':{'poses':'SDF','scores':'typed-with-direction','receipt':'request-and-file-identities','failure':'retained'},
-          'input':{'schema':'etalon-scientific-input/1','task_id':self.TASK,'scope':self.QUESTION,'subject':{'molecule':row['smiles'],'case':row['id']},
+          'input':{'schema':'moldarwin-scientific-input/1','task_id':self.TASK,'scope':self.QUESTION,'subject':{'molecule':row['smiles'],'case':row['id']},
              'sources':sources,'observations':[],'interpretations':[], 'bindings':[
                  {'id':k,'target':k,'value':v,'use':'constraint' if k in ('receptor','ligand','box') else 'selection',
                   'basis_ids':[k if k in ('receptor','ligand') else 'settings'],'rationale':'Declared redocking task parameter; no answer coordinates'} for k,v in values.items()]}}
@@ -170,7 +170,7 @@ class Case:
         return s['base'] if stage=='empirical' else s['candidate']
 
     def execute(self,s,row,seed,stage,interrupt=False):
-        from etalon.research.pose_engine import command, execute
+        from moldarwin.research.pose_engine import command, execute
         compiled=compile_task(self.task(row,seed));p=compiled['parameters']
         request={'compiled':compiled,'stage':stage,'protocol':file_identity(self.root/self.protocol_file)}
         if stage=='cnn':request['pool']=file_identity(self.root/'outputs'/row['id']/str(seed)/'empirical.sdf')

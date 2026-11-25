@@ -5,14 +5,14 @@ import subprocess
 import sys
 from pathlib import Path
 
-import etalon
+import moldarwin
 import pytest
 
-from etalon.__main__ import main
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.research.journal import ResearchJournal
-from etalon.research.notes import entry_value, original, read_entry, save_progress
-from etalon.runtime.files import file_identity
+from moldarwin.__main__ import main
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.research.journal import ResearchJournal
+from moldarwin.research.notes import entry_value, original, read_entry, save_progress
+from moldarwin.runtime.files import file_identity
 
 
 @pytest.fixture
@@ -42,7 +42,7 @@ def call(capsys, *args):
 
 
 def test_current_is_bounded_read_only_and_leaves_counter_originals_unread(project, capsys, monkeypatch):
-    from etalon.research import notes
+    from moldarwin.research import notes
     journal, entry, _, rid, _ = project
     before = {p: file_identity(p) for p in entry.parent.rglob("*") if p.is_file()}
     monkeypatch.setattr(notes, "_verify", lambda *a, **k: pytest.fail("default read opened originals"))
@@ -159,7 +159,7 @@ def test_patch_rejects_stale_parent_and_supports_background_complete_notes(proje
 
 
 def test_relocated_locator_reads_and_writes_live_copy_without_changing_snapshot(project, tmp_path, capsys):
-    from etalon.research.handoff import export_research_handoff, plan_research_handoff
+    from moldarwin.research.handoff import export_research_handoff, plan_research_handoff
     _, entry, _, _, _ = project
     bundle = tmp_path / "portable"
     export_research_handoff(plan_research_handoff(entry), bundle)
@@ -167,9 +167,9 @@ def test_relocated_locator_reads_and_writes_live_copy_without_changing_snapshot(
     sealed = {p: file_identity(p) for p in bundle.rglob("*") if p.is_file() and p != portable}
     locator = tmp_path / "locator.json"
     locator.write_text('{"entry":"portable/entry.json"}', encoding="utf-8")
-    env = {**os.environ, "PYTHONPATH": str(Path(etalon.__file__).parent.parent),
+    env = {**os.environ, "PYTHONPATH": str(Path(moldarwin.__file__).parent.parent),
            "PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8"}
-    result = subprocess.run([sys.executable, "-B", "-m", "etalon", "research", "current",
+    result = subprocess.run([sys.executable, "-B", "-m", "moldarwin", "research", "current",
                              "--entry", str(locator)], cwd=tmp_path, env=env,
                             capture_output=True, text=True, encoding="utf-8", check=True)
     assert json.loads(result.stdout)["task_id"] == "fixture"
@@ -182,16 +182,16 @@ def test_relocated_locator_reads_and_writes_live_copy_without_changing_snapshot(
 
 
 def test_runtime_names_actual_loaded_interpreter_and_reader(capsys):
-    from etalon.research import notes
+    from moldarwin.research import notes
     code, report = call(capsys, "runtime")
     assert code == 0 and report["python"] == sys.executable
-    reader = report["modules"]["etalon.research.notes"]
+    reader = report["modules"]["moldarwin.research.notes"]
     assert Path(reader["path"]) == Path(notes.__file__)
     assert reader["sha256"] == file_identity(notes.__file__)["sha256"]
 
 
 def test_producer_patch_and_cli_share_replay_and_bounded_feedback(project, capsys):
-    from etalon.research.notes import patch_progress
+    from moldarwin.research.notes import patch_progress
     journal, entry, note, rid, _ = project
     feedback = {"contrast": "fixture cheaper predicate agrees within its scope",
                 "unresolved": "independent conditions remain untested"}

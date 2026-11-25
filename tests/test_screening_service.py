@@ -13,9 +13,9 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from etalon.boundary.screen import Screen
-from etalon.campaign.design import component, compose
-from etalon.screening import _worker, plan_screen, screen_status, submit_screen
+from moldarwin.boundary.screen import Screen
+from moldarwin.campaign.design import component, compose
+from moldarwin.screening import _worker, plan_screen, screen_status, submit_screen
 
 
 @pytest.fixture
@@ -42,7 +42,7 @@ def wait_for(workspace, run_id):
 
 def test_detached_screen_survives_submitting_client_exit_and_returns_real_artifacts(prepared):
     config, library, workspace, plan = prepared
-    result = subprocess.run([sys.executable, "-m", "etalon", "screen", "submit", "--config", str(config),
+    result = subprocess.run([sys.executable, "-m", "moldarwin", "screen", "submit", "--config", str(config),
         "--library", str(library), "--workspace", str(workspace), "--run-id", "live",
         "--plan-id", plan["plan_id"]], capture_output=True, text=True, timeout=30)
     assert result.returncode == 0, result.stderr + result.stdout
@@ -75,7 +75,7 @@ def test_changed_library_invalidates_plan_before_a_worker_exists(prepared):
     library.write_text("id,smiles\nx,CCN\n", encoding="utf-8")
     with pytest.raises(ValueError, match="plan changed"):
         submit_screen(config, library, workspace, run_id="stale", expected_plan_id=plan["plan_id"])
-    assert not (workspace / "etalon-screen-jobs.sqlite").exists()
+    assert not (workspace / "moldarwin-screen-jobs.sqlite").exists()
 
 
 def test_status_does_not_create_unknown_workspace(tmp_path):
@@ -105,13 +105,13 @@ def test_launch_failure_is_durable_and_not_implicitly_retried(prepared, monkeypa
     def fail(*args, **kwargs):
         raise OSError("worker unavailable")
 
-    monkeypatch.setattr("etalon.screening.subprocess.Popen", fail)
+    monkeypatch.setattr("moldarwin.screening.subprocess.Popen", fail)
     with pytest.raises(OSError, match="unavailable"):
         submit_screen(config, library, workspace, run_id="failed", expected_plan_id=plan["plan_id"])
     assert screen_status(workspace, "failed")["state"] == "failed"
     repeat = submit_screen(config, library, workspace, run_id="failed", expected_plan_id=plan["plan_id"])
     assert "launch failed" in repeat["error"]
-    with sqlite3.connect(workspace / "etalon-screen-jobs.sqlite") as db:
+    with sqlite3.connect(workspace / "moldarwin-screen-jobs.sqlite") as db:
         assert db.execute("SELECT COUNT(*) FROM screen_jobs").fetchone()[0] == 1
 
 
@@ -122,23 +122,23 @@ def test_actual_mcp_stdio_session_can_plan_submit_poll_and_read_workflow(prepare
     config, library, workspace, _ = prepared
 
     async def roundtrip(errlog):
-        server = StdioServerParameters(command=sys.executable, args=["-m", "etalon.mcp"],
+        server = StdioServerParameters(command=sys.executable, args=["-m", "moldarwin.mcp"],
                                         env={**os.environ, "PYTHONUNBUFFERED": "1"})
         async with stdio_client(server, errlog=errlog) as (read, write), ClientSession(read, write) as session:
             await session.initialize()
             catalogue = await session.list_tools()
-            assert "etalon_screen_submit" in {t.name for t in catalogue.tools}
-            resource = await session.read_resource("etalon://skills/campaign")
+            assert "moldarwin_screen_submit" in {t.name for t in catalogue.tools}
+            resource = await session.read_resource("moldarwin://skills/campaign")
             assert resource.contents
             args = {"config_path": str(config), "library_path": str(library), "workspace": str(workspace)}
-            planned = await session.call_tool("etalon_screen_plan", args)
+            planned = await session.call_tool("moldarwin_screen_plan", args)
             plan = json.loads(planned.content[0].text)
             assert plan["ok"], plan
-            submitted = await session.call_tool("etalon_screen_submit", {
+            submitted = await session.call_tool("moldarwin_screen_submit", {
                 **args, "run_id": "mcp", "plan_id": plan["plan_id"]})
             assert json.loads(submitted.content[0].text)["ok"]
             for _ in range(120):
-                status = await session.call_tool("etalon_screen_status", {"workspace": str(workspace), "run_id": "mcp"})
+                status = await session.call_tool("moldarwin_screen_status", {"workspace": str(workspace), "run_id": "mcp"})
                 job = json.loads(status.content[0].text)["job"]
                 if job["state"] in {"failed", "succeeded"}:
                     assert job["state"] == "succeeded", job
@@ -154,7 +154,7 @@ def test_actual_mcp_stdio_session_can_plan_submit_poll_and_read_workflow(prepare
 
 # -- three outcomes, read as two ---------------------------------------------
 #
-# MolCascade reports a run in which every molecule was gated out as FAILED with a failed stage --
+# MolCat reports a run in which every molecule was gated out as FAILED with a failed stage --
 # correctly, a stage did raise -- and `ScreenResult.outcome` exists to classify that as
 # "exhausted" rather than "failed". `_worker` held the ScreenResult and asked `status`/`failed`
 # instead, so every exhausted batch became a failed job while its own `result` payload carried
@@ -166,27 +166,27 @@ def test_actual_mcp_stdio_session_can_plan_submit_poll_and_read_workflow(prepare
 def _queued_job(workspace, run_id, inputs):
     """One queued job owned by this process, so `_worker` can claim it."""
 
-    import etalon.screening as screening
+    import moldarwin.screening as screening
 
     workspace.mkdir(parents=True, exist_ok=True)
     request = {
         "config": str(inputs[0]), "library": str(inputs[1]), "workspace": str(workspace),
         "allow_copyleft": False, "revision_id": "rev-1",
         "inputs": {str(p): screening._file_hash(p) for p in inputs},
-        "infrastructure": {"name": "molcascade"}, "workers": 1, "devices": [],
+        "infrastructure": {"name": "molcat"}, "workers": 1, "devices": [],
     }
     encoded = json.dumps(request, sort_keys=True, allow_nan=False)
     now = "2026-10-20T00:00:00+00:00"
     with screening._journal(workspace, create=True) as db:
         db.execute("INSERT INTO screen_jobs VALUES (?,?,?,?,?,?,?,?,?,?)",
                    (run_id, "plan-1", encoded, "queued", os.getpid(), now, now, None, None,
-                    str(workspace / f"etalon-screen-{run_id}.log")))
+                    str(workspace / f"moldarwin-screen-{run_id}.log")))
         db.commit()
     return request
 
 
 def _stage(stage_id, status, *, artifact=None, code=None):
-    from etalon.boundary.screen import StageOutcome
+    from moldarwin.boundary.screen import StageOutcome
 
     return StageOutcome(stage_id=stage_id, plugin="p@1", status=status, attempts=1,
                         artifact_id=artifact,
@@ -196,7 +196,7 @@ def _stage(stage_id, status, *, artifact=None, code=None):
 @pytest.mark.parametrize(
     ("status", "stages", "state", "outcome"),
     [
-        # Every molecule gated out: MolCascade's own code family for it, on a FAILED run.
+        # Every molecule gated out: MolCat's own code family for it, on a FAILED run.
         ("FAILED",
          (lambda s: (s("docking", "SUCCEEDED", artifact="a"),
                      s("pose_strain", "FAILED", code="POSE_STRAIN_EMPTY_PARENT_INPUT"))),
@@ -222,8 +222,8 @@ def _stage(stage_id, status, *, artifact=None, code=None):
 def test_an_exhausted_run_is_a_measurement_not_a_failed_job(
     tmp_path, monkeypatch, status, stages, state, outcome
 ) -> None:
-    import etalon.screening as screening
-    from etalon.boundary.screen import ScreenResult
+    import moldarwin.screening as screening
+    from moldarwin.boundary.screen import ScreenResult
 
     config = tmp_path / "cascade.json"
     config.write_text("{}", encoding="utf-8")
@@ -263,7 +263,7 @@ def test_a_gate_revision_is_obtainable_for_a_batch_whose_own_revision_cannot_mat
     compiles to a revision of its own. ``authorize_gate`` mints the token against the
     *calibration panel's* revision, and ``Sweep.emit`` compares the two -- which no batch
     could ever satisfy from the MCP surface, because nothing there could compile the funnel
-    against the panel's library. The SDK had ``MolCascadeScreening.reference_library`` for
+    against the panel's library. The SDK had ``MolCatScreening.reference_library`` for
     exactly this; ``plan_screen`` now answers the same question.
 
     What this does not establish: that the gate is scientifically right. It establishes only

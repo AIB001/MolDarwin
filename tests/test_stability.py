@@ -17,8 +17,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from etalon.faults.preflight import blocking, unverifiable
-from etalon.faults.stability import (
+from moldarwin.faults.preflight import blocking, unverifiable
+from moldarwin.faults.stability import (
     CONTACT_PERSISTENCE,
     LEFT_THE_SITE_NM,
     Trajectory,
@@ -210,7 +210,7 @@ def test_one_replica_fires_and_five_do_not() -> None:
 def test_the_single_replica_band_explains_a_plausible_divergence_but_not_any() -> None:
     """Its width is the point: a 4 kcal/mol disagreement needs no further explanation."""
 
-    from etalon.faults import BY_CODE
+    from moldarwin.faults import BY_CODE
 
     fault = BY_CODE["F_SINGLE_REPLICA_ESTIMATE"]
 

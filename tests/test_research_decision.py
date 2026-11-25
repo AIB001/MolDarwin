@@ -4,12 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from etalon.research import Artifact, MethodUse
-from etalon.research import research_decision as rd
-from etalon.research.components import record_json
-from etalon.research.composition import node_step, record_evaluation
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research.method_revision import journal_ref
+from moldarwin.research import Artifact, MethodUse
+from moldarwin.research import research_decision as rd
+from moldarwin.research.components import record_json
+from moldarwin.research.composition import node_step, record_evaluation
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research.method_revision import journal_ref
 from test_research_continuation import case, publish, save
 from test_research_composition import evaluation_plan
 from test_research_publication import case as publication_case
@@ -127,7 +127,7 @@ def test_evaluation_only_data_cannot_enter_declared_conditioning(case, prepared,
         target = p["ref"](p["journal"].record(Artifact(str(path), **file_identity(path), source_kind="fixture",
             role="diagnostic", bindings={}, parents=(label["record_id"],))))
     elif lineage == "envelope":
-        target = p["artifact"]({"schema": "etalon-scientific-input/1", "task_id": "case", "scope": "fixture only", "subject": "fixture",
+        target = p["artifact"]({"schema": "moldarwin-scientific-input/1", "task_id": "case", "scope": "fixture only", "subject": "fixture",
             "sources": [{"id": "sealed", "role": "evaluation_only", "scope": "fixture only", "path": str(path),
                          "locator": "fixture labels", **file_identity(path)}], "observations": [], "interpretations": [], "bindings": []})
     with pytest.raises((EvidenceError, ValueError), match="evaluation-only|unavailable"):
@@ -228,7 +228,7 @@ def test_external_alias_requires_explicit_verification_workspace(case, prepared)
 
 @pytest.mark.parametrize("error,status", [(0.001, "supported"), (1, "contradicted"), (None, "unresolved")])
 def test_frozen_rules_accept_later_observations_but_not_unknown_success(case, prepared, error, status):
-    from etalon.research.evaluation_contract import evaluate_contract, record_evaluation_artifact
+    from moldarwin.research.evaluation_contract import evaluate_contract, record_evaluation_artifact
     from test_evaluation_contract import setup
     contract, _ = setup(case)
     contract.update(scope="fixture only", protocol_ref=case[1], initial_conditions_ref=case[1])
@@ -326,10 +326,10 @@ def test_large_json_original_is_fully_inspected_and_late_label_lineage_rejected(
 
 def test_real_publication_preflight_and_commit_accept_typed_decision_update(publication_case):
     import json
-    from etalon.active import CampaignStore
-    from etalon.research import ResearchJournal
-    from etalon.research.continuation import record_content
-    from etalon.research.publication import prepare_publication, resume_publication, _PreflightJournal
+    from moldarwin.active import CampaignStore
+    from moldarwin.research import ResearchJournal
+    from moldarwin.research.continuation import record_content
+    from moldarwin.research.publication import prepare_publication, resume_publication, _PreflightJournal
     c = publication_case
     journal = ResearchJournal(CampaignStore(c["old"] / "research.sqlite"))
     problem = c["checkpoint"]["branches"][0]["basis_refs"][0]
@@ -380,7 +380,7 @@ def test_scientific_input_checks_validation_copy_through_exact_relocation(case, 
     source_path = prepared["root"] / "relocated-input.json"
     source_path.write_text('{"fixture":true,"input":"released"}', encoding="utf-8")
     foreign = "/historical-linux-producer/clean-input.json"
-    envelope = {"schema": "etalon-scientific-input/1", "task_id": "case", "scope": "fixture only", "subject": "fixture",
+    envelope = {"schema": "moldarwin-scientific-input/1", "task_id": "case", "scope": "fixture only", "subject": "fixture",
         "sources": [{"id": "clean", "role": "conditioning", "scope": "fixture only", "path": foreign,
                      "locator": "exact historical source", **file_identity(source_path)}],
         "observations": [], "interpretations": [], "bindings": []}

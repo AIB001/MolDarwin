@@ -15,7 +15,7 @@ Stage 2 of the specification -- emitting ``evaluable=False`` where the declared 
 counts disagree -- is gated behind the admission-propagation recomputability audit and is *not*
 implemented, so these tests assert that the disagreement is reported and that no ``Ruling`` moves.
 
-``prism`` and ``molcascade`` are not importable in this environment, so the registration and
+``prism`` and ``molcat`` are not importable in this environment, so the registration and
 end-to-end dispatch paths cannot be exercised here; the dispatch refusal is tested at the seam the
 dispatcher calls, with the record shape it passes.
 """
@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import pytest
 
-from etalon.active.aggregation import (
+from moldarwin.active.aggregation import (
     DEFAULT,
     NOT_TAKEN,
     AggregationPolicy,
@@ -37,10 +37,10 @@ from etalon.active.aggregation import (
     policy_from_stage,
     trajectory_from_authorised_replicates,
 )
-from etalon.active.cascade import CascadeRecipe
-from etalon.active.schema import Endpoint, canonical, digest
-from etalon.faults.stability import check_stability, from_prism
-from etalon.runtime.executors import _aggregation_block, aggregation_provenance
+from moldarwin.active.cascade import CascadeRecipe
+from moldarwin.active.schema import Endpoint, canonical, digest
+from moldarwin.faults.stability import check_stability, from_prism
+from moldarwin.runtime.executors import _aggregation_block, aggregation_provenance
 
 RMSD = {"values_nm": [0.12, 0.13, 0.11, 0.12, 0.13, 0.12, 0.11, 0.12, 0.13, 0.12]}
 
@@ -293,7 +293,7 @@ def test_best_of_is_legal_and_is_not_an_estimate_of_a_mean():
 def test_the_ensemble_default_comes_from_the_catalogue_with_its_provenance():
     """``economics/stage.py`` is the right input to a policy, and ``active/`` now reads it."""
 
-    from etalon.economics.stage import BY_ID
+    from moldarwin.economics.stage import BY_ID
 
     policy = policy_from_stage(BY_ID["mmgbsa_single"])
 
@@ -306,7 +306,7 @@ def test_the_ensemble_default_comes_from_the_catalogue_with_its_provenance():
 
 
 def test_a_stage_reproducible_from_one_run_declares_one_draw_as_a_convention():
-    from etalon.economics.stage import BY_ID
+    from moldarwin.economics.stage import BY_ID
 
     policy = policy_from_stage(BY_ID["docking"])
 
@@ -326,7 +326,7 @@ def test_an_undeclared_policy_leaves_every_existing_protocol_id_unchanged():
     """
 
     base = recipe()
-    before = "molcascade-recipe/1:" + digest({
+    before = "molcat-recipe/1:" + digest({
         "configuration": base.configuration, "readout_json": base.readout_json,
         "infrastructure_commit": base.infrastructure_commit, "input_files": base.input_files})
 
@@ -389,16 +389,16 @@ def test_the_dispatcher_refuses_a_dispatchable_kind_and_not_only_the_replicated_
     """The generalisation: the refusal is keyed on the policy, not on an executor kind.
 
     ``prism_mmpbsa_replicated`` was refused by name, and every other kind fell through to a branch
-    that runs one trajectory. A molcascade endpoint is dispatchable and fixed-seed, so a protocol
+    that runs one trajectory. A molcat endpoint is dispatchable and fixed-seed, so a protocol
     declaring three independent draws against it must be refused rather than run once and recorded
     under a protocol id claiming three.
     """
 
-    endpoint = Endpoint("cheap", "t", "score", "u", "molcascade-recipe/1:abc", 1.0,
+    endpoint = Endpoint("cheap", "t", "score", "u", "molcat-recipe/1:abc", 1.0,
                         requires_handoff=False)
     policy = AggregationPolicy(draws=3, combine="median", dispersion="range",
                                draws_evidence="literature", draws_source="ESMACS/TIES")
-    record = {"kind": "molcascade", "executor_id": "e1",
+    record = {"kind": "molcat", "executor_id": "e1",
               "configuration": {"aggregation": policy.as_dict()}}
 
     blocked = _aggregation_block(record, endpoint, "m1")
@@ -412,10 +412,10 @@ def test_the_dispatcher_refuses_a_dispatchable_kind_and_not_only_the_replicated_
 
 
 def test_the_dispatcher_lets_an_undeclared_protocol_through_untouched():
-    endpoint = Endpoint("cheap", "t", "score", "u", "molcascade-recipe/1:abc", 1.0,
+    endpoint = Endpoint("cheap", "t", "score", "u", "molcat-recipe/1:abc", 1.0,
                         requires_handoff=False)
 
-    assert _aggregation_block({"kind": "molcascade", "executor_id": "e1", "configuration": {}},
+    assert _aggregation_block({"kind": "molcat", "executor_id": "e1", "configuration": {}},
                               endpoint, "m1") is None
 
 
@@ -469,10 +469,10 @@ def test_the_dispatched_value_carries_the_policy_and_its_coverage():
 
 
 def test_an_undeclared_protocol_still_reports_its_coverage():
-    endpoint = Endpoint("cheap", "t", "score", "u", "molcascade-recipe/1:abc", 1.0,
+    endpoint = Endpoint("cheap", "t", "score", "u", "molcat-recipe/1:abc", 1.0,
                         requires_handoff=False)
 
-    block = aggregation_provenance({"kind": "molcascade", "configuration": {}}, endpoint,
+    block = aggregation_provenance({"kind": "molcat", "configuration": {}}, endpoint,
                                    candidate_id="m1",
                                    actions=[action(endpoint="cheap", status="running")],
                                    observations=[])

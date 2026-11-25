@@ -1,4 +1,4 @@
-"""Run one producer-owned CPU diagnostic through ETALON's shared budget and research journal.
+"""Run one producer-owned CPU diagnostic through MolDarwin's shared budget and research journal.
 
 Use an actual execution-host Python and frozen PRISM source. The request must already
 be bound by prism.diagnostic.contract.bind. This driver never reads a held-out answer.
@@ -10,12 +10,12 @@ import json
 from pathlib import Path
 import sys
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.schema import canonical
-from etalon.boundary.prism_v1 import CLITransport
-from etalon.data.design import _json
-from etalon.research import ResearchJournal
-from etalon.research.producer import DiagnosticClient, execute
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.schema import canonical
+from moldarwin.boundary.prism_v1 import CLITransport
+from moldarwin.data.design import _json
+from moldarwin.research import ResearchJournal
+from moldarwin.research.producer import DiagnosticClient, execute
 
 
 def main():
@@ -43,7 +43,7 @@ def main():
         request_root=str(args.request_root.resolve()),timeout=request['budget']['wall_seconds']+120))
     result=execute(ResearchJournal(store),client,request,root=args.root,task_id=args.task,source_kind=args.source_kind)
     result.update(budget=store.balance(),python=sys.executable,
-        imported_modules={'etalon':__import__('etalon').__file__,
+        imported_modules={'moldarwin':__import__('moldarwin').__file__,
                           'consumer':sys.modules[execute.__module__].__file__})
     args.output.parent.mkdir(parents=True,exist_ok=True)
     with args.output.open('x',encoding='utf-8') as out:out.write(canonical(result)+'\n')

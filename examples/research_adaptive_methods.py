@@ -514,7 +514,7 @@ def _joint_cli():
     import time
     import scipy
     from scipy.optimize import minimize  # Freeze the native optimizer import state before reuse identity.
-    from etalon.runtime.reuse import request_identity, execute_or_reuse
+    from moldarwin.runtime.reuse import request_identity, execute_or_reuse
     wall, cpu = time.perf_counter(), time.process_time()
     parser = argparse.ArgumentParser(description='Joint rigid-translation contact feasibility')
     parser.add_argument('--input', required=True, help='Frozen NPZ contact arrays')
@@ -531,7 +531,7 @@ def _joint_cli():
     settings.setdefault('enrich_normals', True)
     import os
     dependency_files = sorted({str(Path(module.__file__).absolute()) for name, module in list(sys.modules.items())
-                               if name.split('.')[0] in ('numpy', 'scipy', 'etalon') and getattr(module, '__file__', None)})
+                               if name.split('.')[0] in ('numpy', 'scipy', 'moldarwin') and getattr(module, '__file__', None)})
     environment = dict(python=sys.executable, python_version=sys.version,
                        interpreter=identity(Path(sys.executable)), numpy_version=np.__version__,
                        scipy_version=scipy.__version__, loaded_dependency_files=[identity(Path(p)) for p in dependency_files],

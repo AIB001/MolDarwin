@@ -8,12 +8,12 @@ import time
 
 import pytest
 
-from etalon.research.evidence_refs import EvidenceError
+from moldarwin.research.evidence_refs import EvidenceError
 from test_research_publication import case
 from test_research_notes import case as note_case
-from etalon.research.notes import save_progress
-from etalon.runtime.files import file_identity
-from etalon.runtime.host_wait import inspect_host_process, inspect_wait
+from moldarwin.research.notes import save_progress
+from moldarwin.runtime.files import file_identity
+from moldarwin.runtime.host_wait import inspect_host_process, inspect_wait
 
 spec = importlib.util.spec_from_file_location("research_host_lifecycle", Path(__file__).parents[1] / "examples/research_host_lifecycle.py")
 lifecycle = importlib.util.module_from_spec(spec)
@@ -238,7 +238,7 @@ def test_exit_zero_does_not_prove_resumed_session_without_native_thread_event(tm
 @pytest.mark.parametrize("exit_code, wait_state", [(0, "ready"), (7, "failed")])
 def test_real_child_finishes_after_fixture_host_exits_and_resumes_once(tmp_path, exit_code, wait_state):
     """Real detached local computation; host decisions are synthetic, not Codex."""
-    from etalon.runtime.native import launch_detached_attempt, inspect_attempt
+    from moldarwin.runtime.native import launch_detached_attempt, inspect_attempt
     path, _, calls, fixture_host = setup(tmp_path, ["waiting", "complete"])
     attempt, output = tmp_path / "attempt", tmp_path / "completed.json"
     command = [sys.executable, "-c", "import pathlib,sys,time;time.sleep(1);pathlib.Path(sys.argv[1]).write_text('42');sys.exit(int(sys.argv[2]))", str(output), str(exit_code)]
@@ -256,7 +256,7 @@ def test_real_child_finishes_after_fixture_host_exits_and_resumes_once(tmp_path,
             assert ('"state": "' + wait_state + '"') in lifecycle.prompt_for(body, folder, session)
         receipt = fixture_host(body, folder, session)
         if session is None:
-            lifecycle.save(folder / "wait.json", {"schema": "etalon-host-wait/1", "poll_seconds": 0.05,
+            lifecycle.save(folder / "wait.json", {"schema": "moldarwin-host-wait/1", "poll_seconds": 0.05,
                 "checks": [{"kind": "native_attempt", "path": str(attempt), **request}]})
         return receipt
 
@@ -277,7 +277,7 @@ def test_real_child_finishes_after_fixture_host_exits_and_resumes_once(tmp_path,
 def test_declarative_check_distinguishes_running_failure_unknown_and_read_errors(tmp_path, body, expected):
     state = tmp_path / "status.json"
     state.write_text(body)
-    result = inspect_wait({"schema": "etalon-host-wait/1", "checks": [{"kind": "json_status",
+    result = inspect_wait({"schema": "moldarwin-host-wait/1", "checks": [{"kind": "json_status",
         "path": str(state), "field": "status", "running": ["running"], "ready": ["done"], "failed": ["failed"]}]})
     assert result["state"] == expected
 
@@ -290,7 +290,7 @@ def test_bad_check_stops_without_another_llm_turn_and_can_be_reentered_after_rep
     def host(body, folder, session):
         receipt = fixture_host(body, folder, session)
         if session is None:
-            lifecycle.save(folder / "wait.json", {"schema": "etalon-host-wait/1", "checks": [
+            lifecycle.save(folder / "wait.json", {"schema": "moldarwin-host-wait/1", "checks": [
                 {"kind": "json_status", "path": str(status), "field": "state", "ready": ["done"]}]})
         return receipt
 
@@ -308,7 +308,7 @@ def test_wait_bound_is_visible_without_llm_polling_or_job_retry(tmp_path):
 
     def host(body, folder, session):
         receipt = fixture_host(body, folder, session)
-        lifecycle.save(folder / "wait.json", {"schema": "etalon-host-wait/1", "poll_seconds": 0.05,
+        lifecycle.save(folder / "wait.json", {"schema": "moldarwin-host-wait/1", "poll_seconds": 0.05,
             "max_checks": 2, "checks": [{"kind": "file", "path": str(tmp_path / "not-yet-finished")}]})
         return receipt
 
@@ -318,11 +318,11 @@ def test_wait_bound_is_visible_without_llm_polling_or_job_retry(tmp_path):
 
 
 def test_shared_wait_handle_continues_once_without_polling_science(tmp_path, monkeypatch):
-    from etalon.runtime.host_wait import register_wait, read_wait
+    from moldarwin.runtime.host_wait import register_wait, read_wait
     path, _, calls, fixture_host = setup(tmp_path, ["waiting", "complete"])
     marker = tmp_path / "completed"
     marker.write_text("fixture completion marker")
-    handle = register_wait({"schema": "etalon-host-wait/1", "poll_seconds": .05,
+    handle = register_wait({"schema": "moldarwin-host-wait/1", "poll_seconds": .05,
         "max_checks": 10, "checks": [{"kind": "file", "path": str(marker)}]}, str(tmp_path))["handle"]
     deadline = time.monotonic() + 10
     while not read_wait(handle)["terminal"] and time.monotonic() < deadline:
@@ -407,7 +407,7 @@ def test_natural_goal_preserves_explicit_continuation_profile(case, tmp_path):
 
 def abandoned_host(tmp_path, capsule):
     """Real owned subprocess, synthetic host artifacts; never a native Codex claim."""
-    from etalon.runtime.native import process_identity
+    from moldarwin.runtime.native import process_identity
     folder = tmp_path / "run" / "turn-001"
     folder.mkdir(parents=True)
     process = subprocess.Popen([sys.executable, "-c", "import sys;sys.stdin.read()"], stdin=subprocess.PIPE)
@@ -419,7 +419,7 @@ def abandoned_host(tmp_path, capsule):
     # run_lifecycle creates its immutable capsule before inspecting this folder.
     lifecycle.save(folder.parent / "capsule.json", capsule)
     lifecycle.save(folder.parent / "started.json", {"started_at": started})
-    lifecycle.save(folder / "intent.json", {"schema": "etalon-host-turn-intent/1", "started_at": started,
+    lifecycle.save(folder / "intent.json", {"schema": "moldarwin-host-turn-intent/1", "started_at": started,
         "argv": lifecycle.native_argv(capsule, folder, None), "resumed_session_id": None,
         "capsule_identity": file_identity(folder.parent / "capsule.json")})
     (folder / "prompt.txt").write_text("synthetic fixture prompt")
@@ -490,7 +490,7 @@ def test_dead_host_does_not_resume_without_authority_or_consistent_evidence(tmp_
 
 
 def test_unreadable_process_identity_is_not_evidence_of_exit(tmp_path, monkeypatch):
-    from etalon.runtime import native
+    from moldarwin.runtime import native
     _, capsule, _, _ = setup(tmp_path, [])
     folder, process = abandoned_host(tmp_path, capsule)
     try:

@@ -14,13 +14,13 @@ MethodVersion / MethodUse / MethodEvaluation；没有新增研究账本或执行
 | --- | --- |
 | 研究图 | Search / Judge / Quick / Deep 四个工作区，允许回边、跳过和局部展开 |
 | Memory | 研究节点引用已有证据、判断、方法、执行和分支状态；共享证据不复制 |
-| 能力组件 | MolQuarry、MolCascade、PRISM 多对多服务研究节点，不强制串行经过三层 |
+| 能力组件 | MolOrigin、MolCat、PRISM 多对多服务研究节点，不强制串行经过三层 |
 | Memory skills | 整理当前决策上下文，读回来源、反证、经验和接续状态；写入复用 research skill |
 | Execution skills | 使用组件、提出参数候选、检查交接与组合 workflow |
 | RSI skills | 从具体问题提出修改，随正常执行评价，记录采用、保留、回退或证据不足及其适用范围 |
 | 宿主与 hook | 宿主做科学判断；hook 处理可观测事件、读取与交付收据，不代替科学判断 |
 
-MolQuarry 提供查询、目录和来源能力；MolCascade 提供准备、筛选、对接与
+MolOrigin 提供查询、目录和来源能力；MolCat 提供准备、筛选、对接与
 交接；PRISM 提供体系构建、MD、自由能等能力。这个分类不是一个强制路由。
 Judge 通常由宿主完成，可以调用任意相关能力。
 
@@ -36,9 +36,9 @@ Deep 保留用户要求的含义：计算时间较长、费用较高、产物更
 | [研究图与上下文](RESEARCH_GRAPH.md) | 现有 checkpoint 的只读图投影、按邻域选择、反证关系、用途过滤、冻结视图与截断收据 |
 | [参数契约与四阶段 trace](METHOD_TRACE.md) | 参数分类、实际编译消费、可比性、声明／编译／执行／准入记录与人类路线图 |
 | [可选生命周期 hook](RESEARCH_HOOKS.md) | Codex / Claude Code 接续、MCP 前后事件、压缩前入口确认、幂等交付与失败状态 |
-| [Research context skill](../../.claude/skills/etalon-research-context/SKILL.md) | 把历史材料整理为当前决策上下文，按需展开精确证据 |
-| [Method configuration skill](../../.claude/skills/etalon-method-configuration/SKILL.md) | 提出可检查的参数修改，并保持方法、评价标准和约束的区别 |
-| [既有 RSI skill](../../.claude/skills/etalon-skill-improvement/SKILL.md) | 复用已有改进上下文、方法修订、评价与经验接口；不新增固定 Probe |
+| [Research context skill](../../.claude/skills/moldarwin-research-context/SKILL.md) | 把历史材料整理为当前决策上下文，按需展开精确证据 |
+| [Method configuration skill](../../.claude/skills/moldarwin-method-configuration/SKILL.md) | 提出可检查的参数修改，并保持方法、评价标准和约束的区别 |
+| [既有 RSI skill](../../.claude/skills/moldarwin-skill-improvement/SKILL.md) | 复用已有改进上下文、方法修订、评价与经验接口；不新增固定 Probe |
 | [验收示例](../../examples/research_graph_upgrade.py) | 从既有研究入口读取，再在新目录运行小型 CPU 参数对照并保存新记录 |
 
 `skills.library_catalog()` 提供 Memory / Execution / RSI 三组发现入口；分组
@@ -50,12 +50,12 @@ Deep 保留用户要求的含义：计算时间较长、费用较高、产物更
 入口文件仍为 `{workspace, checkpoint_ref}`，旧研究不需要重写历史记录。
 
 ```python
-from etalon.research.research_context import build_research_context
+from moldarwin.research.research_context import build_research_context
 
 context = build_research_context("research-entry.json", max_bytes=16384)
 ```
 
-MCP 提供 `etalon_research_context` 与 `etalon_research_graph` 薄入口。生成上下文
+MCP 提供 `moldarwin_research_context` 与 `moldarwin_research_graph` 薄入口。生成上下文
 只读：不提交任务，不重试 pending，不改变分支，不授权执行。落档仍由已有
 Journal / research-step / checkpoint 接口完成，生成的投影也可另存普通
 Artifact，而不冒充新科学证据。

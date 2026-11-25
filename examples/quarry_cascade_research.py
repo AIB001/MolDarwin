@@ -14,7 +14,7 @@ import sys
 import time
 from pathlib import Path
 
-from etalon.data.artifacts import file_hash, read_snapshot, write_json
+from moldarwin.data.artifacts import file_hash, read_snapshot, write_json
 
 
 def pin(path):
@@ -39,10 +39,10 @@ def verify_pin(value):
 
 
 def runtime():
-    from etalon.boundary.infra import load
-    components = {n: load(n).provenance() for n in ("molquarry", "molcascade")}
+    from moldarwin.boundary.infra import load
+    components = {n: load(n).provenance() for n in ("molorigin", "molcat")}
     modules = {}
-    for name in ("etalon", "rdkit", "posebusters", "pyarrow", "scipy"):
+    for name in ("moldarwin", "rdkit", "posebusters", "pyarrow", "scipy"):
         try:
             module = importlib.import_module(name)
             modules[name] = {**pin(module.__file__), "version": getattr(module, "__version__", None)}
@@ -53,8 +53,8 @@ def runtime():
 
 
 def acquire(root, panel_path, cids):
-    from etalon.boundary.quarry import DataBudget
-    from etalon.data.service import plan_data, run_data
+    from moldarwin.boundary.quarry import DataBudget
+    from moldarwin.data.service import plan_data, run_data
     panel = load_json(panel_path)
     selected = [next(row for row in panel["parents"] if row["cid"] == cid) for cid in cids]
     if len(set(cids)) != len(cids) or not 2 <= len(cids) <= 8:
@@ -152,13 +152,13 @@ def review(root, reviewer):
 
 
 def prepare(root, gnina):
-    from etalon.boundary.infra import load
-    load("molcascade")  # Pin before importing any component-native config class.
-    from etalon.boundary.screen import Screen
-    from etalon.data.library import prepare_library
-    from molcascade.cascade.catalog import CRITERIA_BY_ID
-    from molcascade.cascade.defaults import build_criterion, default_cascade
-    from molcascade.cascade.models import CascadeConfig, TierConfig
+    from moldarwin.boundary.infra import load
+    load("molcat")  # Pin before importing any component-native config class.
+    from moldarwin.boundary.screen import Screen
+    from moldarwin.data.library import prepare_library
+    from molcat.cascade.catalog import CRITERIA_BY_ID
+    from molcat.cascade.defaults import build_criterion, default_cascade
+    from molcat.cascade.models import CascadeConfig, TierConfig
     review = load_json(root / "review.json")
     verify_pin(review["selection"])
     original = read_snapshot(root / "data/pubchem-properties")
@@ -221,7 +221,7 @@ def prepare(root, gnina):
 
 def execute(root, resume=False):
     import resource  # POSIX native execution; source review also works on Windows.
-    from etalon.boundary.screen import Screen
+    from moldarwin.boundary.screen import Screen
     frozen = load_json(root / "screen-plan.json")
     for name in ("review", "gnina", "receptor"):
         verify_pin(frozen[name])
@@ -243,8 +243,8 @@ def execute(root, resume=False):
 
 
 def inspect(root):
-    from etalon.boundary.screen import Screen
-    from etalon.research.components import inspect_component
+    from moldarwin.boundary.screen import Screen
+    from moldarwin.research.components import inspect_component
     screen = Screen.open_existing(root / "screen")
     result = screen.state("snd1-native-screen")
     if result is None or not result.terminal:
@@ -270,9 +270,9 @@ def inspect(root):
         "boundaries": ["seen structural controls", "one known SND1 pocket", "permissive numerical gate",
                        "no activity label imported", "no ranking/affinity/method-transfer benefit evaluated"]}
     for name, capability, location, run_id in (
-        ("quarry", "molquarry.data", root / "data/pubchem-properties", None),
-        ("library", "etalon.library", root / "data/reviewed-library", None),
-        ("screen", "molcascade.screen", root / "screen", result.run_id)):
+        ("quarry", "molorigin.data", root / "data/pubchem-properties", None),
+        ("library", "moldarwin.library", root / "data/reviewed-library", None),
+        ("screen", "molcat.screen", root / "screen", result.run_id)):
         try:
             value = inspect_component(capability, location, run_id=run_id)
             path = root / "memory" / (name + "-receipt.json")
@@ -291,7 +291,7 @@ def main():
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--panel", type=Path)
     parser.add_argument("--cids", type=int, nargs="+", default=[87054177, 87054166])
-    parser.add_argument("--reviewer", default="ETALON host component-chain review/1")
+    parser.add_argument("--reviewer", default="MolDarwin host component-chain review/1")
     parser.add_argument("--gnina", type=Path)
     args = parser.parse_args()
     root = args.root.absolute()

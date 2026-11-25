@@ -22,11 +22,11 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from etalon.campaign.ledger import Ledger
-from etalon.faults import Observation, blocking, check_record, waived_blocking
-from etalon.judgment.waiver import Waiver, WaiverError, WaiverSet
-from etalon.learn.admissible import Admission, Measurement, admissible, rule
-from etalon.learn.calibrate import (
+from moldarwin.campaign.ledger import Ledger
+from moldarwin.faults import Observation, blocking, check_record, waived_blocking
+from moldarwin.judgment.waiver import Waiver, WaiverError, WaiverSet
+from moldarwin.learn.admissible import Admission, Measurement, admissible, rule
+from moldarwin.learn.calibrate import (
     Verdict,
     auc,
     decide,
@@ -46,7 +46,7 @@ def _waiver(code: str = "F_PROTONATION_UNDECIDED", expires: date | None = None) 
 
 
 #: A handoff record built from a name rather than from geometry, which is what
-#: MolCascade's SDF exporter actually produces and what PRISM's validator accepts.
+#: MolCat's SDF exporter actually produces and what PRISM's validator accepts.
 FROM_A_DRAWING = {
     "parent_id": "p:drawing",
     "coordinate_source": "TWO_D_DEPICTION",
@@ -249,7 +249,7 @@ def test_a_score_says_which_split_it_came_from_and_defaults_to_the_weakest() -> 
     scaffold-grouped holdout" whenever it saw that value. The only production caller ranks the whole
     panel and passed the default, so every accepted update claimed a holdout nobody took."""
 
-    from etalon.learn.calibrate import Split
+    from moldarwin.learn.calibrate import Split
 
     random.seed(7)
     labels = [1] * 40 + [0] * 191
@@ -275,8 +275,8 @@ def test_the_panel_scored_change_does_not_claim_a_holdout_it_did_not_take() -> N
     """The production path, pinned: an edited scoring function has nothing to leak, and that is a
     reason to call the comparison whole-panel rather than a reason to call it grouped."""
 
-    from etalon.campaign.propose import Panel, ParameterChange
-    from etalon.learn.calibrate import Split
+    from moldarwin.campaign.propose import Panel, ParameterChange
+    from moldarwin.learn.calibrate import Split
 
     rings = ["c1ccccc1", "c1ccncc1", "c1ccsc1", "c1cc[nH]c1", "C1CCCCC1", "C1CCNCC1"]
     smiles = tuple(f"{'C' * (index % 4 + 1)}{rings[index % len(rings)]}" for index in range(40))
@@ -284,11 +284,11 @@ def test_the_panel_scored_change_does_not_claim_a_holdout_it_did_not_take() -> N
 
     change = ParameterChange(panel=Panel(smiles=smiles, affinity_nM=affinity))
     try:
-        # Panel featurises lazily, through MolCascade's featuriser, on the first use of
+        # Panel featurises lazily, through MolCat's featuriser, on the first use of
         # usable_smiles -- which is inside score_of rather than in the constructor.
         scored = change.score_of(lambda text: float(len(text)))
     except ImportError as error:  # pragma: no cover -- environment-dependent
-        pytest.skip(f"vendored molcascade is not usable here ({error}); it needs pydantic v2")
+        pytest.skip(f"vendored molcat is not usable here ({error}); it needs pydantic v2")
 
     assert scored.split is Split.WHOLE_PANEL
     assert scored.as_dict()["split"] == "whole_panel"
@@ -405,12 +405,12 @@ def test_a_workspace_under_a_temporary_directory_is_reported_as_volatile(tmp_pat
     gets worked around instead of read.
     """
 
-    from etalon.boundary.infra import load
-    from etalon.boundary.screen import Screen
+    from moldarwin.boundary.infra import load
+    from moldarwin.boundary.screen import Screen
 
-    load("molcascade")
+    load("molcat")
 
-    volatile = Screen("/tmp/etalon-durability-probe").durability()
+    volatile = Screen("/tmp/moldarwin-durability-probe").durability()
     durable = Screen(tmp_path / "ws").durability()
 
     assert volatile["durable"] is False
@@ -431,8 +431,8 @@ def test_a_workspace_under_a_temporary_directory_is_reported_as_volatile(tmp_pat
 # change with a decision, so Act.SPEND, the one act an advisor is allowed to settle by itself, had
 # no implementation and nothing noticed for as long as nothing composed the loop.
 #
-# The screen is a double rather than MolCascade. What is under test is the order of the loop's own
-# steps and what it refuses between them; driving a real cascade here would test MolCascade and
+# The screen is a double rather than MolCat. What is under test is the order of the loop's own
+# steps and what it refuses between them; driving a real cascade here would test MolCat and
 # would need an environment this suite deliberately does not require.
 
 
@@ -442,7 +442,7 @@ class _FakeScreenResult:
 
 
 class _FakeScreen:
-    """Stands in for MolCascade: the four calls Campaign.round makes, and nothing else."""
+    """Stands in for MolCat: the four calls Campaign.round makes, and nothing else."""
 
     def __init__(self, rows, metrics=None, *, durable=True):
         self.rows = rows
@@ -489,13 +489,13 @@ def _handoff_row(parent_id: str, smiles: str, *, clean: bool) -> dict:
 def _campaign(tmp_path: Path, screen):
     """A Campaign with the screen replaced, constructed without running __init__.
 
-    ``Campaign.__init__`` builds a real ``Screen``, which reaches for the vendored MolCascade. What
+    ``Campaign.__init__`` builds a real ``Screen``, which reaches for the vendored MolCat. What
     is under test here is the order of the loop's own steps, so the screen is a double and the
     constructor is bypassed rather than parameterised -- adding an injection point to production
     code only so a test can reach it would be the test shaping the design.
     """
 
-    from etalon.campaign.loop import Campaign
+    from moldarwin.campaign.loop import Campaign
 
     campaign = Campaign.__new__(Campaign)
     campaign.screen = screen
@@ -537,7 +537,7 @@ def test_accepted_nested_changes_reach_the_config_without_editing_the_source(tmp
 
 @pytest.mark.parametrize("path", ["/tiers/-1/cutoff", "/tiers/0/missing", "/missing"])
 def test_config_changes_cannot_silently_edit_unknown_or_negative_paths(tmp_path, path):
-    from etalon.campaign.configuration import materialize
+    from moldarwin.campaign.configuration import materialize
 
     source = tmp_path / "cascade.json"
     source.write_text(json.dumps({"tiers": [{"cutoff": 1}]}), encoding="utf-8")
@@ -546,7 +546,7 @@ def test_config_changes_cannot_silently_edit_unknown_or_negative_paths(tmp_path,
 
 
 def test_nested_and_pointer_edits_follow_historical_order(tmp_path):
-    from etalon.campaign.configuration import materialize
+    from moldarwin.campaign.configuration import materialize
 
     source = tmp_path / "cascade.json"
     source.write_text(json.dumps({"settings": {"keep": 0}}), encoding="utf-8")
@@ -653,7 +653,7 @@ def test_a_round_without_a_comparator_measures_and_learns_nothing(tmp_path: Path
 def test_a_proposal_the_panel_cannot_resolve_is_recorded_and_not_applied(tmp_path: Path) -> None:
     """The gate on the feedback, reached through the loop rather than called directly."""
 
-    from etalon.learn.calibrate import Score, Split, Verdict
+    from moldarwin.learn.calibrate import Score, Split, Verdict
 
     screen = _FakeScreen(
         [_handoff_row("p:good", "CCOc1ccccc1", clean=True)], metrics={"p:good": -8.4}
@@ -693,7 +693,7 @@ def test_the_acquisition_hook_carries_the_one_act_an_advisor_may_settle(tmp_path
     """Act.SPEND is ACTED_ON in the autonomy table and had no way into the loop at all: the two
     signatures could not be connected. This is that hook, and the ledger line it writes."""
 
-    from etalon.judgment.proposal import Act, Advisor, AdvisorKind, Proposal
+    from moldarwin.judgment.proposal import Act, Advisor, AdvisorKind, Proposal
 
     screen = _FakeScreen(
         [
@@ -740,8 +740,8 @@ def test_an_act_that_needs_a_person_cannot_reach_the_loop(tmp_path: Path) -> Non
     nothing checking it. The adapters call it now, so a COMPARATOR or WAIVER proposal handed to the
     loop raises rather than being applied like any other."""
 
-    from etalon.campaign.propose import as_loop_acquirer
-    from etalon.judgment.proposal import (
+    from moldarwin.campaign.propose import as_loop_acquirer
+    from moldarwin.judgment.proposal import (
         Act,
         Advisor,
         AdvisorKind,
@@ -800,8 +800,8 @@ def test_the_round_hands_the_expensive_stage_a_token_per_surviving_molecule(
 
 
 def test_a_stage_called_without_tokens_refuses_rather_than_defaulting_to_permission() -> None:
-    from etalon.authority.grant import NotAuthorized
-    from etalon.campaign.expensive import PrismStage
+    from moldarwin.authority.grant import NotAuthorized
+    from moldarwin.campaign.expensive import PrismStage
 
     stage = PrismStage.__new__(PrismStage)
     with pytest.raises(NotAuthorized) as refused:
@@ -810,7 +810,7 @@ def test_a_stage_called_without_tokens_refuses_rather_than_defaulting_to_permiss
 
 
 def test_a_token_does_not_carry_to_a_row_that_was_edited_after_the_ruling() -> None:
-    from etalon.authority import NotAuthorized, authorize, require
+    from moldarwin.authority import NotAuthorized, authorize, require
 
     row = {
         "parent_id": "M1",
@@ -866,7 +866,7 @@ def test_a_consequence_this_rule_has_no_branch_for_is_refused_not_withheld(monke
 
     from dataclasses import replace as replace_field
 
-    from etalon.faults import taxonomy
+    from moldarwin.faults import taxonomy
 
     known = taxonomy.BY_CODE["F_RUN_NOT_REPRODUCIBLE"]
     invented = replace_field(known, consequence="a_consequence_from_the_future")
@@ -880,7 +880,7 @@ def test_a_consequence_this_rule_has_no_branch_for_is_refused_not_withheld(monke
 def test_the_three_consequences_are_each_sorted_into_their_own_list() -> None:
     """The branches the refusal above protects, so the restructure is shown to preserve them."""
 
-    from etalon.faults.taxonomy import BY_CODE, Consequence
+    from moldarwin.faults.taxonomy import BY_CODE, Consequence
 
     by_consequence: dict[Consequence, str] = {}
     for code, fault in BY_CODE.items():

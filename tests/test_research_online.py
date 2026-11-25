@@ -1,10 +1,10 @@
 """Synthetic action-order tests; no producer computation or scientific inference."""
 from copy import deepcopy
 import pytest
-from etalon.research.fixed_pool import two_chunk_catalog
-from etalon.research.transfer import GroupSplit,fit_policy
-from etalon.research.online import execute_visible_task,_write_once,complete_counterfactual
-from etalon.active.store import StateError
+from moldarwin.research.fixed_pool import two_chunk_catalog
+from moldarwin.research.transfer import GroupSplit,fit_policy
+from moldarwin.research.online import execute_visible_task,_write_once,complete_counterfactual
+from moldarwin.active.store import StateError
 
 
 def policy_fixture(constant=False):

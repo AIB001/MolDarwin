@@ -6,9 +6,9 @@ from pathlib import Path
 import sys
 import time
 
-from etalon.active.schema import canonical
-from etalon.boundary.prism_v1 import file_identity
-from etalon.research.pose_selection import selection_diagnostic
+from moldarwin.active.schema import canonical
+from moldarwin.boundary.prism_v1 import file_identity
+from moldarwin.research.pose_selection import selection_diagnostic
 
 
 def analyze(producer_report, released_result, release, structure_dir, output):
@@ -58,7 +58,7 @@ def analyze(producer_report, released_result, release, structure_dir, output):
                   for name,value in selected_raw['components_kcal_mol'].items()} for pid in best_ids}
         result['geometry_source'] = 'producer report; distances independently cross-checked; no new structure alignment'
         groups[group] = result
-    report = {'schema': 'etalon-same-loss-pose-diagnostic/1', 'groups': groups,
+    report = {'schema': 'moldarwin-same-loss-pose-diagnostic/1', 'groups': groups,
         'scope': 'released seen-feedback reanalysis; no new scoring, reference alignment, or scientific execution',
         'sources': [{'path': str(p.absolute()), **file_identity(p)} for p in (producer_report,released_result,release)],
         'independent_distance_sources': refs, 'python': sys.executable,

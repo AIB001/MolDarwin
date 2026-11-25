@@ -11,12 +11,12 @@ import sys
 
 import pytest
 
-from etalon.active import ActiveCampaign, CampaignSpec, CampaignStore, Candidate, Endpoint, Evaluation
-from etalon.active.prism import PrismV1Executor
-from etalon.active.runner import ExecutionPending
-from etalon.active.schema import digest
-from etalon.authority.grant import NotAuthorized, authorize
-from etalon.boundary.prism_v1 import (
+from moldarwin.active import ActiveCampaign, CampaignSpec, CampaignStore, Candidate, Endpoint, Evaluation
+from moldarwin.active.prism import PrismV1Executor
+from moldarwin.active.runner import ExecutionPending
+from moldarwin.active.schema import digest
+from moldarwin.authority.grant import NotAuthorized, authorize
+from moldarwin.boundary.prism_v1 import (
     CLITransport, ContractError, ENDPOINT, IDENTITIES, RemoteError, SCHEMA, TransportError,
     execution_cost, file_identity, protocol_sha256, validate_request, validate_result,
 )
@@ -190,7 +190,7 @@ def test_submit_admit_repeated_read_charged_once(tmp_path):
     assert outcome['admitted_total'] == 1
     obs = store.observations()[0]
     action = store.actions()[0]
-    from etalon.active.schema import Action
+    from moldarwin.active.schema import Action
     action = Action(**{k: action[k] for k in Action.__dataclass_fields__})
     raw = executor.transport.result
     executor.evaluation(action, raw['request_id'] and obs['result']['provenance']['request'], raw)

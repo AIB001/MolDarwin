@@ -19,7 +19,7 @@ from pathlib import Path
 import sys
 import time
 
-from etalon.research.reaction_candidate import (
+from moldarwin.research.reaction_candidate import (
     chemical_identity, chemical_state, compile_reaction_candidate, object_digest,
     reaction_edges, walk_nodes,
 )
@@ -155,13 +155,13 @@ def run(request_path, output_directory):
     config.filter_policy.select("uspto")
     loaded_cost = {"wall_seconds": time.perf_counter() - started,
                    "cpu_seconds": time.process_time() - cpu}
-    result = {"schema": "etalon-native-reaction-evaluation/1", "request": pin(request_path),
+    result = {"schema": "moldarwin-native-reaction-evaluation/1", "request": pin(request_path),
               "runtime": {"executable": sys.executable, "python": sys.version,
                 "cpu_affinity": sorted(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else None,
                 "distributions": {name: importlib.metadata.version(name)
                                   for name in ["aizynthfinder", "rdkit", "rdchiral", "onnxruntime"]},
                 "modules": {name: pin(importlib.import_module(name).__file__)
-                            for name in ["etalon.research.reaction_candidate", "aizynthfinder.chem.reaction",
+                            for name in ["moldarwin.research.reaction_candidate", "aizynthfinder.chem.reaction",
                                          "aizynthfinder.reactiontree", "aizynthfinder.context.policy.filter_strategies",
                                          "aizynthfinder.context.scoring.scorers", "rdkit", "onnxruntime"]}},
               "cost": {"setup": loaded_cost}, "cases": [],

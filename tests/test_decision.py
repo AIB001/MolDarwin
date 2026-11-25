@@ -8,7 +8,7 @@ import json
 import numpy as np
 import pytest
 
-from etalon.active import (
+from moldarwin.active import (
     ActiveCampaign,
     BudgetExhausted,
     CampaignSpec,
@@ -17,9 +17,9 @@ from etalon.active import (
     Endpoint,
     Evaluation,
 )
-from etalon.active.model import MultiEndpointGP
-from etalon.active.reliability import admission_estimate
-from etalon.active.replay import from_manifest, synthetic_manifest
+from moldarwin.active.model import MultiEndpointGP
+from moldarwin.active.reliability import admission_estimate
+from moldarwin.active.replay import from_manifest, synthetic_manifest
 
 
 def campaign(tmp_path, **settings):
@@ -251,7 +251,7 @@ def test_failed_confirmation_is_paid_but_not_claimed_as_evidence(tmp_path):
 
 
 def test_cli_recommend_is_read_only_and_json_serializable(tmp_path, capsys):
-    from etalon.__main__ import main
+    from moldarwin.__main__ import main
 
     run = campaign(tmp_path)
     assert main(["active", "recommend", "--database", str(run.store.path)]) == 0

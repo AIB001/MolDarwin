@@ -1,7 +1,7 @@
 """Offline component-memory chain; no docking, MD, lab or optimizer dispatch.
 
 Read an explicit existing PRISM bundle, retain all its slots, derive a local
-catalog from decoded structures, and measure CPU properties through MolCascade.
+catalog from decoded structures, and measure CPU properties through MolCat.
 Fixture provenance remains fixture. An optional earlier research entry supplies
 separate existing scientific claims, never labels for these local molecules.
 """
@@ -13,20 +13,20 @@ from pathlib import Path
 import sys
 import time
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.boundary.quarry import DataBudget
-from etalon.boundary.screen import Screen
-from etalon.campaign.design import component, compose
-from etalon.data.design import read_bundle
-from etalon.data.library import prepare_library
-from etalon.data.service import plan_data, run_data
-from etalon.research import Artifact, MethodUse, MethodVersion, ResearchJournal, TaskSplit
-from etalon.research.components import capabilities, record_component_step, record_json
-from etalon.research.composition import WORKFLOW, node_step, record_evaluation
-from etalon.research.continuation import CHECKPOINT, STEP, capture_watermarks, read_content, record_content, resume_research
-from etalon.research.evidence_refs import file_identity
-from etalon.research.method_revision import journal_ref
-from etalon.skills import persist_snapshot
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.boundary.quarry import DataBudget
+from moldarwin.boundary.screen import Screen
+from moldarwin.campaign.design import component, compose
+from moldarwin.data.design import read_bundle
+from moldarwin.data.library import prepare_library
+from moldarwin.data.service import plan_data, run_data
+from moldarwin.research import Artifact, MethodUse, MethodVersion, ResearchJournal, TaskSplit
+from moldarwin.research.components import capabilities, record_component_step, record_json
+from moldarwin.research.composition import WORKFLOW, node_step, record_evaluation
+from moldarwin.research.continuation import CHECKPOINT, STEP, capture_watermarks, read_content, record_content, resume_research
+from moldarwin.research.evidence_refs import file_identity
+from moldarwin.research.method_revision import journal_ref
+from moldarwin.skills import persist_snapshot
 
 
 def build(root, bundle_path, paused_status, released_entry=None):
@@ -59,14 +59,14 @@ def build(root, bundle_path, paused_status, released_entry=None):
     reader = version("verified-component-read", "domain_skill", instructions)
     # Availability is not adoption: preserve a complete native small-skill version
     # but do not claim that this deterministic example applied its instructions.
-    native_skill = ref(journal.record(MethodVersion("molquarry-compound-sourcing", ("domain_skill",),
-        persist_snapshot("molquarry-compound-sourcing", root / "native-skill"),
+    native_skill = ref(journal.record(MethodVersion("molorigin-compound-sourcing", ("domain_skill",),
+        persist_snapshot("molorigin-compound-sourcing", root / "native-skill"),
         verification_basis="content_verified", entrypoint="SKILL.md")))
     wf = {"schema": WORKFLOW, "name": "existing-design-to-local-properties", "scope": "offline engineering; no new biological evidence",
           "method_refs": [reader], "supersedes": [], "nodes": [], "edges": []}
     for name, cap, views in (("design", "prism.design", ["E", "R"]),
-                             ("catalog", "molquarry.data", ["E"]),
-                             ("properties", "molcascade.screen", ["X", "R"]),
+                             ("catalog", "molorigin.data", ["E"]),
+                             ("properties", "molcat.screen", ["X", "R"]),
                              ("expensive", "prism.general_fep_lab", ["X"])):
         wf["nodes"].append({"node_id": name, "capability_id": cap, "method_refs": [] if name == "expensive" else [reader],
                            "views": views, "purpose": name, "skip_when": "Already available, unsupported or no discriminating question"})
@@ -115,8 +115,8 @@ def build(root, bundle_path, paused_status, released_entry=None):
     library = prepare_library(Path(acquired["snapshot"]), root, run_id="library",
                               id_field="fields.id", smiles_field="fields.smiles")
     costs.append({"operation": "local_catalog_and_library", "wall_seconds": time.perf_counter() - t})
-    source = attach("catalog", "molquarry.data", acquired["snapshot"], [design["step_ref"]])
-    library_node = record_component_step(journal, capability_id="etalon.library", location=library["snapshot"],
+    source = attach("catalog", "molorigin.data", acquired["snapshot"], [design["step_ref"]])
+    library_node = record_component_step(journal, capability_id="moldarwin.library", location=library["snapshot"],
         directory=directory, source_id=sid, source_kind=source_kind, task_id=task, question=question,
         branch_id="reuse", node_id="library", reason="Retain existing library mapping", input_refs=[source["step_ref"]])
     steps.append(library_node["step_ref"])
@@ -128,7 +128,7 @@ def build(root, bundle_path, paused_status, released_entry=None):
     t = time.perf_counter()
     result = screen.run(screen_plan, run_id="properties")
     costs.append({"operation": "actual_cpu_properties", "wall_seconds": time.perf_counter() - t})
-    attach("properties", "molcascade.screen", screen.workspace, [library_node["step_ref"]], run_id="properties")
+    attach("properties", "molcat.screen", screen.workspace, [library_node["step_ref"]], run_id="properties")
     (root / "accounting.json").write_text(json.dumps({"operations": costs, "money": None}, indent=2), encoding="utf-8")
     assert result.terminal and result.outcome == "committed", result.as_dict()
     stop = save(node_step(task_id=task, question=question, branch_id="expensive", node_id="expensive",
@@ -182,8 +182,8 @@ def build(root, bundle_path, paused_status, released_entry=None):
                                                ("expensive", "stopped", [stop]), ("comparison", "waiting", plans))],
         "pending_handles": [], "source_watermarks": watermarks, "supersedes": [],
         "status_guards": [{"location": str(Path(paused_status).absolute()), **file_identity(paused_status), "state": "paused"}]})
-    ws = root / "etalon-workspace.json"
-    ws.write_text(json.dumps({"schema": "etalon-evidence-workspace/1", "workspace_id": task,
+    ws = root / "moldarwin-workspace.json"
+    ws.write_text(json.dumps({"schema": "moldarwin-evidence-workspace/1", "workspace_id": task,
         "sources": [*old_sources, {"source_id": sid, "kind": "journal", "location": str(store.path),
             "identity": {"kind": "snapshot_sha256", "value": file_identity(store.path)["sha256"]}}],
         "status_refs": [str(Path(paused_status).absolute())], "location_map": []}, indent=2), encoding="utf-8")

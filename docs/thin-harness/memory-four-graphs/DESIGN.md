@@ -1,6 +1,6 @@
-# ETALON 四图研究记忆与方法改进设计
+# MolDarwin 四图研究记忆与方法改进设计
 
-日期：2026-10-21。状态：设计稿，尚未实现。面向总控、ETALON 组件和后续研究 chat。
+日期：2026-10-21。状态：设计稿，尚未实现。面向总控、MolDarwin 组件和后续研究 chat。
 
 本方案将研究组织为四张相互连接的关系图：已有证据 E、科学判断 J、实验 X、新结果 R。四图共享可追溯的研究历史 H；宿主根据当前问题选择要读取、补充或执行的分支。memory 保存能影响后续判断的事实、条件、决策和未完成事项，支持新 chat 从当前研究位置继续。RSI 的改进对象限于科学方法 S 和方法使用及分支选择 U。
 
@@ -51,7 +51,7 @@ flowchart LR
 
 图节点优先引用现有 Record/EvidenceRef。问题、候选分支和稳定的实验计划可以用项目范围的逻辑 ID 标识，其每次变更对应新的内容版本；逻辑 ID 不能替代版本引用。新增关系表达为 `from_ref / relation / to_ref / conditions / basis_refs`，保存在普通 Artifact 中，图本身由这些记录投影得到。结构相似、同一分子、同一实验和相同字节是不同关系，不自动合并。
 
-本方案借鉴前面讨论的 NS 案例中“多路线探索、共享有用结果、调整研究方向”的组织思路。四图、memory 契约和 RSI 触发机制是 ETALON 的设计选择，不据此推断该案例内部的调度算法。
+本方案借鉴前面讨论的 NS 案例中“多路线探索、共享有用结果、调整研究方向”的组织思路。四图、memory 契约和 RSI 触发机制是 MolDarwin 的设计选择，不据此推断该案例内部的调度算法。
 
 ## 3 怎样选择一层或一个分支
 
@@ -97,15 +97,15 @@ memory 分为不可变历史、可重建索引和当前工作视图三部分。�
 
 | 拟新增契约 | 字段组与用途 |
 | --- | --- |
-| `etalon-research-step/1` | project_id、question_id、branch_id、operation、input_refs、output_refs、source_watermarks、method_use_ref、decision、reason、accounting_refs、open_questions、supersedes；记录一个有意义的研究状态变化 |
-| `etalon-evidence-search/1` | query、source_scope、entity/condition_scope、searched_at、source_snapshot_or_watermark、coverage、truncation、errors、selected_refs、excluded_refs_with_reason、refresh_condition；支持判断是否需要重搜 |
-| `etalon-research-branch/1` | branch_id、parent_branch_refs、question_refs、hypothesis_refs、prediction、plan_ref、input_requirements、state、decision_context、reconsider_when、supersedes；decision_context 包含候选集合、选中项、未选原因和可见证据 |
-| `etalon-experiment-plan/1` | hypothesis/prediction_refs、controls、endpoint/units、protocol/input_refs、decision_rule、stop_rule、planned_comparisons；支持一般实验意图，不扩大现有 Experiment.kind 的含义 |
-| `etalon-research-relations/1` | 有类型的关系列表、每条关系的条件与依据、来源水位、投影版本；不靠文本相似度生成“已确认支持”关系 |
-| `etalon-research-handoff/1` | question/scope、status_refs、workspace_ref、frontier_refs、key_support/counter_refs、pending_handles、method/protocol/model_pins、default_selection_ref、watermarks、owner、supersedes |
-| `etalon-golden-manifest/1` | dataset_version、purpose、members、selection_rule、identity/endpoint_scope、QC_rule、labels_and_refs、group_split、exposure_records、supersedes |
-| `etalon-research-assessment/1` | subject_refs、protocol_ref、cohort/member_refs、metrics 各自的 numerator/denominator/unknown/exclusions、evidence_refs、accounting_refs、scope、comparison_status；同时承载漏斗与分支诊断指标 |
-| `etalon-method-choice/1` | scope、previous_choice_ref、selected_version_refs、evidence_refs、reason、effective_from、rollback_target、supersedes；描述后续默认选择，不修改运行中任务 |
+| `moldarwin-research-step/1` | project_id、question_id、branch_id、operation、input_refs、output_refs、source_watermarks、method_use_ref、decision、reason、accounting_refs、open_questions、supersedes；记录一个有意义的研究状态变化 |
+| `moldarwin-evidence-search/1` | query、source_scope、entity/condition_scope、searched_at、source_snapshot_or_watermark、coverage、truncation、errors、selected_refs、excluded_refs_with_reason、refresh_condition；支持判断是否需要重搜 |
+| `moldarwin-research-branch/1` | branch_id、parent_branch_refs、question_refs、hypothesis_refs、prediction、plan_ref、input_requirements、state、decision_context、reconsider_when、supersedes；decision_context 包含候选集合、选中项、未选原因和可见证据 |
+| `moldarwin-experiment-plan/1` | hypothesis/prediction_refs、controls、endpoint/units、protocol/input_refs、decision_rule、stop_rule、planned_comparisons；支持一般实验意图，不扩大现有 Experiment.kind 的含义 |
+| `moldarwin-research-relations/1` | 有类型的关系列表、每条关系的条件与依据、来源水位、投影版本；不靠文本相似度生成“已确认支持”关系 |
+| `moldarwin-research-handoff/1` | question/scope、status_refs、workspace_ref、frontier_refs、key_support/counter_refs、pending_handles、method/protocol/model_pins、default_selection_ref、watermarks、owner、supersedes |
+| `moldarwin-golden-manifest/1` | dataset_version、purpose、members、selection_rule、identity/endpoint_scope、QC_rule、labels_and_refs、group_split、exposure_records、supersedes |
+| `moldarwin-research-assessment/1` | subject_refs、protocol_ref、cohort/member_refs、metrics 各自的 numerator/denominator/unknown/exclusions、evidence_refs、accounting_refs、scope、comparison_status；同时承载漏斗与分支诊断指标 |
+| `moldarwin-method-choice/1` | scope、previous_choice_ref、selected_version_refs、evidence_refs、reason、effective_from、rollback_target、supersedes；描述后续默认选择，不修改运行中任务 |
 
 不同项目可以只采用需要的内容契约。重复字段优先用引用，不在 step 中复制整份实验或分支状态。时间只是元信息；是否为同一次尝试由 task/request/action/attempt 身份和内容共同判断，独立重复不能因相同结果字节被去掉。
 
@@ -238,22 +238,22 @@ S 和 U 同时改变时，先做分开对照；条件允许再做旧 S/新 S × 
 
 | 能力 | 结论 | 当前入口与需要补的部分 |
 | --- | --- | --- |
-| 不可变历史与同库研究记录 | 直接复用 | [ResearchJournal.record](../../../src/etalon/research/journal.py#L76)；复用 CampaignStore，不另建成本账本 |
-| Artifact 原件与身份验证 | 直接复用 | [Artifact](../../../src/etalon/research/schema.py#L26)、[artifact_path](../../../src/etalon/research/journal.py#L46)；source_kind、role、hash、bytes 继续真实填写 |
-| claim 结构与更正引用 | 直接复用结构，扩展公共写入辅助 | [validate_claim](../../../src/etalon/research/evidence_refs.py#L237) 已支持；[record_claim](../../../examples/evidence_reuse.py#L19) 当前是示例 helper，claim 作为 Artifact 保存，不是 Journal 原生 Record 类型 |
-| EvidenceRef、迁移与发布范围 | 直接复用基础，新增更细发布工具 | [evidence_refs.py](../../../src/etalon/research/evidence_refs.py#L71)；跨库解析和封存隔离必须保留，不能直接暴露整库 |
-| 有界检索与直接关系读取 | 直接复用基础，扩展内容及关系读取 | [query_evidence](../../../src/etalon/research/evidence.py#L324)、[read_evidence](../../../src/etalon/research/evidence.py#L384)；新增 schema 投影、查询覆盖、类型关系和可重建索引 |
-| 实验与观测 | 在既有语义内复用 | [Experiment](../../../src/etalon/research/schema.py#L84)、[Observation](../../../src/etalon/research/schema.py#L114)；一般实验计划另用 plan Artifact，不伪造 action 或 kind |
-| 对照与配置修订 | 有条件复用 | [Contrast](../../../src/etalon/research/schema.py#L135)、[Revision](../../../src/etalon/research/schema.py#L153)；2×2 及具体配置修订约束保留，通用图比较不硬塞入其中 |
-| 单次行动、预留、收据、恢复 | 直接复用 | [runtime/api.py](../../../src/etalon/runtime/api.py#L115)、[ActiveCampaign.evaluate](../../../src/etalon/active/runner.py#L226)；不另设执行器或调度层 |
-| 方法内容、使用与评价 | 复用记录；独立评价适配需扩展 | [MethodVersion/Use/Evaluation](../../../src/etalon/research/schema.py#L196)；当前 use 只接受 host_reported；通用 S/U 评价仍受既有冻结策略验证收据路径限制 |
-| 方法改进来源与 no-change | 直接复用 | [method_revision.py](../../../src/etalon/research/method_revision.py#L31) 支持 S/U/G、问题证据、候选、试用和成本；G 自优化不进入本轮 |
-| 事件读取与稳定触发 ID | 直接复用消费基础，新增触发规则 | [consume_events](../../../src/etalon/host.py#L224)；当前不是自动改进调度器，handler 去重和有界改进状态需要新增 |
-| 新 chat 短入口 | 直接复用指引，新增接续产物 | [project-entry.md](../../../src/etalon/host-guides/project-entry.md#L1)；handoff、前沿重建和过期检测需新增 |
+| 不可变历史与同库研究记录 | 直接复用 | [ResearchJournal.record](../../../src/moldarwin/research/journal.py#L76)；复用 CampaignStore，不另建成本账本 |
+| Artifact 原件与身份验证 | 直接复用 | [Artifact](../../../src/moldarwin/research/schema.py#L26)、[artifact_path](../../../src/moldarwin/research/journal.py#L46)；source_kind、role、hash、bytes 继续真实填写 |
+| claim 结构与更正引用 | 直接复用结构，扩展公共写入辅助 | [validate_claim](../../../src/moldarwin/research/evidence_refs.py#L237) 已支持；[record_claim](../../../examples/evidence_reuse.py#L19) 当前是示例 helper，claim 作为 Artifact 保存，不是 Journal 原生 Record 类型 |
+| EvidenceRef、迁移与发布范围 | 直接复用基础，新增更细发布工具 | [evidence_refs.py](../../../src/moldarwin/research/evidence_refs.py#L71)；跨库解析和封存隔离必须保留，不能直接暴露整库 |
+| 有界检索与直接关系读取 | 直接复用基础，扩展内容及关系读取 | [query_evidence](../../../src/moldarwin/research/evidence.py#L324)、[read_evidence](../../../src/moldarwin/research/evidence.py#L384)；新增 schema 投影、查询覆盖、类型关系和可重建索引 |
+| 实验与观测 | 在既有语义内复用 | [Experiment](../../../src/moldarwin/research/schema.py#L84)、[Observation](../../../src/moldarwin/research/schema.py#L114)；一般实验计划另用 plan Artifact，不伪造 action 或 kind |
+| 对照与配置修订 | 有条件复用 | [Contrast](../../../src/moldarwin/research/schema.py#L135)、[Revision](../../../src/moldarwin/research/schema.py#L153)；2×2 及具体配置修订约束保留，通用图比较不硬塞入其中 |
+| 单次行动、预留、收据、恢复 | 直接复用 | [runtime/api.py](../../../src/moldarwin/runtime/api.py#L115)、[ActiveCampaign.evaluate](../../../src/moldarwin/active/runner.py#L226)；不另设执行器或调度层 |
+| 方法内容、使用与评价 | 复用记录；独立评价适配需扩展 | [MethodVersion/Use/Evaluation](../../../src/moldarwin/research/schema.py#L196)；当前 use 只接受 host_reported；通用 S/U 评价仍受既有冻结策略验证收据路径限制 |
+| 方法改进来源与 no-change | 直接复用 | [method_revision.py](../../../src/moldarwin/research/method_revision.py#L31) 支持 S/U/G、问题证据、候选、试用和成本；G 自优化不进入本轮 |
+| 事件读取与稳定触发 ID | 直接复用消费基础，新增触发规则 | [consume_events](../../../src/moldarwin/host.py#L224)；当前不是自动改进调度器，handler 去重和有界改进状态需要新增 |
+| 新 chat 短入口 | 直接复用指引，新增接续产物 | [project-entry.md](../../../src/moldarwin/host-guides/project-entry.md#L1)；handoff、前沿重建和过期检测需新增 |
 | 四图与分支决策 | 新增 | 类型关系投影、branch/step/plan 内容契约、重新考虑条件；宿主继续决定下一步 |
 | golden 与统一漏斗评价 | 新增组合契约 | 复用现有观测、校准、TaskSplit 和数据身份；增加 manifest、暴露记录及明确分母的 assessment |
 | 方法默认采用与回退 | 新增选择记录和应用约定 | 现有记录不会自动晋升方法；choice 只影响后续任务的版本绑定 |
-| 实验数据入口 | 复用历史导入；实时 lab 另有缺口 | [import_assays](../../../src/etalon/data/ingress.py#L37) 不代表实时 lab 执行；未来按样品批次和协议接入，不在本轮实现 |
+| 实验数据入口 | 复用历史导入；实时 lab 另有缺口 | [import_assays](../../../src/moldarwin/data/ingress.py#L37) 不代表实时 lab 执行；未来按样品批次和协议接入，不在本轮实现 |
 
 两个实现边界需要保留：第一，Journal 独立 MethodEvaluation 目前要求已有 `validation-` 收据、冻结 policy/split 和时间顺序，不能把任意实验结果列表直接标为独立 S/U 验证。后续应增加明确适配或另立一般评价契约，同时保留原路径的强校验。第二，现有 evidence 内容投影有 schema 白名单和大小/数量上限；新增内容契约必须同时考虑验证、投影、关系识别、发布隔离及错误回读，不能只加写入端。
 

@@ -1,6 +1,6 @@
 # Paged declared-reference continuation
 
-`etalon_research_context` accepts the optional existing manifest view with
+`moldarwin_research_context` accepts the optional existing manifest view with
 `view_options={"section":"closure"}`. Use the returned `read_context` and
 `next_cursor` to continue. Each page verifies at most 50 reference envelopes;
 the one-shot `resume_research` limit remains 1024 and its historical issues are
@@ -27,7 +27,7 @@ checkpoint_ref, handoff, pages)` checks the current source/index identity,
 implementation identity, every complete row or UTF-8 fragment, contiguous
 positions, original-verification indices and every cursor. Missing, reordered,
 duplicated or changed pages fail. A partial transcript produces a standard
-`etalon-continuation-closure-receipt/1` body with `next_read`; pass that exact
+`moldarwin-continuation-closure-receipt/1` body with `next_read`; pass that exact
 request to the same existing context tool after a chat/host restart. The host
 may archive the transcript and receipt as ordinary Artifacts in its new task;
 the library creates no cursor store or mandatory workflow.

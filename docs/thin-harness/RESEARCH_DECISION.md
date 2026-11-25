@@ -1,6 +1,6 @@
 # Optional research decisions
 
-`etalon.research.research_decision` adds two ordinary JSON Artifact contracts to
+`moldarwin.research.research_decision` adds two ordinary JSON Artifact contracts to
 the existing `ResearchJournal`. Use them when a real research choice needs an
 auditable connection from its question and alternatives to observable predictions,
 normal execution, evaluation, and a later judgment. They create no journal,
@@ -14,7 +14,7 @@ allowed and remains `pending` in an update; it cannot establish success.
 
 ## Decision shape
 
-`etalon-research-decision/1` records:
+`moldarwin-research-decision/1` records:
 
 - `task_id`, `scope`, `branch_id`, `question`, and exact `problem_refs`;
 - `structure`: free-text `task_family`, `objective_kind`, `subject`,
@@ -57,7 +57,7 @@ leakage. Missing declarations are not evidence of blindness.
 
 ## Later updates
 
-`etalon-research-decision-update/1` binds an immutable `decision_ref`, optional
+`moldarwin-research-decision-update/1` binds an immutable `decision_ref`, optional
 `previous_update_ref`, exact `execution_refs`, `evaluation_refs`, and
 `experience_refs`. It copies the original task, scope, branch, and methods.
 Every original prediction receives one judgment:

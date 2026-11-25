@@ -4,11 +4,11 @@ import json
 
 import pytest
 
-from etalon.active.schema import canonical
-from etalon.research.evidence import StaleCursorError, read_evidence
-from etalon.research.evidence_refs import EvidenceError, file_identity, make_ref
-from etalon.research.graph_memory import node_identity
-from etalon.research.research_context import build_research_context
+from moldarwin.active.schema import canonical
+from moldarwin.research.evidence import StaleCursorError, read_evidence
+from moldarwin.research.evidence_refs import EvidenceError, file_identity, make_ref
+from moldarwin.research.graph_memory import node_identity
+from moldarwin.research.research_context import build_research_context
 
 from test_research_graph_memory import graph_case
 from test_mcp import Collector
@@ -29,7 +29,7 @@ def test_exact_original_navigation_avoids_inventory_walk_and_preserves_pause(gra
     assert page["selection"]["inventory_count"] > 1
     row = page["items"][0]["value"]
     assert row["ref"] == c["decision"] and row["record_type"] == "artifact"
-    assert row["content_schema"] == "etalon-research-step/1"
+    assert row["content_schema"] == "moldarwin-research-step/1"
     assert row["original_locator"]["sha256"] == c["journal"].get(c["decision"]["record_id"])["sha256"]
     original = read_evidence(read_context=card["read_context"], ref=row["ref"], **row["original_read"])
     assert json.loads(base64.b64decode(original["fragment"]["content"])) == c["step"]
@@ -51,7 +51,7 @@ def test_typed_record_and_member_navigation_never_guesses_artifact_view(graph_ca
         "next_read_refs": refs}]})
     c["publish"]()
     manifest = c["entry"].parent / "external.json"
-    manifest.write_text(json.dumps({"schema": "etalon-artifact-manifest/1", "records": [
+    manifest.write_text(json.dumps({"schema": "moldarwin-artifact-manifest/1", "records": [
         {"record_id": "evaluation", "record_type": "method_evaluation", "record": evaluation, "visibility": "released"},
         {"record_id": "snapshot", "record_type": "data_snapshot", "record": parent, "visibility": "released"}]}))
     ws = json.loads(c["workspace"].read_text())
@@ -87,10 +87,10 @@ def test_exact_selection_is_not_search_or_workspace_expansion(graph_case):
 
 
 def test_mcp_exact_manifest_and_record_guidance(graph_case):
-    from etalon.mcp.evidence import register
+    from moldarwin.mcp.evidence import register
     collector = Collector()
     register(collector)
-    response = json.loads(collector.tools["etalon_research_context"](str(graph_case["entry"]),
+    response = json.loads(collector.tools["moldarwin_research_context"](str(graph_case["entry"]),
         view="manifest", node_id=node_identity(graph_case["counter"])))
     assert response["ok"] and response["total_count"] == 1
     assert response["items"][0]["value"]["original_read"]["view"] == "artifact"

@@ -15,7 +15,7 @@ on.
 > Leave free where a mistake is visible and recoverable in the same session.**
 
 This is not a new principle. It is the repository's own sentence promoted from a skill to a
-design rule. `.claude/skills/etalon-step-corpus/SKILL.md:30-35`, on `soundness` and
+design rule. `.claude/skills/moldarwin-step-corpus/SKILL.md:30-35`, on `soundness` and
 `progress`:
 
 > Fill them from rules over the fault codes and the operation outcomes on the first pass.
@@ -46,7 +46,7 @@ Ask the questions in order and stop at the first yes.
 → **Harness code that refuses.** Raise at the write, not at a review. The precedent to copy
 is `authority.authorize()`, which refuses to take a verdict as an argument and says why at
 `authority/grant.py:232-235`: *"it does not take a verdict from the caller — it calls
-`etalon.faults.preflight.check_record` itself. A function that accepted 'this one passed'
+`moldarwin.faults.preflight.check_record` itself. A function that accepted 'this one passed'
 as an argument would be a guard on the path nobody takes with extra steps."* A refusal
 reachable only from an optional path is in layer 4, whatever it looks like — that is the
 bug class `docs/adr/0006` is named for (`README.md:446`).
@@ -56,7 +56,7 @@ what the design was?**
 → **Markdown.** Write the design down. This is the layer whose absence was itself the
 defect behind `ASSESSMENT_REGIMES.md`: a previous agent read all 244 source files and could
 not determine whether the `diagnostic` early return at `research/journal.py:230` was a
-deliberate two-regime design or an accretion (`etalon-architecture-review.md:623-629`). The
+deliberate two-regime design or an accretion (`moldarwin-architecture-review.md:623-629`). The
 code was correct and the ambiguity was total. Code cannot carry intent; a document can, and
 it is the cheapest of the four layers by a wide margin.
 
@@ -87,7 +87,7 @@ unreachable, which returns it to the ADR 0006 class.
 | deciding from a single stochastic draw | 4, teach | the draw count is in the record; the host can draw again in the same session |
 | declaring an aggregation policy after seeing the draws | 1 if the policy is recorded, else 4 | a policy recorded after the fact reads identically to one recorded before it — this is a chronology fact, and chronology is provenance |
 | submitting without finding the acceptance threshold | 4, teach | recomputable at any time, by the host, from the contract |
-| spending fewer turns than the allowance | none — report it | `etalon-architecture-review.md:447-451`: under-use earns visibility, not pressure |
+| spending fewer turns than the allowance | none — report it | `moldarwin-architecture-review.md:447-451`: under-use earns visibility, not pressure |
 
 ## 3. What stays free
 
@@ -110,7 +110,7 @@ modified, the skill directory is not a whitelist, and exploration is not promoti
 
 Forcing more iteration would be worse than useless. On an external benchmark, **the tasks
 that passed used fewer turns (mean 12.0) than the tasks that failed (mean 18.3)**, and
-fewer oracle calls (`etalon-architecture-review.md:447-451`). Evidence class: an external
+fewer oracle calls (`moldarwin-architecture-review.md:447-451`). Evidence class: an external
 measurement quoted into this repository's review, not `measured_here`.
 
 A harness that reacted to under-use by pushing the host to iterate would be optimising the
@@ -121,7 +121,7 @@ non-lever costs capability and buys nothing.
 
 What under-use earns is visibility: slack reported beside its reason, so that a deliberate
 reserve and a failure to use the allowance are distinguishable
-(`etalon-architecture-review.md:428-451`). That is a report, which is no layer at all.
+(`moldarwin-architecture-review.md:428-451`). That is a report, which is no layer at all.
 
 ## 4. How to tell the criterion was applied rather than cited
 

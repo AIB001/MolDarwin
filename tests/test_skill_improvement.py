@@ -7,10 +7,10 @@ import subprocess
 import sys
 from contextlib import closing
 
-from etalon import skills
-from etalon.active import CampaignStore
-from etalon.research import ResearchJournal
-from etalon.boundary.prism_v1 import file_identity
+from moldarwin import skills
+from moldarwin.active import CampaignStore
+from moldarwin.research import ResearchJournal
+from moldarwin.boundary.prism_v1 import file_identity
 
 
 def test_revision_preserves_versions_partial_use_and_bounded_event_stop(tmp_path):
@@ -63,14 +63,14 @@ def test_ordinary_revision_published_journal_is_discoverable_in_new_process(tmp_
         source.backup(target)
     workspace = tmp_path / "workspace.json"
     workspace.write_text(json.dumps({
-        "schema": "etalon-evidence-workspace/1", "workspace_id": "ordinary-revision-publish",
+        "schema": "moldarwin-evidence-workspace/1", "workspace_id": "ordinary-revision-publish",
         "sources": [{"source_id": "revision-example", "kind": "journal", "location": snapshot.name,
                      "identity": {"kind": "snapshot_sha256", "value": file_identity(snapshot)["sha256"]}}],
     }), encoding="utf-8")
     before = file_identity(snapshot)
     reader = '''
 import json, sys
-from etalon.research.evidence import query_evidence, read_evidence
+from moldarwin.research.evidence import query_evidence, read_evidence
 workspace, topic = sys.argv[1:]
 query = query_evidence(workspace, query=topic, limit=50)
 rows = [{"ref": item["ref"], "record": read_evidence(workspace, item["ref"], view="record"),

@@ -2,10 +2,10 @@
 import copy
 import pytest
 
-from etalon.research import Artifact
-from etalon.research.capability_profile import build_capability_profile
-from etalon.research.evidence_refs import EvidenceError
-from etalon.research.evaluation_contract import record_evaluation_artifact
+from moldarwin.research import Artifact
+from moldarwin.research.capability_profile import build_capability_profile
+from moldarwin.research.evidence_refs import EvidenceError
+from moldarwin.research.evaluation_contract import record_evaluation_artifact
 from test_evaluation_contract import setup
 from test_research_continuation import case, publish
 from test_research_decision import prepared, build, store

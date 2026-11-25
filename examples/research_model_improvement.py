@@ -18,17 +18,17 @@ import copy
 import json
 from pathlib import Path
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.schema import canonical, digest
-from etalon.research import Artifact, MethodVersion, MethodUse, ResearchJournal, TaskSplit
-from etalon.research import improvement as imp, research_model as rm
-from etalon.research.components import record_json
-from etalon.research.composition import node_step, record_evaluation
-from etalon.research.continuation import STEP, CHECKPOINT, record_content
-from etalon.research.evaluation_contract import build_evaluation_contract, evaluate_contract
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research.method_revision import journal_ref, build_method_revision, record_method_revision, resolve_method_revision
-from etalon.research.opportunity_state import build_opportunity_disposition, resolve_opportunity_state
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.schema import canonical, digest
+from moldarwin.research import Artifact, MethodVersion, MethodUse, ResearchJournal, TaskSplit
+from moldarwin.research import improvement as imp, research_model as rm
+from moldarwin.research.components import record_json
+from moldarwin.research.composition import node_step, record_evaluation
+from moldarwin.research.continuation import STEP, CHECKPOINT, record_content
+from moldarwin.research.evaluation_contract import build_evaluation_contract, evaluate_contract
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research.method_revision import journal_ref, build_method_revision, record_method_revision, resolve_method_revision
+from moldarwin.research.opportunity_state import build_opportunity_disposition, resolve_opportunity_state
 
 SID = "endpoint-model-rsi"
 TASK = "pose-endpoint-representation-revision"
@@ -60,7 +60,7 @@ def verify_pin(path, pin):
 def verify_inputs(receipt_path, audit_path):
     receipt_path, audit_path = Path(receipt_path).absolute(), Path(audit_path).absolute()
     receipt, audit = read_json(receipt_path), read_json(audit_path)
-    if receipt.get("schema") != "etalon-pose-endpoint-reassessment/1" or audit.get("schema") != "etalon-pose-endpoint-comparison-audit/1":
+    if receipt.get("schema") != "moldarwin-pose-endpoint-reassessment/1" or audit.get("schema") != "moldarwin-pose-endpoint-comparison-audit/1":
         raise EvidenceError("actual reassessment receipt and comparison audit are required")
     verify_pin(receipt_path, audit["receipt"])
     request = read_json(receipt_path.parent / "request.json")
@@ -119,7 +119,7 @@ def summarize(receipt, audit):
         if counts["baseline_physical"] != case["legacy_complete_physical_endpoint_count"] or counts["candidate_physical"] != case["new_complete_physical_endpoint_count"]:
             raise EvidenceError("independent comparison counts differ from report bytes")
         details[name] = counts
-    return dict(schema="etalon-endpoint-rsi-comparison/1", task_id=TASK, scope=SCOPE,
+    return dict(schema="moldarwin-endpoint-rsi-comparison/1", task_id=TASK, scope=SCOPE,
         protocol="endpoint-availability-retrospective/1", complete=True, slots=total, cases=details,
         baseline_physical_available=old_count, candidate_physical_available=new_count, availability_gain=new_count-old_count,
         known_reference_slots=known_count, unresolved_reference_slots=unknown_count,
@@ -133,7 +133,7 @@ def run(root, receipt_path, audit_path, *, stop_after=None):
     root = Path(root).absolute()
     receipt_path, audit_path = Path(receipt_path).absolute(), Path(audit_path).absolute()
     receipt, audit = verify_inputs(receipt_path, audit_path)
-    request = dict(schema="etalon-endpoint-rsi-publication-request/1", receipt={"path": str(receipt_path), **file_identity(receipt_path)},
+    request = dict(schema="moldarwin-endpoint-rsi-publication-request/1", receipt={"path": str(receipt_path), **file_identity(receipt_path)},
         audit={"path": str(audit_path), **file_identity(audit_path)}, driver={"path": str(Path(__file__).absolute()), **file_identity(Path(__file__))})
     root.mkdir(parents=True, exist_ok=True)
     immutable_json(root / "request.json", request)
@@ -177,7 +177,7 @@ def run(root, receipt_path, audit_path, *, stop_after=None):
         authority.write_text(content, encoding="utf-8")
     def publish():
         path = root / "workspace.json"
-        value = dict(schema="etalon-evidence-workspace/1", workspace_id=TASK, sources=[*sources,
+        value = dict(schema="moldarwin-evidence-workspace/1", workspace_id=TASK, sources=[*sources,
             dict(source_id=SID, kind="journal", location=str(store.path),
                  identity={"kind": "snapshot_sha256", "value": file_identity(store.path)["sha256"]})],
             status_refs=[str(authority)], location_map=[])
@@ -200,13 +200,13 @@ def run(root, receipt_path, audit_path, *, stop_after=None):
     contents = {}
     methods = {}
     for kind, function in (("baseline", "verify_poses"), ("candidate", "verify_pose_endpoints")):
-        contents[kind] = artifact(dict(entrypoint="etalon.research.pose_verifier."+function,
+        contents[kind] = artifact(dict(entrypoint="moldarwin.research.pose_verifier."+function,
             function_source_sha256=audit["source_functions"][function]["function_source_sha256"], source_ref=source_ref,
             runtime=receipt["runtime"], protocol_ref=protocol_ref,
             provenance="Actual same-environment reassessment API; not a new invocation and not historical runtime equivalence"))
         methods[kind] = ref(journal.record(MethodVersion("pose-endpoint-"+kind, ("domain_skill", "usage_method"),
             {"artifact_ref": contents[kind]["record_id"]}, parents=(methods["baseline"]["record_id"],) if kind == "candidate" else (),
-            entrypoint="etalon.research.pose_verifier."+function, verification_basis="host_reported")))
+            entrypoint="moldarwin.research.pose_verifier."+function, verification_basis="host_reported")))
     conditions = dict(task_family="pose_endpoint_qualification", panel=digest(sorted(audit["cases"])),
                       protocol="endpoint-availability-retrospective/1", runtime=receipt["runtime"]["rdkit"])
     case_inputs, reports = {}, {}
@@ -346,7 +346,7 @@ def run(root, receipt_path, audit_path, *, stop_after=None):
     experience = imp.record_experience(journal, patch_ref=patch, outcome=outcome,
         lesson="Separate independently evaluable physical endpoints from reference-qualified RMSD/joint. This restores availability on this seen panel; historical raw physical information already existed.",
         invalid_when="Different checks/parser/chemical state or reference regime; unknowns must not become successes; no affinity/pose improvement or transfer established",
-        capability_id="etalon.pose_endpoint_qualification", support_refs=[comparison, evaluated_ref, model_review_ref], counter_refs=[problem, *unknown_cases],
+        capability_id="moldarwin.pose_endpoint_qualification", support_refs=[comparison, evaluated_ref, model_review_ref], counter_refs=[problem, *unknown_cases],
         evaluation_ref=evaluation["evaluation_ref"], resolution_ref=resolution["step_ref"], directory=root / "memory", source_id=SID,
         source_kind="new_execution")
     state = resolve_opportunity_state(journal, opportunity["opportunity_ref"], source_id=SID, external_workspace=publish())
@@ -365,7 +365,7 @@ def run(root, receipt_path, audit_path, *, stop_after=None):
                                          source_kind="new_execution", external_workspace=publish())
     if duplicate["state"] != "terminal":
         raise EvidenceError("repeated exact problem is not terminal")
-    result = dict(schema="etalon-endpoint-model-rsi-result/1", request_digest=digest(request), status="complete", outcome=outcome,
+    result = dict(schema="moldarwin-endpoint-model-rsi-result/1", request_digest=digest(request), status="complete", outcome=outcome,
         workspace=str(publish()), checkpoint_ref=final, interruption_checkpoint_ref=pending,
         opportunity_ref=opportunity["opportunity_ref"], context_ref=context_ref, patch_ref=patch, revision_ref=revision,
         evaluation=evaluation, evaluation_report_ref=evaluated_ref, resolution_ref=resolution["step_ref"], experience_ref=experience,

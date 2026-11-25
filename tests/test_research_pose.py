@@ -6,11 +6,11 @@ import subprocess
 import sys
 import shutil
 import pytest
-from etalon.active import CampaignSpec,CampaignStore,Endpoint
-from etalon.active.store import StateError
-from etalon.boundary.prism_v1 import CLITransport
-from etalon.research import ResearchJournal
-from etalon.research.pose import PoseClient,execute,slot_identity,validation_request_binding
+from moldarwin.active import CampaignSpec,CampaignStore,Endpoint
+from moldarwin.active.store import StateError
+from moldarwin.boundary.prism_v1 import CLITransport
+from moldarwin.research import ResearchJournal
+from moldarwin.research.pose import PoseClient,execute,slot_identity,validation_request_binding
 
 
 def test_failed_and_not_attempted_slot_identity_is_requested_target_not_source():
@@ -25,7 +25,7 @@ def test_failed_and_not_attempted_slot_identity_is_requested_target_not_source()
 
 def test_legacy_validation_guard_allows_settled_receipt_only(tmp_path):
     from test_research_journal import setup
-    from etalon.active.schema import digest
+    from moldarwin.active.schema import digest
     store,journal,_=setup(tmp_path)
     frozen={'freeze_sha256':'a'*64};bound={'semantic':{'fixture':1},'execution_id':'historical'}
     with pytest.raises(StateError,match='prior receipt'):
@@ -41,7 +41,7 @@ def test_legacy_validation_guard_allows_settled_receipt_only(tmp_path):
 
 
 def test_public_pose_cli_preserves_e0_without_scorer_and_never_recharges(tmp_path,monkeypatch):
-    source=os.environ.get('ETALON_TEST_PRISM_SOURCE')
+    source=os.environ.get('MOLDARWIN_TEST_PRISM_SOURCE')
     if not source:pytest.skip('explicit producer snapshot required')
     # Parallel component development must not mutate the executed test snapshot.
     snapshot=tmp_path/'producer-snapshot';snapshot.mkdir()

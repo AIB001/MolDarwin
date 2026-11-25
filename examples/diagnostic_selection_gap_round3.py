@@ -9,10 +9,10 @@ import argparse
 import json
 from pathlib import Path
 import time
-from etalon.active import CampaignStore
-from etalon.active.schema import canonical,digest
-from etalon.boundary.prism_v1 import file_identity
-from etalon.research import Artifact,Coupling,Experiment,Observation,ResearchJournal
+from moldarwin.active import CampaignStore
+from moldarwin.active.schema import canonical,digest
+from moldarwin.boundary.prism_v1 import file_identity
+from moldarwin.research import Artifact,Coupling,Experiment,Observation,ResearchJournal
 
 
 def released_groups(independent):
@@ -34,7 +34,7 @@ def analyze_released(result_path:Path,release_path:Path,archive_path:Path,output
     result=json.loads(result_path.read_text());release=json.loads(release_path.read_text())
     if file_identity(result_path)['sha256']!=release['result_sha256'] or result['predictions_sha256']!=release['predictions_sha256']:
         raise ValueError('released result identity mismatch')
-    report={'schema':'etalon-released-selection-gap-audit/2','groups':released_groups(result),
+    report={'schema':'moldarwin-released-selection-gap-audit/2','groups':released_groups(result),
             'decision_sha256':release['decision_sha256'],'predictions_sha256':release['predictions_sha256'],
             'parent_H_archive':{'path':str(archive_path.resolve()),**file_identity(archive_path)},
             'result':{'path':str(result_path.resolve()),**file_identity(result_path)},
@@ -83,7 +83,7 @@ def analyze(database:Path,feedback:Path,output:Path):
         journal.record(ex)
         obs=Observation(ex.id,'measured',facts,{k:'angstrom' for k in facts},(diagnostic.id,));journal.record(obs)
         observations.append(obs.id);results[group]={'values':facts,'observation_id':obs.id}
-    challenge={'schema':'etalon-seen-feedback-diagnostic/2','validation_id':validation['id'],
+    challenge={'schema':'moldarwin-seen-feedback-diagnostic/2','validation_id':validation['id'],
         'decision_sha256':recorded['decision_sha256'],'probe_id':'released-coverage-selection-gap',
         'observation_ids':observations,'groups':results,
         'model_challenge':'coverage improvement does not imply score-selected pose improvement',

@@ -4,14 +4,14 @@ import json
 
 import pytest
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.schema import digest
-from etalon.active.store import BudgetExhausted, StateError
-from etalon.boundary.prism_v1 import file_identity
-from etalon.research import Artifact, Change, Contrast, Coupling, Experiment, Observation, ResearchJournal, Revision, TaskSplit
-from etalon.research.journal import audit_json
-from etalon.research.diagnostics import exact_program
-from etalon.research.runtime import compile_first_segment, record_program
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.schema import digest
+from moldarwin.active.store import BudgetExhausted, StateError
+from moldarwin.boundary.prism_v1 import file_identity
+from moldarwin.research import Artifact, Change, Contrast, Coupling, Experiment, Observation, ResearchJournal, Revision, TaskSplit
+from moldarwin.research.journal import audit_json
+from moldarwin.research.diagnostics import exact_program
+from moldarwin.research.runtime import compile_first_segment, record_program
 from test_research_diagnostics import xor_model
 
 

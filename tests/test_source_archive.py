@@ -10,10 +10,10 @@ from pathlib import Path
 import httpx
 import pytest
 
-from etalon.boundary.quarry import DataBudget, Quarry
-from etalon.data.artifacts import digest, new_run, read_snapshot, seal, write_json
-from etalon.data.service import run_data
-from etalon.data.source_archive import INDEX, public_descriptor, source_archive_status
+from moldarwin.boundary.quarry import DataBudget, Quarry
+from moldarwin.data.artifacts import digest, new_run, read_snapshot, seal, write_json
+from moldarwin.data.service import run_data
+from moldarwin.data.source_archive import INDEX, public_descriptor, source_archive_status
 
 REQUEST = {"kind": "query", "source": "chembl", "operation": "molecule",
            "parameters": {"chembl_id": "CHEMBL25"}}
@@ -192,7 +192,7 @@ def test_redirect_body_and_final_response_are_separate_attempts(tmp_path):
 
     with Quarry(tmp_path / "home", DataBudget(), archive_root=tmp_path / "redirect",
                 transport=httpx.MockTransport(transport)) as quarry:
-        from molquarry.catalog import SOURCES
+        from molorigin.catalog import SOURCES
 
         result = quarry.client.http.text(SOURCES["chembl"], "GET", "https://www.ebi.ac.uk/first",
                                         redirect_hosts=frozenset({"www.ebi.ac.uk"}))
@@ -257,7 +257,7 @@ def test_sanitization_preserves_science_and_excludes_private_token_response(tmp_
     with Quarry(tmp_path / "home", DataBudget(), archive_root=tmp_path / "private",
                 transport=httpx.MockTransport(lambda request: httpx.Response(200,
                     json={"access_token": "RESPONSE-TOKEN"}))) as quarry:
-        from molquarry.catalog import SOURCES
+        from molorigin.catalog import SOURCES
 
         quarry.client.http.json(SOURCES["chembl"], "POST", "https://example.org/token?api_key=URL-KEY",
             form={"client_secret": "FORM-SECRET"}, private=True,

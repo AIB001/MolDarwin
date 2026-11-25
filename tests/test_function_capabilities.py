@@ -11,12 +11,12 @@ import sqlite3
 
 import pytest
 
-from etalon.boundary.screen import Screen
-from etalon.campaign.design import component, compose
-from etalon.campaign.pipeline import Pipeline
-from etalon.campaign.sweep import read_sweep_status
-from etalon.generate.productivity import Chunk, Productivity, allocate
-from etalon.screening import _journal, _worker, plan_screen, screen_status
+from moldarwin.boundary.screen import Screen
+from moldarwin.campaign.design import component, compose
+from moldarwin.campaign.pipeline import Pipeline
+from moldarwin.campaign.sweep import read_sweep_status
+from moldarwin.generate.productivity import Chunk, Productivity, allocate
+from moldarwin.screening import _journal, _worker, plan_screen, screen_status
 
 
 def digest_files(root):
@@ -122,9 +122,9 @@ def test_real_nonempty_input_failure_and_existing_run_refusal_are_not_zero_hits(
 @pytest.mark.parametrize("code", ["RUN_ALREADY_EXISTS", "RUN_LOCKED", "RUN_LOCK_FAILED"])
 def test_concurrent_refusal_cannot_adopt_another_writers_failed_result(tmp_path, monkeypatch, code):
     """An injected interleaving counterexample, not a claim to exercise OS locking."""
-    from etalon.boundary.screen import ScreenResult, StageOutcome
-    from molcascade.errors import ExecutionError
-    from molcascade.runtime import LocalRunner
+    from moldarwin.boundary.screen import ScreenResult, StageOutcome
+    from molcat.errors import ExecutionError
+    from molcat.runtime import LocalRunner
 
     library = tmp_path / "existing.csv"
     library.write_text("id,smiles\nethanol,CCO\n", encoding="utf-8")
@@ -146,7 +146,7 @@ def test_concurrent_refusal_cannot_adopt_another_writers_failed_result(tmp_path,
 
 
 def test_productivity_is_independent_advice_and_can_select_only_one_loop(tmp_path, monkeypatch):
-    from etalon.campaign.supervisor import Supervisor
+    from moldarwin.campaign.supervisor import Supervisor
 
     def forbidden(*args, **kwargs):
         pytest.fail("a measurement/planning query dispatched a campaign")
@@ -200,7 +200,7 @@ def test_readonly_sweep_sees_pending_and_latest_wal_without_migration(tmp_path, 
     report = read_sweep_status(pool)
     assert report["batches"] == {"emitted": 1, "pending": 0, "outstanding": 1,
                                   "recorded": 0, "by_outcome": {}}
-    assert report["etalon_revisions"] == [] and report["gate"] is None
+    assert report["moldarwin_revisions"] == [] and report["gate"] is None
     assert logical_snapshot(db) == before
     # Actual SQLite read-lock bookkeeping may touch SHM, but no other evidence may change.
     after = digest_files(tmp_path)
@@ -243,8 +243,8 @@ def test_readonly_status_rejects_unsupported_schema_without_repair(tmp_path):
 
 
 def test_unknown_action_monitor_keeps_reservation_partial_cost_and_receipts(tmp_path):
-    from etalon.active.schema import CampaignSpec, Candidate, Endpoint
-    from etalon.active.store import CampaignStore
+    from moldarwin.active.schema import CampaignSpec, Candidate, Endpoint
+    from moldarwin.active.store import CampaignStore
 
     store = CampaignStore(tmp_path / "campaign.sqlite")
     store.configure(CampaignSpec("score", 6, "fixture-cost", "fixture/1"), [
@@ -266,8 +266,8 @@ def test_unknown_action_monitor_keeps_reservation_partial_cost_and_receipts(tmp_
 
 
 def test_progress_reads_running_fixture_without_dispatch_or_creating_control_paths(tmp_path):
-    from molcascade.artifacts import canonical_json_bytes
-    from molcascade.runtime.models import RunState, RunStatus
+    from molcat.artifacts import canonical_json_bytes
+    from molcat.runtime.models import RunState, RunStatus
 
     now = datetime.now(UTC)
     state = RunState(run_id="pending", revision_id="a" * 64, status=RunStatus.RUNNING,

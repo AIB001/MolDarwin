@@ -81,15 +81,15 @@ never removed to fit; insufficient room for it still fails closed.
 Generate an opt-in project bundle with the existing interface:
 
 ```python
-from etalon.host import export, verify
+from moldarwin.host import export, verify
 export(target_directory, host="codex", research_entry=current_entry)
 verify(target_directory)
 ```
 
-The bundle contains `.codex/hooks.json` and `.etalon/research-hook.py`, bound to
+The bundle contains `.codex/hooks.json` and `.moldarwin/research-hook.py`, bound to
 the selected Python/runtime and entry. Launch Codex in that project and use its
 normal project trust and `/hooks` review for the exact definitions that need
-review. Check native discovery with `etalon.codex_hooks.inspect(target_directory)`.
+review. Check native discovery with `moldarwin.codex_hooks.inspect(target_directory)`.
 Keep the wrapper's installed runtime alive; an MCP server on another host does
 not install the hook script on the Codex execution host.
 
@@ -98,7 +98,7 @@ configuring MCP alone does not activate new hooks. Existing trusted definitions
 do not need another review; changed project paths/commands must be inspected.
 See the official [Hooks documentation](https://learn.chatgpt.com/docs/hooks).
 
-ETALON's exports retain a 30-second handler timeout. Benchmark the fixed package
+MolDarwin's exports retain a 30-second handler timeout. Benchmark the fixed package
 against its real entry before native acceptance; extending a timeout alone is
 not a solution to repeated whole-archive work. Native event receipts, actual tool
 calls and the new chat's reading must be checked separately from direct handler

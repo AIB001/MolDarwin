@@ -7,17 +7,17 @@ import sys
 
 import pytest
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.store import BudgetExhausted, StateError
-from etalon.boundary.prism_v1 import CLITransport, TransportError
-from etalon.research import ResearchJournal
-from etalon.research.producer import DiagnosticClient, execute
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.store import BudgetExhausted, StateError
+from moldarwin.boundary.prism_v1 import CLITransport, TransportError
+from moldarwin.research import ResearchJournal
+from moldarwin.research.producer import DiagnosticClient, execute
 
 
 @pytest.fixture
 def diagnostic(tmp_path):
-    source = os.environ.get('ETALON_TEST_PRISM_SOURCE')
-    if not source: pytest.skip('set ETALON_TEST_PRISM_SOURCE to explicit producer checkout/snapshot')
+    source = os.environ.get('MOLDARWIN_TEST_PRISM_SOURCE')
+    if not source: pytest.skip('set MOLDARWIN_TEST_PRISM_SOURCE to explicit producer checkout/snapshot')
     script = """import json,sys
 from pathlib import Path
 sys.path.insert(0,str(Path.cwd()/'tests'))
@@ -103,7 +103,7 @@ print(json.dumps({'label':'synthetic exact growth','edits':edits,'expected_smile
 
 
 def test_unknown_transport_retains_reservation_and_never_redispatches(diagnostic,monkeypatch):
-    from etalon.active.runner import ExecutionPending
+    from moldarwin.active.runner import ExecutionPending
     request,client,journal,root=diagnostic
     def disconnected(*args,**kwargs):raise TransportError('explicit fixture lost response')
     monkeypatch.setattr(client,'run',disconnected)

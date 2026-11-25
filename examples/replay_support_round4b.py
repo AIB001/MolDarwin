@@ -11,11 +11,11 @@ import sqlite3
 import sys
 import time
 
-from etalon.active.schema import digest
-from etalon.boundary.prism_v1 import file_identity
-from etalon.research.fixed_pool import subset_rank_outcome
-from etalon.research.support import support_report, fallback_action
-from etalon.research.transfer import unpack, next_action
+from moldarwin.active.schema import digest
+from moldarwin.boundary.prism_v1 import file_identity
+from moldarwin.research.fixed_pool import subset_rank_outcome
+from moldarwin.research.support import support_report, fallback_action
+from moldarwin.research.transfer import unpack, next_action
 
 
 def replay(*,database,evidence_root,policy_path,rows_path,predictions_path,task_id,
@@ -97,7 +97,7 @@ def replay(*,database,evidence_root,policy_path,rows_path,predictions_path,task_
             {**guarded,'budget':299},catalog,model,reconstructed,set())}
     db.close()
     if file_identity(database)!=before:raise ValueError('read-only archive changed')
-    return {'schema':'etalon-old-evidence-support-replay/1','task_id':task_id,
+    return {'schema':'moldarwin-old-evidence-support-replay/1','task_id':task_id,
         'scope':'old R4 independent evidence is now seen; read-only replay, not a new independent test or refit',
         'inputs':{k:{'path':str(Path(p).absolute()),**file_identity(p)} for k,p in
             [('database',database),('policy',policy_path),('rows',rows_path),('predictions',predictions_path)]},

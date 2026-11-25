@@ -14,13 +14,13 @@ from pathlib import Path
 import sys
 import time
 
-from etalon.active.schema import canonical, digest
-from etalon.research.evidence_refs import make_ref
-from etalon.research.input_qualification import POLICY, write_input_qualification
-from etalon.research.pose_verifier import installed_pose_check_contract, verify_pose_endpoints, verify_poses
-from etalon.research.result_integrity import validate_endpoint_verifier
-from etalon.research.schema import Artifact
-from etalon.research.scientific_input import SCHEMA, identity
+from moldarwin.active.schema import canonical, digest
+from moldarwin.research.evidence_refs import make_ref
+from moldarwin.research.input_qualification import POLICY, write_input_qualification
+from moldarwin.research.pose_verifier import installed_pose_check_contract, verify_pose_endpoints, verify_poses
+from moldarwin.research.result_integrity import validate_endpoint_verifier
+from moldarwin.research.schema import Artifact
+from moldarwin.research.scientific_input import SCHEMA, identity
 
 CASES = ("1OWE_675", "1UOU_CMU", "1M2Z_DEX")
 
@@ -66,11 +66,11 @@ def run(archive, output):
         originals.update({str(path): identity(path) for path in (*files.values(), result_path, verifier_path)})
         materials[cid] = (files, pins, result, verifier)
     modules = {}
-    for name in ("etalon.research.pose_verifier", "etalon.research.result_integrity",
-                 "etalon.research.scientific_handoff", "etalon.research.input_qualification", "rdkit", "posebusters"):
+    for name in ("moldarwin.research.pose_verifier", "moldarwin.research.result_integrity",
+                 "moldarwin.research.scientific_handoff", "moldarwin.research.input_qualification", "rdkit", "posebusters"):
         module = importlib.import_module(name)
         modules[name] = {"path": module.__file__, **identity(module.__file__)}
-    request = {"schema": "etalon-pose-endpoint-reassessment-request/1", "cases": list(CASES),
+    request = {"schema": "moldarwin-pose-endpoint-reassessment-request/1", "cases": list(CASES),
                "originals": originals, "check_contract_digest": digest(contract), "modules": modules,
                "driver": {"path": __file__, **identity(__file__)}, "executable": sys.executable,
                "new_scientific_execution": "none; local verifier reanalysis only"}
@@ -101,8 +101,8 @@ def run(archive, output):
                 "locator": "source panel and historical verifier exact file identity",
                 "evidence_ref": make_ref(cid, artifact.id, artifact.as_dict())})
         manifest = folder / "source-manifest.json"
-        save(manifest, {"schema": "etalon-artifact-manifest/1", "records": records})
-        workspace = {"schema": "etalon-evidence-workspace/1", "workspace_id": cid + "-endpoint-reassessment",
+        save(manifest, {"schema": "moldarwin-artifact-manifest/1", "records": records})
+        workspace = {"schema": "moldarwin-evidence-workspace/1", "workspace_id": cid + "-endpoint-reassessment",
             "sources": [{"source_id": cid, "kind": "artifact_manifest", "location": str(manifest),
                          "identity": {"kind": "snapshot_sha256", "value": identity(manifest)["sha256"]}}], "location_map": []}
         save(folder / "source-workspace.json", workspace)
@@ -120,7 +120,7 @@ def run(archive, output):
             qualification_records.append({"record_id": artifact.id, "record_type": "artifact", "visibility": "released", "record": artifact.as_dict()})
             refs[str(index)] = make_ref(cid + "-qualifications", artifact.id, artifact.as_dict())
         qmanifest = folder / "qualification-manifest.json"
-        save(qmanifest, {"schema": "etalon-artifact-manifest/1", "records": qualification_records})
+        save(qmanifest, {"schema": "moldarwin-artifact-manifest/1", "records": qualification_records})
         workspace["sources"].append({"source_id": cid + "-qualifications", "kind": "artifact_manifest", "location": str(qmanifest),
                                      "identity": {"kind": "snapshot_sha256", "value": identity(qmanifest)["sha256"]}})
         save(folder / "workspace.json", workspace)
@@ -148,7 +148,7 @@ def run(archive, output):
             "legacy_seconds": legacy_seconds, "endpoint_seconds": endpoint_seconds}
     if any(identity(path) != pin for path, pin in originals.items()):
         raise ValueError("archived original changed during reassessment")
-    receipt = {"schema": "etalon-pose-endpoint-reassessment/1", "request_digest": digest(request), "cases": summaries,
+    receipt = {"schema": "moldarwin-pose-endpoint-reassessment/1", "request_digest": digest(request), "cases": summaries,
                "originals_unchanged": True, "originals": originals, "modules": modules,
                "runtime": {"executable": sys.executable, "python": sys.version, "rdkit": rdBase.rdkitVersion,
                            "posebusters": importlib.metadata.version("posebusters"),

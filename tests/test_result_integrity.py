@@ -4,10 +4,10 @@ import json
 
 import pytest
 
-from etalon.active.schema import digest
-from etalon.research.result_integrity import (confirmation_eligibility, freeze_check_contract,
+from moldarwin.active.schema import digest
+from moldarwin.research.result_integrity import (confirmation_eligibility, freeze_check_contract,
     integrity_required_checks, required_check_names, validate_check_contract, validate_native_receipt)
-from etalon.research.scientific_input import identity
+from moldarwin.research.scientific_input import identity
 from test_research_continuation import case
 
 
@@ -56,7 +56,7 @@ def eligibility_fixture(tmp_path, frozen=10):
     panel={'sha256':'a'*64,'bytes':10}
     declaration={'policy':{'selection':'empirical'},'panel':panel,'frozen_at_ns':frozen}
     path=tmp_path/'historical-freeze.json';path.write_text(json.dumps(declaration),encoding='utf-8')
-    candidate={'schema':'etalon-candidate-confirmation-freeze/1','panel':panel,
+    candidate={'schema':'moldarwin-candidate-confirmation-freeze/1','panel':panel,
         'candidate_digest':digest(declaration),'frozen_at_ns':frozen,
         'decisions_frozen_before_execution':True,'outcomes_visible_at_freeze':False,
         'seen_series_ids':[],'parent_ids':['related','new'], 'freeze_evidence':{'path':str(path),**identity(path)}}
@@ -94,9 +94,9 @@ def test_missing_eligibility_evidence_never_passes(tmp_path,missing):
 
 
 def test_integrity_unknown_flows_into_existing_evaluation_contract(case):
-    from etalon.research.components import record_json
-    from etalon.research.method_revision import journal_ref
-    from etalon.research.evaluation_contract import build_evaluation_contract,evaluate_contract
+    from moldarwin.research.components import record_json
+    from moldarwin.research.method_revision import journal_ref
+    from moldarwin.research.evaluation_contract import build_evaluation_contract,evaluate_contract
     from test_research_continuation import publish
     journal,_,_,root=case
     rid=record_json(journal,{'coverage_complete':None,'identity_complete':True,'count':1,'error':0,'protocol':'fixture'},

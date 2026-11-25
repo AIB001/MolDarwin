@@ -30,13 +30,13 @@ def test_normal_negative_comparison_closes_and_replays_without_fake_holdout(tmp_
     assert not (tmp_path/'round-two/research.sqlite').exists()
     assert newer['entry']==first['entry'] and newer['note_id']!=first['note_id']
     archive(spec,tmp_path/'old-retry',entry=first['entry'])
-    from etalon.research.notes import read_entry
+    from moldarwin.research.notes import read_entry
     assert read_entry(first['entry'])['record_id']==newer['note_id']
     # The same writer continues a portable entry without reopening its old path
     # or mutating the sealed snapshot.
-    from etalon.research.handoff import plan_research_handoff, export_research_handoff
-    from etalon.research.notes import entry_value, entry_journal, read_note
-    from etalon.runtime.files import file_identity
+    from moldarwin.research.handoff import plan_research_handoff, export_research_handoff
+    from moldarwin.research.notes import entry_value, entry_journal, read_note
+    from moldarwin.runtime.files import file_identity
     copied=tmp_path/'copied'
     export_research_handoff(plan_research_handoff(first['entry']),copied)
     snapshot=entry_journal(entry_value(copied/'entry.json')).store.path

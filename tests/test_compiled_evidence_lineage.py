@@ -1,6 +1,6 @@
 """Compiled dataflow wiring must not become fictitious Journal references."""
-from etalon.research.evidence import _references
-from etalon.research.evidence_refs import make_ref
+from moldarwin.research.evidence import _references
+from moldarwin.research.evidence_refs import make_ref
 
 
 def test_compiled_inputs_preserve_nested_evidence_but_not_ports():

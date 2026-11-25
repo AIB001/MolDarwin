@@ -1,9 +1,9 @@
 # Bounded continuation card and manifest
 
-`etalon_research_context(entry=..., view="summary")` keeps its existing output
+`moldarwin_research_context(entry=..., view="summary")` keeps its existing output
 when that output fits. An unscoped summary that exceeds the mandatory metadata
-budget switches to `etalon-continuation-card/1` inside the existing
-`etalon-research-context/1` response. `view="card"` selects that presentation
+budget switches to `moldarwin-continuation-card/1` inside the existing
+`moldarwin-research-context/1` response. `view="card"` selects that presentation
 explicitly. The default budget remains 16 KiB; existing immutable checkpoints
 and the default `view="full"` are unchanged.
 
@@ -34,7 +34,7 @@ publication details and reference inventories are available through bounded
 pages on the same tool:
 
 ```python
-from etalon.research.research_context import build_research_context
+from moldarwin.research.research_context import build_research_context
 
 card = build_research_context("research-entry.json", view="card")
 page = build_research_context(
@@ -80,7 +80,7 @@ The manifest digest binds the full section set, checkpoint and observed view;
 cursors also bind the selected section and pinned `read_context`. Source,
 workspace or publication changes invalidate the cursor rather than silently
 mixing pages. Use exact reference-row `ref` values with
-`etalon_evidence_read(read_context=..., ref=..., **row["original_read"])` and its
+`moldarwin_evidence_read(read_context=..., ref=..., **row["original_read"])` and its
 existing offsets to read originals. `view="record"` reads journal records such
 as `method_evaluation`; its linked result artifacts remain separate originals.
 `view="artifact"` reads a file artifact or an explicitly published snapshot

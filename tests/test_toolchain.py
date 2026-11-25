@@ -3,7 +3,7 @@
 That asymmetry is the entire justification for not patching PRISM, so it is what these
 tests protect. A shim that quietly did more than insert a missing seed would be a
 modification of PRISM's behaviour wearing a different hat, and the asset digest would
-still verify -- which is exactly the kind of silent change ETALON exists to make
+still verify -- which is exactly the kind of silent change MolDarwin exists to make
 impossible.
 
 The determinism tests need GROMACS and skip without it. The pass-through and refusal
@@ -24,7 +24,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from etalon.boundary import toolchain as T
+from moldarwin.boundary import toolchain as T
 
 _HAS_GMX = shutil.which("gmx") is not None or shutil.which("gmx_mpi") is not None
 
@@ -137,7 +137,7 @@ def test_the_digest_describes_what_is_on_disk(tmp_path: Path, echo_binary: Path)
 
 
 def test_reinstalling_replaces_a_stale_shim(tmp_path: Path, echo_binary: Path) -> None:
-    """A shim from an older ETALON must not survive and be reported as the current one."""
+    """A shim from an older MolDarwin must not survive and be reported as the current one."""
 
     target = tmp_path / "shim"
     first = T.install(target, real_gmx=echo_binary)
@@ -175,7 +175,7 @@ def test_locate_refuses_to_wrap_another_shim(tmp_path: Path, echo_binary: Path) 
         except T.ToolchainError:
             return
         assert found != shim.shim_dir / "gmx"
-        assert b"ETALON determinism shim" not in found.read_bytes()[:400]
+        assert b"MolDarwin determinism shim" not in found.read_bytes()[:400]
     finally:
         if original is None:
             os.environ.pop("PATH", None)

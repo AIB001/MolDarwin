@@ -5,12 +5,12 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active.store import StateError
-from etalon.boundary.prism_v1 import file_identity
-from etalon.research import Coupling, Experiment, Observation
-from etalon.research.calibration import empirical_model
-from etalon.research.diagnostics import Probe, Resource, exact_program
-from etalon.research.runtime import compile_first_segment, observed_branch, record_program
+from moldarwin.active.store import StateError
+from moldarwin.boundary.prism_v1 import file_identity
+from moldarwin.research import Coupling, Experiment, Observation
+from moldarwin.research.calibration import empirical_model
+from moldarwin.research.diagnostics import Probe, Resource, exact_program
+from moldarwin.research.runtime import compile_first_segment, observed_branch, record_program
 from test_research_journal import setup
 
 

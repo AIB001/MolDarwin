@@ -3,17 +3,17 @@ from copy import deepcopy
 
 import pytest
 
-from etalon.active import CampaignStore, CampaignSpec, Endpoint
-from etalon.active.schema import digest
-from etalon.research import ResearchJournal
-from etalon.research.meta_context import (
+from moldarwin.active import CampaignStore, CampaignSpec, Endpoint
+from moldarwin.active.schema import digest
+from moldarwin.research import ResearchJournal
+from moldarwin.research.meta_context import (
     compare_part_conditions, make_task_profile, validate_resource_parts,
 )
-from etalon.research.notes import patch_progress, read_entry, save_progress
-from etalon.research.resource_selection import (
+from moldarwin.research.notes import patch_progress, read_entry, save_progress
+from moldarwin.research.resource_selection import (
     feedback_for_query, normalize_query, record_resource_feedback, resource_applicability,
 )
-from etalon.research.saved_methods import publish_method, resolve_saved_method
+from moldarwin.research.saved_methods import publish_method, resolve_saved_method
 
 
 def part(name, conditions=None, *, irrelevant=(), definitions=None):

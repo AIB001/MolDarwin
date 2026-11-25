@@ -9,12 +9,12 @@ from dataclasses import replace
 
 import pytest
 
-from etalon.active.cascade import CascadeExecutor, CascadeRecipe, Readout
-from etalon.active.graph import inspect_recipe
-from etalon.active.mutations import DesignSpace, mutate_recipe
-from etalon.active.schema import Action, Candidate, canonical
-from etalon.boundary.screen import Screen
-from etalon.campaign.design import component, compose
+from moldarwin.active.cascade import CascadeExecutor, CascadeRecipe, Readout
+from moldarwin.active.graph import inspect_recipe
+from moldarwin.active.mutations import DesignSpace, mutate_recipe
+from moldarwin.active.schema import Action, Candidate, canonical
+from moldarwin.boundary.screen import Screen
+from moldarwin.campaign.design import component, compose
 
 
 @pytest.fixture
@@ -172,7 +172,7 @@ def test_artifact_read_exception_after_compute_is_paid_and_has_structured_proven
 
 
 def test_last_pre_dispatch_resource_change_is_free_and_never_launches_the_runner(execution, tmp_path, monkeypatch):
-    from etalon.active import graph
+    from moldarwin.active import graph
 
     resource = tmp_path / "resource.bin"
     resource.write_bytes(b"initial")

@@ -23,10 +23,10 @@ def record_claim(journal, claim, directory, *, source_kind, role="diagnostic"):
     the content contract, not its truth, scientific admission or hidden-data
     isolation. For revisions use method_revision.record_method_revision directly.
     """
-    from etalon.active.schema import canonical, digest
-    from etalon.boundary.prism_v1 import file_identity
-    from etalon.research import Artifact
-    from etalon.research.evidence_refs import validate_claim
+    from moldarwin.active.schema import canonical, digest
+    from moldarwin.boundary.prism_v1 import file_identity
+    from moldarwin.research import Artifact
+    from moldarwin.research.evidence_refs import validate_claim
 
     content = validate_claim(claim)
     directory = Path(directory).absolute()
@@ -56,8 +56,8 @@ def publish_journals(directory, journals, *, workspace_id):
     This publishes entire named journals; use only sources safe to expose. Role
     filtering does not isolate sealed files from a process that can read them.
     """
-    from etalon.boundary.prism_v1 import file_identity
-    from etalon.research.evidence_refs import load_workspace
+    from moldarwin.boundary.prism_v1 import file_identity
+    from moldarwin.research.evidence_refs import load_workspace
 
     if not isinstance(journals, dict) or not journals:
         raise ValueError("explicit source_id to journal-path mapping required")
@@ -95,8 +95,8 @@ def publish_journals(directory, journals, *, workspace_id):
             source.close()
         sources.append({"source_id": source_id, "kind": "journal", "location": target.name,
                         "identity": {"kind": "snapshot_sha256", "value": file_identity(target)["sha256"]}})
-    path = directory / "etalon-workspace.json"
-    manifest = {"schema": "etalon-evidence-workspace/1", "workspace_id": workspace_id,
+    path = directory / "moldarwin-workspace.json"
+    manifest = {"schema": "moldarwin-evidence-workspace/1", "workspace_id": workspace_id,
                 "sources": sources, "location_map": [], "status_refs": []}
     with path.open("x", encoding="utf-8") as handle:
         json.dump(manifest, handle, indent=2)
@@ -108,7 +108,7 @@ def publish_journals(directory, journals, *, workspace_id):
 def inspect_evidence(workspace, *, query="", filters=None, cursor=None, ref=None,
                      view="record", member=None, selector=None, offset=0, limit=10):
     """Return one SDK response; the caller decides whether to read anything else."""
-    from etalon.research.evidence import query_evidence, read_evidence
+    from moldarwin.research.evidence import query_evidence, read_evidence
 
     if ref is not None:
         if query or filters is not None or cursor is not None:
@@ -124,7 +124,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument("--workspace", type=Path,
-                        help="Existing published etalon-workspace.json")
+                        help="Existing published moldarwin-workspace.json")
     action.add_argument("--publish-to", type=Path, help="Create a new snapshot/workspace directory")
     parser.add_argument("--journal", action="append", default=[], metavar="SOURCE_ID=PATH",
                         help="Explicit journal to publish; repeat for multiple sources")

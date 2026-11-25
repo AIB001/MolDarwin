@@ -8,10 +8,10 @@ import argparse
 import json
 from pathlib import Path
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.research import Artifact, MethodVersion, MethodUse, ResearchJournal, TaskSplit
-from etalon.active.schema import digest
-from etalon.research.evidence_refs import file_identity
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.research import Artifact, MethodVersion, MethodUse, ResearchJournal, TaskSplit
+from moldarwin.active.schema import digest
+from moldarwin.research.evidence_refs import file_identity
 
 
 def archive(spec, root, *, detailed=False, journal=None, entry=None):
@@ -19,10 +19,10 @@ def archive(spec, root, *, detailed=False, journal=None, entry=None):
     root = Path(root).absolute()
     if detailed or (root/'DONE.json').exists():
         return archive_detailed(spec, root)
-    from etalon.research.notes import original, save_progress, find_notes
+    from moldarwin.research.notes import original, save_progress, find_notes
     if journal is None:
         if entry is not None and Path(entry).exists():
-            from etalon.research.notes import entry_value, entry_journal
+            from moldarwin.research.notes import entry_value, entry_journal
             journal = entry_journal(entry_value(entry), read_only=False)
         else:
             store = CampaignStore(root/'research.sqlite')
@@ -47,12 +47,12 @@ def archive(spec, root, *, detailed=False, journal=None, entry=None):
 
 
 def archive_detailed(spec, root):
-    from etalon.research import improvement as imp
-    from etalon.research.components import record_json
-    from etalon.research.composition import node_step, record_evaluation
-    from etalon.research.continuation import CHECKPOINT, STEP, record_content
-    from etalon.research.method_revision import journal_ref
-    from etalon.research.opportunity_state import build_opportunity_disposition
+    from moldarwin.research import improvement as imp
+    from moldarwin.research.components import record_json
+    from moldarwin.research.composition import node_step, record_evaluation
+    from moldarwin.research.continuation import CHECKPOINT, STEP, record_content
+    from moldarwin.research.method_revision import journal_ref
+    from moldarwin.research.opportunity_state import build_opportunity_disposition
     root=Path(root).absolute();root.mkdir(parents=True,exist_ok=True)
     done=root/'DONE.json'
     paths=[spec[k] for k in ('protocol','problem','result','cost')]
@@ -71,7 +71,7 @@ def archive_detailed(spec, root):
     ref=lambda rid:journal_ref(journal,rid,source_id=sid)
     def workspace():
         path=root/'workspace.json'
-        path.write_text(json.dumps(dict(schema='etalon-evidence-workspace/1',workspace_id=task,
+        path.write_text(json.dumps(dict(schema='moldarwin-evidence-workspace/1',workspace_id=task,
             sources=[dict(source_id=sid,kind='journal',location=str(store.path),
                 identity=dict(kind='snapshot_sha256',value=file_identity(store.path)['sha256']))],
             status_refs=[],location_map=[])))

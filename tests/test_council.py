@@ -14,7 +14,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from etalon.council import (  # noqa: E402
+from moldarwin.council import (  # noqa: E402
     Ballot,
     Evidence,
     Outcome,
@@ -33,8 +33,8 @@ from etalon.council import (  # noqa: E402
     report,
     rule,
 )
-from etalon.faults.attribution import Observation  # noqa: E402
-from etalon.judgment.advisor import Advisory, Scripted  # noqa: E402
+from moldarwin.faults.attribution import Observation  # noqa: E402
+from moldarwin.judgment.advisor import Advisory, Scripted  # noqa: E402
 
 R, C, A = Vote.REFUSE, Vote.CLEAR, Vote.ABSTAIN
 
@@ -264,7 +264,7 @@ def test_agreement_that_nothing_is_wrong_does_not_clear_the_check() -> None:
         ],
         reliability=_qualified(),
     )
-    from etalon.faults.preflight import unchecked
+    from moldarwin.faults.preflight import unchecked
 
     # Still reported by the very function that exists so an unevaluated check is never
     # mistaken for a passed one.
@@ -445,8 +445,8 @@ def test_the_vote_to_outcome_mapping_is_one_function() -> None:
 
     import inspect
 
-    import etalon.council.convene as convene
-    import etalon.mcp.governance as governance
+    import moldarwin.council.convene as convene
+    import moldarwin.mcp.governance as governance
 
     for module in (convene, governance):
         source = inspect.getsource(module)

@@ -1,7 +1,7 @@
 # Molecular geometry bindings / 1
 
-Use `etalon-molecular-geometry/1` as the `geometry` constraint binding inside
-the existing `etalon-scientific-input/1` envelope. ResearchJournal continues to
+Use `moldarwin-molecular-geometry/1` as the `geometry` constraint binding inside
+the existing `moldarwin-scientific-input/1` envelope. ResearchJournal continues to
 store the ordinary input, consumption, method, result, claim and checkpoint
 artifacts. This is a domain contract, not a new execution phase or scheduler.
 

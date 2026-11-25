@@ -5,14 +5,14 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.schema import digest
-from etalon.active.store import StateError
-from etalon.authority import NotAuthorized, authorize_gate, require_gate
-from etalon.boundary.prism_v1 import file_identity
-from etalon.boundary.screen import ScreenResult
-from etalon.campaign.calibrate import PanelMember, calibrate, enrichment, separation
-from etalon.research import Artifact, Contrast, Coupling, Experiment, Observation, ResearchJournal
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.schema import digest
+from moldarwin.active.store import StateError
+from moldarwin.authority import NotAuthorized, authorize_gate, require_gate
+from moldarwin.boundary.prism_v1 import file_identity
+from moldarwin.boundary.screen import ScreenResult
+from moldarwin.campaign.calibrate import PanelMember, calibrate, enrichment, separation
+from moldarwin.research import Artifact, Contrast, Coupling, Experiment, Observation, ResearchJournal
 
 
 PANEL = (PanelMember('active', True, 'synthetic fixture'),
@@ -168,7 +168,7 @@ def test_existing_factorial_function_is_readonly_and_keeps_missing_uncertain(tmp
              'observations': store.observations()}
     assert before == after
     assert not after['actions'] and not after['observations']
-    assert not any(event['body'].get('record', {}).get('schema', '').startswith('etalon-method-')
+    assert not any(event['body'].get('record', {}).get('schema', '').startswith('moldarwin-method-')
                    for event in after['events'])
     ro = ResearchJournal(CampaignStore(refs['database'], read_only=True))
     assert ro.factorial(refs['complete_contrast']) == value

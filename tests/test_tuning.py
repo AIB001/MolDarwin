@@ -15,9 +15,9 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from etalon.economics.stage import BY_ID
-from etalon.tuning.advise import advise, rho_for_multiplier
-from etalon.tuning.knob import KNOBS, Effect, Lever, by_lever
+from moldarwin.economics.stage import BY_ID
+from moldarwin.tuning.advise import advise, rho_for_multiplier
+from moldarwin.tuning.knob import KNOBS, Effect, Lever, by_lever
 
 FUNNEL = [BY_ID[i] for i in ("lilly_demerits", "docking", "mmgbsa_ensemble", "md_stability", "fep_edge")]
 
@@ -181,7 +181,7 @@ def test_the_optimism_of_a_rescorer_is_declared() -> None:
 
 
 def test_the_tune_command_runs_and_respects_established_preconditions() -> None:
-    from etalon.__main__ import main
+    from moldarwin.__main__ import main
 
     assert main(["tune", "--pool", "10000", "--budget", "100000"]) == 0
     assert main(["tune", "--established", "rescore_ml", "--json"]) == 0

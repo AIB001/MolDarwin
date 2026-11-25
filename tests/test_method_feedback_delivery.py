@@ -6,12 +6,12 @@ import sys
 
 import pytest
 
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.research import ResearchJournal, note_resources
-from etalon.research.notes import byte_size, entry_journal, entry_value, read_entry, save_progress
-from etalon.research.resource_catalog import build_resource_catalog
-from etalon.research.resource_selection import record_resource_feedback, read_resource_feedback
-from etalon.research.saved_methods import publish_method, resolve_saved_method
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.research import ResearchJournal, note_resources
+from moldarwin.research.notes import byte_size, entry_journal, entry_value, read_entry, save_progress
+from moldarwin.research.resource_catalog import build_resource_catalog
+from moldarwin.research.resource_selection import record_resource_feedback, read_resource_feedback
+from moldarwin.research.saved_methods import publish_method, resolve_saved_method
 
 
 @pytest.fixture
@@ -60,7 +60,7 @@ def test_catalog_and_selected_method_deliver_known_negative_without_writes(proje
     methods = build_resource_catalog(entry=entry, kinds=["method"], resource_ids=["rank"], query=query)
     assert [row["resource_id"] for row in methods["items"]] == ["rank"]
     link = methods["items"][0]["related_feedback"]["next_read"]
-    assert link["tool"] == "etalon_resource_feedback"
+    assert link["tool"] == "moldarwin_resource_feedback"
     explicit = read_resource_feedback(**link["arguments"])
     resolved = resolve_saved_method(**methods["items"][0]["resolve"]["arguments"])
     case = resolved["related_feedback"]["cases"][0]
@@ -166,8 +166,8 @@ def test_page_verification_does_not_read_or_hide_corrupt_selected_case(project, 
 
 
 def test_direct_call_and_collect_replay_deliver_original_experience_without_new_feedback(project, tmp_path, monkeypatch):
-    from etalon.runtime import service
-    from etalon.research.saved_methods import call_saved_method, collect_saved_method
+    from moldarwin.runtime import service
+    from moldarwin.research.saved_methods import call_saved_method, collect_saved_method
     entry, arguments, first = project
     feedback(project)
     launches = []
@@ -190,9 +190,9 @@ def test_direct_call_and_collect_replay_deliver_original_experience_without_new_
 
 def test_legacy_invocation_does_not_backfill_from_later_head(project, tmp_path, monkeypatch):
     from pathlib import Path
-    from etalon.runtime import service
-    from etalon.research import method_invocations
-    from etalon.research.saved_methods import call_saved_method, collect_saved_method
+    from moldarwin.runtime import service
+    from moldarwin.research import method_invocations
+    from moldarwin.research.saved_methods import call_saved_method, collect_saved_method
     entry, _, _ = project
     original_save = method_invocations._save
     def old_writer(path, value, **kwargs):
@@ -212,7 +212,7 @@ def test_legacy_invocation_does_not_backfill_from_later_head(project, tmp_path, 
 
 
 def test_direct_collect_preserves_outputs_when_captured_experience_exceeds_spare_budget(project):
-    from etalon.research.method_invocations import _with_captured_feedback
+    from moldarwin.research.method_invocations import _with_captured_feedback
     entry, _, published = project
     feedback(project)
     captured = read_resource_feedback(entry, "rank")

@@ -2,7 +2,7 @@
 
 The task capsule is the independent session's only task-specific prompt. Each
 normal host exit leaves a compact checkpoint, then the same persisted session
-can resume. External jobs belong to existing ETALON/PRISM handles, not this
+can resume. External jobs belong to existing MolDarwin/PRISM handles, not this
 adapter. No execution retry, scientific router, job database, or new allocator.
 
 Usage: python examples/research_host_lifecycle.py CAPSULE.json RUN_DIRECTORY
@@ -24,13 +24,13 @@ from pathlib import Path
 import subprocess
 import time
 
-from etalon.host import _consumer_lock
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research.execution_recovery import process_identity
-from etalon.runtime.host_wait import inspect_host_process, inspect_wait, validate_wait
+from moldarwin.host import _consumer_lock
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research.execution_recovery import process_identity
+from moldarwin.runtime.host_wait import inspect_host_process, inspect_wait, validate_wait
 
-CAPSULE = "etalon-host-task-capsule/1"
-CHECKPOINT = "etalon-host-checkpoint/1"
+CAPSULE = "moldarwin-host-task-capsule/1"
+CHECKPOINT = "moldarwin-host-checkpoint/1"
 STATES = ("continue", "segment_complete", "waiting", "complete", "needs_user")
 USAGE_SCOPES = ("thread_cumulative", "turn_delta")
 CHECKPOINT_SCHEMA = {
@@ -124,7 +124,7 @@ def capsule_from_goal(goal, entry, profile, *, branch_id=None, work=None):
     natural language never manufactures those fields. A published work object is
     enough for fresh hosts; original evidence remains available through its refs.
     """
-    from etalon.research.notes import ENTRY, entry_value, read_current
+    from moldarwin.research.notes import ENTRY, entry_value, read_current
     entry = str(Path(entry).absolute())
     max_context = context_budget(profile)
     if not isinstance(goal, str) or not goal.strip():
@@ -137,11 +137,11 @@ def capsule_from_goal(goal, entry, profile, *, branch_id=None, work=None):
         initial = {"initial_context": current, "branch_id": current["branch_id"],
                    "read_recipe": value.get("read_recipe"),
                    "branch_catalog": {"entry": entry,
-                       "sdk": "etalon.research.resource_catalog.build_resource_catalog",
+                       "sdk": "moldarwin.research.resource_catalog.build_resource_catalog",
                        "next_read": {"limit": 20, "max_bytes": 16384}}}
         task_id = current["task_id"]
     else:
-        from etalon.research.research_segment import read_work, work_from_entry, validate_work
+        from moldarwin.research.research_segment import read_work, work_from_entry, validate_work
         if work is None:
             try:
                 work = read_work(entry, branch_id=branch_id)["work"]
@@ -225,7 +225,7 @@ Host turn/wall bounds suspend the adapter; they do not make the objective comple
         boundary += "Your previous native host process exited. Resume this SAME saved session and reread the current entry; do not repeat completed work.\n"
     context = dict(capsule)
     if "initial_context" in context:
-        from etalon.research.notes import entry_value, read_current
+        from moldarwin.research.notes import entry_value, read_current
         value = entry_value(capsule["entry"])
         context["current_context"] = read_current(capsule["entry"], branch_id=capsule["branch_id"],
                                                 max_bytes=context_budget(capsule))
@@ -243,7 +243,7 @@ Host turn/wall bounds suspend the adapter; they do not make the objective comple
                      "A cheaper method may replace work within its declared decision/fidelity scope, with an explicit fallback outside that scope.\n"
                      "Unexecuted measurements stay unknown. A retained method or a negative candidate does not by itself end the lasting objective.\n")
     if "initial_work" in context:
-        from etalon.research.research_segment import read_work
+        from moldarwin.research.research_segment import read_work
         try:
             context["current_work"] = read_work(capsule["entry"], branch_id=context["initial_work"]["branch_id"])["work"]
         except EvidenceError as exc:
@@ -285,7 +285,7 @@ still-running external jobs and recover publication through existing task-local 
 The adapter has resumed only host judgment; it has not retried any scientific action.
 """
     boundary += """For waiting on an existing job, optionally write wait.json in this turn directory:
-{"schema":"etalon-host-wait/1","poll_seconds":5,"checks":[...]}. Use checks with
+{"schema":"moldarwin-host-wait/1","poll_seconds":5,"checks":[...]}. Use checks with
 kind native_attempt, absolute path, exact request_id and attempt_id; or kind file
 with an absolute completion-marker path; or kind json_status with an absolute
 path, top-level field and disjoint running/ready/failed string lists. Missing
@@ -309,7 +309,7 @@ def host_turn(capsule, folder, session_id):
     prompt = prompt_for(capsule, folder, session_id)
     (folder / "prompt.txt").write_text(prompt, encoding="utf-8")
     started, clock = stamp(), time.perf_counter()
-    intent = {"schema": "etalon-host-turn-intent/1", "argv": argv, "started_at": started,
+    intent = {"schema": "moldarwin-host-turn-intent/1", "argv": argv, "started_at": started,
               "resumed_session_id": session_id, "capsule_identity": file_identity(folder.parent / "capsule.json")}
     save(folder / "intent.json", intent)
     usages, event_counts = [], {}
@@ -349,7 +349,7 @@ def host_turn(capsule, folder, session_id):
         checkpoint = validate_checkpoint(read(folder / "checkpoint.json"), capsule)
     except (OSError, ValueError, EvidenceError) as exc:
         checkpoint_error = str(exc)
-    receipt = {"schema": "etalon-host-turn-receipt/1", "started_at": started, "finished_at": stamp(),
+    receipt = {"schema": "moldarwin-host-turn-receipt/1", "started_at": started, "finished_at": stamp(),
         "wall_seconds": time.perf_counter() - clock, "process": identity, "pid": process.pid,
         "prompt_bytes": len(prompt.encode("utf-8")),
         "session_id": observed_session, "resumed_session_id": session_id,
@@ -382,7 +382,7 @@ def reconcile_exited_host(capsule, folder, session_id, observation, observed_rec
     if process != observed_record:
         raise EvidenceError("host process record changed after the exit observation")
     selected_session = session_id if capsule.get("session_mode", "resume") == "resume" else None
-    if (intent.get("schema") != "etalon-host-turn-intent/1"
+    if (intent.get("schema") != "moldarwin-host-turn-intent/1"
             or intent.get("capsule_identity") != file_identity(folder.parent / "capsule.json")
             or intent.get("resumed_session_id") != selected_session
             or intent.get("argv") != native_argv(capsule, folder, selected_session)
@@ -427,7 +427,7 @@ def reconcile_exited_host(capsule, folder, session_id, observation, observed_rec
         checkpoint = validate_checkpoint(read(folder / "checkpoint.json"), capsule)
     except (OSError, ValueError, EvidenceError) as exc:
         checkpoint_error = str(exc)
-    receipt = {"schema": "etalon-host-turn-receipt/1", "started_at": intent["started_at"],
+    receipt = {"schema": "moldarwin-host-turn-receipt/1", "started_at": intent["started_at"],
         "finished_at": None, "reconciled_at": stamp(), "wall_seconds": None,
         "process": process["identity"], "pid": process["pid"],
         "prompt_bytes": (folder / "prompt.txt").stat().st_size,
@@ -463,7 +463,7 @@ def continue_recorded_interruption(capsule, folder, session_id, receipt):
         recovered = reconcile_exited_host(capsule, folder, session_id, observation, record, record_receipt=False)
         if recovered is None or recovered["session_id"] != receipt["session_id"]:
             return receipt
-        if (receipt.get("schema") != "etalon-host-turn-receipt/1"
+        if (receipt.get("schema") != "moldarwin-host-turn-receipt/1"
                 or receipt.get("pid") != recovered["pid"] or receipt.get("process") != recovered["process"]
                 or receipt.get("resumed_session_id") != recovered["resumed_session_id"]):
             raise EvidenceError("failed receipt differs from its recorded host process/session")
@@ -471,7 +471,7 @@ def continue_recorded_interruption(capsule, folder, session_id, receipt):
         recovery_path = folder / "recovery.json"
         if recovery_path.exists():
             recovery = read(recovery_path)
-            if (not isinstance(recovery, dict) or recovery.get("schema") != "etalon-host-recovery/1"
+            if (not isinstance(recovery, dict) or recovery.get("schema") != "moldarwin-host-recovery/1"
                     or recovery.get("receipt_identity") != source_identity
                     or recovery.get("session_id") != receipt["session_id"]
                     or not isinstance(recovery.get("host_recovery"), dict)):
@@ -480,7 +480,7 @@ def continue_recorded_interruption(capsule, folder, session_id, receipt):
                 if recovery["host_recovery"][key] != recovered["host_recovery"][key]:
                     raise EvidenceError("host recovery evidence changed")
         else:
-            recovery = {"schema": "etalon-host-recovery/1", "recorded_at": stamp(),
+            recovery = {"schema": "moldarwin-host-recovery/1", "recorded_at": stamp(),
                 "receipt_identity": source_identity, "session_id": receipt["session_id"],
                 "host_recovery": {**recovered["host_recovery"],
                     "original_failed_receipt": str(folder / "receipt.json"),
@@ -671,7 +671,7 @@ def summarize(capsule, directory, receipts, stop_reason, active=None):
     began = datetime.fromisoformat(read(directory / "started.json")["started_at"])
     known_host_wall = sum(item["wall_seconds"] for item in receipts if item.get("wall_seconds") is not None)
     unknown_host_wall = sum(item.get("wall_seconds") is None for item in receipts)
-    result = {"schema": "etalon-host-lifecycle-receipt/1", "task_id": capsule["task_id"],
+    result = {"schema": "moldarwin-host-lifecycle-receipt/1", "task_id": capsule["task_id"],
         "entry": capsule["entry"], "capsule_identity": file_identity(directory / "capsule.json"),
         "session_id": receipts[-1]["session_id"] if receipts else None,
         "host_turns": len(receipts), "host_wall_seconds": None if unknown_host_wall else known_host_wall,
@@ -710,9 +710,9 @@ def await_completion(capsule, directory, receipts, began):
         if declaration.stat().st_size > 65536:
             raise EvidenceError("wait declaration exceeds compact bound")
         declared = read(declaration)
-        shared = declared.get("schema") == "etalon-wait-handle/1"
+        shared = declared.get("schema") == "moldarwin-wait-handle/1"
         if shared:
-            from etalon.runtime.host_wait import read_wait
+            from moldarwin.runtime.host_wait import read_wait
             spec = validate_wait(read(Path(declared["directory"]) / "declaration.json"))
         else:
             spec = validate_wait(declared)

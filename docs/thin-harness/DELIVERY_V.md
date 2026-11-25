@@ -4,13 +4,13 @@
 
 ## 起点与边界
 
-使用 I 指定的同一 `F:/life_healthy/ETALON` checkout；共同来源 pins 由 I 的完整基线归档负责。V 已现场读取 dirty/untracked 状态，未暂存、提交或改写原科学代码。当前导入实测：
+使用 I 指定的同一 `F:/life_healthy/MolDarwin` checkout；共同来源 pins 由 I 的完整基线归档负责。V 已现场读取 dirty/untracked 状态，未暂存、提交或改写原科学代码。当前导入实测：
 
-- Python：`F:\life_healthy\ETALON\.venv\Scripts\python.exe`，3.13.12。
-- `etalon.runtime.api`：`F:\life_healthy\ETALON\src\etalon\runtime\api.py`。
-- `etalon.research.journal`：`F:\life_healthy\ETALON\src\etalon\research\journal.py`。
+- Python：`F:\life_healthy\MolDarwin\.venv\Scripts\python.exe`，3.13.12。
+- `moldarwin.runtime.api`：`F:\life_healthy\MolDarwin\src\moldarwin\runtime\api.py`。
+- `moldarwin.research.journal`：`F:\life_healthy\MolDarwin\src\moldarwin\research\journal.py`。
 
-命令：`.venv/Scripts/python.exe -c "import sys, etalon, etalon.runtime.api, etalon.research.journal; print(sys.executable); print(sys.version); print(etalon.__file__); print(etalon.runtime.api.__file__); print(etalon.research.journal.__file__)"`，退出码 0。仅确认解释器及当前源码位置，不代表功能通过。
+命令：`.venv/Scripts/python.exe -c "import sys, moldarwin, moldarwin.runtime.api, moldarwin.research.journal; print(sys.executable); print(sys.version); print(moldarwin.__file__); print(moldarwin.runtime.api.__file__); print(moldarwin.research.journal.__file__)"`，退出码 0。仅确认解释器及当前源码位置，不代表功能通过。
 
 旧 R4/R4b 标签已释放；科学批次保持暂停。本轮不部署、不调用 PRISM、不创建付费科学计算。
 
@@ -51,17 +51,17 @@ LEARN-01 固定初始 M、宿主／模型／工具和成本范围，比较 S×φ
 独立执行命令：
 
 ```text
-.venv/Scripts/python.exe -m pytest tests/test_thin_harness_contracts.py tests/test_thin_harness_host.py -q --basetemp=F:/life_healthy/ETALON/.agent-local/v-check-01 --junitxml=tests/fixtures/thin_harness/v-independent-first.xml
+.venv/Scripts/python.exe -m pytest tests/test_thin_harness_contracts.py tests/test_thin_harness_host.py -q --basetemp=F:/life_healthy/MolDarwin/.agent-local/v-check-01 --junitxml=tests/fixtures/thin_harness/v-independent-first.xml
 # 13 passed, 6.08 s
 
-.venv/Scripts/python.exe -m pytest tests/test_thin_harness_contracts.py tests/test_thin_harness_host.py -q --basetemp=F:/life_healthy/ETALON/.agent-local/v-check-02 --junitxml=tests/fixtures/thin_harness/v-independent-final.xml
+.venv/Scripts/python.exe -m pytest tests/test_thin_harness_contracts.py tests/test_thin_harness_host.py -q --basetemp=F:/life_healthy/MolDarwin/.agent-local/v-check-02 --junitxml=tests/fixtures/thin_harness/v-independent-final.xml
 # 15 passed, 7.39 s
 
-.venv/Scripts/python.exe -m pytest tests/test_thin_harness_contracts.py tests/test_thin_harness_host.py -q --basetemp=F:/life_healthy/ETALON/.agent-local/v-check-04 --junitxml=tests/fixtures/thin_harness/v-independent-resource-final.xml
+.venv/Scripts/python.exe -m pytest tests/test_thin_harness_contracts.py tests/test_thin_harness_host.py -q --basetemp=F:/life_healthy/MolDarwin/.agent-local/v-check-04 --junitxml=tests/fixtures/thin_harness/v-independent-resource-final.xml
 # 16 passed, 7.30 s
 ```
 
-第二轮增加了 MCP 实际薄封装和准入前恢复收据两个有区分力案例。第三轮核验 A 收尾发现并修复的既有非标量研究费用兼容问题：先单项 1 passed/1.36 s（`v-resource-cost-first.xml`），再加入后续费用和未知预留干预运行全 16 项。V 所有这些实际运行均没有失败，未删弱断言或改被测实现；A 的原发现与修复证据由 A 保留。解释器为 `F:/life_healthy/ETALON/.venv/Scripts/python.exe`，Python 3.13.12；实际五个模块路径均位于本 checkout `src/etalon/`，详见 [v-provenance.json](../../tests/fixtures/thin_harness/v-provenance.json)。
+第二轮增加了 MCP 实际薄封装和准入前恢复收据两个有区分力案例。第三轮核验 A 收尾发现并修复的既有非标量研究费用兼容问题：先单项 1 passed/1.36 s（`v-resource-cost-first.xml`），再加入后续费用和未知预留干预运行全 16 项。V 所有这些实际运行均没有失败，未删弱断言或改被测实现；A 的原发现与修复证据由 A 保留。解释器为 `F:/life_healthy/MolDarwin/.venv/Scripts/python.exe`，Python 3.13.12；实际五个模块路径均位于本 checkout `src/moldarwin/`，详见 [v-provenance.json](../../tests/fixtures/thin_harness/v-provenance.json)。
 
 V 复用了 A 的 `fixture_action` 来注入合成 executor、in-process launch 和空 resource lock，复用了 B 的文件/冻结收据 builder。干预与断言由 V 独立编写。真实 SQLite CampaignStore、RuntimeStore、ResearchJournal、事件读取、submit 幂等、费用结算、bundle 文件字节均未 mock。测试因此支持工程语义，不证明跨进程并发锁、Linux detached worker、原生科学工具或宿主选择能力。
 
@@ -85,7 +85,7 @@ V 复用了 A 的 `fixture_action` 来注入合成 executor、in-process launch 
 
 ACT-05 跨进程竞争、ACT-07 全部支持域、ACT-08 全部旧策略等价、RES-03 零命中、RES-04 不适用以及 RES-07 活动子进程取消并未由 V 的 16 项单独完全覆盖；不能从本表推断整张 ACCEPTANCE 无条件通过。对应既有回归、适用性和未运行平台由 A/I 报告逐项限定。真实原生 PRISM 贯通未运行，R4b 继续暂停。
 
-V 的来源复核中，43 个受保护文件包括 `active/prism.py`、`boundary/prism_v1.py`、`data/design.py`、5 个 molcascade Windows 修复文件，以及 research 中除 B 本轮 `__init__.py/schema.py/journal.py` 外的既有文件。可恢复归档 ZIP 的 SHA256 为 `0149945f75ff9b6c9e0ed8f388b1e343c0a3f4c399d1a2e1af45540dfa51dcc0`。全部输入/输出为工程夹具；没有新增真实付费科学执行，测试 wall time 不是全部研发成本。
+V 的来源复核中，43 个受保护文件包括 `active/prism.py`、`boundary/prism_v1.py`、`data/design.py`、5 个 molcat Windows 修复文件，以及 research 中除 B 本轮 `__init__.py/schema.py/journal.py` 外的既有文件。可恢复归档 ZIP 的 SHA256 为 `0149945f75ff9b6c9e0ed8f388b1e343c0a3f4c399d1a2e1af45540dfa51dcc0`。全部输入/输出为工程夹具；没有新增真实付费科学执行，测试 wall time 不是全部研发成本。
 
 F01—F10 的独立检查未发现本轮新增固定科学 workflow、强制 skill 选择、全局 router、后台 agent 主循环、消息总线或第二科学账本。动作仍内部复用旧 durable workflow 的单节点执行；方法/事件接缝均为有限函数调用。这个检查支持当前代码结构和所测行为，不升级为宿主自主研究、科学 RSI 或效果结论。
 
@@ -102,9 +102,9 @@ V 已审读 [DELIVERY_A](DELIVERY_A.md)、[DELIVERY_B](DELIVERY_B.md)、[DELIVER
 
 ### 最终安装包及冻结组合
 
-最终包为 `integration/thin-harness-engineering-20261020/dist-final-v2/etalon-0.1.0-py3-none-any.whl`，SHA256 **`6b71961494f11ff0fdbdea692adea1f05f4d2c74712e389c663597656807c9f2`**。V 独立重新计算该 SHA，并读取 I 的 `wheel-source-final.json` 每项映射，检查当前源字节、wheel member 与 `install-final/` 已安装字节三者相等，共 **325 文件**。没有把早期包或收尾修复前候选包当作最终版本。
+最终包为 `integration/thin-harness-engineering-20261020/dist-final-v2/moldarwin-0.1.0-py3-none-any.whl`，SHA256 **`6b71961494f11ff0fdbdea692adea1f05f4d2c74712e389c663597656807c9f2`**。V 独立重新计算该 SHA，并读取 I 的 `wheel-source-final.json` 每项映射，检查当前源字节、wheel member 与 `install-final/` 已安装字节三者相等，共 **325 文件**。没有把早期包或收尾修复前候选包当作最终版本。
 
-V 随后从 checkout 外 `F:/life_healthy/integration/thin-harness-engineering-20261020` 工作目录使用原 Python，显式优先导入非 editable `install-final/`，实测五个关键模块均来自该安装目录。实际读取六个完整 bundle，重新核验 I 两个 host 导出的当前源/运行路径/文件清单；另起真实 `python -m etalon.mcp` stdio 进程，完成 initialize、list_tools（65项、唯一且与 costs 集合相同）和 `etalon_skill_read` 读取实际 `references/legacy-workflow.md`。证据为 [v-installed-final.json](../../tests/fixtures/thin_harness/v-installed-final.json)。这是 V 独立实际调用，不只是查看 I 的 passed 字段；Codex/Claude 原生决策仍 not_run。
+V 随后从 checkout 外 `F:/life_healthy/integration/thin-harness-engineering-20261020` 工作目录使用原 Python，显式优先导入非 editable `install-final/`，实测五个关键模块均来自该安装目录。实际读取六个完整 bundle，重新核验 I 两个 host 导出的当前源/运行路径/文件清单；另起真实 `python -m moldarwin.mcp` stdio 进程，完成 initialize、list_tools（65项、唯一且与 costs 集合相同）和 `moldarwin_skill_read` 读取实际 `references/legacy-workflow.md`。证据为 [v-installed-final.json](../../tests/fixtures/thin_harness/v-installed-final.json)。这是 V 独立实际调用，不只是查看 I 的 passed 字段；Codex/Claude 原生决策仍 not_run。
 
 I 最终冻结源码组合运行结果为 **158 passed / 2 deselected**，73.67 秒。V 独立解析 `integration/thin-harness-engineering-20261020/final-contracts.xml`，确认 tests=158、errors=0、failures=0、skipped=0，含 V 的全部16项；2 deselected 为 I 显式排除的 wheel 命名测试，最终 wheel 采用上方实际非 editable 验证。该158是最终组合的一组结果，不能再把其中 V16 或 A/B/C/I 子组相加后称为新增独立测试数量。
 
@@ -136,7 +136,7 @@ V 未修改被测实现或 A/B/C 测试，保留事前协议 SHA `5525fa62310455
 | --- | --- | --- |
 | HOST-01 / Codex 不用 skill | passed | 正式 Codex CLI 原生 MCP 调用；Windows 合成回放保留被拒准入与 0.5 fixture-cost。另在真实 Linux CPU 完成两次分子量动作，均 method_use_refs=[]，前次完成/准入及余额反馈后追加下一次动作，无预设完整顺序。 |
 | HOST-01 / Codex 开放方法与适应 | passed，限所观测行为 | 两个外部 bundle 按需读取短入口，QC 反馈后加入费用审查；本地 receipt-review 改版保留完整旧/新快照，MCP 实际保存版本及部分使用声明。读取、声明、调用分别可见，MethodUse 仍为 host_reported。 |
-| HOST-01 / Claude Code | blocked；实际调用 failed | 正式原生 CLI 返回 401 Invalid API key，没有实质 ETALON 调用。可定位或登录状态不等于可用；未读取/迁移凭证，不用 Codex 或 Python 客户端替代 Claude 验收。 |
+| HOST-01 / Claude Code | blocked；实际调用 failed | 正式原生 CLI 返回 401 Invalid API key，没有实质 MolDarwin 调用。可定位或登录状态不等于可用；未读取/迁移凭证，不用 Codex 或 Python 客户端替代 Claude 验收。 |
 | ACT-05 / ACT-06 / RES-07 | passed，限隔离 Linux 工程 fixture | 三种真实双进程竞争、SIGKILL 后持久收据恢复、活动 child 取消/未知/退出后显式失败结算；最终组合 33 passed。V 读原 OS 锁/PID 身份/执行计数及 SQLite，未自行重启科学计算。 |
 | A 原 32 项归因 | completed；Windows 仍 failed | V 逐 test ID 对照当前 Windows 32 failed 和固定原源码 Linux 250 passed 中的同 32 项：30 POSIX flock、1 Unix /tmp、1 symlink 权限。没有删除断言或宣称 Windows 支持已修复。 |
 | B 原 5 项归因 | completed；隔离依赖后 passed | 三固定来源源码一致；V 核查 27 文件 manifest 与原 JUnit。原 5 failed 保留，独立 overlay 后同 5 passed，相关两模块 116 passed（包含该5项）。默认共享 .venv 未补装 sklearn。 |
@@ -173,17 +173,17 @@ I/A 随后在实现审查发现 status/progress 构造器可能创建目录或�
 
 ## 功能续轮独立检查：函数、只读边界与首轮原生证据
 
-V 新增 `tests/test_thin_harness_functions.py`，未改任何被测实现或 A/B/C/I 测试。实际命令为 `.venv/Scripts/python.exe -m pytest tests/test_thin_harness_functions.py -q --basetemp=F:/life_healthy/ETALON/.agent-local/v-fn3 --junitxml=F:/life_healthy/integration/thin-harness-functions-20261021/v/independent-final.xml --tb=short`，**5 passed / 6.22 s**。五项独立干预为：
+V 新增 `tests/test_thin_harness_functions.py`，未改任何被测实现或 A/B/C/I 测试。实际命令为 `.venv/Scripts/python.exe -m pytest tests/test_thin_harness_functions.py -q --basetemp=F:/life_healthy/MolDarwin/.agent-local/v-fn3 --junitxml=F:/life_healthy/integration/thin-harness-functions-20261021/v/independent-final.xml --tb=short`，**5 passed / 6.22 s**。五项独立干预为：
 
-- 旧 pool 中重复 SMILES、已完成 strict/exhausted 与 relaxed/committed 及未决批次共存；通过真实 MCP 查询保留重复计数、跨 revision 不可比、缺失 etalon 来源和全部数据库字节，不补迁移/索引。
+- 旧 pool 中重复 SMILES、已完成 strict/exhausted 与 relaxed/committed 及未决批次共存；通过真实 MCP 查询保留重复计数、跨 revision 不可比、缺失 moldarwin 来源和全部数据库字节，不补迁移/索引。
 - 损坏 run 文件经真实 progress/calibration MCP 明确拒绝，不伪装 missing，也不创建执行目录或修复数据。
 - 真实小 CPU 筛选产生零命中，使用真实 `Screen.open_existing` 读取产物交给真实 calibrate；第一 gate 生存数为 0，但后一失败阶段没有 parent population，因此总体 recall=None，拒绝授权且不派发新计算。不是 B 的 SyntheticPanelReader，也不是科学效果试验。
 - 真实 ResearchJournal 中把一个 factorial 格改为有理由的 failed Observation；计算仍 unresolved、interaction/uncertainty=None，原费用/事件及分子观测不改变。
 - MCP 对 Artifact 冒充 MethodVersion parent、未知 parent 均原子拒绝，原账本不变；正确 parent 追加成功、旧父记录原样且无关新 root 的 parents=[] 仍合法。
 
-原始失败没有覆盖：首轮 3 passed/2 failed，第二轮 4 passed/1 failed。它们是 V 新测试自身的契约假设错误：误把整体未知 recall 期待为 0、持久 JSON list 与 Python dataclass tuple 直接比较，以及假定 export 有 balance 键。V 按实际契约和原件分别加强“gate 已知零但总体未知”断言、比较原持久记录、独立读取 balance；未改生产实现。XML 三轮均在本轮 v/。只读审计脚本另有缩进/冷导入和 event_cutoff 比较假设错误，修正为显式加载 MolCascade 以及验证三条追加导致 cutoff+3；不算产品失败或产品通过。
+原始失败没有覆盖：首轮 3 passed/2 failed，第二轮 4 passed/1 failed。它们是 V 新测试自身的契约假设错误：误把整体未知 recall 期待为 0、持久 JSON list 与 Python dataclass tuple 直接比较，以及假定 export 有 balance 键。V 按实际契约和原件分别加强“gate 已知零但总体未知”断言、比较原持久记录、独立读取 balance；未改生产实现。XML 三轮均在本轮 v/。只读审计脚本另有缩进/冷导入和 event_cutoff 比较假设错误，修正为显式加载 MolCat 以及验证三条追加导致 cutoff+3；不算产品失败或产品通过。
 
-来源复核 [v-functions-source-review.json](../../tests/fixtures/thin_harness/v-functions-source-review.json) 记录 Python 3.13.12、解释器及八个实际模块路径/摘要。按本轮 baseline.zip 比较，209 项既有保护范围中 **206 不变，3 项有意修改**：MolCascade runner/cache/artifact-store 增加默认兼容 create 参数、提取原规范 JSON/大小/身份校验读取函数。V 审查的是 baseline→当前差异，原 Windows checkpoint/cache 修复保留；不能写本轮209项全部字节不变。B 的 research/calibrate 数学实现没有变，SDK/reference 的因果、单位、缺格及科学收益限制一致。
+来源复核 [v-functions-source-review.json](../../tests/fixtures/thin_harness/v-functions-source-review.json) 记录 Python 3.13.12、解释器及八个实际模块路径/摘要。按本轮 baseline.zip 比较，209 项既有保护范围中 **206 不变，3 项有意修改**：MolCat runner/cache/artifact-store 增加默认兼容 create 参数、提取原规范 JSON/大小/身份校验读取函数。V 审查的是 baseline→当前差异，原 Windows checkpoint/cache 修复保留；不能写本轮209项全部字节不变。B 的 research/calibrate 数学实现没有变，SDK/reference 的因果、单位、缺格及科学收益限制一致。
 
 安装候选包 `4b366ce39bb27fa8d4120bc6f78b7a3b99a5b19a63f8955e8aff6249b8f5eae0` 已由 V 独立核 checkout/wheel/install **326 文件**，从 checkout 外实际导入五模块，六 bundle/两导出，另起真实 stdio MCP 读新增 factorial reference；证据 [v-functions-package.json](../../tests/fixtures/thin_harness/v-functions-package.json)。这是候选包所测能力，不覆盖下方冷产率调用故障，若后续生产修复则最终包另验。I 首次无隔离构建缺 hatchling 失败保留，临时 build isolation 成功不等于共享环境升级。
 
@@ -206,7 +206,7 @@ V 预先新增的 [v-functions-cold-contract.json](../../tests/fixtures/thin_har
 
 C 新 `native-productivity-v2` 使用独立目录与新固定源；输入字节与旧超时尝试相同，模型仍未解析。V 核验 source-v2 **1168** 文件与归档 SHA `943225fc55c0146c78e4d4ce3e19eb5d86c0433f10a1a31d10c2b08f9fcca24e`。真实原生 run 26.480秒，两个成功 MCP 请求为 capabilities、generation_productivity，无 skill/plan/科学派发。返回零新分子、95% Wilson 区间上界约1.26%、cost_multiplier=null 与 exhausted/retire；宿主据真实反馈停止并选已有库存，明确未来新颖性并非被证明不可能。0.05小时来自合成输入，不是本轮实测科学支出。此例数值能力 **passed**；前一例超时仍 **failed**，不是删除失败重试后称从未出错。监控和lineage两个先前成功案例未无意义重跑，版本适用范围单列。
 
-最终包为 `dist-final/etalon-0.1.0-py3-none-any.whl`，SHA `95ede2d138c18afc6ab4091be9527db31815de48b2074efeea6bee9058409f4c`；之前4b366候选及其报告保留。V 再次核 source/wheel/install-final **326** 文件字节一致，工程 skill 未打包，并在 checkout 外从 install-final 导入五个相关模块。另启动断言未预热 numpy/scipy 的真实 stdio MCP，产率返回正确零新/retire/null，随后 capabilities 成功；安装内非法confidence全部明确拒绝。记录 [v-functions-package-final.json](../../tests/fixtures/thin_harness/v-functions-package-final.json)。I 的10模块/六bundle/65工具/两宿主导出通用包检查是另组工程证据，不替代原生决策或科学效果。
+最终包为 `dist-final/moldarwin-0.1.0-py3-none-any.whl`，SHA `95ede2d138c18afc6ab4091be9527db31815de48b2074efeea6bee9058409f4c`；之前4b366候选及其报告保留。V 再次核 source/wheel/install-final **326** 文件字节一致，工程 skill 未打包，并在 checkout 外从 install-final 导入五个相关模块。另启动断言未预热 numpy/scipy 的真实 stdio MCP，产率返回正确零新/retire/null，随后 capabilities 成功；安装内非法confidence全部明确拒绝。记录 [v-functions-package-final.json](../../tests/fixtures/thin_harness/v-functions-package-final.json)。I 的10模块/六bundle/65工具/两宿主导出通用包检查是另组工程证据，不替代原生决策或科学效果。
 
 **最终判定：本轮授权的 FM-05—10 最小功能场景通过，限定于实际检查的接口与行为。** FM05实际CPU筛单已有批次/零命中停止/新版本后续批次，FM06实际校准与拒绝gate，FM07独立产率建议及原生反馈停止，FM08只读不创建/迁移/派发及原生未知状态审查，FM09一个真实factorial SDK与按需reference，FM10原生结构化parent追加/旧记录不变/root[]可用。没有据此声称全部旧 Campaign/Supervisor/propose 或每个科学工作流彻底解耦。Claude仍因已有401 **blocked**；完整跨平台行为、真实新PRISM/CRO、LEARN01/02及S/φ/G独立收益 **not_run**。R4b仍暂停，未知/失败/费用来源均保留。
 
@@ -241,7 +241,7 @@ V只读核真实SQLite：恰好追加1个probeoutcome metadata及1个event，全
 
 ## 2026-10-21 research 实际使用续轮：结果前协议
 
-新证据根为workspace `integration/thin-harness-research-use-20261021/`。V核验baseline ZIP SHA `089c4589259232649bc6659e296441efb3578c4bcff2c93da7754eb15e9459e2`，1178条目全部与上轮final `7d7777c382dd6ed59197b2391f8075fdccd318c6c9d5cb403c0db242bcf22740` 逐字节一致。ENTRY记录index空、34个PRISM_review Python进程保持不动、无匹配ETALON执行器；这不是恢复科学任务的授权。
+新证据根为workspace `integration/thin-harness-research-use-20261021/`。V核验baseline ZIP SHA `089c4589259232649bc6659e296441efb3578c4bcff2c93da7754eb15e9459e2`，1178条目全部与上轮final `7d7777c382dd6ed59197b2391f8075fdccd318c6c9d5cb403c0db242bcf22740` 逐字节一致。ENTRY记录index空、34个PRISM_review Python进程保持不动、无匹配MolDarwin执行器；这不是恢复科学任务的授权。
 
 已先读实际 `calibration.empirical_model` 与 `runtime.record_program/compile_first_segment/observed_branch`，冻结 [research_use_acceptance_20261021.json](../../tests/fixtures/thin_harness/research_use_acceptance_20261021.json)，9324 bytes，SHA `96c254e16ad8ae414fb1bcc71bdd58865b044ccbdcf9b830b1833447a074d2e8`；仓库外 `v/protocol-frozen.json` 保留同字节副本。仍沿既有ACT/RES/MET/HOST/INT/LEARN，不加管理框架。
 
@@ -255,7 +255,7 @@ V只读核真实SQLite：恰好追加1个probeoutcome metadata及1个event，全
 
 A保留两类真实缺陷证据：基线隔离原runtime接受同probe_id错误condition；`a/evidence-second.log` 的1 failed/7 passed证明模型原文件改字节后仍能编译。B修复后匹配实际声明的bindings，拒绝错类型/缺readout/无query，并于编译追加事务和反馈读取重验模型与复用资源证据。V审源码不强映射primitive到Experiment.kind，也不把未声明task/method/unit假称已验证；旧签名、直接离散字符串语义保留。A最终9项、B组合27项包含A9及其B新8/旧10，不能重复累加。A真 `runtime.plan` 对独立设计夹具绑定27个输入哈希/单节点；另坏输入真实拒绝。仅证明编译和预检规划，**本轮未运行worker或科学任务**。
 
-固定原生源 SHA `cd99711db238f5c57c1927cc40ff520da7f8a25cd6f798c3002a7a2059c30d5c` 共1183文件。V核926生产文件与当前一致；本轮209定义保护范围中207不变，有意变化仅 `research/runtime.py` 和其 README，runtime SHA `bea93bae34be98dc6c83b4f9f957e500bf0c81a4a73c8b5c71d522bff69e8cd9`。empirical_model/calibration/diagnostics算法未改，molcascade已有Windows修复完整保留。见 [v-research-use-source.json](../../tests/fixtures/thin_harness/v-research-use-source.json)。
+固定原生源 SHA `cd99711db238f5c57c1927cc40ff520da7f8a25cd6f798c3002a7a2059c30d5c` 共1183文件。V核926生产文件与当前一致；本轮209定义保护范围中207不变，有意变化仅 `research/runtime.py` 和其 README，runtime SHA `bea93bae34be98dc6c83b4f9f957e500bf0c81a4a73c8b5c71d522bff69e8cd9`。empirical_model/calibration/diagnostics算法未改，molcat已有Windows修复完整保留。见 [v-research-use-source.json](../../tests/fixtures/thin_harness/v-research-use-source.json)。
 
 C原生Codex新案例70.241秒，V直接核stdout第7/11/13行三次真实MCP成功请求：capabilities、campaign SKILL、paired-models-and-segments reference；第18行宿主shell→真实SDK调用empirical_model两次。默认构造实际拒绝相关组复用，显式group_balanced返回三个原行的.25/.25/.5。两个尝试位于同一宿主自写脚本，替代调用在try/except后无条件执行；证据是自选显式比较及读取真实结果后解释/停止，**不是先收到一次工具响应才重新决定换法的跨工具反馈实验**。未调用record_program、compile_first_segment、observed_branch或科学执行；这些接缝的检查来自独立SDK和runtime规划证据。
 
@@ -319,19 +319,19 @@ V `/root/v_acceptance` 已实际读取本轮 REQUEST、本地指引、当前 WOR
 
 结果前协议 [skill_library_acceptance_20261021.json](../../tests/fixtures/thin_harness/skill_library_acceptance_20261021.json)，SHA256 `da100aeb4ba05280acc8330730dd00883e7eb49f19650ab3772c51596bc5bdd3`。同字节原件与冻结收据在 workspace `integration/thin-harness-skills-20261021/v/`。基线引用 I 保存的 `baseline.zip` SHA `781095cb26f291feda07ccf27c3938f3bed8f576a0d1fbe63ec40699d00c922d`；此处是引用，尚未完成 V 全归档逐字节复核。
 
-判据覆盖六项 MolQuarry 原来源/旧 URI、所有公开能力族映射、零参兼容、按范围不读无关 bundle、完整 supporting-member 版本、开放改版、Codex/Claude 双导出与非 editable 安装。工程检查须核实际字节和真实接口，不能以固定目录数量或文档迁移宣称完成；旧 finite/paired/factorial 算法直接复用。
+判据覆盖六项 MolOrigin 原来源/旧 URI、所有公开能力族映射、零参兼容、按范围不读无关 bundle、完整 supporting-member 版本、开放改版、Codex/Claude 双导出与非 editable 安装。工程检查须核实际字节和真实接口，不能以固定目录数量或文档迁移宣称完成；旧 finite/paired/factorial 算法直接复用。
 
 只预定 **最多 2 次新增原生任务**：隔离 design 双交付中拒绝坏身份而保留合法结构输入；外部局部方法修订并实际审阅缺失/失败/假设三类新合成记录。每次 300 秒/24 次 shell 或 MCP/400000 input/8000 output，两次累计 800000 input/16000 output；失败保留，不补跑到通过。协议给 C 输入准备、任务目标和可观察判据；native 宿主只见目标与输入，不见判据、答案或强制工具顺序。可不用、部分用、组合或改版 skill，不以采用率作为任务成功指标。C 可复用已有 runner，但需独立冻结本轮 prompt/inputs/source/install/host，不能覆盖旧原件。
 
-已核实际解释器 `F:/life_healthy/ETALON/.venv/Scripts/python.exe`，`etalon` 与 `skills` 从当前 `F:/life_healthy/ETALON/src/etalon/` 导入；此项只是环境定位，不是实现通过。当前工程/新原生结果 **not_run**，S/使用方法独立收益 **not_run**，Claude 历史 401 仍独立 blocked，R4b 继续暂停。V 先释放槽给 C，待固定新来源和实际原件后回归独立复核。
+已核实际解释器 `F:/life_healthy/MolDarwin/.venv/Scripts/python.exe`，`moldarwin` 与 `skills` 从当前 `F:/life_healthy/MolDarwin/src/moldarwin/` 导入；此项只是环境定位，不是实现通过。当前工程/新原生结果 **not_run**，S/使用方法独立收益 **not_run**，Claude 历史 401 仍独立 blocked，R4b 继续暂停。V 先释放槽给 C，待固定新来源和实际原件后回归独立复核。
 
 ### I2 全量库独立结果
 
 **限定工程覆盖、按需读取、版本、安装与导出通过；两个原生任务语义通过，其中 design 单次 token 预算失败。** 原件见 workspace `integration/thin-harness-skills-20261021/v/engineering-review.json`、`source-package-input-audit.json`、`installed-probe.json` 与 `native-independent-accounting.json`。上方事前 `not_run` 保留为历史状态；V 未更改协议或产品实现使其通过。
 
-V 独立验证 1196 条 baseline 与 1223 条受测来源全部归档条目/哈希及解压字节；受测来源 SHA `1101f873e2938570bd035781dc94f119ab3dbcd2d4cd7b5a9335f786f54edafc`，wheel SHA `4c04e2b318b2d97542070073a2f4c1aa258f07bca5158469ab3dd2669d75498b`，945 个实际 package member 与源码、安装逐字节一致。1196 个旧路径没有删除，MolQuarry 六源字节未改；领域算法不因此次库扩展重写。README 末尾能力族映射覆盖 data/design、research transfer/validation/feedback/pose/preparation/fixed_pool/online、原操作与方法版本/事件/改进，引用真实入口并说明副作用与未验证边界；历史 retained-baseline 的 R4b 硬绑定已明确，不伪装通用驱动。
+V 独立验证 1196 条 baseline 与 1223 条受测来源全部归档条目/哈希及解压字节；受测来源 SHA `1101f873e2938570bd035781dc94f119ab3dbcd2d4cd7b5a9335f786f54edafc`，wheel SHA `4c04e2b318b2d97542070073a2f4c1aa258f07bca5158469ab3dd2669d75498b`，945 个实际 package member 与源码、安装逐字节一致。1196 个旧路径没有删除，MolOrigin 六源字节未改；领域算法不因此次库扩展重写。README 末尾能力族映射覆盖 data/design、research transfer/validation/feedback/pose/preparation/fixed_pool/online、原操作与方法版本/事件/改进，引用真实入口并说明副作用与未验证边界；历史 retained-baseline 的 R4b 硬绑定已明确，不伪装通用驱动。
 
-新增 [test_thin_harness_skill_library.py](../../tests/test_thin_harness_skill_library.py) **8 passed / 9.25 s**：原来源全覆盖与零参字段兼容、空/混合 scope 不读无关 bundle、开放外部 supporting 文件删除的版本变化/旧快照不变、双宿主完整导出与漂移、旧 MolQuarry URI/新主入口一致、无 skill 的设计导入及部分 research、合法状态存在时坏 bundle 拒绝。首轮 **4 failed / 4 passed** 是 V 夹具错误：假定 assay-literature 含 references/workflow.md；改选实际含 supporting 文件的 target-modulators 后复测，未改产品或降低判据，两份 XML 均保留。新 V 测试是受测 v1 之后的独立检查源码，不声称它原已包含在 v1 中。
+新增 [test_thin_harness_skill_library.py](../../tests/test_thin_harness_skill_library.py) **8 passed / 9.25 s**：原来源全覆盖与零参字段兼容、空/混合 scope 不读无关 bundle、开放外部 supporting 文件删除的版本变化/旧快照不变、双宿主完整导出与漂移、旧 MolOrigin URI/新主入口一致、无 skill 的设计导入及部分 research、合法状态存在时坏 bundle 拒绝。首轮 **4 failed / 4 passed** 是 V 夹具错误：假定 assay-literature 含 references/workflow.md；改选实际含 supporting 文件的 target-modulators 后复测，未改产品或降低判据，两份 XML 均保留。新 V 测试是受测 v1 之后的独立检查源码，不声称它原已包含在 v1 中。
 
 仓库外绑定 `i/installed-v1` 实际导入十个模块，运行所装 research script 与 pose/governance/data/revision 四段 reference 原例；仅供应所声明的绝对路径/Journal 等真实合成前提。零网络 data preparation、旧新 method parent 与 host_reported 归因、零观测、15 项 bundle 及 Codex/Claude 双导出通过。纯 API、合成回调和方法记录不升级为科学执行、完整原生采用或收益。I 的实际 stdio/旧 URI 原件及其 source/install 绑定已核对；Claude 导出可用与历史 native 401 阻塞分别记录。
 
@@ -340,7 +340,7 @@ V 独立核五个 runner 冻结文件、每任务953个安装文件、design54�
 | 新工程任务 | 语义／实际行为 | 预算与成本 |
 | --- | --- | --- |
 | design-quarantine | **passed**：直接 installed SDK；A 加1结构候选、2 poses/4 slots，B 原hash错误被隔离；零观测/动作、余额不变、replay无新事件；原 FAILED/未尝试槽及假设角色保留。未观察到 skill/reference 或 MCP 读取 | **failed**：157.423 s、10 shell、443159 input（cached359296）、5111 output。超过冻结单次400000 input；turn.completed后才得到usage，runner以input_tokens终止，exit15。final.txt未落盘，stdout final及完整实际产物保留。没有补跑或提高上限 |
-| local-method-revision | **passed**：自由创建外部修订，保全两文件原件/快照并产生完整新版本；真实review区分缺失、失败与假设，保留0.75 fixture_credit失败成本，总成本未知。V重算旧/新完整内容摘要不同；未读内置skill或调用ETALON SDK/MCP。实际文件/产物可观察，具体采用归因为host_reported，不能证明完整内部推理 | **passed**：72.505 s、4 shell、76523 input（cached60672）、2431 output、exit0；runner将可用input自动降至第一次后的累计余量356841 |
+| local-method-revision | **passed**：自由创建外部修订，保全两文件原件/快照并产生完整新版本；真实review区分缺失、失败与假设，保留0.75 fixture_credit失败成本，总成本未知。V重算旧/新完整内容摘要不同；未读内置skill或调用MolDarwin SDK/MCP。实际文件/产物可观察，具体采用归因为host_reported，不能证明完整内部推理 | **passed**：72.505 s、4 shell、76523 input（cached60672）、2431 output、exit0；runner将可用input自动降至第一次后的累计余量356841 |
 
 总计 **229.928 s、14 shell、0 MCP、519682 input、419968 cached input、7542 output**；累计未超800000/16000，但累计通过不能抵消第一次单次超限。全部 shell 返回0，runner预算终止另列；token仅在回合结束可观测，不能认证硬token截止。金额、宿主推理请求往返数和实际模型revision未知；CPU未测不补零。design读取两个完整bundle及多个SDK源码，累计工具返回92376 UTF-8 bytes；这仅定位可后续改进的查找/读取成本，不证明其造成全部延迟。
 

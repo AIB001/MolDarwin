@@ -6,7 +6,7 @@
 
 ## 1. MethodVersion
 
-目标 schema：`etalon-method-version/1`。
+目标 schema：`moldarwin-method-version/1`。
 
 | 字段 | 约束 |
 | --- | --- |
@@ -25,11 +25,11 @@
 
 宿主可以直接使用新建／修改的本地 skill。记录只收到摘要时保留 host_reported；有可解析且核对过的快照才称 content_verified。不能要求先装进服务器内置目录才能探索，也不能把无法恢复的内容宣称为可重放。
 
-薄分支 [skills.py 固定基线](https://github.com/AIB001/ETALON/blob/d3889e6c0600605f018fb81ce3df1b420d6dcbf9/src/etalon/skills.py) 的六项 WORKFLOWS 是默认目录，不是上限。新增 bundle 引用必须保留有界读取、路径穿越和内容身份检查；不把动态 skill 读取变成任意服务器文件读取接口。
+薄分支 [skills.py 固定基线](https://github.com/AIB001/MolDarwin/blob/d3889e6c0600605f018fb81ce3df1b420d6dcbf9/src/moldarwin/skills.py) 的六项 WORKFLOWS 是默认目录，不是上限。新增 bundle 引用必须保留有界读取、路径穿越和内容身份检查；不把动态 skill 读取变成任意服务器文件读取接口。
 
 ## 2. MethodUse
 
-目标 schema：`etalon-method-use/1`。这是一次实际选择、应用、组合、停止或改用方法的记录，不是必须完成的计划。
+目标 schema：`moldarwin-method-use/1`。这是一次实际选择、应用、组合、停止或改用方法的记录，不是必须完成的计划。
 
 | 字段 | 约束 |
 | --- | --- |
@@ -49,7 +49,7 @@
 
 ## 3. MethodEvaluation
 
-目标 schema：`etalon-method-evaluation/1`。
+目标 schema：`moldarwin-method-evaluation/1`。
 
 | 字段 | 约束 |
 | --- | --- |
@@ -63,13 +63,13 @@
 
 独立性依据使用现有冻结、释放与 lineage 校验；不能只靠专项 AGENTS.md 或角色名称宣称信息隔离。评价协议若是看过结果后才制定，应如实标为探索性。
 
-复用 [research/journal.py](../../src/etalon/research/journal.py) 的不可变记录、Artifact 和 TaskSplit，扩展受支持类型；不把 skill 修改塞进现有仅面向科学配置的 Change，也不重写旧 policy_version 或历史评价。
+复用 [research/journal.py](../../src/moldarwin/research/journal.py) 的不可变记录、Artifact 和 TaskSplit，扩展受支持类型；不把 skill 修改塞进现有仅面向科学配置的 Change，也不重写旧 policy_version 或历史评价。
 
 ## 4. 公共调用面
 
 B 在现有 ResearchJournal 上提供三类记录的校验／写入和读取。可直接扩展 `ResearchJournal.record(value)` 与 `get(id)`，无需建立方法服务。
 
-I 提供目标 MCP 入口 `etalon_method_record(database, record)` 和 `etalon_method_read(database, record_id)`：前者只接受三种明确 schema，复用 B 的校验；不能成为任意 metadata 写入口。C 负责生成内容快照和使用记录；B 验证类型、引用与评价角色。
+I 提供目标 MCP 入口 `moldarwin_method_record(database, record)` 和 `moldarwin_method_read(database, record_id)`：前者只接受三种明确 schema，复用 B 的校验；不能成为任意 metadata 写入口。C 负责生成内容快照和使用记录；B 验证类型、引用与评价角色。
 
 普通科学动作不要求先调用方法记录接口；没有方法记录会限制归因，不会自动否定已通过独立科学准入的观测。提交前显式传入的方法引用应可解析；错误引用可纠正，或在未要求方法归因的任务中显式省略，不静默伪造。
 
@@ -102,6 +102,6 @@ C 必交 MET-01—MET-07 与 HOST-01；B 必交记录、引用和评价角色验
 
 ## I2 全量库接缝补充
 
-内置目录扩展为旧六项、六项 MolQuarry 原始 bundle，以及 data-design、research、skill-improvement 能力入口。零参数字段形状保持不变，条目可增；目录仍不是合法方法白名单。MolQuarry 的 `etalon://skills/molquarry[/...]` 旧 URI 与新的 `molquarry-*` slug 引用同一原内容，完整版本包括支持文件。安装后由现有资产目录解析，宿主导出带齐实际成员，不增加一套复制维护的数据工作流。
+内置目录扩展为旧六项、六项 MolOrigin 原始 bundle，以及 data-design、research、skill-improvement 能力入口。零参数字段形状保持不变，条目可增；目录仍不是合法方法白名单。MolOrigin 的 `moldarwin://skills/molorigin[/...]` 旧 URI 与新的 `molorigin-*` slug 引用同一原内容，完整版本包括支持文件。安装后由现有资产目录解析，宿主导出带齐实际成员，不增加一套复制维护的数据工作流。
 
 S 是方法内容；HOST 使用指引的摘要单列。两者可独立改版、部分试用和撤回。记录、读取技能、使用快速模型、进行 S×使用策略对照都不是动作前置条件。独立收益仅在具体问题和候选需要时按事前方案检验，新增或修改方法本身不构成收益。

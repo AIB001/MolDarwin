@@ -3,12 +3,12 @@ from pathlib import Path
 
 import pytest
 
-from etalon.active.schema import canonical
-from etalon.research.branch_context import build_branch_context
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research.improvement import _local
-from etalon.research.meta_context import WORKSET, _dependencies, build_task_workset
-from etalon.research.method_revision import journal_ref
+from moldarwin.active.schema import canonical
+from moldarwin.research.branch_context import build_branch_context
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research.improvement import _local
+from moldarwin.research.meta_context import WORKSET, _dependencies, build_task_workset
+from moldarwin.research.method_revision import journal_ref
 from test_research_continuation import case, checkpoint, publish, save, step
 from test_research_graph_memory import graph_case
 from test_resource_usage import artifact, chain, record
@@ -96,11 +96,11 @@ def test_template_fallback_keeps_excluded_method(case):
 
 def test_experience_matches_remain_declarations_and_mismatch_is_preserved(case):
     payload = chain(case)
-    content = dict(schema="etalon-method-experience/1", task_id="case", scope="fixture",
+    content = dict(schema="moldarwin-method-experience/1", task_id="case", scope="fixture",
         conditions={"target": "SND1"}, method_refs=[payload["method_ref"]], supersedes=[],
         patch_ref=None, evaluation_ref=None, resolution_ref=None, outcome="unresolved",
         lesson="Keep identity checks, reject setting transfer", invalid_when="Different protocol",
-        support_refs=[case[1]], counter_refs=[], capability_id="molquarry.data")
+        support_refs=[case[1]], counter_refs=[], capability_id="molorigin.data")
     er = artifact(case, content, dict(schema=content["schema"], task_id="case"))
     entry = entry_for_chain(case, payload)
     for conditions, category in ((None, "reference"), ({"target": "SND1"}, "applicable"),
@@ -145,7 +145,7 @@ def test_forged_and_cross_task_usage_fail_closed(case):
 
 def test_invalid_discovered_usage_is_a_gap_not_a_verified_join(case):
     payload = chain(case)
-    from etalon.research.resource_usage import SCHEMA
+    from moldarwin.research.resource_usage import SCHEMA
     invalid = artifact(case, payload, dict(schema=SCHEMA, task_id="case"))
     entry = entry_for_chain(case, payload)
     result = build_branch_context(entry, branch_id="available", max_bytes=65536)
@@ -167,7 +167,7 @@ def test_restricted_or_missing_sources_cannot_look_complete(graph_case):
 
 
 def test_graph_truncation_and_discovery_pagination_report_incomplete(graph_case, monkeypatch):
-    from etalon.research import branch_context
+    from moldarwin.research import branch_context
     original = branch_context.query_evidence
     def partial(*args, **kwargs):
         page = original(*args, **kwargs)
@@ -181,7 +181,7 @@ def test_graph_truncation_and_discovery_pagination_report_incomplete(graph_case,
 
 
 def test_fifty_one_real_usage_records_expose_discovery_tail(case):
-    from etalon.research.resource_usage import SCHEMA, _links, usage_dependencies
+    from moldarwin.research.resource_usage import SCHEMA, _links, usage_dependencies
     payload = chain(case)
     for index in range(51):
         value = {**payload, "provenance": {**payload["provenance"], "note": f"Synthetic declaration {index}"}}
@@ -193,7 +193,7 @@ def test_fifty_one_real_usage_records_expose_discovery_tail(case):
     # Evidence query's own byte budget may yield fewer than its row limit.
     assert 1 <= discovery["returned_count"] <= 50 and discovery["next_cursor"]
     assert not result["coverage"]["complete"] and result["truncated"]
-    from etalon.research.evidence import query_evidence
+    from moldarwin.research.evidence import query_evidence
     count, cursor = discovery["returned_count"], discovery["next_cursor"]
     while cursor:
         tail = query_evidence(entry["workspace"], query=SCHEMA, filters={"record_types": ["artifact"]},

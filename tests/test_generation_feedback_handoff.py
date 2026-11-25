@@ -7,9 +7,9 @@ import pytest
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
-from etalon.generate.feedback import generation_feedback
-from etalon.generate.handoff import prepare_handoff
-from etalon.runtime.files import file_identity
+from moldarwin.generate.feedback import generation_feedback
+from moldarwin.generate.handoff import prepare_handoff
+from moldarwin.runtime.files import file_identity
 
 
 @pytest.fixture
@@ -20,7 +20,7 @@ def generated(tmp_path):
         assert AllChem.EmbedMolecule(mol, randomSeed=17) == 0
         path = tmp_path / f"candidate-{i}.sdf"
         mol.SetProp("native_property", "retain value and SD framing")
-        mol.SetProp("ETALON_PARTITION", "labelled obsolete handoff tag")
+        mol.SetProp("MOLDARWIN_PARTITION", "labelled obsolete handoff tag")
         with Chem.SDWriter(str(path)) as writer:
             writer.write(mol)
         candidates.append({"candidate_id": str(i), "path": str(path), "canonical_smiles": smiles,
@@ -50,7 +50,7 @@ def test_handoff_preserves_pose_and_replay_does_not_parse_again(generated, tmp_p
         original = Chem.MolFromMolFile(row["path"], removeHs=False)
         assert (molecule.GetConformer().GetPositions() == original.GetConformer().GetPositions()).all()
         assert molecule.GetProp('native_property')=='retain value and SD framing'
-        assert json.loads(molecule.GetProp('ETALON_PARTITION'))['model']=='fixture'
+        assert json.loads(molecule.GetProp('MOLDARWIN_PARTITION'))['model']=='fixture'
     assert result["scientific_calls"] == 0 and result["candidate_count"] == 3
     monkeypatch.setattr(Chem, "MolFromMolBlock", lambda *a, **k: (_ for _ in ()).throw(AssertionError("reparsed")))
     assert prepare_handoff([path], tmp_path / "handoff", operation="inspect_pose")["reused"]
@@ -67,9 +67,9 @@ def test_native_method_request_runs_and_feedback_remains_available(generated, tm
     request, result = tmp_path / "request.json", tmp_path / "result.json"
     request.write_text(json.dumps({"inputs": {"manifests": [str(path)], "criteria": {"heavy_atoms": {"min": 3}}},
         "outputs": {"feedback": str(tmp_path / "feedback.json")}}))
-    subprocess.run([sys.executable, "-m", "etalon.generate.feedback", "--request", str(request), "--result", str(result)], check=True)
+    subprocess.run([sys.executable, "-m", "moldarwin.generate.feedback", "--request", str(request), "--result", str(result)], check=True)
     body = json.loads(result.read_text())
-    assert body["schema"] == "etalon-method-result/1" and body["feedback"]["generation_calls"] == 0
+    assert body["schema"] == "moldarwin-method-result/1" and body["feedback"]["generation_calls"] == 0
     assert file_identity(body["outputs"]["feedback"])["bytes"] > 0
 
 
@@ -95,9 +95,9 @@ def test_same_chemical_identity_keeps_model_run_partitions(generated, tmp_path):
     assert all('murcko_smiles' in r['partition'] for r in rows)
     # Follow the returned input fragment through native registration and a gate.
     # No campaign-specific prepare_generated.py or first-model-wins deduplication.
-    from etalon.boundary.screen import Screen
-    from etalon.campaign.design import component, compose
-    from etalon.screening_delivery import export_screen_delivery
+    from moldarwin.boundary.screen import Screen
+    from moldarwin.campaign.design import component, compose
+    from moldarwin.screening_delivery import export_screen_delivery
     import csv
     import gzip
     config=compose('generated-native-chain',[{'id':'window','title':'window',
@@ -111,7 +111,7 @@ def test_same_chemical_identity_keeps_model_run_partitions(generated, tmp_path):
     export_screen_delivery(screen.workspace,'generated',output)
     with gzip.open(output/'parent-origins.csv.gz','rt') as f:origins=list(csv.DictReader(f))
     assert len(origins)==6 and len({r['parent_id'] for r in origins})==3
-    parts=[json.loads(json.loads(r['source_metadata_json'])['sdf_properties']['ETALON_PARTITION']) for r in origins]
+    parts=[json.loads(json.loads(r['source_metadata_json'])['sdf_properties']['MOLDARWIN_PARTITION']) for r in origins]
     assert {p['model'] for p in parts}=={'fixture','second-model'}
     assert all('murcko_smiles' in p and p['conditioning_ref']=='/pocket' for p in parts)
     # A new tier reuses registered chemistry in another workspace. Resolve only

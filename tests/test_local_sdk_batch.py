@@ -8,8 +8,8 @@ import sys
 
 import pytest
 
-from etalon.runtime import api
-from etalon.runtime.store import RuntimeStore
+from moldarwin.runtime import api
+from moldarwin.runtime.store import RuntimeStore
 
 EXAMPLE = Path(__file__).parents[1] / "examples/local_sdk_batch.py"
 spec = importlib.util.spec_from_file_location("local_sdk_batch_example", EXAMPLE)
@@ -22,7 +22,7 @@ def build_batch_fixture(root: Path):
     runtime = RuntimeStore(root / "runtime", create=True)
     handles = {}
     for key, state in (("ok", "succeeded"), ("paid-failure", "failed"), ("unknown", "reconciliation_required")):
-        request = {"schema": "etalon-action/1", "request_id": key, "operation": "screen.export",
+        request = {"schema": "moldarwin-action/1", "request_id": key, "operation": "screen.export",
                    "arguments": {"workspace": str(root), "run_id": "fixture-not-executed"},
                    "limits": {"fixture_credit": 2}, "max_seconds": 60,
                    "method_use_refs": [], "evidence_refs": []}

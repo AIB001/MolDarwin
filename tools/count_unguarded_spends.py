@@ -6,7 +6,7 @@ whose signature accepts no authorization object, with the number of SPENDS tools
 denominator. Today that is 7 of 7 for spend tokens; the proposal moves it, and the count is
 checkable mechanically from the registration index."*
 
-So it is taken mechanically. ``etalon.mcp.server.tool_catalog`` walks the one registration function
+So it is taken mechanically. ``moldarwin.mcp.server.tool_catalog`` walks the one registration function
 the server and the cost index share -- a missing cost classification or a duplicate tool name fails
 index construction, which is why there is exactly one place to read -- and this probe inspects each
 registered callable's signature for a parameter that carries a token.
@@ -41,7 +41,7 @@ SPEND_PARAMETERS = ("token", "token_json", "authorization", "authorization_json"
 
 
 def census() -> dict[str, object]:
-    from etalon.mcp import server
+    from moldarwin.mcp import server
 
     catalog = server.tool_catalog()
     functions: dict[str, object] = {}
@@ -90,7 +90,7 @@ def census() -> dict[str, object]:
         ),
         "detail": rows,
         "method": (
-            "etalon.mcp.server.tool_catalog for the cost class, inspect.signature for the "
+            "moldarwin.mcp.server.tool_catalog for the cost class, inspect.signature for the "
             "parameters; a parameter is an authorization only if its name is in GATE_PARAMETERS or "
             "SPEND_PARAMETERS in this file"
         ),

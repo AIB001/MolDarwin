@@ -8,17 +8,17 @@ import time
 
 import pytest
 
-from etalon.active.schema import canonical, digest
-from etalon.active.store import CampaignStore, StateError
-from etalon.runtime import api, native, operations, service
-from etalon.runtime.store import RuntimeStore
+from moldarwin.active.schema import canonical, digest
+from moldarwin.active.store import CampaignStore, StateError
+from moldarwin.runtime import api, native, operations, service
+from moldarwin.runtime.store import RuntimeStore
 from test_runtime_actions import fixture_action, submit
 
 
 def method_request(tmp_path):
     program = tmp_path / "method.py"
     program.write_text("# Synthetic callable declaration\n", encoding="utf-8")
-    return {"schema": "etalon-action/1", "request_id": "host-action", "operation": "method.run",
+    return {"schema": "moldarwin-action/1", "request_id": "host-action", "operation": "method.run",
             "arguments": {"method_id": "fixture-reader", "command": [sys.executable, str(program)],
                           "files": [str(program)], "inputs": {}}, "limits": {"wall_second": 30}}
 
@@ -155,7 +155,7 @@ def test_result_reads_scan_costs_once_and_summary_preserves_decision_facts(tmp_p
     assert summary["observations"] == [] and "result" not in summary["outputs"][0]
     assert summary["outputs"][0]["sha256"] == full["outputs"][0]["sha256"]
     assert summary["accounting_refs"][0]["charged"] == sum(r["charged"] for r in full["accounting_refs"] if r["kind"] == "campaign")
-    assert summary["outputs"][0]["read"]["tool"] == "etalon_workflow_artifact"
+    assert summary["outputs"][0]["read"]["tool"] == "moldarwin_workflow_artifact"
     assert api.read_action_result(handle) == full
 
 

@@ -3,10 +3,10 @@ import json
 
 import pytest
 
-from etalon.research import notes
-from etalon.research.resource_selection import _feedback_description, feedback_for_query
-from etalon.research.schema import Artifact
-from etalon.runtime.files import _save, file_identity
+from moldarwin.research import notes
+from moldarwin.research.resource_selection import _feedback_description, feedback_for_query
+from moldarwin.research.schema import Artifact
+from moldarwin.runtime.files import _save, file_identity
 from test_research_notes import case
 
 

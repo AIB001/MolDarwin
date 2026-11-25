@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import pytest
 
-from etalon.campaign.design import (
+from moldarwin.campaign.design import (
     CAPABILITY_BACKENDS,
     check_required,
     component,
@@ -99,7 +99,7 @@ def test_the_installed_default_cascade_is_checked_rather_than_assumed() -> None:
     two silent-removal paths are visible through this check.
     """
 
-    from molcascade.cascade.defaults import default_cascade
+    from molcat.cascade.defaults import default_cascade
 
     shipped = default_cascade().model_dump(mode="json")
     provided = provided_capabilities(shipped["tiers"])
@@ -126,7 +126,7 @@ def test_boltz2_is_omitted_without_its_settings_and_the_invariant_says_so() -> N
     a cascade that answers the question and one that stops at the docking score.
     """
 
-    from molcascade.cascade.defaults import default_cascade
+    from molcat.cascade.defaults import default_cascade
 
     bare = default_cascade().model_dump(mode="json")
     assert "affinity" not in provided_capabilities(bare["tiers"])

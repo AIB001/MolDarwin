@@ -7,7 +7,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem,rdMolTransforms
 sys.path.insert(0,str(Path(__file__).parents[1]/'examples'))
 import snd1_torsion_workflow as w
-from etalon.research.geometry_input import SCHEMA,validate_geometry,geometry_evidence_ids
+from moldarwin.research.geometry_input import SCHEMA,validate_geometry,geometry_evidence_ids
 
 
 def fixture():

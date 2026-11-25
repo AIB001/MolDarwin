@@ -6,8 +6,8 @@ import json
 
 import pytest
 
-from etalon.learn.acquire import acquire
-from etalon.learn.calibrate import (
+from moldarwin.learn.acquire import acquire
+from moldarwin.learn.calibrate import (
     Score,
     Split,
     Verdict,
@@ -16,8 +16,8 @@ from etalon.learn.calibrate import (
     hanley_mcneil_se,
     scaffold_groups,
 )
-from etalon.learn.conformal import Calibration, Interval, _quantile_index, calibrate, intervals
-from etalon.learn.surrogate import Features, Surrogate, pic50
+from moldarwin.learn.conformal import Calibration, Interval, _quantile_index, calibrate, intervals
+from moldarwin.learn.surrogate import Features, Surrogate, pic50
 
 
 @pytest.mark.parametrize("value", [float("nan"), float("inf"), -float("inf"), True, "0.7", -0.1, 1.1])

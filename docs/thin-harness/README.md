@@ -2,9 +2,9 @@
 
 日期：2026-10-21。状态：**第一阶段本地工程已交付；本轮已执行原生 Codex、隔离 Linux 进程与依赖回归验收，并修复实际发现的费用结算问题。分项证据与独立判定见 DELIVERY_I/V；Claude 原生调用认证阻塞，科学独立收益未运行，R4b 仍暂停。**
 
-ETALON 是宿主 agent 的科学能力扩展。宿主拥有问题选择、下一步行动、注意力分配以及 skill 的选择、组合、修改和停止；ETALON 提供 MCP、科学 SDK、可靠执行、成本与证据内核。SDK 首先是稳定调用口，不要求把现有代码搬进新的目录层次。
+MolDarwin 是宿主 agent 的科学能力扩展。宿主拥有问题选择、下一步行动、注意力分配以及 skill 的选择、组合、修改和停止；MolDarwin 提供 MCP、科学 SDK、可靠执行、成本与证据内核。SDK 首先是稳定调用口，不要求把现有代码搬进新的目录层次。
 
-当前 I2 全量库接续以本文末尾“全量能力族覆盖”及各 DELIVERY 最新追加节为准。旧表的“仍为六项”和待补项描述对应当时固定来源；不删除其历史验收边界。主注册现在同时纳入 `.claude/skills/` 与 `asset/molquarry/skills/` 原内容。
+当前 I2 全量库接续以本文末尾“全量能力族覆盖”及各 DELIVERY 最新追加节为准。旧表的“仍为六项”和待补项描述对应当时固定来源；不删除其历史验收边界。主注册现在同时纳入 `.claude/skills/` 与 `asset/molorigin/skills/` 原内容。
 
 ## 阅读入口
 
@@ -26,11 +26,11 @@ ETALON 是宿主 agent 的科学能力扩展。宿主拥有问题选择、下一
 | [RSI_ARCHITECTURE.md](RSI_ARCHITECTURE.md) | 自我改进的边界:什么可自调、什么固定、每一级的验证仪器 |
 | [ARCHITECTURE_REVIEW.md](ARCHITECTURE_REVIEW.md) | 实测失败模式的审查,以及 2026-11 各项负责人决定的推导 |
 
-新 chat 的本机交接入口为 [integration/ETALON_THIN_HARNESS_HANDOFF.md](../../../integration/ETALON_THIN_HARNESS_HANDOFF.md)。本目录是可进入产品版本控制的契约文档；本机路径、chat 启动与交接上下文留在 integration。不要把这组长文档全文注入每轮运行时提示词。
+新 chat 的本机交接入口为 [integration/MOLDARWIN_THIN_HARNESS_HANDOFF.md](../../../integration/MOLDARWIN_THIN_HARNESS_HANDOFF.md)。本目录是可进入产品版本控制的契约文档；本机路径、chat 启动与交接上下文留在 integration。不要把这组长文档全文注入每轮运行时提示词。
 
 仓库默认忽略本地研究 docs；本次仅通过 `.gitignore` 放行 `docs/thin-harness/`，其他研究笔记保持原忽略范围。本文档尚未提交或推送。
 
-单独 clone ETALON 时，仓库外 integration 链接可能不可用；本目录的契约、任务说明和验收定义自包含。integration 是交接上下文与历史来源，不是产品调用或实现的运行依赖。
+单独 clone MolDarwin 时，仓库外 integration 链接可能不可用；本目录的契约、任务说明和验收定义自包含。integration 是交接上下文与历史来源，不是产品调用或实现的运行依赖。
 
 ## 本次核对的实现来源
 
@@ -38,17 +38,17 @@ ETALON 是宿主 agent 的科学能力扩展。宿主拥有问题选择、下一
 | --- | --- | --- |
 | 上游 main | `0af4297fb7de435d858d54195561883a21526d5e` | 接口补足及预算、终态、校准、池／账本、错误分类等修复 |
 | 薄分支 `codex/refactor-thin-harness` | `d3889e6c0600605f018fb81ce3df1b420d6dcbf9` | 宿主能力发现、内容版本、可选 skills、导出与校验 |
-| 本地 ETALON HEAD | `5927aceb346475a6f97550f561e7eb3b291611da` | 不包含全部本地能力，必须同时保留 dirty 和 untracked 源码 |
+| 本地 MolDarwin HEAD | `5927aceb346475a6f97550f561e7eb3b291611da` | 不包含全部本地能力，必须同时保留 dirty 和 untracked 源码 |
 | 本地增量 | `research/`、`active/prism.py`、`boundary/prism_v1.py`、`data/design.py`、相关执行／测试文件 | 两个远端分支均不能单独代表这些科学实现 |
 
 以上是查阅基线，不是已合并版本、运行源码快照或部署证明。实施前重新核对实际工作树和负责人。单独 clone 本地 HEAD 不足以恢复基线。
 
-旧的 [2026-10-19 设计交接包](../../../integration/etalon-thin-harness-design-20261019/README.md) 保留为历史设计依据；其哈希清单不修改。本组文档替代其中与本次冲突的阶段顺序、接口草图和实施分工；不改变旧科学协议、历史证据和暂停状态。
+旧的 [2026-10-19 设计交接包](../../../integration/moldarwin-thin-harness-design-20261019/README.md) 保留为历史设计依据；其哈希清单不修改。本组文档替代其中与本次冲突的阶段顺序、接口草图和实施分工；不改变旧科学协议、历史证据和暂停状态。
 
 ## 不允许在实现中丢失的约束
 
-- **F01 宿主主导：** 无需完整研究 DAG，也无需 ETALON 内部 LLM 再做通用规划或批准。
-- **F02 可不用 skill：** 合法动作允许 `method_use_refs=[]`；查询、阅读和普通宿主操作无需全部包装成 ETALON 动作。
+- **F01 宿主主导：** 无需完整研究 DAG，也无需 MolDarwin 内部 LLM 再做通用规划或批准。
+- **F02 可不用 skill：** 合法动作允许 `method_use_refs=[]`；查询、阅读和普通宿主操作无需全部包装成 MolDarwin 动作。
 - **F03 自由组合：** 可只用部分 skill，可组合多个，可按新证据追加动作、改变问题或停止。
 - **F04 开放方法空间：** skill 目录是发现入口，不是允许研究的白名单。允许本地新建、修改和试用候选方法。
 - **F05 版本可追溯：** 已提交执行、方法内容与历史证据不因后续修改而改变；后续动作可选新版本。
@@ -90,19 +90,19 @@ ETALON 是宿主 agent 的科学能力扩展。宿主拥有问题选择、下一
 
 | 编号／原功能 | 留在内核或可调用 SDK 的内容 | skill 与宿主应承担什么 | 保留的兼容入口 | 当前完成程度 | 验收与未完成边界 |
 | --- | --- | --- | --- | --- | --- |
-| FM-01 数据获取、候选/测定导入、PRISM design bundle 消费 | [data/service.py](../../src/etalon/data/service.py)、[ingress.py](../../src/etalon/data/ingress.py)、[design.py](../../src/etalon/data/design.py)：获取预算、封存来源、对象/角色/哈希校验、`read_bundle/import_bundle/verify_import`；独立 PRISM 的生产端不搬进 ETALON | 选择来源、查询和纳入条件，判断缺什么证据；可复用 MolQuarry 方法或直接用工具；不把 Astra 假设当实验标签 | [mcp/data.py](../../src/etalon/mcp/data.py) 的 `etalon_data_*`、既有 design Python 入口与 wire schema | **原能力复用**；未证明完整数据工作流已转成可组合 skill，未新增完整 Astra 标注闭环 | RES-08、ACT-07、INT-01；`test_design_import.py`、`test_prism_v1.py` 与原数据测试按改动选测。用同一 bundle 对照身份/角色/费用；额外步骤不能强制经过 campaign skill |
-| FM-02 昂贵计算前检查、授权、结果准入与费用 | [active/runner.py](../../src/etalon/active/runner.py)、[active/store.py](../../src/etalon/active/store.py)、[boundary/prism_v1.py](../../src/etalon/boundary/prism_v1.py)、`authority/`、`learn/admissible.py`：准备体系/协议身份、预算、收据、准入和未知状态的确定性约束 | [campaign skill](../../.claude/skills/etalon-campaign/SKILL.md) 指导是否值得计算、如何解释证据或停止；不能用自然语言跳过真实身份/预算约束 | `etalon_check_handoff/authorize_spend/rule_admissible`、既有 executor 与 PRISM 消费协议 | **原能力复用＋说明层文档迁移**；执行路径由 FM-03 复用，并非把安全/科学校验搬进 skill | RES-01/02/04/05/06/08、ACT-07/08；同一动作的新旧入口需保持身份、收费、准入一致。真实 PRISM 新计算未由本轮工程验证覆盖 |
-| FM-03 数值策略选择与执行绑定在同一 active 循环 | [runtime/api.py](../../src/etalon/runtime/api.py) 的 `prepare_action/submit_action/read_action_result`；`ActiveCampaign.evaluate` 经同一 `_execute_reserved` 路径执行宿主已选 candidate/endpoint，保留预留/收据/准入 | 宿主自行选动作；skill 可以不选、部分采用、组合或修改；下一动作可根据真实结果临时提出 | `active.run`、`run_round`、`active_execution_plan/active_submit` 及旧 active MCP 保留；旧数值策略成为可选方法 | **已解耦：动作选择与可靠执行**；不限于把旧提示词变短，不要求为宿主伪造 GP/完整 DAG | ACT-01—04/08/09、INT-03；[test_runtime_actions.py](../../tests/test_runtime_actions.py)、[test_thin_harness_integration.py](../../tests/test_thin_harness_integration.py)。C 的 Codex/Linux 两个 MW 动作证明限定 CPU 路径可动态续接，不能据此声称药效/所有旧策略等价 |
-| FM-04 durable workflow、长任务、预算竞争、恢复与取消 | [runtime/service.py](../../src/etalon/runtime/service.py)、`store.py/operations.py/executors.py`：任务状态机、OS 锁、预算事务、进程身份、持久收据和 reconcile；单动作内部可复用旧单节点 spec | 宿主决定研究下一步和是否恢复；固定局部操作可以继续复用，ETALON worker 不成为第二个研究规划器 | 旧 `workflow.plan/submit/status/cancel/reconcile`、CLI 和原恢复记录 | **已解耦：开放动作与既有执行后端**；执行状态机有意保留，不以删除它衡量“薄” | ACT-05/06、RES-02/05/07、EVT-03；[test_runtime_posix_acceptance.py](../../tests/test_runtime_posix_acceptance.py) 与恢复审计。A 接续报告包含真实 Linux 竞争/杀进程后恢复/取消，按其固定源码及 V 判定限定；Windows detached worker 仍不支持 |
-| FM-05 批量筛选、sweep 账本和批次操作 | [screening.py](../../src/etalon/screening.py)、[campaign/sweep.py](../../src/etalon/campaign/sweep.py)：`plan_screen/submit_screen/screen_status`、claim/emit/record/admit/recover、零命中与费用 | [screening-sweep skill](../../.claude/skills/etalon-screening-sweep/SKILL.md) 帮助选择批次、方法、未来协议和停止条件；不强制“先生成再筛选”或完成全部 tiers | `etalon_screen_*`、`etalon_sweep_*` 及既有批次/ledger 格式 | **原操作复用＋限定接缝修复**：真实 CPU 已有批次可直接筛选、零命中后停止、只改变未来方法；补足 skill 输入/输出/停止说明。不外推全部批次策略已解耦 | RES-03、ACT-03/05/08、HOST-01；`test_screening_service.py`、`test_sweep.py`。本轮 [功能检查](../../tests/test_function_capabilities.py) 保留原 FAILED 收据并返回 exhausted，后续不同 revision 不改旧产物；CPU 费用未计量，不能补零 |
-| FM-06 门控阈值、控制面板和校准 | [campaign/calibrate.py](../../src/etalon/campaign/calibrate.py)：`calibrate/separation/enrichment`、方向/NaN/tie 及分子计数语义；revision-bound gate 授权仍由确定性实现核验 | [gate-calibration skill](../../.claude/skills/etalon-gate-calibration/SKILL.md) 选择相关面板、解释保留率与排序、决定修订/停用；没有 gate 的任务无需调用 | `etalon_calibrate_gates/etalon_authorize_gates` 及旧校准结果结构 | **原校准 SDK 复用＋具体方法说明＋只读适配**；算法原文件未改。已有工程面板支持停用 gate，未证明新的自适应方法或收益 | RES-08、MET-04、LEARN-03；[test_research_methods.py](../../tests/test_research_methods.py) 中方向/常量排序/多 pose 反例。[独立函数反例](../../tests/test_research_function_methods.py) 检查丢失 active 后停止、未知值、revision 拒绝；[V 反例](../../tests/test_thin_harness_functions.py) 另用真实 CPU 零命中产物校准。未完成阶段 recall 保持 None |
-| FM-07 生成器规划、产率测量、资源分配与 campaign 建议 | [campaign/generation.py](../../src/etalon/campaign/generation.py)、[pipeline.py](../../src/etalon/campaign/pipeline.py)、[propose.py](../../src/etalon/campaign/propose.py)：实际产率/去重/成本测量和可选数值建议；原生成执行器保留 | [generation-planning skill](../../.claude/skills/etalon-generation-planning/SKILL.md) 选择生成器、已有分子或其他路线，按反馈调整/停止；建议不强制转为后续全流程 | `etalon_generation_productivity`、`etalon_plan_campaign/etalon_campaign_plan`、原 generation/campaign API | **独立建议 API 复用＋具体方法说明＋冷依赖接缝修复**；Wilson 同公式使用标准库分位数，合法输入与旧数值对照一致，坏 confidence 明确拒绝。现有产率函数可单独调用，已有库计划可跳过生成。旧 Campaign/Supervisor 仍可选；接续实测独立 judge、非空 propose、单阶段 Pipeline 和不 tick 的状态读取，未宣称所有策略路径均已验证 | ACT-02/08、MET-04、HOST-01；`test_campaign.py`、`test_sweep.py`。A 的功能检查覆盖跳过生成、只选一个生成器、根据三段测量停用枯竭路线；未启动生成或昂贵计算。本轮正式 Codex 直接产率工具复测返回后停止，无 skill/plan；首次 120 秒冷导入超时保留，详见 C/V |
-| FM-08 长任务监控、进度解释与研究调度 | 既有 workflow/sweep status、heartbeat、artifact、PID/receipt 查询；[campaign/supervisor.py](../../src/etalon/campaign/supervisor.py) 的局部执行管理继续可选复用 | [campaign-monitoring skill](../../.claude/skills/etalon-campaign-monitoring/SKILL.md) 判断运行/停滞/未知；宿主在有需求时选择调度、恢复或停止，不新增 ETALON 后台研究循环 | `etalon_sweep_status/progress/recover`、workflow status/reconcile 与旧监控记录 | **旧查询复用＋只读接缝修复＋具体方法说明**：状态读取不构造执行器、不迁移旧库，缺路径/坏收据拒绝。FM-04 恢复能力与宿主判断仍分开 | RES-02/07、ACT-06、HOST-01；本轮 A/I/V 检查旧池/live WAL/缺路径/损坏状态与只读产物；unknown 工程账本 reserved=2、spent=0.25 不变。该 fixture 没有活动 worker，真实取消仍引用前轮 POSIX 证据 |
-| FM-09 科学知识 M、数值策略、诊断、实验比较及历史 R3/R4/R4b | [research/](../../src/etalon/research/README.md) 的 journal、rows、transfer、diagnostics、validation、feedback 与既有冻结/释放；如 `fit_policy/next_action/evaluate_policies` 保留科学含义 | [campaign factorial reference](../../.claude/skills/etalon-campaign/references/factorial-diagnostic.md) 对齐 `ResearchJournal.factorial`；[finite-diagnostics](../../.claude/skills/etalon-campaign/references/finite-diagnostics.md) 对齐 `bind_outcome/condition/exact_program`，可单独或部分组合，不把历史 schedule 或轮次升为必经路线 | 既有 research Python 入口、`examples/*round4*.py`、原 journal/Artifact/TaskSplit 和历史协议 | **科学实现保留＋多个有用方法对齐真实 SDK**；factorial、离散绑定/支持检查/有限预算建议及配对经验模型有工程反例；记录后编译/反馈接缝已修复，仍为六个注册 skill。其余 research 方法未全面迁移；不是 M/φ 改善或 RSI | RES-08、LEARN-01—03；原 research 回归及数据暴露反例。本轮 B 的真实持久 Journal 反例与产品 reference 对齐，V 另查失败 cell 保持未知；只为描述性 contrast，非因果/独立收益证明。未重跑暂停批次 |
-| FM-10 方法 S、使用方法 φ、改进方法 G 的版本、使用与评价 | [research/schema.py](../../src/etalon/research/schema.py)、[journal.py](../../src/etalon/research/journal.py)：`MethodVersion/MethodUse/MethodEvaluation` 与引用、角色、快照/冻结校验；复用同一本 journal | 宿主/skill 决定选择、部分采用、组合、换法、试用与提出改版；可记录未选择，不能要求先有优越性证明才能探索 | 原 ResearchJournal/Artifact/科学记录不改义；新增 `etalon_method_record/read` 为薄封装 | **已解耦：方法记录与科学执行/观测**；自动产生更好 skill、使用策略或改进器及独立收益均**未完成/待证** | MET-01—07、RES-08；[test_research_methods.py](../../tests/test_research_methods.py)。前轮原生改版记录仍保留 `parents=[]`；本轮固定源新追加案例已写入精确结构化父引用，另一个新 root 仍为 `parents=[]`，旧记录/快照/科学状态不变。保存和部分试用不表示收益，不为动作增加 method gate |
-| FM-11 事件通知、恢复 observer 与改进 hook | [runtime/api.py](../../src/etalon/runtime/api.py) 的 `read_events`；[host.py](../../src/etalon/host.py) 的 `consume_events/hook_request_id`；原 `result_observer` 继续负责准入前恢复收据 | 宿主/skill 可选择哪些已提交事件值得处理，显式读一页、跳过或停止；handler 使用稳定 request ID，回调不回滚科学事实 | 原两种日志与恢复 observer 不改义；无原生 hook 时显式读事件也可继续 | **已解耦：持久执行事实与可选事件消费**；现有 hook 是有限函数，不是自动 RSI 服务 | EVT-01—04、ACT-06；[test_thin_harness_host.py](../../tests/test_thin_harness_host.py)。组件已覆盖崩溃重放/过滤/不自触发；宿主真实 hook 的新增范围仍需独立证据，不能凭 callback 单测声明全宿主自动触发 |
-| FM-12 skill 发现、内容版本、开放引用与使用指引 | [skills.py](../../src/etalon/skills.py) 的 `snapshot/read_member/persist_snapshot/verify_snapshot`；完整 references/scripts 内容版本；[HOST.md](../../src/etalon/HOST.md) 的使用指引独立版本 | 宿主按需发现/读取；内置目录只作发现入口，允许外部 bundle、局部使用、组合、修改和试用；内容校验不认证完整内部使用 | `etalon://skills/*`、旧 catalog/workflows shape、`etalon_capabilities/etalon_skill_read` | **已解耦：方法目录与允许的行动空间**；六个原 SKILL 的历史内容迁移是其说明层工作，不是这个接口解耦的全部证据 | MET-01—07、HOST-01；[test_host_bundles_hooks.py](../../tests/test_host_bundles_hooks.py)、C 原生 methods/revision/discovery 日志。Codex 的限定行为证据不替代 Claude，也不证明选择策略更优 |
-| FM-13 安装、宿主导出、MCP 注册与科学资源打包 | [mcp/server.py](../../src/etalon/mcp/server.py) 单一注册/费用来源、[host.py](../../src/etalon/host.py) 导出校验、[pyproject.toml](../../pyproject.toml) 完整包资源；科学依赖及本地修复保留 | [install skill](../../.claude/skills/etalon-install/SKILL.md) 按任务选择环境/依赖，宿主配置从同源导出；安装不是科研流程的强制起点 | `python -m etalon.mcp`、旧注册函数/资源 URI、原科学入口；Codex/Claude 分别导出 | **已解耦：资源读取与 checkout 布局**；install 方法说明为文档迁移。安装、真实宿主调用和科学验证仍是三个范围 | INT-01—03、HOST-01；[test_host_capabilities.py](../../tests/test_host_capabilities.py)、I/V 非 editable 安装证据。科学协议无需为新目录重写；跨机器还须带必要环境说明和独立 PRISM 来源 |
+| FM-01 数据获取、候选/测定导入、PRISM design bundle 消费 | [data/service.py](../../src/moldarwin/data/service.py)、[ingress.py](../../src/moldarwin/data/ingress.py)、[design.py](../../src/moldarwin/data/design.py)：获取预算、封存来源、对象/角色/哈希校验、`read_bundle/import_bundle/verify_import`；独立 PRISM 的生产端不搬进 MolDarwin | 选择来源、查询和纳入条件，判断缺什么证据；可复用 MolOrigin 方法或直接用工具；不把 Astra 假设当实验标签 | [mcp/data.py](../../src/moldarwin/mcp/data.py) 的 `moldarwin_data_*`、既有 design Python 入口与 wire schema | **原能力复用**；未证明完整数据工作流已转成可组合 skill，未新增完整 Astra 标注闭环 | RES-08、ACT-07、INT-01；`test_design_import.py`、`test_prism_v1.py` 与原数据测试按改动选测。用同一 bundle 对照身份/角色/费用；额外步骤不能强制经过 campaign skill |
+| FM-02 昂贵计算前检查、授权、结果准入与费用 | [active/runner.py](../../src/moldarwin/active/runner.py)、[active/store.py](../../src/moldarwin/active/store.py)、[boundary/prism_v1.py](../../src/moldarwin/boundary/prism_v1.py)、`authority/`、`learn/admissible.py`：准备体系/协议身份、预算、收据、准入和未知状态的确定性约束 | [campaign skill](../../.claude/skills/moldarwin-campaign/SKILL.md) 指导是否值得计算、如何解释证据或停止；不能用自然语言跳过真实身份/预算约束 | `moldarwin_check_handoff/authorize_spend/rule_admissible`、既有 executor 与 PRISM 消费协议 | **原能力复用＋说明层文档迁移**；执行路径由 FM-03 复用，并非把安全/科学校验搬进 skill | RES-01/02/04/05/06/08、ACT-07/08；同一动作的新旧入口需保持身份、收费、准入一致。真实 PRISM 新计算未由本轮工程验证覆盖 |
+| FM-03 数值策略选择与执行绑定在同一 active 循环 | [runtime/api.py](../../src/moldarwin/runtime/api.py) 的 `prepare_action/submit_action/read_action_result`；`ActiveCampaign.evaluate` 经同一 `_execute_reserved` 路径执行宿主已选 candidate/endpoint，保留预留/收据/准入 | 宿主自行选动作；skill 可以不选、部分采用、组合或修改；下一动作可根据真实结果临时提出 | `active.run`、`run_round`、`active_execution_plan/active_submit` 及旧 active MCP 保留；旧数值策略成为可选方法 | **已解耦：动作选择与可靠执行**；不限于把旧提示词变短，不要求为宿主伪造 GP/完整 DAG | ACT-01—04/08/09、INT-03；[test_runtime_actions.py](../../tests/test_runtime_actions.py)、[test_thin_harness_integration.py](../../tests/test_thin_harness_integration.py)。C 的 Codex/Linux 两个 MW 动作证明限定 CPU 路径可动态续接，不能据此声称药效/所有旧策略等价 |
+| FM-04 durable workflow、长任务、预算竞争、恢复与取消 | [runtime/service.py](../../src/moldarwin/runtime/service.py)、`store.py/operations.py/executors.py`：任务状态机、OS 锁、预算事务、进程身份、持久收据和 reconcile；单动作内部可复用旧单节点 spec | 宿主决定研究下一步和是否恢复；固定局部操作可以继续复用，MolDarwin worker 不成为第二个研究规划器 | 旧 `workflow.plan/submit/status/cancel/reconcile`、CLI 和原恢复记录 | **已解耦：开放动作与既有执行后端**；执行状态机有意保留，不以删除它衡量“薄” | ACT-05/06、RES-02/05/07、EVT-03；[test_runtime_posix_acceptance.py](../../tests/test_runtime_posix_acceptance.py) 与恢复审计。A 接续报告包含真实 Linux 竞争/杀进程后恢复/取消，按其固定源码及 V 判定限定；Windows detached worker 仍不支持 |
+| FM-05 批量筛选、sweep 账本和批次操作 | [screening.py](../../src/moldarwin/screening.py)、[campaign/sweep.py](../../src/moldarwin/campaign/sweep.py)：`plan_screen/submit_screen/screen_status`、claim/emit/record/admit/recover、零命中与费用 | [screening-sweep skill](../../.claude/skills/moldarwin-screening-sweep/SKILL.md) 帮助选择批次、方法、未来协议和停止条件；不强制“先生成再筛选”或完成全部 tiers | `moldarwin_screen_*`、`moldarwin_sweep_*` 及既有批次/ledger 格式 | **原操作复用＋限定接缝修复**：真实 CPU 已有批次可直接筛选、零命中后停止、只改变未来方法；补足 skill 输入/输出/停止说明。不外推全部批次策略已解耦 | RES-03、ACT-03/05/08、HOST-01；`test_screening_service.py`、`test_sweep.py`。本轮 [功能检查](../../tests/test_function_capabilities.py) 保留原 FAILED 收据并返回 exhausted，后续不同 revision 不改旧产物；CPU 费用未计量，不能补零 |
+| FM-06 门控阈值、控制面板和校准 | [campaign/calibrate.py](../../src/moldarwin/campaign/calibrate.py)：`calibrate/separation/enrichment`、方向/NaN/tie 及分子计数语义；revision-bound gate 授权仍由确定性实现核验 | [gate-calibration skill](../../.claude/skills/moldarwin-gate-calibration/SKILL.md) 选择相关面板、解释保留率与排序、决定修订/停用；没有 gate 的任务无需调用 | `moldarwin_calibrate_gates/moldarwin_authorize_gates` 及旧校准结果结构 | **原校准 SDK 复用＋具体方法说明＋只读适配**；算法原文件未改。已有工程面板支持停用 gate，未证明新的自适应方法或收益 | RES-08、MET-04、LEARN-03；[test_research_methods.py](../../tests/test_research_methods.py) 中方向/常量排序/多 pose 反例。[独立函数反例](../../tests/test_research_function_methods.py) 检查丢失 active 后停止、未知值、revision 拒绝；[V 反例](../../tests/test_thin_harness_functions.py) 另用真实 CPU 零命中产物校准。未完成阶段 recall 保持 None |
+| FM-07 生成器规划、产率测量、资源分配与 campaign 建议 | [campaign/generation.py](../../src/moldarwin/campaign/generation.py)、[pipeline.py](../../src/moldarwin/campaign/pipeline.py)、[propose.py](../../src/moldarwin/campaign/propose.py)：实际产率/去重/成本测量和可选数值建议；原生成执行器保留 | [generation-planning skill](../../.claude/skills/moldarwin-generation-planning/SKILL.md) 选择生成器、已有分子或其他路线，按反馈调整/停止；建议不强制转为后续全流程 | `moldarwin_generation_productivity`、`moldarwin_plan_campaign/moldarwin_campaign_plan`、原 generation/campaign API | **独立建议 API 复用＋具体方法说明＋冷依赖接缝修复**；Wilson 同公式使用标准库分位数，合法输入与旧数值对照一致，坏 confidence 明确拒绝。现有产率函数可单独调用，已有库计划可跳过生成。旧 Campaign/Supervisor 仍可选；接续实测独立 judge、非空 propose、单阶段 Pipeline 和不 tick 的状态读取，未宣称所有策略路径均已验证 | ACT-02/08、MET-04、HOST-01；`test_campaign.py`、`test_sweep.py`。A 的功能检查覆盖跳过生成、只选一个生成器、根据三段测量停用枯竭路线；未启动生成或昂贵计算。本轮正式 Codex 直接产率工具复测返回后停止，无 skill/plan；首次 120 秒冷导入超时保留，详见 C/V |
+| FM-08 长任务监控、进度解释与研究调度 | 既有 workflow/sweep status、heartbeat、artifact、PID/receipt 查询；[campaign/supervisor.py](../../src/moldarwin/campaign/supervisor.py) 的局部执行管理继续可选复用 | [campaign-monitoring skill](../../.claude/skills/moldarwin-campaign-monitoring/SKILL.md) 判断运行/停滞/未知；宿主在有需求时选择调度、恢复或停止，不新增 MolDarwin 后台研究循环 | `moldarwin_sweep_status/progress/recover`、workflow status/reconcile 与旧监控记录 | **旧查询复用＋只读接缝修复＋具体方法说明**：状态读取不构造执行器、不迁移旧库，缺路径/坏收据拒绝。FM-04 恢复能力与宿主判断仍分开 | RES-02/07、ACT-06、HOST-01；本轮 A/I/V 检查旧池/live WAL/缺路径/损坏状态与只读产物；unknown 工程账本 reserved=2、spent=0.25 不变。该 fixture 没有活动 worker，真实取消仍引用前轮 POSIX 证据 |
+| FM-09 科学知识 M、数值策略、诊断、实验比较及历史 R3/R4/R4b | [research/](../../src/moldarwin/research/README.md) 的 journal、rows、transfer、diagnostics、validation、feedback 与既有冻结/释放；如 `fit_policy/next_action/evaluate_policies` 保留科学含义 | [campaign factorial reference](../../.claude/skills/moldarwin-campaign/references/factorial-diagnostic.md) 对齐 `ResearchJournal.factorial`；[finite-diagnostics](../../.claude/skills/moldarwin-campaign/references/finite-diagnostics.md) 对齐 `bind_outcome/condition/exact_program`，可单独或部分组合，不把历史 schedule 或轮次升为必经路线 | 既有 research Python 入口、`examples/*round4*.py`、原 journal/Artifact/TaskSplit 和历史协议 | **科学实现保留＋多个有用方法对齐真实 SDK**；factorial、离散绑定/支持检查/有限预算建议及配对经验模型有工程反例；记录后编译/反馈接缝已修复，仍为六个注册 skill。其余 research 方法未全面迁移；不是 M/φ 改善或 RSI | RES-08、LEARN-01—03；原 research 回归及数据暴露反例。本轮 B 的真实持久 Journal 反例与产品 reference 对齐，V 另查失败 cell 保持未知；只为描述性 contrast，非因果/独立收益证明。未重跑暂停批次 |
+| FM-10 方法 S、使用方法 φ、改进方法 G 的版本、使用与评价 | [research/schema.py](../../src/moldarwin/research/schema.py)、[journal.py](../../src/moldarwin/research/journal.py)：`MethodVersion/MethodUse/MethodEvaluation` 与引用、角色、快照/冻结校验；复用同一本 journal | 宿主/skill 决定选择、部分采用、组合、换法、试用与提出改版；可记录未选择，不能要求先有优越性证明才能探索 | 原 ResearchJournal/Artifact/科学记录不改义；新增 `moldarwin_method_record/read` 为薄封装 | **已解耦：方法记录与科学执行/观测**；自动产生更好 skill、使用策略或改进器及独立收益均**未完成/待证** | MET-01—07、RES-08；[test_research_methods.py](../../tests/test_research_methods.py)。前轮原生改版记录仍保留 `parents=[]`；本轮固定源新追加案例已写入精确结构化父引用，另一个新 root 仍为 `parents=[]`，旧记录/快照/科学状态不变。保存和部分试用不表示收益，不为动作增加 method gate |
+| FM-11 事件通知、恢复 observer 与改进 hook | [runtime/api.py](../../src/moldarwin/runtime/api.py) 的 `read_events`；[host.py](../../src/moldarwin/host.py) 的 `consume_events/hook_request_id`；原 `result_observer` 继续负责准入前恢复收据 | 宿主/skill 可选择哪些已提交事件值得处理，显式读一页、跳过或停止；handler 使用稳定 request ID，回调不回滚科学事实 | 原两种日志与恢复 observer 不改义；无原生 hook 时显式读事件也可继续 | **已解耦：持久执行事实与可选事件消费**；现有 hook 是有限函数，不是自动 RSI 服务 | EVT-01—04、ACT-06；[test_thin_harness_host.py](../../tests/test_thin_harness_host.py)。组件已覆盖崩溃重放/过滤/不自触发；宿主真实 hook 的新增范围仍需独立证据，不能凭 callback 单测声明全宿主自动触发 |
+| FM-12 skill 发现、内容版本、开放引用与使用指引 | [skills.py](../../src/moldarwin/skills.py) 的 `snapshot/read_member/persist_snapshot/verify_snapshot`；完整 references/scripts 内容版本；[HOST.md](../../src/moldarwin/HOST.md) 的使用指引独立版本 | 宿主按需发现/读取；内置目录只作发现入口，允许外部 bundle、局部使用、组合、修改和试用；内容校验不认证完整内部使用 | `moldarwin://skills/*`、旧 catalog/workflows shape、`moldarwin_capabilities/moldarwin_skill_read` | **已解耦：方法目录与允许的行动空间**；六个原 SKILL 的历史内容迁移是其说明层工作，不是这个接口解耦的全部证据 | MET-01—07、HOST-01；[test_host_bundles_hooks.py](../../tests/test_host_bundles_hooks.py)、C 原生 methods/revision/discovery 日志。Codex 的限定行为证据不替代 Claude，也不证明选择策略更优 |
+| FM-13 安装、宿主导出、MCP 注册与科学资源打包 | [mcp/server.py](../../src/moldarwin/mcp/server.py) 单一注册/费用来源、[host.py](../../src/moldarwin/host.py) 导出校验、[pyproject.toml](../../pyproject.toml) 完整包资源；科学依赖及本地修复保留 | [install skill](../../.claude/skills/moldarwin-install/SKILL.md) 按任务选择环境/依赖，宿主配置从同源导出；安装不是科研流程的强制起点 | `python -m moldarwin.mcp`、旧注册函数/资源 URI、原科学入口；Codex/Claude 分别导出 | **已解耦：资源读取与 checkout 布局**；install 方法说明为文档迁移。安装、真实宿主调用和科学验证仍是三个范围 | INT-01—03、HOST-01；[test_host_capabilities.py](../../tests/test_host_capabilities.py)、I/V 非 editable 安装证据。科学协议无需为新目录重写；跨机器还须带必要环境说明和独立 PRISM 来源 |
 | FM-14 开发者执行本次重构 | 本地 [life-healthy-contract-refactor](../../.agents/skills/life-healthy-contract-refactor/SKILL.md) 与 `merge_preview.py`，仅辅助来源保全、逐文件预览、接口衔接和工程验收 | 这是 **I 维护的工程 skill**，A/B/C/V 按需使用；不是 C 的科学方法库，不参与产品 S/φ/G 收益评价 | 不新增产品 MCP 工具，不改科学入口；遵守本机 exclude/hook，独立迁移本地辅助文件 | **开发工程工具已制作并用于真实合并**；不能计为科学 workflow 的 skill 化或 RSI | I 的两次真实合并预览/保全检查；产品 registry、wheel、两种产品宿主导出不得自动包含该工程 skill。该链接仅本机存在；clone/产品源码 ZIP 不携带本地辅助内容 |
 
 ### 六个旧 skill 文档到底迁了什么
@@ -111,18 +111,18 @@ ETALON 是宿主 agent 的科学能力扩展。宿主拥有问题选择、下一
 
 | 产品 skill | 原 SKILL 行数 → 新入口行数 | 保留旧文本的 reference 行数 | 说明层判定／关联功能 |
 | --- | ---: | ---: | --- |
-| etalon-campaign | 547 → 37 | 555 | 文档迁移完成；FM-02/03 的执行解耦另按代码和用例判断 |
-| etalon-screening-sweep | 353 → 29 | 361 | 文档迁移完成；FM-05 的领域组合行为待补证 |
-| etalon-gate-calibration | 143 → 27 | 151 | 文档迁移完成；FM-06 保留原校准算法 |
-| etalon-generation-planning | 164 → 26 | 172 | 文档迁移完成；FM-07 的旧规划/调度策略逐项核验 |
-| etalon-campaign-monitoring | 202 → 27 | 210 | 文档迁移完成；FM-08 的判断与 FM-04 的执行事实分开 |
-| etalon-install | 240 → 32 | 248 | 文档迁移完成；FM-13 的真实安装/宿主证据另列 |
+| moldarwin-campaign | 547 → 37 | 555 | 文档迁移完成；FM-02/03 的执行解耦另按代码和用例判断 |
+| moldarwin-screening-sweep | 353 → 29 | 361 | 文档迁移完成；FM-05 的领域组合行为待补证 |
+| moldarwin-gate-calibration | 143 → 27 | 151 | 文档迁移完成；FM-06 保留原校准算法 |
+| moldarwin-generation-planning | 164 → 26 | 172 | 文档迁移完成；FM-07 的旧规划/调度策略逐项核验 |
+| moldarwin-campaign-monitoring | 202 → 27 | 210 | 文档迁移完成；FM-08 的判断与 FM-04 的执行事实分开 |
+| moldarwin-install | 240 → 32 | 248 | 文档迁移完成；FM-13 的真实安装/宿主证据另列 |
 
 行数只是第一阶段来源盘点值，不是优化目标；本轮六份 legacy reference 仍逐字节不变。后续允许按需求修改、拆分或合并 skill；不要为了保持短入口而丢失适用条件、失败处理和工具调用说明，也不要把全部历史 reference 再固定注入每轮上下文。
 
 ### 更多 research 方法与旧策略可选性接续
 
-2026-10-21 用户再次授权继续剩余重构。本次在 FM-09 的 factorial 之外补充 [finite-diagnostics reference](../../.claude/skills/etalon-campaign/references/finite-diagnostics.md)，对齐现有 `calibration.bind_outcome`、`diagnostics.condition` 和 `diagnostics.exact_program`。三者可分别使用，也可根据真实返回部分组合；没有新增 skill 注册、MCP 科学工具或研究执行框架。绑定会向原 Journal 追加派生记录，后两者为纯函数；有限模型的建议树不会自行执行，也不是宿主必须遵循的流程。研究生产算法保持原样。
+2026-10-21 用户再次授权继续剩余重构。本次在 FM-09 的 factorial 之外补充 [finite-diagnostics reference](../../.claude/skills/moldarwin-campaign/references/finite-diagnostics.md)，对齐现有 `calibration.bind_outcome`、`diagnostics.condition` 和 `diagnostics.exact_program`。三者可分别使用，也可根据真实返回部分组合；没有新增 skill 注册、MCP 科学工具或研究执行框架。绑定会向原 Journal 追加派生记录，后两者为纯函数；有限模型的建议树不会自行执行，也不是宿主必须遵循的流程。研究生产算法保持原样。
 
 FM-07/08 进一步核对 `ParameterChange.judge`、`Acquisition.propose`、显式单阶段 `Pipeline` 与 `Supervisor` 状态/生产率读取。旧 `Campaign.round` 和 `Supervisor.tick` 是调用者选用的整体编排；普通 SDK 方法、合法 MCP 动作没有新增对它们的前置依赖。构造旧 Screen/Supervisor 仍可能创建状态，不等于只读查询入口；需要只读时使用前轮已有适配。有效的科学输入、probe/resource 依赖、gate 和预算约束保留，不把它们误判成应删除的流程耦合。
 
@@ -130,7 +130,7 @@ FM-07/08 进一步核对 `ParameterChange.judge`、`Acquisition.propose`、显�
 
 ### 配对经验模型与记录后使用接缝
 
-后续按实际使用补充 [paired-models-and-segments](../../.claude/skills/etalon-campaign/references/paired-models-and-segments.md)：现有 `empirical_model` 从完整配对开发记录构造有限经验模型，可显式选择组均衡假设；不把相关行当独立样本、缺失对照补零或模型构造当证据准入。算法未重写。`record_program`、`compile_first_segment`、`observed_branch` 的可选记录/首段交接/反馈读取分别说明，不要求串行采用。
+后续按实际使用补充 [paired-models-and-segments](../../.claude/skills/moldarwin-campaign/references/paired-models-and-segments.md)：现有 `empirical_model` 从完整配对开发记录构造有限经验模型，可显式选择组均衡假设；不把相关行当独立样本、缺失对照补零或模型构造当证据准入。算法未重写。`record_program`、`compile_first_segment`、`observed_branch` 的可选记录/首段交接/反馈读取分别说明，不要求串行采用。
 
 本次在 `research/runtime.py` 修复两个真实接缝：同 probe 的错误已声明条件不能再进入原分支；编译和反馈读取重新核验模型及复用资源证据，不能沿用已经变字节的路径。保留旧合法签名、直接离散标签语义和既有运行内核。连续量仍使用显式 OutcomeRule 的已有入口，不替宿主猜阈值或新增控制器。
 
@@ -150,9 +150,9 @@ FM-07/08 进一步核对 `ParameterChange.judge`、`Acquisition.propose`、显�
 | C：FM-11/12/13 | 保留无 skill、开放 bundle、按需/部分/组合/改版/停止的实际行为；需要时补显式事件读取或可选 hook 的原生场景 | 真实宿主请求/返回/内容版本/下一动作相互对应，观测强度如实标记；不提供完整强制工具顺序。Claude 401 精确保留 blocked，不更改全局认证、不循环重试、不阻塞其他工程 |
 | V：全表独立检查 | 在实施前给具体场景确定失败条件；核验哪些只是说明迁移、哪些已有操作自由、哪些确有新解耦；检查原生记录与最终安装来源差异 | 复用 ACT/RES/EVT/MET/HOST/INT/LEARN ID，状态带证据范围。覆盖“跳过/部分采用/组合/修改后试用/停止”，含拒绝反例；不以文件变短、源码仍在、工具退出 0 或模型自报替代验收 |
 
-**共同完成标准：** 同一科学动作不丢身份、协议、实际费用、失败/未知、准入和恢复；宿主又能自由改变是否做、做哪一步、采用什么方法。保留的旧数值策略/局部 workflow 可以继续作为可选方法，不强制删掉，也不能升级为所有研究的前置条件。普通查询和探索不必经过统一 router、method gate、全流程 DAG 或另一个 ETALON 规划器。
+**共同完成标准：** 同一科学动作不丢身份、协议、实际费用、失败/未知、准入和恢复；宿主又能自由改变是否做、做哪一步、采用什么方法。保留的旧数值策略/局部 workflow 可以继续作为可选方法，不强制删掉，也不能升级为所有研究的前置条件。普通查询和探索不必经过统一 router、method gate、全流程 DAG 或另一个 MolDarwin 规划器。
 
-2026-10-21 按需使用增量（FM-09/10/11/14）：`etalon_capabilities` 和 Python `skills.catalog` 增加可选的 summary/精确范围查询，零参数仍为旧完整返回；每类 `None` 表示全部、`[]` 表示不查询。已知接口可直接调用。完整版本引用覆盖所选 bundle 的全部内容，summary 不等于仅读取入口字节。现有 finite-diagnostics、paired-models-and-segments reference 已补可直接执行的最小 SDK 输入与失败/停止说明，算法不重写。[局部批读示例](../../examples/local_sdk_batch.py) 可由宿主修改组合，逐项保存完整原件、保留失败费用和未知状态；它是源码示例，不是 wheel 内资源、后台服务或必经阶段。具体兼容、包与原生三组对照分别见 [I](DELIVERY_I.md) 和 [V](DELIVERY_V.md)，组件负载缩小不能替代端到端收益。
+2026-10-21 按需使用增量（FM-09/10/11/14）：`moldarwin_capabilities` 和 Python `skills.catalog` 增加可选的 summary/精确范围查询，零参数仍为旧完整返回；每类 `None` 表示全部、`[]` 表示不查询。已知接口可直接调用。完整版本引用覆盖所选 bundle 的全部内容，summary 不等于仅读取入口字节。现有 finite-diagnostics、paired-models-and-segments reference 已补可直接执行的最小 SDK 输入与失败/停止说明，算法不重写。[局部批读示例](../../examples/local_sdk_batch.py) 可由宿主修改组合，逐项保存完整原件、保留失败费用和未知状态；它是源码示例，不是 wheel 内资源、后台服务或必经阶段。具体兼容、包与原生三组对照分别见 [I](DELIVERY_I.md) 和 [V](DELIVERY_V.md)，组件负载缩小不能替代端到端收益。
 
 本轮 [E 三组实测](DELIVERY_E.md) 已完成：两项已见工程任务的六次原生运行均通过语义与保全检查，但 G1 未显示端到端提速，两次 G2 均跳过 Laya。独立人工模型案例保留两项语义错误，不默认启用模型。这个结果支持所观测的宿主选择自由，不证明生产高频、自然采用收益或科学 S/φ/G 改善。
 
@@ -160,27 +160,27 @@ R4b 及历史科学证据继续保持原边界；此清单授权范围沿用已�
 
 ### I2 全量能力族覆盖（2026-10-21）
 
-本表是现有功能映射的增量，不是第二套运行 registry 或必经顺序。唯一可发现目录仍是 `skills.WORKFLOWS`，工具以实际 MCP 注册为准。旧六项和六项 MolQuarry 加三个按能力族组织的新入口，均可跳过、局部使用或与外部方法组合。下表的已补内容与调用口不自动等于宿主已采用；实际工程、安装、原生采用和未运行项目在 DELIVERY_I/V 分开列出。
+本表是现有功能映射的增量，不是第二套运行 registry 或必经顺序。唯一可发现目录仍是 `skills.WORKFLOWS`，工具以实际 MCP 注册为准。旧六项和六项 MolOrigin 加三个按能力族组织的新入口，均可跳过、局部使用或与外部方法组合。下表的已补内容与调用口不自动等于宿主已采用；实际工程、安装、原生采用和未运行项目在 DELIVERY_I/V 分开列出。
 
 | 原功能／公开能力族 | 方法内容位置 | 真实入口与示例／验证 | 处置与边界 |
 | --- | --- | --- | --- |
-| FM-01 来源获取、冻结、候选、测定、handoff | `data-design` 的 data-operations reference | 九个 `etalon_data_*`；data.service/artifacts/library/ingress；`examples/data_design_methods.py`、`test_data_design_methods.py` | 补齐源/角色/副作用/拒绝；零网络合成导入与旧原测试，不新增外部采集；完整 Astra 标注学习闭环未建立 |
+| FM-01 来源获取、冻结、候选、测定、handoff | `data-design` 的 data-operations reference | 九个 `moldarwin_data_*`；data.service/artifacts/library/ingress；`examples/data_design_methods.py`、`test_data_design_methods.py` | 补齐源/角色/副作用/拒绝；零网络合成导入与旧原测试，不新增外部采集；完整 Astra 标注学习闭环未建立 |
 | FM-01 design bundle | `data-design` 的 design-bundles reference | data.design `read_bundle/import_bundle/verify_import/design_index`；同一示例可选 bundle | 补齐 pool/index-only、幂等、raw/pose身份、失败槽和Astra假设；不生成科学标签或评分 |
-| FM-01 MolQuarry 六方法 | 原 `molquarry-analogue-search`、`assay-literature`、`compound-sourcing`、`selectivity-evidence`、`structure-templates`、`target-modulators` bundles；data-design/MolQuarry适配说明 | `etalon_skill_read("molquarry-…")`、旧 `etalon://skills/molquarry[/…]`；原 SDK 与 data adapter | 六源原样复用，首次统一发现/完整版本/导出/安装；不通过外部查询制造验收 |
-| FM-02 治理、准入、稳定性、council、FEP网络 | campaign 对应 evidence/governance reference 与保留 legacy | `etalon_check_handoff/check_stability/rule_admissible/authorize_spend`、`etalon_council_reliability/adjudicate`、`etalon_recommend_waiver/design_fep_network` | 复用独立工具与算法；建议不授予豁免，网络设计不执行FEP，计算读数不冒充实验 |
-| FM-03 active策略与宿主选择动作 | campaign；research evidence-panels、既有 runtime contract | `etalon_active_create/status/plan/replay`、`etalon_action_prepare/submit/result`、`etalon_executor_prepare/register/list`；既有 action/host 验收 | 已有可选策略/可靠执行复用；离线replay不等独立科学运行，真实动作预算身份准入继续由内核约束 |
-| FM-04 durable局部操作、恢复、取消、artifact | monitoring、campaign、`etalon://runtime` | `etalon_workflow_capabilities/plan/submit/status/observe/advance/cancel/reconcile/artifact`、`etalon_active_execution_plan/submit` | 保留旧兼容入口、pending/费用/恢复证据；仅已实现平台可执行，Windows不冒充POSIX worker验证 |
-| FM-05 screen/sweep | sweep 的局部操作 reference 与 legacy | `etalon_screen_configure/plan/submit/status/export`、`etalon_sweep_admit/emit/claim/record/recover/status/progress` | 补具体独立用法，旧CPU/零命中/只读/失败费用证据复用；不重跑生成或昂贵科学计算 |
-| FM-06 gate校准 | gate-calibration 局部SDK reference | campaign.calibrate `calibrate/separation/enrichment`、`etalon_calibrate_gates/authorize_gates` | 复用已有算法，补可单独计算的输入/停止边界；建议不自动修订未来协议 |
-| FM-07 生成产率、漏斗与参数建议 | generation-planning 局部SDK reference、sweep | `etalon_generation_productivity/campaign_plan/plan_campaign/tune_screen/stages`；generate.productivity、campaign.Pipeline/ParameterChange/Acquisition | 补组合与跳过方法；数值建议不启动生成，不重写finite/paired/factorial |
+| FM-01 MolOrigin 六方法 | 原 `molorigin-analogue-search`、`assay-literature`、`compound-sourcing`、`selectivity-evidence`、`structure-templates`、`target-modulators` bundles；data-design/MolOrigin适配说明 | `moldarwin_skill_read("molorigin-…")`、旧 `moldarwin://skills/molorigin[/…]`；原 SDK 与 data adapter | 六源原样复用，首次统一发现/完整版本/导出/安装；不通过外部查询制造验收 |
+| FM-02 治理、准入、稳定性、council、FEP网络 | campaign 对应 evidence/governance reference 与保留 legacy | `moldarwin_check_handoff/check_stability/rule_admissible/authorize_spend`、`moldarwin_council_reliability/adjudicate`、`moldarwin_recommend_waiver/design_fep_network` | 复用独立工具与算法；建议不授予豁免，网络设计不执行FEP，计算读数不冒充实验 |
+| FM-03 active策略与宿主选择动作 | campaign；research evidence-panels、既有 runtime contract | `moldarwin_active_create/status/plan/replay`、`moldarwin_action_prepare/submit/result`、`moldarwin_executor_prepare/register/list`；既有 action/host 验收 | 已有可选策略/可靠执行复用；离线replay不等独立科学运行，真实动作预算身份准入继续由内核约束 |
+| FM-04 durable局部操作、恢复、取消、artifact | monitoring、campaign、`moldarwin://runtime` | `moldarwin_workflow_capabilities/plan/submit/status/observe/advance/cancel/reconcile/artifact`、`moldarwin_active_execution_plan/submit` | 保留旧兼容入口、pending/费用/恢复证据；仅已实现平台可执行，Windows不冒充POSIX worker验证 |
+| FM-05 screen/sweep | sweep 的局部操作 reference 与 legacy | `moldarwin_screen_configure/plan/submit/status/export`、`moldarwin_sweep_admit/emit/claim/record/recover/status/progress` | 补具体独立用法，旧CPU/零命中/只读/失败费用证据复用；不重跑生成或昂贵科学计算 |
+| FM-06 gate校准 | gate-calibration 局部SDK reference | campaign.calibrate `calibrate/separation/enrichment`、`moldarwin_calibrate_gates/authorize_gates` | 复用已有算法，补可单独计算的输入/停止边界；建议不自动修订未来协议 |
+| FM-07 生成产率、漏斗与参数建议 | generation-planning 局部SDK reference、sweep | `moldarwin_generation_productivity/campaign_plan/plan_campaign/tune_screen/stages`；generate.productivity、campaign.Pipeline/ParameterChange/Acquisition | 补组合与跳过方法；数值建议不启动生成，不重写finite/paired/factorial |
 | FM-08 监控/局部批读 | monitoring 的已有批读与局部操作说明 | workflow/sweep只读接口、`examples/local_sdk_batch.py` | 复用真实只读/失效收据反例；不新建轮询研究循环，未知状态与费用保留 |
 | FM-09 迁移拟合/校准/下一动作/比较 | research `references/transfer.md` | transfer `fit_policy/calibrate_policy/next_action/evaluate_policies/probability_assessment`、transfer_checks/support；`scripts/research_methods.py` | 补已实现有限模型的独立调用；synthetic与实测角色分开，完整面板回放不当独立执行 |
 | FM-09 validation/feedback | research `references/validation-feedback.md` | validation、feedback、baseline_feedback 的实际冻结/释放/附加/读取入口 | 补说明与例；原评价角色不回写，已消费反馈不能再次称未见，无新独立收益验收 |
 | FM-09 pose/preparation | research `references/pose-preparation.md` | pose/pose_selection/preparation；已有真实源契约+隔离SDK检查 | 补图/状态/姿势/受体/准备/执行身份；NOT_APPLICABLE与失败/未知不补零；不做原生准备或评分 |
 | FM-09 fixed_pool/online/retained baseline | research `references/fixed-pool-online.md` | fixed_pool/online/pool/rows/producer/workflows/retained_baseline；合成可见查询例 | 补可分别使用的受测方法，公开成本与未知反事实分离；历史R3/R4/R4b脚本只作为兼容实例 |
 | FM-09 evidence/panel/有限诊断 | research `references/evidence-panels.md`；原campaign factorial/finite/paired references | ResearchJournal/schema、panel/seen/controller；`bind_outcome/condition/exact_program/empirical_model/record_program/compile_first_segment/observed_branch` | 复用原算法与已有验收，补入口定位和能力关系；无全局router、固定研究DAG或method gate |
-| FM-10/11 方法版本/使用/评价、事件与改进 | skill-improvement revision reference；HOST使用指引 | MethodVersion/Use/Evaluation、`etalon_method_record/read`、`etalon_events_read`、host.consume_events；`examples/skill_improvement.py` | 新增可选具体改进方法，分别保全S与使用策略、部分试用和停止；独立收益仍not_run |
-| FM-12/13/14 发现、版本、宿主、安装与基础设施 | install、HOST_SETUP；原各bundle内容 | `etalon_capabilities/skill_read`、skills.snapshot/read_member/persist_snapshot、host export/verify、`etalon_infrastructure/doctor/devices` | 原零参字段与旧URI兼容，完整引用随wheel/双宿主导出；SDK/协议与原生采用分开，Claude旧401仍独立blocked |
+| FM-10/11 方法版本/使用/评价、事件与改进 | skill-improvement revision reference；HOST使用指引 | MethodVersion/Use/Evaluation、`moldarwin_method_record/read`、`moldarwin_events_read`、host.consume_events；`examples/skill_improvement.py` | 新增可选具体改进方法，分别保全S与使用策略、部分试用和停止；独立收益仍not_run |
+| FM-12/13/14 发现、版本、宿主、安装与基础设施 | install、HOST_SETUP；原各bundle内容 | `moldarwin_capabilities/skill_read`、skills.snapshot/read_member/persist_snapshot、host export/verify、`moldarwin_infrastructure/doctor/devices` | 原零参字段与旧URI兼容，完整引用随wheel/双宿主导出；SDK/协议与原生采用分开，Claude旧401仍独立blocked |
 
 工程重构 `life-healthy-contract-refactor` 只在本地 `.agents/skills/`，不进入这张产品库、wheel或宿主导出。任何外部阻塞（宿主认证、科学依赖、未获授权的新计算或未建立的独立评价）都不阻塞无依赖的发现、按需读取、SDK示例和打包工作。
 

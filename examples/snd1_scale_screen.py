@@ -7,12 +7,12 @@ from __future__ import annotations
 import argparse, collections, concurrent.futures, contextlib, hashlib, importlib, importlib.metadata
 import json, os, platform, subprocess, sys, threading, time
 from pathlib import Path
-from etalon.active.schema import digest
-from etalon.host import _consumer_lock
-from etalon.research.pose_task import compile_task
-from etalon.research import pose_engine
-from etalon.research.scientific_input import identity
-from etalon.research.result_integrity import (freeze_check_contract, validate_check_contract,
+from moldarwin.active.schema import digest
+from moldarwin.host import _consumer_lock
+from moldarwin.research.pose_task import compile_task
+from moldarwin.research import pose_engine
+from moldarwin.research.scientific_input import identity
+from moldarwin.research.result_integrity import (freeze_check_contract, validate_check_contract,
     result_binding, validate_verifier, top1_observation, validate_native_receipt,
     confirmation_eligibility)
 
@@ -35,10 +35,10 @@ def make_task(root,row,receptor,seed):
         sources.append({'id':key,'path':path,'locator':'frozen execution-only input; no reference pose/activity',
             'role':'conditioning','scope':QUESTION,**identity(path)})
     params={'receptor':paths['receptor'],'ligand':paths['ligand'],'box':receptor['box'],'seed':seed,'num_modes':10,'exhaustiveness':8}
-    return {'schema':'etalon-pose-task/1','task_id':'snd1-scale-P2','case_id':row['id']+'-'+receptor['id']+'-'+str(seed),
+    return {'schema':'moldarwin-pose-task/1','task_id':'snd1-scale-P2','case_id':row['id']+'-'+receptor['id']+'-'+str(seed),
       'question':QUESTION,'split':'development' if row['split']=='development' else 'validation',
       'method':{'engine':'GNINA1.3.3','empirical':'vina','candidate':'crossdock_default2018 same pool score_only'},'output_contract':OUTPUT,
-      'input':{'schema':'etalon-scientific-input/1','task_id':'snd1-scale-P2','scope':QUESTION,
+      'input':{'schema':'moldarwin-scientific-input/1','task_id':'snd1-scale-P2','scope':QUESTION,
         'subject':{'molecule':row['state_smiles'],'parent_key':row['parent_key'],'series_id':row['series_id'],'cohort':row['split']},
         'sources':sources,'observations':[],'interpretations':[],'bindings':[
           {'id':key,'target':key,'value':v,'use':'constraint' if key in ('receptor','ligand','box') else 'selection',
@@ -81,7 +81,7 @@ def pose_check_contract():
 def physical_check(pool,receptor,reference=None,*,check_contract=None,binding=None):
     from rdkit import Chem
     from posebusters import PoseBusters
-    from etalon.research.pose_verifier import symmetry_rmsd
+    from moldarwin.research.pose_verifier import symmetry_rmsd
     import numpy as np
     check_contract=validate_check_contract(check_contract)
     if pose_check_contract()!=check_contract:raise ValueError('checker implementation/configuration changed')
@@ -130,8 +130,8 @@ def ranking(path,prop,reverse=False):
 def freeze(root,binary):
     panel=read(root/'panel.json')
     modules={}
-    for name in ('etalon.research.pose_task','etalon.research.scientific_input','etalon.research.pose_engine',
-                 'etalon.research.pose_verifier','etalon.research.result_integrity','molcascade.plugins.builtin.docking.common','posebusters'):
+    for name in ('moldarwin.research.pose_task','moldarwin.research.scientific_input','moldarwin.research.pose_engine',
+                 'moldarwin.research.pose_verifier','moldarwin.research.result_integrity','molcat.plugins.builtin.docking.common','posebusters'):
         module=importlib.import_module(name);modules[module.__file__]=identity(module.__file__)
     modules[__file__]=identity(__file__)
     runtime={'python':sys.version,'executable':sys.executable,'rdkit':importlib.metadata.version('rdkit'),

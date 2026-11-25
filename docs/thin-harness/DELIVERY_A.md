@@ -4,7 +4,7 @@
 
 ## 来源与文件
 
-复用 `F:/life_healthy/ETALON` 原 checkout，未 stash/reset/clean，未覆盖暂存区。
+复用 `F:/life_healthy/MolDarwin` 原 checkout，未 stash/reset/clean，未覆盖暂存区。
 现场 `git rev-parse HEAD main origin/main origin/codex/refactor-thin-harness`：
 HEAD 与本地 main 为 `5927aceb346475a6f97550f561e7eb3b291611da`；origin/main 为
 `0af4297fb7de435d858d54195561883a21526d5e`；薄分支远端为
@@ -14,15 +14,15 @@ HEAD 与本地 main 为 `5927aceb346475a6f97550f561e7eb3b291611da`；origin/main
 
 前轮 A 已保留/合入 active 预算、screen exhaustion、campaign generation/drivers/supervisor/sweep、
 preflight 与 screening 的领域修复，本轮在此状态增量实现。保留 research、active/prism.py、
-boundary/prism_v1.py、data/design.py 和五个 molcascade Windows 修复。未改 PRISM 仓库或历史科学证据。
+boundary/prism_v1.py、data/design.py 和五个 molcat Windows 修复。未改 PRISM 仓库或历史科学证据。
 
 本轮主要修改：`active/runner.py`、`active/store.py`；`runtime/api.py`、`schema.py`、`operations.py`、
 `service.py`、`store.py`、`executors.py`、`cli.py`、`README.md`；新增 `tests/test_runtime_actions.py`。
 共享 MCP、打包与公共契约由 I 维护，ResearchJournal 由 B 维护。修改文件按 LF 保持最小差异。
 
-实测解释器 `F:/life_healthy/ETALON/.venv/Scripts/python.exe`，Python 3.13.12；
-`etalon.runtime.api/operations/executors`、`etalon.active.runner/store` 实际从
-`F:/life_healthy/ETALON/src/etalon/` 下对应 `.py` 导入。不是仅记录 Git HEAD。
+实测解释器 `F:/life_healthy/MolDarwin/.venv/Scripts/python.exe`，Python 3.13.12；
+`moldarwin.runtime.api/operations/executors`、`moldarwin.active.runner/store` 实际从
+`F:/life_healthy/MolDarwin/src/moldarwin/` 下对应 `.py` 导入。不是仅记录 Git HEAD。
 
 ## 接口与语义
 
@@ -36,7 +36,7 @@ read_events(log_ref: dict, *, after_sequence: int | dict = 0, limit: int = 100) 
 请求示例：
 
 ```json
-{"schema":"etalon-action/1","request_id":"assess-one","operation":"active.evaluate","arguments":{"database":"F:/task/campaign.sqlite","candidate_id":"one","endpoint_id":"score"},"limits":{"campaign:wall_second":10},"method_use_refs":[]}
+{"schema":"moldarwin-action/1","request_id":"assess-one","operation":"active.evaluate","arguments":{"database":"F:/task/campaign.sqlite","candidate_id":"one","endpoint_id":"score"},"limits":{"campaign:wall_second":10},"method_use_refs":[]}
 ```
 
 示例是字段示意，不是已运行科学请求。prepare 返回绑定、报价、能力限制、恢复入口与 plan_id；submit 返回
@@ -56,7 +56,7 @@ runtime 汇总标 additive=false，未测 overhead=null。既有同 campaign 的
 事件返回 `{events,next_cursor:{log_id,after_sequence},has_more,log_id,log_ref}`；event_ref 为
 `{log_id,sequence,event_type}`，保留 kind/body。campaign 引用 database；runtime 引用 workspace，可按 job_id 限定。
 含日志身份的 cursor 跨日志拒绝；空页不推进到不存在序号，空日志首次追加也保持身份。无事件总线。
-CLI `etalon action prepare|submit|result|events --config ...` 调用同后端，events 支持 `--cursor`。
+CLI `moldarwin action prepare|submit|result|events --config ...` 调用同后端，events 支持 `--cursor`。
 
 普通 hook 不进入事务；result_observer 仍在准入前保存恢复收据，失败不能被普通 hook 吞掉。
 恢复沿原 workflow.reconcile、status/cancel/artifact，不重新执行科学动作。
@@ -70,14 +70,14 @@ CLI `etalon action prepare|submit|result|events --config ...` 调用同后端，
 | `pytest tests/test_runtime_actions.py tests/test_active.py tests/test_runtime_prism_bridge.py -q`（中间组合） | passed：48 | 9 项当时新增动作反例 + 旧 active/bridge 工程回归 |
 | `pytest tests/test_runtime_actions.py -q`（扩展组合） | passed：12 | 加入归因稳定、observer 恢复、confirmation 预算检查 |
 | `pytest tests/test_runtime_actions.py tests/test_runtime_prism_bridge.py tests/test_runtime_executors.py -q -k 'not prism_build_and_drive_forward_process_observer' --basetemp=F:/lh-a-1021` | passed：41；skipped：1；deselected：1 | 新动作13项与旧执行器/bridge；包含真实本地 CPU RDKit molecular-weight计算；排除项明确依赖 POSIX |
-| `pytest tests/test_runtime_actions.py tests/test_active.py tests/test_campaign_integrity.py tests/test_prism_v1.py tests/test_runtime_prism_bridge.py tests/test_design_import.py tests/test_local_windows_cpu_io.py tests/test_campaign.py tests/test_sweep.py -q --basetemp=F:/life_healthy/ETALON/.agent-local/a-final-tests` | passed：404；failed：32 | 30 个 legacy ledger POSIX flock 不支持；1 个 Unix `/tmp` 路径断言在 Windows 不成立；1 个创建 symlink 遇 Windows 1314 权限错误。未删除、改弱或伪称通过 |
-| recovery_audit + 新动作中间组 | passed：31；failed：5；skipped：2；deselected：1 | 4 个旧 reconcile 用例在 POSIX 锁前拒绝；1 个新测试多余的 molcascade 导入已修正并在后续41项组通过。真实 POSIX reconcile 本机仍 not_run |
+| `pytest tests/test_runtime_actions.py tests/test_active.py tests/test_campaign_integrity.py tests/test_prism_v1.py tests/test_runtime_prism_bridge.py tests/test_design_import.py tests/test_local_windows_cpu_io.py tests/test_campaign.py tests/test_sweep.py -q --basetemp=F:/life_healthy/MolDarwin/.agent-local/a-final-tests` | passed：404；failed：32 | 30 个 legacy ledger POSIX flock 不支持；1 个 Unix `/tmp` 路径断言在 Windows 不成立；1 个创建 symlink 遇 Windows 1314 权限错误。未删除、改弱或伪称通过 |
+| recovery_audit + 新动作中间组 | passed：31；failed：5；skipped：2；deselected：1 | 4 个旧 reconcile 用例在 POSIX 锁前拒绝；1 个新测试多余的 molcat 导入已修正并在后续41项组通过。真实 POSIX reconcile 本机仍 not_run |
 | `pytest tests/test_runtime_actions.py tests/test_active.py tests/test_runtime_prism_bridge.py tests/test_research_preparation.py tests/test_research_journal.py -q --basetemp=F:/lh-a-resource-1021`（最终同账本修复后） | passed：72 | 新动作14项，含历史非标量失败费用+新动作不重复累加及未结预留拒绝；旧 active/bridge/preparation/journal 回归 |
 | `git diff --check`（A 本轮修改文件） | passed | 无空白错误 |
 
 初次旧 executor 组另有 62 passed、2 failed、1 skipped：真实 CPU 测试在默认 Windows 长临时根触发
-artifact 安全路径检查；原样源码改短 `--basetemp=F:/life_healthy/ETALON/.agent-local/a-cpu-check` 后该测试
-**1 passed**，随后 F:/lh-a-1021 再通过。molcascade/artifacts/store.py 与共同基线逐字节一致，SHA256
+artifact 安全路径检查；原样源码改短 `--basetemp=F:/life_healthy/MolDarwin/.agent-local/a-cpu-check` 后该测试
+**1 passed**，随后 F:/lh-a-1021 再通过。molcat/artifacts/store.py 与共同基线逐字节一致，SHA256
 `1e4c6b8e596f8f09ba0562b24236f7d6dada29cb4f0866f78966d927dc951abb`；没有降低 artifact 完整性。
 另一失败是 PRISM process-group 转发用例要求 POSIX，在 Windows 明确拒绝。
 
@@ -104,7 +104,7 @@ prepare.capabilities 明示不支持原因。没有新增后台 agent 主循环�
 用户本轮授权仅覆盖既有资源中的隔离便宜 CPU 工程 fixture，R4b、真实 PRISM 评分、科学收益验证仍未运行。
 
 环境与来源：先复用既有连接器认证只读核对 `root@36.137.130.140:30000` / `instance-3l3cihf6`；未发现相关活动任务后，创建独立
-`/root/zx/prism-minimal-20261017/engineering/etalon-thin-native-20261021-01`。实际解释器为其中
+`/root/zx/prism-minimal-20261017/engineering/moldarwin-thin-native-20261021-01`。实际解释器为其中
 `env/bin/python`，Python 3.11.17。新环境只读引用旧 env site-packages，并设置
 `LD_LIBRARY_PATH=/root/zx/prism-minimal-20261017/env/lib`；只在新 env 补装固定版本
 pyarrow 25.0.1、openpyxl 3.1.5、et_xmlfile 2.0.0，没有升级共享基础依赖。
@@ -199,36 +199,36 @@ progress 和 calibration 构造 Screen/LocalRunner/ArtifactStore 时会补目录
 新增最小只读入口，I 将相关 MCP 转为薄调用，B 的校准算法不复制、不改义：
 
 ```python
-from etalon.campaign.sweep import read_sweep_status
+from moldarwin.campaign.sweep import read_sweep_status
 read_sweep_status(pool, *, batch_size=DEFAULT_BATCH_SIZE) -> dict
 
-from etalon.boundary.screen import Screen
+from moldarwin.boundary.screen import Screen
 Screen.read_state(workspace, run_id) -> ScreenResult | None
 Screen.read_progress(workspace, run_id) -> dict
 Screen.open_existing(workspace, *, infra=None) -> Screen
 ```
 
-`read_sweep_status` 保留旧 state 形状；只读事务在一个快照内读取计数，旧缺 gate/etalon 列投影 null，
+`read_sweep_status` 保留旧 state 形状；只读事务在一个快照内读取计数，旧缺 gate/moldarwin 列投影 null，
 不做 schema/index 迁移，缺库与不支持 schema 明确拒绝。SQLite `mode=ro` 仍使用真实读锁并读取最新 WAL；
 允许共享内存 SHM 的读锁簿记变化，不声称全部 SQLite sidecar 字节绝对不变，不用 immutable 忽略活动 WAL。
 测试对比 schema/科学行/主库/WAL；不存在路径查询无目录/数据库/sidecar 创建。
 
 `Screen.open_existing` 返回 read_only 适配器，缺工作区拒绝；recall、parent_names、artifacts_carrying、read
 复用既有算法与原验证，run/export_shortlist/with_handoff 明确拒绝写入。
-MolCascade 既有 LocalRunner/LocalArtifactStore/LocalStageCache 增加默认 True 的 `create` 参数；
+MolCat 既有 LocalRunner/LocalArtifactStore/LocalStageCache 增加默认 True 的 `create` 参数；
 只读组合传 False，不补建缺失目录，不完整旧布局明确拒绝而不修复。
 `read_run_state` 是原 load_run 规范 JSON/尺寸/身份校验的提取，旧 load_run 复用同一实现；
 不是另造运行器、事件总线或第二本账本。I 已登记本轮额外 artifacts/store.py 唯一归 A。
 
 实际修改仅：`boundary/screen.py`、`campaign/sweep.py`、
-`asset/molcascade/src/molcascade/{runtime/runner.py,runtime/cache.py,artifacts/store.py}`，
+`asset/molcat/src/molcat/{runtime/runner.py,runtime/cache.py,artifacts/store.py}`，
 新增 `tests/test_function_capabilities.py`；共享 MCP 归 I、校准归 B、产品 skill 与原生宿主归 C。
 原 Windows 路径/缓存修复保留。回退应按本轮 baseline 逐文件差量处理，不覆盖其他线或 reset/clean。
 
 ### 实测与保留的失败
 
-实际解释器 `F:/life_healthy/ETALON/.venv/Scripts/python.exe`，Python 3.13.12；
-ETALON 从 checkout/src/etalon 导入，MolCascade 从 checkout/asset/molcascade/src/molcascade 导入。
+实际解释器 `F:/life_healthy/MolDarwin/.venv/Scripts/python.exe`，Python 3.13.12；
+MolDarwin 从 checkout/src/moldarwin 导入，MolCat 从 checkout/asset/molcat/src/molcat 导入。
 精确路径和 SHA：`integration/thin-harness-functions-20261021/a/final-v2-imports.json`；
 与基线逐文件比较：`a/source-comparison.json`。
 
@@ -271,7 +271,7 @@ FM-05/07/08 结论仅针对上述可独立调用与停止/换法/只读边界，
 
 C 原生调用 120 秒超时、I 独立 fresh MCP 20 秒超时后，B 定位栈停在
 SciPy→NumPy 冷导入 create_module；共享数值环境根因未建立，不将其说成 NumPy 本身已修复。
-I 登记本次额外 `src/etalon/generate/audit.py`、`tests/test_generation_audit.py` 归 A。
+I 登记本次额外 `src/moldarwin/generate/audit.py`、`tests/test_generation_audit.py` 归 A。
 原超时、旧源码和包保留于 I/C/B 本轮证据，不升级或重新安装共享依赖。
 
 Wilson 原公式只需要一个标量标准正态分位数。现在以标准库
@@ -308,14 +308,14 @@ I 已另行完成真实 fresh stdio MCP 的零预加载启动、产率请求及�
 
 新 [test_optional_campaign_methods.py](../../tests/test_optional_campaign_methods.py) 4 项：
 
-- 真实 MolCascade/RDKit featurization 和 `ParameterChange.judge` 只用合成 40 行开发 panel：常数对常数返回 within_noise；调用者据此换可见的合成 prefix ranker，得到 accepted 后停止。Campaign / Screen 构造及 Supervisor.tick 被 spy 拒绝，临时目录无产物；旧 proposal 保持不变。这只是方法可选和换法能力，不是新算法收益。
+- 真实 MolCat/RDKit featurization 和 `ParameterChange.judge` 只用合成 40 行开发 panel：常数对常数返回 within_noise；调用者据此换可见的合成 prefix ranker，得到 accepted 后停止。Campaign / Screen 构造及 Supervisor.tick 被 spy 拒绝，临时目录无产物；旧 proposal 保持不变。这只是方法可选和换法能力，不是新算法收益。
 - 空候选 `Acquisition.propose` 在 fit 前明确拒绝，原 `as_loop_acquirer` 的空候选返回 None 保持；非空 surrogate 拟合本轮未运行。
 - `Pipeline(stages=("fixture-validity",))` 只采用一个自定义 stage，不运行生成或默认其他 stage；请求缺失昂贵 stage 的预算明确拒绝，随后可停止。
 - 显式构造的既有 Supervisor 在 `generators=()` 时可只读 state/productivity，不调用 tick、不启动 Screen；1/2 尾批仍报告 `unscreened_remainder=1`，不是把 complete 解释成全筛完。查询后池行相同、无 ledger 文件。缺 gate 的 flush 仍抛真实 NotAuthorized，未弱化为 no-op。
 
 Supervisor / Campaign 的构造本身仍会创建显式运行工作目录，Sweep 构造仍初始化池；**本轮不把它们宣称为只读构造入口**。通用只读监控继续使用已经验收的 `read_sweep_status` / `Screen.read_progress`。MCP 没有把旧 Campaign / Supervisor 作为独立查询和建议的前置。
 
-最终针对性命令（实际 `.venv/Scripts/python.exe`，Python 3.13.12；etalon 和四个 campaign 模块均从本 checkout `src/etalon` 导入）：
+最终针对性命令（实际 `.venv/Scripts/python.exe`，Python 3.13.12；moldarwin 和四个 campaign 模块均从本 checkout `src/moldarwin` 导入）：
 
 ```text
 python -m pytest tests/test_optional_campaign_methods.py tests/test_campaign.py::test_the_panel_scored_change_does_not_claim_a_holdout_it_did_not_take tests/test_campaign.py::test_the_panel_cannot_resolve_a_small_improvement tests/test_campaign.py::test_too_few_positives_is_underpowered_rather_than_a_verdict -q
@@ -331,9 +331,9 @@ python -m pytest tests/test_optional_campaign_methods.py tests/test_campaign.py:
 
 I 在本轮 pre-native 源封口后要求补一个有区分力的非空 acquisition 案例，追加于同一 [test_optional_campaign_methods.py](../../tests/test_optional_campaign_methods.py)。**测试和本节晚于 pre-native 快照，不宣称已包含在该原生受测源码里；产品源码未因本追加而改动。**
 
-使用 36 个明确合成 SMILES / 人工 affinity（6 个不同 scaffold，每类 6 行），真实运行 `Acquisition.propose` 的 MolCascade featurization、400-tree surrogate fit、五折 grouped cross-conformal calibration 及四候选中的二个选择。未替代数值函数、无历史标签。Campaign、Supervisor、Screen、Ledger 的构造被 spy 拒绝；返回 Proposal 后直接停止，候选未变且临时目录无文件。`act=spend/autonomy=acted_on` 是既有提案元信息，不是实际执行或已支付证明。
+使用 36 个明确合成 SMILES / 人工 affinity（6 个不同 scaffold，每类 6 行），真实运行 `Acquisition.propose` 的 MolCat featurization、400-tree surrogate fit、五折 grouped cross-conformal calibration 及四候选中的二个选择。未替代数值函数、无历史标签。Campaign、Supervisor、Screen、Ledger 的构造被 spy 拒绝；返回 Proposal 后直接停止，候选未变且临时目录无文件。`act=spend/autonomy=acted_on` 是既有提案元信息，不是实际执行或已支付证明。
 
-既有隔离 overlay `ETALON/.agent-local/native-b-deps-20261021` 通过本次新 Python 进程的 `sys.path` 复用，没有 pip 安装或共享环境升级。实际解释器仍为 `.venv/Scripts/python.exe` 3.13.12；sklearn 1.9.1、joblib 1.6.0 来自该 overlay，NumPy 2.5.4、SciPy 1.18.1、RDKit 2026.9.1 来自原共享 .venv。仅该测试子进程设置 `LOKY_MAX_CPU_COUNT=2` 限制便宜 CPU 工作，算法树数/默认策略未改。
+既有隔离 overlay `MolDarwin/.agent-local/native-b-deps-20261021` 通过本次新 Python 进程的 `sys.path` 复用，没有 pip 安装或共享环境升级。实际解释器仍为 `.venv/Scripts/python.exe` 3.13.12；sklearn 1.9.1、joblib 1.6.0 来自该 overlay，NumPy 2.5.4、SciPy 1.18.1、RDKit 2026.9.1 来自原共享 .venv。仅该测试子进程设置 `LOKY_MAX_CPU_COUNT=2` 限制便宜 CPU 工作，算法树数/默认策略未改。
 
 命令为在新进程置上述 overlay 后调用 `pytest.main(["tests/test_optional_campaign_methods.py::test_nonempty_acquisition_fits_local_synthetic_panel_and_only_returns_advice", "-q", "-s", "--junitxml=.../acquisition-first.xml"])`。首次实际运行 **1 passed in 8.15s**，没有失败重试；完整真实 proposal、依赖版本/路径、源码 SHA 见 [日志](../../../integration/thin-harness-research-20261021/a/acquisition-first.log)、[运行元数据](../../../integration/thin-harness-research-20261021/a/acquisition-first.json)、[JUnit](../../../integration/thin-harness-research-20261021/a/acquisition-first.xml)。[事后检查](../../../integration/thin-harness-research-20261021/a/acquisition-postcheck.json)确认共享解释器仍找不到 sklearn，产品源码哈希不变。
 
@@ -341,7 +341,7 @@ I 在本轮 pre-native 源封口后要求补一个有区分力的非空 acquisit
 
 ## 2026-10-21 再接续：research 首段到可靠执行内核的真实接缝
 
-本轮共同起点 `integration/thin-harness-research-use-20261021/baseline.zip`，1178 文件，SHA256 `089c4589259232649bc6659e296441efb3578c4bcff2c93da7754eb15e9459e2`。A 只新增 [test_research_execution_seams.py](../../tests/test_research_execution_seams.py)、本轮 a/ 工程证据及本节；`research/runtime.py` 由 B 唯一修复，A 没有跨线改实现。旧来源、dirty/untracked、科学身份、molcascade 修复和 R4b 暂停边界不变。
+本轮共同起点 `integration/thin-harness-research-use-20261021/baseline.zip`，1178 文件，SHA256 `089c4589259232649bc6659e296441efb3578c4bcff2c93da7754eb15e9459e2`。A 只新增 [test_research_execution_seams.py](../../tests/test_research_execution_seams.py)、本轮 a/ 工程证据及本节；`research/runtime.py` 由 B 唯一修复，A 没有跨线改实现。旧来源、dirty/untracked、科学身份、molcat 修复和 R4b 暂停边界不变。
 
 发现并交 B 的两个真实缺陷：
 
@@ -352,7 +352,7 @@ I 在本轮 pre-native 源封口后要求补一个有区分力的非空 acquisit
 
 另外真实调用原 `runtime.service.plan` 核对消费边界：普通合成 readout JSON 可以通过 workflow schema 编译，但作为 design bundle 在真实 plan 阶段明确拒绝，故 compiled_not_executed 绝不是“已可执行”。在新隔离目录复制已有 `tests/fixtures/prism_design_bundle_v1` 工程夹具后，同一个首段编译结果可交给原 runtime.plan，真实绑定 **27 个源文件哈希、1 个节点**；重放 plan 相同，没有 import、candidate、科学 label、submit 或 worker。本例复用历史工程结构夹具，不能宣称新的科学输入或未见科学验证。
 
-持久重现入口：[run_evidence.py](../../../integration/thin-harness-research-use-20261021/a/run_evidence.py)、[RESULT.json](../../../integration/thin-harness-research-use-20261021/a/RESULT.json)、[evidence-run.log](../../../integration/thin-harness-research-use-20261021/a/evidence-run.log)。实际解释器为本地 `.venv/Scripts/python.exe` 3.13.12，research.runtime/journal、runtime.service/operations、data.design 均从本 checkout `src/etalon` 导入，精确路径/hash 已记 RESULT。该持久脚本约 .958253 wall_second，仅本次局部工程处理开销；spent=.25/reserved=2 是原合成夹具声明值，不是实测科学费用。
+持久重现入口：[run_evidence.py](../../../integration/thin-harness-research-use-20261021/a/run_evidence.py)、[RESULT.json](../../../integration/thin-harness-research-use-20261021/a/RESULT.json)、[evidence-run.log](../../../integration/thin-harness-research-use-20261021/a/evidence-run.log)。实际解释器为本地 `.venv/Scripts/python.exe` 3.13.12，research.runtime/journal、runtime.service/operations、data.design 均从本 checkout `src/moldarwin` 导入，精确路径/hash 已记 RESULT。该持久脚本约 .958253 wall_second，仅本次局部工程处理开销；spent=.25/reserved=2 是原合成夹具声明值，不是实测科学费用。
 
 本轮没有绕开执行内核的预算/单位/准入或原 Linux /proc worker 限制。`compile_first_segment` 的 operation mapping 仍是调用方显式提供的绑定，不自动认证它与科学 primitive 的等价；编译、真实 runtime 输入计划、实际执行和科学准入分别记录。本轮到 **compiled + runtime-planned** 为止，worker/实际科学计算未运行。普通模型成本单位不能因 active.evaluate 需要 campaign 前缀就暗中改写；最终预算/注册执行器校验仍属原执行内核。
 
@@ -371,7 +371,7 @@ from examples.local_sdk_batch import read_action_results
 summary = read_action_results(handles, "new-output-directory")
 ```
 
-其中 `handles` 为现有 `submit_action` 返回的完整 `etalon-action-handle/1` 对象列表；在仓库根目录可直接导入示例，也可运行：
+其中 `handles` 为现有 `submit_action` 返回的完整 `moldarwin-action-handle/1` 对象列表；在仓库根目录可直接导入示例，也可运行：
 
 ```text
 python examples/local_sdk_batch.py --handles handles.json --output new-output-directory
@@ -387,22 +387,22 @@ python examples/local_sdk_batch.py --handles handles.json --output new-output-di
 
 最终 **2 passed in 1.55s**：[final-v2.log](../../../integration/thin-harness-efficiency-20261021/i/a/final-v2.log)、[JUnit](../../../integration/thin-harness-efficiency-20261021/i/a/final-v2.xml)。[first.log](../../../integration/thin-harness-efficiency-20261021/i/a/first.log) 的原 2 failures 保留：测试夹具手写 action workflow 缺少强制 action_binding，契约正确拒绝；修夹具改用真实 `api.prepare_action`，没有放松生产校验。中间 second/final 记录也原样保留。
 
-实际 CLI 运行材料：[RESULT.json](../../../integration/thin-harness-efficiency-20261021/i/a/RESULT.json)、[输入 handles](../../../integration/thin-harness-efficiency-20261021/i/a/handles.json)、[摘要](../../../integration/thin-harness-efficiency-20261021/i/a/batch-summary.json)、`i/a/batch-originals/` 完整原件。真实解释器为 `.venv/Scripts/python.exe` 3.13.12，api 从 checkout `src/etalon/runtime/api.py` 导入，路径/hash 和示例 hash 记录在 RESULT。独立 CLI 约 .517480 wall_second；摘要 7344 UTF-8 bytes、完整原件共 88016 bytes。原件特意带人工长说明，因此**这组字节数只是可压缩和可展开能力检查，不是代表性真实工作负载性能、宿主 token 收益、G1/G2 对照或 S/φ/G 改善**。
+实际 CLI 运行材料：[RESULT.json](../../../integration/thin-harness-efficiency-20261021/i/a/RESULT.json)、[输入 handles](../../../integration/thin-harness-efficiency-20261021/i/a/handles.json)、[摘要](../../../integration/thin-harness-efficiency-20261021/i/a/batch-summary.json)、`i/a/batch-originals/` 完整原件。真实解释器为 `.venv/Scripts/python.exe` 3.13.12，api 从 checkout `src/moldarwin/runtime/api.py` 导入，路径/hash 和示例 hash 记录在 RESULT。独立 CLI 约 .517480 wall_second；摘要 7344 UTF-8 bytes、完整原件共 88016 bytes。原件特意带人工长说明，因此**这组字节数只是可压缩和可展开能力检查，不是代表性真实工作负载性能、宿主 token 收益、G1/G2 对照或 S/φ/G 改善**。
 
 费用 1.25/预留 2 均是合成声明值，不冒称实测科学成本；未运行真实 worker、科学评分、CRO、R4b 计算或独立收益评价。未升级共享依赖、提交或推送。C 已收到准确接口和可复制到新隔离位置的句柄夹具；产品 reference/原生使用由 C，V 独立判定。
 
 ## I2 全量方法接续：数据与独立操作（2026-10-21）
 
 A `/root/a_data_operations` 完成已分配产品内容，生产算法未改。
-新增 [data-design](../../.claude/skills/etalon-data-design/SKILL.md) 及三个按需 references：
-九个 `etalon_data_*` 的实际 SDK/参数/副作用，design
-`read_bundle/import_bundle/verify_import/design_index`，六个原 MolQuarry 方法与
-ETALON 适配。候选、测定、Astra 假设、坐标和准备身份分开；没有声称完整 Astra 标注学习闭环。
+新增 [data-design](../../.claude/skills/moldarwin-data-design/SKILL.md) 及三个按需 references：
+九个 `moldarwin_data_*` 的实际 SDK/参数/副作用，design
+`read_bundle/import_bundle/verify_import/design_index`，六个原 MolOrigin 方法与
+MolDarwin 适配。候选、测定、Astra 假设、坐标和准备身份分开；没有声称完整 Astra 标注学习闭环。
 
-已有 [screening-sweep](../../.claude/skills/etalon-screening-sweep/SKILL.md)、
-[gate-calibration](../../.claude/skills/etalon-gate-calibration/SKILL.md)、
-[generation-planning](../../.claude/skills/etalon-generation-planning/SKILL.md)、
-[install](../../.claude/skills/etalon-install/SKILL.md) 增加具体局部 references：
+已有 [screening-sweep](../../.claude/skills/moldarwin-screening-sweep/SKILL.md)、
+[gate-calibration](../../.claude/skills/moldarwin-gate-calibration/SKILL.md)、
+[generation-planning](../../.claude/skills/moldarwin-generation-planning/SKILL.md)、
+[install](../../.claude/skills/moldarwin-install/SKILL.md) 增加具体局部 references：
 显式组件配置/plan/status/export，sweep 七类单独操作，separation/enrichment 的真实
 行输入，产率/可选 funnel/tuning/资源平衡，以及 infrastructure/doctor/devices 和宿主导出。
 现有 monitoring 已有实际批读方法，本轮复用不复制。既有 finite/paired/factorial 未重做。
@@ -416,7 +416,7 @@ ETALON 适配。候选、测定、Astra 假设、坐标和准备身份分开；�
 properties-only 配置冻结及真实 plan 后停止，没有启动 worker。它是 source example，
 不宣称 wheel 自动提供 examples 命令；安装用户可以直接用 references 的 SDK 调用。
 
-实际命令（`.venv/Scripts/python.exe`，3.13.12，工作目录 ETALON）：
+实际命令（`.venv/Scripts/python.exe`，3.13.12，工作目录 MolDarwin）：
 
 ```powershell
 & .venv/Scripts/python.exe examples/data_design_methods.py --output ../integration/thin-harness-skills-20261021/a/sdk-run-02 --bundle tests/fixtures/prism_design_bundle_v1/bundle.json
@@ -439,7 +439,7 @@ SHA256 `2b7c7bc1221448ada565c03a041ffa079b6adc0503a973e3b32591ea3f1e3602`；
 
 [现场检查](../../../integration/thin-harness-skills-20261021/a/inspection.json)
 SHA256 `f54ba3b90557520a7d9ca66b16a097c92be45793305cb42c953fbcf356bc67cb` 记录实际
-模块路径/hash、依赖和设备快照；16 个保护文件（MolQuarry 10 源文件及 6 个生产模块）
+模块路径/hash、依赖和设备快照；16 个保护文件（MolOrigin 10 源文件及 6 个生产模块）
 对 I 本轮 baseline 全部字节未变。诊断显示 planning/active/cascade/quarry/mcp 可用，
 可选 PRISM build tools 未探测；此结论不覆盖模拟、框架 GPU 可执行性或资源所有权。
 

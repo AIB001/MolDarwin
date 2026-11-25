@@ -1,13 +1,13 @@
 # Optional scientific input qualification
 
-`etalon.research.input_qualification` reads frozen molecular inputs into a
-source-bound `etalon-input-qualification/1` report. It uses the existing
-`etalon-scientific-input/1` envelope, ordinary `Artifact`, evidence workspace and
+`moldarwin.research.input_qualification` reads frozen molecular inputs into a
+source-bound `moldarwin-input-qualification/1` report. It uses the existing
+`moldarwin-scientific-input/1` envelope, ordinary `Artifact`, evidence workspace and
 `ResearchJournal`; it creates no journal, endpoint, execution service or gate.
 Existing `compile_input` callers continue unchanged. Consumers opt in explicitly.
 
 ```python
-from etalon.research.input_qualification import (
+from moldarwin.research.input_qualification import (
     build_input_qualification, write_input_qualification, read_input_qualification,
 )
 
@@ -105,7 +105,7 @@ verifier. The old unknown endpoints are retained. Local RDKit reanalysis is
 reported with its actual version; it is not replication of the historical Linux
 runtime or independent scientific validation.
 
-`etalon-input-qualification/1` is an Artifact **payload** schema. It is not a new
+`moldarwin-input-qualification/1` is an Artifact **payload** schema. It is not a new
 typed research record and need not be added to evidence content projection or
 global schema dispatch. Its ordinary Artifact bindings carry the source refs;
 the dedicated reader validates the payload when an interested consumer asks.

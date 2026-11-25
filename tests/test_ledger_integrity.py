@@ -10,7 +10,7 @@ from threading import Event
 
 import pytest
 
-from etalon.campaign.ledger import Entry, Ledger
+from moldarwin.campaign.ledger import Entry, Ledger
 
 
 def _process_writer_holding_lock(path, ready, release, outcome):

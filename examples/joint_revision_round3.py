@@ -8,16 +8,16 @@ import argparse
 import json
 from pathlib import Path
 import sys
-from etalon.active import CampaignSpec, CampaignStore, Endpoint
-from etalon.active.schema import canonical,digest
-from etalon.boundary.prism_v1 import CLITransport,file_identity
-from etalon.research import Artifact,ResearchJournal
-from etalon.research.pose import PoseClient,measurement_methods
-from etalon.research.panel import (PanelSpec,freeze_panel,record_cell,summarize_panel,
+from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+from moldarwin.active.schema import canonical,digest
+from moldarwin.boundary.prism_v1 import CLITransport,file_identity
+from moldarwin.research import Artifact,ResearchJournal
+from moldarwin.research.pose import PoseClient,measurement_methods
+from moldarwin.research.panel import (PanelSpec,freeze_panel,record_cell,summarize_panel,
     choose_development_policy,preparation_contrast,propose_joint_revision,freeze_selection,
     execute_frozen_policies)
-from etalon.research.controller import register_controller,next_segment,independent_feedback
-from etalon.research.validation import attach_decision_validation
+from moldarwin.research.controller import register_controller,next_segment,independent_feedback
+from moldarwin.research.validation import attach_decision_validation
 
 DEVELOPMENT='t4-phenol-catechol-development'
 VALIDATION='t4-ortho-substituent-transfer-v1'
@@ -117,7 +117,7 @@ def initialize(a):
                                    source_evidence=tuple(refs),mode='audit_then_compare')
     static=register_controller(journal,name='phi0-static-schedule-control',schedule=schedule,
                                source_evidence=tuple(refs),mode='static_schedule')
-    result={'schema':'etalon-r3b-initialization/1','panels':panels,'controller_id':controller,
+    result={'schema':'moldarwin-r3b-initialization/1','panels':panels,'controller_id':controller,
             'static_controller_id':static,'static_controller_execution':'not_separately_run',
             'phi_learned':False,'evidence':refs,'development_labels':str(a.development_labels.resolve()),
             'protocol':str(a.protocol.resolve()),'amendment':str(a.amendment.resolve()),
@@ -193,7 +193,7 @@ def freeze(a):
     frozen=freeze_selection(journal,development_panel_id=panel_id,selection=selection,
         revision_receipt=revision,validation_panel_id=init['panels']['validation']['panel_id'],
         validation_request_sha256s=tuple(r['request_semantic_sha256'] for r in init['panels']['validation']['records']))
-    assessment={'schema':'etalon-development-diagnostic-assessment/1','panel_id':panel_id,
+    assessment={'schema':'moldarwin-development-diagnostic-assessment/1','panel_id':panel_id,
         'evidence':list(refs),'proxy_scorer_conflicts':{p:panel['policies'][p+'/E0']['selected_candidate']!=panel['policies'][p+'/E1']['selected_candidate'] for p in ('P0','P1')},
         'experimental_order_losses':losses,'hypotheses':['preparation_seed_or_pose_policy','evaluator_proxy_mismatch',
             'receptor_or_solvent_omission','chemical_state_error','outside_model'],
@@ -219,7 +219,7 @@ def predictions(a):
         receipt=read(path);evidence_paths.append(Path(receipt['result_path']))
         for s in receipt['slots']:
             if s['raw']:evidence_paths.append(Path(receipt['result_path']).parent/s['raw']['path'])
-    summary={'schema':'etalon-r3b-predictions/1','task_id':VALIDATION,
+    summary={'schema':'moldarwin-r3b-predictions/1','task_id':VALIDATION,
              'candidate_ids':list(journal.get(panel['panel_id'])['candidates']),
              'policies':{p:{**row,'decision_status':decision_status(row)} for p,row in panel['policies'].items()},
              'frozen_selected_policy':frozen['selection']['selected_workflow'],

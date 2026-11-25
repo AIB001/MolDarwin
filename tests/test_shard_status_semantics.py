@@ -1,6 +1,6 @@
 """A partial directory inventory is never the declared size of a run."""
-from molcascade.parallel.shards import shard_progress_counts
-from molcascade.parallel.progress import write_progress
+from molcat.parallel.shards import shard_progress_counts
+from molcat.parallel.progress import write_progress
 
 
 def test_missing_plan_is_unknown_even_with_completed_and_active_directories(tmp_path):
@@ -18,9 +18,9 @@ def test_missing_plan_is_unknown_even_with_completed_and_active_directories(tmp_
 
 def test_cli_displays_unknown_instead_of_a_partial_total(tmp_path, capsys):
     from datetime import datetime, timezone
-    from molcascade import cli
-    from molcascade.runtime.cache import checkpoint_directory_name
-    from molcascade.runtime.models import StageRunState, StageRunStatus, RunState, RunStatus
+    from molcat import cli
+    from molcat.runtime.cache import checkpoint_directory_name
+    from molcat.runtime.models import StageRunState, StageRunStatus, RunState, RunStatus
     key = 'cache:sha256:' + 'b'*64
     checkpoint = tmp_path/checkpoint_directory_name(key)
     checkpoint.mkdir()

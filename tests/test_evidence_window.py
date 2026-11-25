@@ -4,14 +4,14 @@ import json
 
 import pytest
 
-from etalon.active.schema import digest
-from etalon.research import Artifact, MethodVersion, TaskSplit
-from etalon.research import evidence_window as ew
-from etalon.research import research_decision as rd
-from etalon.research.components import record_json
-from etalon.research.composition import node_step
-from etalon.research.evidence_refs import EvidenceError, file_identity
-from etalon.research.method_revision import journal_ref
+from moldarwin.active.schema import digest
+from moldarwin.research import Artifact, MethodVersion, TaskSplit
+from moldarwin.research import evidence_window as ew
+from moldarwin.research import research_decision as rd
+from moldarwin.research.components import record_json
+from moldarwin.research.composition import node_step
+from moldarwin.research.evidence_refs import EvidenceError, file_identity
+from moldarwin.research.method_revision import journal_ref
 from test_research_continuation import case, publish, save, step
 
 
@@ -281,8 +281,8 @@ def test_retained_original_freezes_exact_identity_without_claiming_no_prior_host
 
 
 def test_distinct_members_of_one_envelope_keep_distinct_visibility(tmp_path):
-    from etalon.data.artifacts import seal
-    from etalon.research.evidence import query_evidence, read_evidence
+    from moldarwin.data.artifacts import seal
+    from moldarwin.research.evidence import query_evidence, read_evidence
     from test_evidence_query import publish as publish_manifest
     directory = tmp_path / "members"
     directory.mkdir()
