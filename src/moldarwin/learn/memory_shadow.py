@@ -233,16 +233,28 @@ def free_to_shadow(
 ) -> ShadowReport:
     """The largest subset of ``candidates`` that costs no verdict, checked by recomputation.
 
-    Greedy and then verified: the nodes nothing relies on are taken first, and the result is put
-    back through :func:`check_shadow`. The verification is not a formality -- dropping a set can
-    move a verdict that dropping each member alone does not, because a node with two premises
+    Greedy and then verified: the nodes nothing relies on are taken first, and every candidate set
+    is put back through :func:`check_shadow`. The verification is not a formality -- dropping a set
+    can move a verdict that dropping each member alone does not, because a node with two premises
     keeps its floor until both are gone.
+
+    Returning an empty-but-safe shadow is a legitimate answer, and so is being handed candidates
+    that turn out to be every node in the graph. Neither is an error here, whereas
+    :func:`check_shadow` refuses the latter outright -- a caller who asks "what may I drop" is
+    asking a question, where a caller who says "drop all of this" is making a claim.
     """
 
-    probe = check_shadow(graph, bindings, shadow=candidates, labels=labels)
-    if probe.safe:
-        return probe
-    keep = list(probe.free)
+    present = {node["node_id"] for node in validate_research_graph(graph)["nodes"]}
+    keep = [node_id for node_id in dict.fromkeys(candidates) if node_id in present]
+    dropped = [node_id for node_id in dict.fromkeys(candidates) if node_id not in present]
+    if dropped:
+        raise ValueError(
+            f"candidates name {len(dropped)} node(s) absent from the graph "
+            f"({', '.join(dropped[:5])}). Rebuild the view and re-propose.")
+    # Never the whole graph: a view with nothing in it answers no question, and `check_shadow`
+    # refuses it. Drop the last candidate rather than the caller's whole request.
+    if keep and set(keep) == present:
+        keep = keep[:-1]
     while keep:
         report = check_shadow(graph, bindings, shadow=keep, labels=labels)
         if report.safe:

@@ -53,9 +53,22 @@ more than one receptor is worth carrying.
 
 ## Defining the site, which the code will not guess for you
 
-`TargetConfig` accepts exactly **one** site definition. Supplying two raises
-`DOCKING_TARGET_SITE_AMBIGUOUS`; supplying none raises
-`DOCKING_TARGET_SITE_REQUIRED`. The three forms:
+The site can be given three ways, and the rules differ depending on where you
+supply it.
+
+`TargetConfig` itself requires **at least one** and refuses two site *files*
+(`reference_ligand_path` and `pocket_path` together) with a plain `ValueError`.
+A box **alongside** one file is the ordinary resolved state, not a
+contradiction: `resolve_target` derives the box from the file so that engines
+reading six numbers and an engine reading a ligand search the same volume.
+
+At the CLI and `merge_target` boundary the rule is stricter and the errors are
+coded: naming the site more than once across `--reference-ligand`, `--pocket`
+and `--box` raises `DOCKING_TARGET_SITE_AMBIGUOUS`, and a receptor with no site
+at all raises `DOCKING_TARGET_SITE_REQUIRED`. Those codes come from
+`merge_target`, not from `TargetConfig`'s own validator.
+
+The three forms:
 
 - `reference_ligand_path` -- a co-crystal ligand used purely as a ruler.
   `box_from_structure` takes the smallest axis-aligned box over its atoms and

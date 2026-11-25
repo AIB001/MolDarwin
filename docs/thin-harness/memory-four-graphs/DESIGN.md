@@ -4,7 +4,7 @@
 
 **状态（2026-11-25 按代码核对，取代原来的"尚未实现"）。** 本文多数条目已落地，少数仍是设计名称，另有两处与代码不符，现按实测改写。核对方法是读 `src/moldarwin/`，不是读本目录的其他文档。
 
-已实现：E/J/X/R 节点与 8 种有类型的边（`research/graph_memory.py:25,44`，`validate_research_graph`、`build_research_graph`）、MCP 工具 `moldarwin_research_graph`（`mcp/evidence.py:354`）、`moldarwin-research-step/1`（`research/continuation.py:26`）、`moldarwin-research-handoff/1` 及其 plan/export/verify/relocate（`research/handoff.py`）、显式 schema 校验与投影（`research/evidence.py:95`）、带类型的关系遍历与反向依赖索引（`research/declared_relations.py:58,114`）、事件去重 handler（`research/research_hooks.py:284-293,328`）、前沿重建（`research/research_context.py:21,33`）与过期检测（`research/handoff.py:672`，`research/evidence.py:483`）。
+已实现：E/J/X/R 节点与 8 种有类型的边（`research/graph_memory.py:25,44`，`validate_research_graph`、`build_research_graph`）、MCP 工具 `moldarwin_research_graph`（`mcp/evidence.py:354`）、`moldarwin-research-step/1`（`research/continuation.py:26`）、`moldarwin-research-handoff/1` 及其 plan/export/verify/relocate（`research/handoff.py`）、显式 schema 校验与投影（`research/evidence.py:95`）、带类型的关系遍历与反向依赖索引（`research/declared_relations.py:58,114`）、事件去重 handler（`research_hooks.py:284,328`）、前沿重建（`research/research_context.py:21,33`）与过期检测（`research/handoff.py:672`，`research/evidence.py:486`）。
 
 **四图是一次读取时的投影，不是四个存储。** 这一点比"关系视图"更强，必须写明：所有研究记录存在 `CampaignStore` 的单张 `metadata` 表里（前缀 `research:`，`research/journal.py:16`）；节点的 `kind` 在投影时由 `research/graph_memory.py:188` 一行三元表达式按 `operation` 与 `record_type` 推断，**不落盘、无索引、不能作为查询条件**（`research/evidence.py:17` 的 `FILTERS` 里没有 kind）。代码自己在每个节点盖 `kind_basis: "legacy_record_semantics_inferred"`，即"由旧记录语义推断"。其中 `E` 是该三元链的 `else` 兜底：凡不是 result/observation/judgment/node/plan/experiment 的记录都成为 E。唯一例外是 `moldarwin-research-trace/1` 的 `phase`，由宿主显式声明，盖的是 `kind_basis: "explicit_trace_phase"`。
 
@@ -159,7 +159,7 @@ memory 分为不可变历史、可重建索引和当前工作视图三部分。�
 
 **当前可直接复用：** `query_evidence` 支持有界文本与结构化过滤，`read_evidence` 支持 record/summary/lineage/artifact；游标随查询、workspace 或来源水位改变而失效；location_map 支持在哈希校验下迁移原件。
 
-**当前限制：** query 是大小写折叠后的子串匹配，并非语义搜索；结果按来源及记录 ID 排序，不代表相关性排名。`source_ids` 过滤已下推进 `_collect`（`research/evidence.py:490`），但显式声明的依赖来源仍会被读取，因此少量命中仍不保证只读取少量来源。lineage 是直接发布关系，不是递归图查询。内容投影的 schema 白名单现有 23 项（`research/evidence_refs.py:19-25`），结构化校验覆盖 claim、method_revision 与 research-note（`research/evidence.py:128-141`）；新增 JSON 即便作为 Artifact 入库，也不会自动变成可搜索内容。
+**当前限制：** query 是大小写折叠后的子串匹配，并非语义搜索；结果按来源及记录 ID 排序，不代表相关性排名。`source_ids` 过滤已下推进 `_collect`（`research/evidence.py:473`），但显式声明的依赖来源仍会被读取，因此少量命中仍不保证只读取少量来源。lineage 是直接发布关系，不是递归图查询。内容投影的 schema 白名单现有 23 项（`research/evidence_refs.py:19-25`），结构化校验覆盖 claim、method_revision 与 research-note（`research/evidence.py:128-141`）；新增 JSON 即便作为 Artifact 入库，也不会自动变成可搜索内容。
 
 因此新增工作包括：显式 schema 校验及投影、带类型的关系遍历、反向依赖索引、覆盖可见的查询记录和小范围发布。索引是可重建缓存，按来源身份、水位和投影版本失效；底层记录才是依据。全文或向量索引留作经实际检索失败证明有必要后的扩展，本轮不把向量数据库设为前置条件。
 
@@ -252,18 +252,18 @@ S 和 U 同时改变时，先做分开对照；条件允许再做旧 S/新 S × 
 
 | 能力 | 结论 | 当前入口与需要补的部分 |
 | --- | --- | --- |
-| 不可变历史与同库研究记录 | 直接复用 | [ResearchJournal.record](../../../src/moldarwin/research/journal.py#L76)；复用 CampaignStore，不另建成本账本 |
-| Artifact 原件与身份验证 | 直接复用 | [Artifact](../../../src/moldarwin/research/schema.py#L26)、[artifact_path](../../../src/moldarwin/research/journal.py#L46)；source_kind、role、hash、bytes 继续真实填写 |
-| claim 结构与更正引用 | 直接复用结构，扩展公共写入辅助 | [validate_claim](../../../src/moldarwin/research/evidence_refs.py#L237) 已支持；[record_claim](../../../examples/evidence_reuse.py#L19) 当前是示例 helper，claim 作为 Artifact 保存，不是 Journal 原生 Record 类型 |
-| EvidenceRef、迁移与发布范围 | 直接复用基础，新增更细发布工具 | [evidence_refs.py](../../../src/moldarwin/research/evidence_refs.py#L71)；跨库解析和封存隔离必须保留，不能直接暴露整库 |
-| 有界检索与直接关系读取 | 直接复用基础，扩展内容及关系读取 | [query_evidence](../../../src/moldarwin/research/evidence.py#L324)、[read_evidence](../../../src/moldarwin/research/evidence.py#L384)；新增 schema 投影、查询覆盖、类型关系和可重建索引 |
-| 实验与观测 | 在既有语义内复用 | [Experiment](../../../src/moldarwin/research/schema.py#L84)、[Observation](../../../src/moldarwin/research/schema.py#L114)；一般实验计划另用 plan Artifact，不伪造 action 或 kind |
-| 对照与配置修订 | 有条件复用 | [Contrast](../../../src/moldarwin/research/schema.py#L135)、[Revision](../../../src/moldarwin/research/schema.py#L153)；2×2 及具体配置修订约束保留，通用图比较不硬塞入其中 |
-| 单次行动、预留、收据、恢复 | 直接复用 | [runtime/api.py](../../../src/moldarwin/runtime/api.py#L115)、[ActiveCampaign.evaluate](../../../src/moldarwin/active/runner.py#L226)；不另设执行器或调度层 |
-| 方法内容、使用与评价 | 复用记录；独立评价适配需扩展 | [MethodVersion/Use/Evaluation](../../../src/moldarwin/research/schema.py#L196)；当前 use 只接受 host_reported；通用 S/U 评价仍受既有冻结策略验证收据路径限制 |
-| 方法改进来源与 no-change | 直接复用 | [method_revision.py](../../../src/moldarwin/research/method_revision.py#L31) 支持 S/U/G、问题证据、候选、试用和成本；G 自优化不进入本轮 |
-| 事件读取与稳定触发 ID | 直接复用消费基础，新增触发规则 | [consume_events](../../../src/moldarwin/host.py#L224)；当前不是自动改进调度器，handler 去重和有界改进状态需要新增 |
-| 新 chat 短入口 | 直接复用指引，新增接续产物 | [project-entry.md](../../../src/moldarwin/host-guides/project-entry.md#L1)；handoff、前沿重建和过期检测需新增 |
+| 不可变历史与同库研究记录 | 直接复用 | [ResearchJournal.record](../../../src/moldarwin/research/journal.py#L77)；复用 CampaignStore，不另建成本账本 |
+| Artifact 原件与身份验证 | 直接复用 | [Artifact](../../../src/moldarwin/research/schema.py#L26)、[artifact_path](../../../src/moldarwin/research/journal.py#L47)；source_kind、role、hash、bytes 继续真实填写 |
+| claim 结构与更正引用 | 直接复用结构，扩展公共写入辅助 | [validate_claim](../../../src/moldarwin/research/evidence_refs.py#L290) 已支持；[record_claim](../../../examples/evidence_reuse.py#L19) 当前是示例 helper，claim 作为 Artifact 保存，不是 Journal 原生 Record 类型 |
+| EvidenceRef、迁移与发布范围 | 直接复用基础，新增更细发布工具 | [evidence_refs.py](../../../src/moldarwin/research/evidence_refs.py#L76)；跨库解析和封存隔离必须保留，不能直接暴露整库 |
+| 有界检索与直接关系读取 | 直接复用基础，扩展内容及关系读取 | [query_evidence](../../../src/moldarwin/research/evidence.py#L460)、[read_evidence](../../../src/moldarwin/research/evidence.py#L548)；新增 schema 投影、查询覆盖、类型关系和可重建索引 |
+| 实验与观测 | 在既有语义内复用 | [Experiment](../../../src/moldarwin/research/schema.py#L91)、[Observation](../../../src/moldarwin/research/schema.py#L125)；一般实验计划另用 plan Artifact，不伪造 action 或 kind |
+| 对照与配置修订 | 有条件复用 | [Contrast](../../../src/moldarwin/research/schema.py#L146)、[Revision](../../../src/moldarwin/research/schema.py#L164)；2×2 及具体配置修订约束保留，通用图比较不硬塞入其中 |
+| 单次行动、预留、收据、恢复 | 直接复用 | [runtime/api.py](../../../src/moldarwin/runtime/api.py#L120)、[ActiveCampaign.evaluate](../../../src/moldarwin/active/runner.py#L275)；不另设执行器或调度层 |
+| 方法内容、使用与评价 | 复用记录；独立评价适配需扩展 | [MethodVersion/Use/Evaluation](../../../src/moldarwin/research/schema.py#L210)；当前 use 只接受 host_reported；通用 S/U 评价仍受既有冻结策略验证收据路径限制 |
+| 方法改进来源与 no-change | 直接复用 | [method_revision.py](../../../src/moldarwin/research/method_revision.py#L31) 支持 S/U/G、问题证据、候选、试用和成本；**G 改自身可以通过** —— `method_revision.py:113` 的守卫条件为 `producer_id != base_id`，自改时按构造跳过（见开头状态节）。未实现的是自动触发的 G 优化循环 |
+| 事件读取与稳定触发 ID | 直接复用消费基础，新增触发规则 | [consume_events](../../../src/moldarwin/host.py#L351)；当前不是自动改进调度器；**handler 去重与有界改进状态已实现** —— `research_hooks.py:284` 的 `_event_identity` 与 `:328` 的 `handle_event`，改进状态见 `research/improvement.py:177,325,367,405` |
+| 新 chat 短入口 | 直接复用指引，新增接续产物 | [project-entry.md](../../../src/moldarwin/host-guides/project-entry.md#L1)；**handoff、前沿重建与过期检测均已实现** —— `research/handoff.py:467,672`、`research/research_context.py:21`（`moldarwin-resume-frontier/1`）、`research/evidence.py:32,486`（`StaleCursorError`） |
 | 四图与分支决策 | 新增 | 类型关系投影、branch/step/plan 内容契约、重新考虑条件；宿主继续决定下一步 |
 | golden 与统一漏斗评价 | 新增组合契约 | 复用现有观测、校准、TaskSplit 和数据身份；增加 manifest、暴露记录及明确分母的 assessment |
 | 方法默认采用与回退 | 新增选择记录和应用约定 | 现有记录不会自动晋升方法；choice 只影响后续任务的版本绑定 |

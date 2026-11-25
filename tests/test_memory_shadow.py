@@ -191,3 +191,72 @@ def test_masked_load_bearing_premise_is_reported_honestly():
     assert report.safe
     assert report.load_bearing == (nid("good"),)
     assert "relied_on path" in report.note
+
+
+# -- the search, on shapes where a greedy answer would be wrong ----------------------------
+
+
+def chain(length=4):
+    """a -> b -> c -> d, each relying on the next. Only the last has a ruling of its own."""
+
+    names = [chr(ord("a") + i) for i in range(length)]
+    graph = make_graph(names, [(names[i], names[i + 1], "depends_on", "measured_result")
+                               for i in range(length - 1)])
+    return names, graph, [binding(name, "admitted") for name in names]
+
+
+def test_a_chain_keeps_the_leaf_everything_rests_on():
+    names, graph, bindings = chain()
+    report = free_to_shadow(graph, bindings, candidates=[nid(n) for n in names])
+    assert report.safe
+    shadowed = {n for n in names if nid(n) in report.shadowed}
+    assert names[-1] not in shadowed, "the leaf carrying the ruling cannot go"
+
+
+def test_offering_every_node_is_a_question_not_a_claim():
+    """check_shadow refuses the whole graph; free_to_shadow is asked what may go, and answers."""
+
+    names, graph, bindings = chain()
+    every = [nid(n) for n in names]
+    with pytest.raises(ValueError, match="no view to check"):
+        check_shadow(graph, bindings, shadow=every)
+    report = free_to_shadow(graph, bindings, candidates=every)
+    assert report.safe and len(report.shadowed) < len(every)
+
+
+def test_a_diamond_keeps_both_paths_to_the_shared_premise():
+    graph = make_graph(
+        ["top", "left", "right", "bottom"],
+        [("top", "left", "depends_on", "measured_result"),
+         ("top", "right", "depends_on", "measured_result"),
+         ("left", "bottom", "depends_on", "measured_result"),
+         ("right", "bottom", "depends_on", "measured_result")])
+    bindings = [binding(n, "admitted") for n in ("left", "right", "bottom")]
+    report = free_to_shadow(graph, bindings,
+                            candidates=[nid("left"), nid("right"), nid("bottom")])
+    assert report.safe
+    assert nid("left") not in report.shadowed and nid("right") not in report.shadowed
+
+
+def test_a_graph_where_nothing_may_go_returns_an_empty_shadow_not_an_error():
+    graph = make_graph(["owner", "premise"],
+                       [("owner", "premise", "depends_on", "measured_result")])
+    report = free_to_shadow(graph, [binding("premise", "admitted")],
+                            candidates=[nid("premise")])
+    assert report.safe and report.shadowed == ()
+
+
+def test_a_candidate_absent_from_the_graph_is_refused_here_too():
+    _, graph, bindings = chain()
+    with pytest.raises(ValueError, match="absent from the graph"):
+        free_to_shadow(graph, bindings, candidates=["research-node-gone"])
+
+
+def test_whatever_it_returns_is_safe():
+    """The one invariant worth stating: the search never hands back a shadow that costs."""
+
+    names, graph, bindings = chain(5)
+    for size in range(1, len(names) + 1):
+        report = free_to_shadow(graph, bindings, candidates=[nid(n) for n in names[:size]])
+        assert report.safe
+        assert check_shadow(graph, bindings, shadow=list(report.shadowed)).safe

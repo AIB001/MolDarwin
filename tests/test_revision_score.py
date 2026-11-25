@@ -32,7 +32,7 @@ WARRANT = Dimension("warranted_decisions", Family.WARRANT)
 COVERAGE = Dimension("answered", Family.COVERAGE)
 COST = Dimension("wall", Family.COST, minimum_gain=60.0, unit="wall_second",
                  minimum_gain_source="fixture: a minute of wall time, chosen here")
-DIGEST = "catalogue-digest-fixture"
+DIGEST = "c" * 64  # shaped like a real catalogue digest, which the validator requires
 
 
 def states(admitted: int, waived: int = 0) -> dict[str, str]:
@@ -108,8 +108,8 @@ def test_two_sides_ruled_under_different_fault_catalogues_are_not_comparable():
     with pytest.raises(NotComparable, match="different fault catalogues"):
         compare_revision(
             dimensions=[(WARRANT, states(2), states(9))],
-            assessment_role="diagnostic", base_catalogue_digest="one",
-            candidate_catalogue_digest="other", declared_scope=["x"])
+            assessment_role="diagnostic", base_catalogue_digest="1" * 64,
+            candidate_catalogue_digest="2" * 64, declared_scope=["x"])
 
 
 def test_a_warrant_dimension_refuses_a_value_outside_the_admission_vocabulary():
@@ -416,3 +416,122 @@ def test_extra_waivers_in_a_second_warrant_dimension_are_not_ignored():
     assert comp.waiver_change == 2
     assert comp.adoption is Adoption.SCOPED
     assert any("waived 2 more" in r for r in comp.reservations)
+
+
+# -- the decision step's own validator ------------------------------------------------------
+#
+# The comparison travels into a research step's `detail`, whose field set is deliberately
+# closed. These exercise that the two new fields did not open it, and that a verdict cannot be
+# forged on the way in.
+
+from moldarwin.research.continuation import STEP, validate_content  # noqa: E402
+from moldarwin.research.evidence_refs import REF_SCHEMA  # noqa: E402
+from moldarwin.runtime.files import EvidenceError  # noqa: E402
+
+_REF = {"schema": REF_SCHEMA, "source_id": "s", "record_id": "artifact-x",
+        "record_digest": "a" * 64}
+_DIM = {"name": "n", "family": "warrant", "verdict": "better", "effect": 1.0, "p_value": 0.01}
+_COMPARISON = {"adoption": "full", "gain": "quality", "catalogue_digest": "b" * 64,
+               "dimensions": [_DIM]}
+
+
+def _decision(**detail):
+    base = {"choice": "proceed", "alternatives": [], "basis_refs": [_REF],
+            "reconsider_when": "w", **detail}
+    return {"schema": STEP, "task_id": "t", "question": "q", "branch_id": "b",
+            "operation": "decision", "reason": "r", "input_refs": [_REF], "output_refs": [],
+            "method_refs": [], "accounting_refs": [], "source_watermarks": [],
+            "supersedes": [], "detail": base}
+
+
+def test_a_decision_without_a_comparison_still_validates():
+    """Back-compatible: every step written before this field existed stays readable."""
+
+    validate_content(_decision())
+
+
+def test_a_measured_adoption_carries_its_comparison_and_a_host_assertion_does_not():
+    validate_content(_decision(adoption_basis="measured_comparison", comparison=_COMPARISON))
+    validate_content(_decision(adoption_basis="host_assertion"))
+
+
+@pytest.mark.parametrize("detail, reason", [
+    ({"comparison": _COMPARISON}, "a comparison with no basis beside it"),
+    ({"adoption_basis": "measured_comparison"}, "a measured basis with no comparison"),
+    ({"adoption_basis": "host_assertion", "comparison": _COMPARISON},
+     "an assertion carrying a measurement"),
+    ({"adoption_basis": "whatever", "comparison": _COMPARISON}, "an unknown basis"),
+])
+def test_the_basis_and_the_comparison_are_each_required_by_the_other(detail, reason):
+    with pytest.raises(EvidenceError):
+        validate_content(_decision(**detail))
+
+
+@pytest.mark.parametrize("dimension", [
+    {**_DIM, "p_value": 1.5},
+    {**_DIM, "p_value": -0.1},
+    {**_DIM, "effect": True},
+    {**_DIM, "verdict": "great"},
+    {**_DIM, "family": "vibes"},
+    {**_DIM, "extra": 1},
+])
+def test_a_forged_dimension_is_refused_rather_than_stored(dimension):
+    with pytest.raises(EvidenceError):
+        validate_content(_decision(adoption_basis="measured_comparison",
+                                   comparison={**_COMPARISON, "dimensions": [dimension]}))
+
+
+@pytest.mark.parametrize("comparison", [
+    {**_COMPARISON, "adoption": "mostly"},
+    {**_COMPARISON, "gain": "lots"},
+    {**_COMPARISON, "catalogue_digest": "short"},
+    {**_COMPARISON, "sneaky": 1},
+    {**_COMPARISON, "dimensions": []},
+    {**_COMPARISON, "dimensions": [dict(_DIM, name=f"d{i}") for i in range(33)]},
+])
+def test_a_forged_comparison_is_refused_rather_than_stored(comparison):
+    with pytest.raises(EvidenceError):
+        validate_content(_decision(adoption_basis="measured_comparison", comparison=comparison))
+
+
+def test_the_detail_field_set_is_still_closed():
+    """The two new keys must not have turned `detail` into an open bag."""
+
+    with pytest.raises(EvidenceError):
+        validate_content(_decision(totally_new=1))
+
+
+def test_a_summary_written_by_the_resolution_satisfies_the_validator():
+    """The producer and the validator must agree; otherwise a real adoption cannot be recorded."""
+
+    from moldarwin.research.method_revision import _comparison_summary
+    comparison = revision([(WARRANT, states(2), states(9)),
+                           (COST, dict.fromkeys(TASKS, 900.0), dict.fromkeys(TASKS, 100.0))])
+    summary = _comparison_summary(comparison.as_dict())
+    validate_content(_decision(adoption_basis="measured_comparison", comparison=summary))
+
+
+def test_the_catalogue_digest_must_be_shaped_like_one():
+    """So a comparison that could never be recorded fails while its author is still looking."""
+
+    for bad in ("catalogue-digest", "C" * 64, "a" * 63, "a" * 65, "", None, 7):
+        with pytest.raises(ValueError, match="SHA-256"):
+            compare_revision(
+                dimensions=[(WARRANT, states(2), states(9))],
+                assessment_role="diagnostic", base_catalogue_digest=bad,
+                candidate_catalogue_digest=bad, declared_scope=["x"])
+
+
+def test_the_digest_the_admission_view_produces_is_accepted():
+    """The two ends of this contract are checked against each other, not assumed to agree."""
+
+    from moldarwin.learn.admission_view import catalogue_digest
+    live = catalogue_digest()
+    comparison = compare_revision(
+        dimensions=[(WARRANT, states(2), states(9))],
+        assessment_role="diagnostic", base_catalogue_digest=live,
+        candidate_catalogue_digest=live, declared_scope=["x"])
+    assert comparison.catalogue_digest == live
+    from moldarwin.research.method_revision import _comparison_summary
+    validate_content(_decision(adoption_basis="measured_comparison",
+                               comparison=_comparison_summary(comparison.as_dict())))

@@ -1647,10 +1647,15 @@ def test_recovery_never_consults_the_process_table(sweep: Sweep, monkeypatch) ->
     def refuse(*_a, **_k):
         raise AssertionError("recovery must not shell out to inspect processes")
 
+    # The claim is about `recover`, so the setup happens before the refusal is installed.
+    # Claiming a batch stamps it with `moldarwin_revision()`, which shells out to git -- nothing
+    # to do with the process table, but caught by a blanket patch. That made this test pass or
+    # fail depending on whether some earlier test in the same xdist worker had already filled
+    # `moldarwin_provenance`'s lru_cache, which is not a property of recovery.
+    _three_claimed(sweep)
     monkeypatch.setattr(subprocess, "run", refuse)
     monkeypatch.setattr(subprocess, "Popen", refuse)
     monkeypatch.setattr(os, "kill", refuse)
-    _three_claimed(sweep)
     assert len(sweep.recover()) == 3
 
 

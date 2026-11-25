@@ -37,6 +37,13 @@ the largest subset that costs nothing, verified by the same recomputation rather
 greedy pass that proposed it -- two premises can each look droppable while dropping both moves
 the floor.
 
+The two differ in what they will accept, deliberately. `check_shadow` is a claim ("drop
+this"), so naming every node is refused: a view with nothing in it answers no question.
+`free_to_shadow` is a question ("what may go?"), so offering it everything is fine and it
+answers with what is actually free -- possibly nothing, which is a result and not an error.
+Both refuse a candidate that is not in the graph, because a policy whose targets have moved
+cannot be checked.
+
 Why recomputation and not an argument about edges: the reasoning "only `used` edges point at
 it, so it is free" is correct and still not what to rely on. Propagation has corners that
 reasoning misses -- a cyclic component takes `not_recorded` whatever its premises hold, so does

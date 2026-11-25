@@ -68,6 +68,7 @@ adoption level independently of every verdict.
 from __future__ import annotations
 
 import math
+import re
 import statistics
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -81,6 +82,11 @@ from moldarwin.economics.stage import Evidence
 #: comparison does not pull the whole admission view in; the order is asserted against it by
 #: ``tests/test_revision_score.py``.
 ADMISSION_STATES = ("withheld", "not_recorded", "admitted_under_waiver", "admitted")
+
+#: A fault-catalogue digest, in the shape ``admission_view.catalogue_digest()`` produces and
+#: the research step's validator accepts. The two must agree or a measured adoption cannot
+#: be recorded at all.
+_SHA256 = re.compile(r"[0-9a-f]{64}")
 
 #: The one admission state that counts toward the numerator. RSI_REWARD: a waiver is not a win.
 WARRANTED_STATE = "admitted"
@@ -575,8 +581,14 @@ def compare_revision(
 
     if assessment_role not in {"diagnostic", "independent_validation"}:
         raise ValueError("assessment_role must be diagnostic or independent_validation")
-    if not isinstance(base_catalogue_digest, str) or not base_catalogue_digest:
-        raise ValueError("the base side must name the fault catalogue it was ruled under")
+    # A SHA-256, because that is what ``admission_view.catalogue_digest()`` returns and what the
+    # research step's validator will accept. Checked here rather than at the record, so a
+    # comparison that cannot be written down fails while its author is still looking at it.
+    if not isinstance(base_catalogue_digest, str) or not _SHA256.fullmatch(base_catalogue_digest):
+        raise ValueError(
+            "the catalogue digest must be a 64-character lowercase SHA-256, as returned by "
+            "learn.admission_view.catalogue_digest(). A comparison carrying anything else "
+            "cannot be recorded on the decision step that would cite it.")
     if base_catalogue_digest != candidate_catalogue_digest:
         raise NotComparable(
             "the two sides were ruled under different fault catalogues "

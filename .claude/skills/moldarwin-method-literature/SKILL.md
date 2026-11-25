@@ -97,12 +97,16 @@ Attach the sealed snapshot path as `evidence` on
 `moldarwin_research_progress(entry, ..., evidence=[...])`, so the claim points
 at bytes rather than at a recollection.
 
-When the finding then feeds a parameter change, the number enters a `Knob`,
-`Stage` or threshold carrying `Evidence.LITERATURE` and its citation in
-`source` -- never `measured_here`, which is reserved for what this project ran.
-A published value that this project converted or extrapolated is `inferred`,
-because the conversion is this project's and can be wrong in a way the
-citation is not.
+When the finding then feeds a parameter change, the number enters a `Stage` or
+a threshold carrying `Evidence.LITERATURE` and its citation in `source` --
+never `measured_here`, which is reserved for what this project ran. A published
+value that this project converted or extrapolated is `inferred`, because the
+conversion is this project's and can be wrong in a way the citation is not.
+
+A `Knob` records its basis differently and has **no** `Evidence` field: it
+carries a free-text `source` for the citation and an `Effect` of `BENCHMARKED`,
+`MEASURED_HERE` or `ASSERTED`. Cite in `source` there, and do not go looking
+for an evidence field that type does not have.
 
 ## What a search here does not establish
 
