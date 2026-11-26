@@ -105,40 +105,77 @@ def _is_finite_float(token: str) -> bool:
 
 
 def _ensure_ligand_posre_include(md_dir: Path, ligand_resname: str = "LIG") -> dict[str, Any]:
-    """Ensure ligand position-restraint ITP is included under ``#ifdef POSRES``."""
-    posre_candidates = [
-        md_dir / f"posre_{ligand_resname.lower()}.itp",
-        md_dir / f"posre_{ligand_resname}.itp",
-        md_dir / "posre_lig.itp",
-        md_dir / "posre_LIG.itp",
-    ]
-    posre_file = next((p for p in posre_candidates if p.is_file()), None)
+    """Ensure ligand position-restraint ITP is included under ``#ifdef POSRES``.
+
+    Searches both ``md_dir`` (``GMX_PROLIG_MD/``) and PRISM's sibling ACPYPE/Amber
+    parameterization directories (e.g. ``../LIG.amb2gmx/``).
+    """
+    search_dirs = [md_dir]
+    for sibling in (
+        md_dir.parent / f"{ligand_resname}.amb2gmx",
+        md_dir.parent / f"{ligand_resname.lower()}.amb2gmx",
+        *sorted(md_dir.parent.glob("*.amb2gmx")),
+        *sorted(md_dir.glob("*.amb2gmx")),
+    ):
+        if sibling.is_dir() and sibling not in search_dirs:
+            search_dirs.append(sibling)
+
+    posre_names = (
+        f"posre_{ligand_resname}.itp",
+        f"posre_{ligand_resname.lower()}.itp",
+        "posre_LIG.itp",
+        "posre_lig.itp",
+    )
+    posre_file: Path | None = None
+    for directory in search_dirs:
+        existing = {p.name: p for p in directory.iterdir() if p.is_file()}
+        posre_file = next((existing[name] for name in posre_names if name in existing), None)
+        if posre_file is not None:
+            break
     if posre_file is None:
         return {"status": "no_posre_file_found", "patched": False}
 
-    itp_candidates = [
-        md_dir / f"{ligand_resname}.itp",
-        md_dir / f"{ligand_resname.lower()}.itp",
-        md_dir / "LIG.itp",
-        md_dir / "topol.top",
-    ]
+    itp_names = (f"{ligand_resname}.itp", f"{ligand_resname.lower()}.itp", "LIG.itp", "topol.top")
+    itp_candidates: list[Path] = []
+    # Check the posre's own directory first (e.g. LIG.amb2gmx/LIG.itp), then other dirs.
+    ordered_dirs = [posre_file.parent, *(d for d in search_dirs if d != posre_file.parent)]
+    for directory in ordered_dirs:
+        for name in itp_names:
+            candidate = directory / name
+            if candidate.is_file() and candidate not in itp_candidates:
+                itp_candidates.append(candidate)
+
     for target in itp_candidates:
-        if not target.is_file():
-            continue
         text = target.read_text(encoding="utf-8", errors="replace")
         if posre_file.name in text:
-            return {"status": "already_included", "target": str(target), "posre": posre_file.name, "patched": False}
+            return {"status": "already_included", "target": str(target), "posre": str(posre_file), "patched": False}
+    for target in itp_candidates:
         if target.suffix == ".itp":
+            text = target.read_text(encoding="utf-8", errors="replace")
             block = (
-                f"\n; Staged by MolDarwin GROMACS 2026 guard\n"
-                f"#ifdef POSRES\n"
+                "\n; Staged by MolDarwin GROMACS 2026 guard\n"
+                "#ifdef POSRES\n"
                 f'#include "{posre_file.name}"\n'
-                f"#endif\n"
+                "#endif\n"
             )
             target.write_text(text.rstrip() + "\n" + block, encoding="utf-8")
-            return {"status": "patched_ligand_itp", "target": str(target), "posre": posre_file.name, "patched": True}
+            return {"status": "patched_ligand_itp", "target": str(target), "posre": str(posre_file), "patched": True}
 
-    return {"status": "no_ligand_itp_found", "posre": posre_file.name, "patched": False}
+    return {"status": "no_ligand_itp_found", "posre": str(posre_file), "patched": False}
+
+
+def _stage_sibling_mdps(md_dir: Path) -> list[str]:
+    """Copy PRISM sibling ``../mdps/*.mdp`` files into ``md_dir`` when absent locally."""
+    staged: list[str] = []
+    sibling_mdps = md_dir.parent / "mdps"
+    if not sibling_mdps.is_dir():
+        return staged
+    for src in sorted(sibling_mdps.glob("*.mdp")):
+        dest = md_dir / src.name
+        if not dest.exists():
+            shutil.copy2(src, dest)
+            staged.append(src.name)
+    return staged
 
 
 def patch_gromacs2026_artifacts(
@@ -152,9 +189,11 @@ def patch_gromacs2026_artifacts(
     """Patch generated PRISM MD outputs for GROMACS 2026 GPU compatibility.
 
     Only edits generated run files inside ``md_dir`` (never ``asset/prism``):
-    - Ensures ligand position restraints are included for NVT/NPT equilibration.
-    - Writes a clean, editable ``run_md_gmx2026.sh`` using CPU PME during steepest-descent
-      EM (avoiding GROMACS 2026 GPU-PME EM error) and GPU PME/NB/bonded/update for NVT/NPT/MD.
+    - Stages PRISM's sibling ``../mdps/*.mdp`` files into ``md_dir`` when missing locally.
+    - Verifies/stages ligand position restraints across ``md_dir`` and ``../LIG.amb2gmx/``.
+    - Writes a clean, editable ``run_md_gmx2026.sh`` exporting ``OMP_NUM_THREADS=$NTOMP``,
+      passing ``-r {start_gro}`` on EM (required when ``em.mdp`` defines ``-DPOSRES``),
+      using CPU PME for steepest-descent EM and GPU PME/NB/bonded/update for NVT/NPT/MD.
     - Optionally updates ``nsteps`` in ``md.mdp`` when ``prod_ns`` is explicitly requested.
     """
     root = Path(md_dir).resolve()
@@ -163,9 +202,11 @@ def patch_gromacs2026_artifacts(
     if em_pme not in {"cpu", "gpu"}:
         raise ValueError("em_pme must be 'cpu' or 'gpu'")
 
+    staged_mdps = _stage_sibling_mdps(root)
     posre_info = _ensure_ligand_posre_include(root, ligand_resname=ligand_resname)
 
     mdp_patched = False
+    md_nsteps: int | None = None
     md_mdp = root / "md.mdp"
     if prod_ns is not None and md_mdp.is_file():
         if prod_ns <= 0 or not math.isfinite(prod_ns):
@@ -173,19 +214,19 @@ def patch_gromacs2026_artifacts(
         text = md_mdp.read_text(encoding="utf-8", errors="replace")
         dt_match = re.search(r"(?im)^\s*dt\s*=\s*([0-9.eE+-]+)", text)
         dt_ps = float(dt_match.group(1)) if dt_match else 0.002
-        nsteps = max(1, int(round((prod_ns * 1000.0) / dt_ps)))
+        md_nsteps = max(1, int(round((prod_ns * 1000.0) / dt_ps)))
         if re.search(r"(?im)^\s*nsteps\s*=", text):
-            new_text = re.sub(r"(?im)^(\s*nsteps\s*=\s*)[0-9]+", rf"\g<1>{nsteps}", text)
+            new_text = re.sub(r"(?im)^(\s*nsteps\s*=\s*)[0-9]+", rf"\g<1>{md_nsteps}", text)
         else:
-            new_text = text.rstrip() + f"\nnsteps = {nsteps}\n"
+            new_text = text.rstrip() + f"\nnsteps = {md_nsteps}\n"
         md_mdp.write_text(new_text, encoding="utf-8")
         mdp_patched = True
 
     gro_candidates = ["solv_ions.gro", "complex_solv_ions.gro", "system.gro", "complex.gro"]
     start_gro = next((name for name in gro_candidates if (root / name).is_file()), "solv_ions.gro")
     em_mdp = next((name for name in ("em.mdp", "minim.mdp") if (root / name).is_file()), "em.mdp")
-    nvt_mdp = "nvt.mdp" if (root / "nvt.mdp").is_file() else "nvt.mdp"
-    npt_mdp = "npt.mdp" if (root / "npt.mdp").is_file() else "npt.mdp"
+    nvt_mdp = "nvt.mdp"
+    npt_mdp = "npt.mdp"
 
     script_path = root / "run_md_gmx2026.sh"
     script_body = f"""#!/usr/bin/env bash
@@ -193,10 +234,12 @@ set -euo pipefail
 # Generated by MolDarwin physics.prism_bridge (GROMACS 2026 GPU-safe; freely editable)
 GMX="${{GMX_BIN:-{gmx_bin}}}"
 NTOMP="${{GMX_NTOMP:-4}}"
+export OMP_NUM_THREADS="$NTOMP"
 export GMX_MAXBACKUP=-1
 
-# 1. Energy minimization: steepest descent requires CPU PME in GROMACS 2026
-"$GMX" grompp -f {em_mdp} -c {start_gro} -p topol.top -o em.tpr -maxwarn 2
+# 1. Energy minimization: steepest descent requires CPU PME in GROMACS 2026;
+# pass -r so -DPOSRES in em.mdp always has reference coordinates.
+"$GMX" grompp -f {em_mdp} -c {start_gro} -r {start_gro} -p topol.top -o em.tpr -maxwarn 2
 "$GMX" mdrun -deffnm em -ntmpi 1 -ntomp "$NTOMP" -nb gpu -pme {em_pme}
 
 # 2. NVT equilibration (GPU accelerated)
@@ -228,8 +271,10 @@ fi
 
     return {
         "md_dir": str(root),
+        "staged_mdps": staged_mdps,
         "posre": posre_info,
         "md_mdp_patched": mdp_patched,
+        "md_nsteps": md_nsteps,
         "script_path": str(script_path),
         "script_sha256": _sha256_file(script_path),
         "em_pme": em_pme,
@@ -248,6 +293,7 @@ def prepare_prism_md_system(
     ligand_resname: str = "LIG",
     prod_ns: float | None = 5.0,
     overwrite: bool = False,
+    require_explicit_h: bool = True,
     gmx_bin: str = "gmx",
 ) -> dict[str, Any]:
     """Sanitize inputs, build an explicit-solvent system with pinned PRISM, and validate outputs.
@@ -263,6 +309,12 @@ def prepare_prism_md_system(
 
     sanitized_sdf = out_root / f"{ligand_resname}_sanitized.sdf"
     sdf_report = sanitize_ligand_sdf(ligand_sdf, out_path=sanitized_sdf, fallback_name=ligand_resname)
+    if require_explicit_h and not sdf_report["has_explicit_hydrogens"]:
+        raise ValueError(
+            f"ligand SDF {ligand_sdf} lacks explicit hydrogens required for AmberTools/AM1-BCC "
+            "charge assignment; protonate at target pH with explicit 3D hydrogens first "
+            "(or pass require_explicit_h=False to bypass)."
+        )
 
     prism_infra = load_infra("prism")
     builder_mod = __import__("prism.builder.core", fromlist=["PRISMBuilder"])

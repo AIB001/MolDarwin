@@ -154,8 +154,49 @@ def test_patch_gromacs2026_stages_posre_and_writes_cpu_em_gpu_md_script(tmp_path
     assert '#include "posre_lig.itp"' in (md_dir / "LIG.itp").read_text(encoding="utf-8")
     assert "nsteps = 5000000" in (md_dir / "md.mdp").read_text(encoding="utf-8")
     script = (md_dir / "run_md_gmx2026.sh").read_text(encoding="utf-8")
-    assert "-deffnm em" in script and "-pme cpu" in script
+    assert 'export OMP_NUM_THREADS="$NTOMP"' in script
+    assert "-deffnm em" in script and "-pme cpu" in script and "-r solv_ions.gro" in script
     assert "-deffnm md" in script and "-nb gpu -pme gpu -bonded gpu -update gpu" in script
+
+
+def test_patch_gromacs2026_stages_sibling_mdps_and_detects_amb2gmx_posre(tmp_path):
+    # Matches exact PRISMBuilder output tree: sibling mdps/ and LIG.amb2gmx/ next to GMX_PROLIG_MD/
+    md_dir = tmp_path / "GMX_PROLIG_MD"
+    mdps_dir = tmp_path / "mdps"
+    amb_dir = tmp_path / "LIG.amb2gmx"
+    for d in (md_dir, mdps_dir, amb_dir):
+        d.mkdir()
+    (md_dir / "solv_ions.gro").write_text("x\n0\n1 1 1\n", encoding="utf-8")
+    (mdps_dir / "em.mdp").write_text("define = -DPOSRES\nintegrator = steep\n", encoding="utf-8")
+    (mdps_dir / "md.mdp").write_text("dt = 0.002\nnsteps = 250000000\n", encoding="utf-8")
+    (amb_dir / "posre_LIG.itp").write_text("[ position_restraints ]\n1 1 1000 1000 1000\n", encoding="utf-8")
+    (amb_dir / "LIG.itp").write_text('#ifdef POSRES\n#include "posre_LIG.itp"\n#endif\n', encoding="utf-8")
+
+    rep = patch_gromacs2026_artifacts(md_dir, prod_ns=5.0)
+    assert set(rep["staged_mdps"]) == {"em.mdp", "md.mdp"}
+    assert rep["md_mdp_patched"] is True
+    assert rep["md_nsteps"] == 2500000
+    assert "nsteps = 2500000" in (md_dir / "md.mdp").read_text(encoding="utf-8")
+    assert rep["posre"]["status"] == "already_included"
+    assert rep["posre"]["patched"] is False
+
+
+def test_prepare_prism_refuses_heavy_atom_only_sdf_before_ambertools(tmp_path):
+    from moldarwin.physics import prepare_prism_md_system
+
+    rec = tmp_path / "rec.pdb"
+    rec.write_text(_sample_receptor_pdb(x=3.0), encoding="utf-8")
+    no_h = tmp_path / "no_h.sdf"
+    no_h.write_text(
+        "C26\n  RDKit 3D\n\n"
+        "  2  1  0  0  0  0  0  0  0  0999 V2000\n"
+        "    0.0000    0.0000    0.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n"
+        "    1.4000    0.0000    1.5000 C   0  0  0  0  0  0  0  0  0  0  0  0\n"
+        "  1  2  1  0\nM  END\n$$$$\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="explicit hydrogens"):
+        prepare_prism_md_system(rec, no_h, tmp_path / "out")
 
 
 def test_process_secret_propagates_across_worker_boundary(monkeypatch, tmp_path):
