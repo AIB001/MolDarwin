@@ -504,10 +504,44 @@ def build_admission_view(
     }
 
 
+def record_artifact_with_admission(
+    journal: ResearchJournal,
+    artifact: Artifact,
+    *,
+    action_id: str,
+    claim_scope: dict[str, Any],
+    bindings_directory: str | Path,
+    source_kind: str = "new_execution",
+    role: str = "diagnostic",
+    supersedes: str | None = None,
+) -> dict[str, Any]:
+    """Stealth dispatch seam: record one leaf Artifact and immediately bind its committed Ruling.
+
+    Removes manual two-step ceremony at execution settlement while preserving every hard
+    constraint: the leaf Artifact stays byte-identical (C2), the Ruling is read verbatim
+    from ``CampaignStore.observations`` (C1/C4), and the binding lands in ``research:`` (C6).
+    """
+    if not isinstance(artifact, Artifact):
+        raise TypeError("artifact must be a ResearchJournal Artifact")
+    leaf_id = journal.record(artifact)
+    binding = record_admission_binding(
+        journal,
+        target_record_id=leaf_id,
+        action_id=action_id,
+        claim_scope=claim_scope,
+        directory=bindings_directory,
+        source_kind=source_kind,
+        role=role,
+        supersedes=supersedes,
+    )
+    return {"leaf_record_id": leaf_id, "binding": binding}
+
+
 __all__ = [
     "SCHEMA",
     "build_admission_view",
     "extract_admission_bindings",
     "record_admission_binding",
+    "record_artifact_with_admission",
     "validate_content",
 ]

@@ -96,9 +96,43 @@ def register(mcp: Any) -> None:
         if detail != "full" or any(value is not None for value in (skills, tools, operations)):
             report.update(detail=detail, scope={"skills": [row["slug"] for row in report["skills"]],
                                                "tools": list(tool_report), "operations": list(operation_report)})
-        return ok(**report, tools=tool_report, operations=operation_report,
+        extra: dict[str, Any] = {}
+        if detail == "summary":
+            from moldarwin.mcp.profiles import pack_summary
+            extra["available_packs"] = pack_summary()
+        return ok(**report, **extra, tools=tool_report, operations=operation_report,
                   runtime={"python": sys.executable, "module": str(Path(__file__).resolve()),
                            "durable_workers": "Linux /proc and POSIX locks required"})
+
+    @mcp.tool()
+    @tool(Cost.FREE)
+    def moldarwin_skill_find(query: str = "", domain: str | None = None,
+                             tags: list[str] | None = None, source: str | None = None,
+                             extra_dirs: list[str] | None = None,
+                             include_retired: bool = False, list_domains: bool = False,
+                             limit: int = 5) -> str:
+        """FREE. Lazy Tier-1 discovery over built-in and live generated skill directories.
+
+        Reads only YAML frontmatter headers (never full bodies or references), so context
+        stays O(1) even with hundreds of fine-grained target/method skills. Set
+        list_domains=True for a compact domain/tag taxonomy overview, or pass query/domain/tags
+        to get top-K cards carrying applicable_when, invalid_when, and ready arguments for
+        moldarwin_skill_read. Live directories from extra_dirs or MOLDARWIN_SKILL_DIRS are
+        indexed immediately without restarting the server. Never activates or runs a skill.
+        """
+        from moldarwin.mcp._common import absolute_path
+        from moldarwin.skill_index import find_skills
+
+        resolved_dirs = (
+            [str(absolute_path(item, label="extra_dirs")) for item in extra_dirs]
+            if extra_dirs is not None
+            else None
+        )
+        return ok(**find_skills(
+            query=query, domain=domain, tags=tags, source=source,
+            extra_dirs=resolved_dirs, include_retired=include_retired,
+            list_domains=list_domains, limit=limit,
+        ))
 
     @mcp.tool()
     @tool(Cost.FREE)

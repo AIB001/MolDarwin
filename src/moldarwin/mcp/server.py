@@ -32,19 +32,33 @@ def tool_modules() -> tuple[Any, ...]:
     return (planning, governance, active, execution, data, runtime, sweep, host, methods, evidence)
 
 
-def register_tools(server: Any) -> None:
-    """One registration path for the actual server and its cost index."""
+def register_tools(
+    server: Any, *, profile: str = "full", packs: list[str] | tuple[str, ...] | str | None = None
+) -> None:
+    """One registration path for the actual server, thin profiles, and its cost index."""
+    from moldarwin.mcp.profiles import FilteredServer, allowed_tools, resolve_packs, resolve_profile
+
+    selected_profile = resolve_profile(profile)
+    selected_packs = resolve_packs(packs) if packs is not None else ()
+    allowlist = allowed_tools(selected_profile, selected_packs)
+    target = server if allowlist is None else FilteredServer(server, allowlist)
     for module in tool_modules():
-        module.register(server)
+        module.register(target)
 
 
-def build() -> Any:
-    """Construct the server with every tool and resource registered."""
+def build(
+    *, profile: str | None = None, packs: list[str] | tuple[str, ...] | str | None = None
+) -> Any:
+    """Construct the server with full or thin+packs tool surface and lazy resources."""
+    from moldarwin.mcp.profiles import resolve_packs, resolve_profile
 
+    selected_profile = resolve_profile(profile)
+    selected_packs = resolve_packs(packs)
     server_class = require_mcp()
-    guidance = ROLE_PATH.parent / "host-guides" / "mcp-entry.md"
+    guide_name = "mcp-entry-thin.md" if selected_profile == "thin" else "mcp-entry.md"
+    guidance = ROLE_PATH.parent / "host-guides" / guide_name
     mcp = server_class("moldarwin", instructions=guidance.read_text(encoding="utf-8"))
-    register_tools(mcp)
+    register_tools(mcp, profile=selected_profile, packs=selected_packs)
 
     @mcp.resource("moldarwin://skills/molorigin")
     def molorigin_workflows() -> str:
@@ -98,6 +112,12 @@ def build() -> Any:
         """Discover memory, execution and RSI skills without loading their bodies."""
         from moldarwin.skills import library_catalog
         return json.dumps(library_catalog(), ensure_ascii=False)
+
+    @mcp.resource("moldarwin://skill-index")
+    def skill_index() -> str:
+        """Tier-1 domain/tag taxonomy over built-in and live generated skills (headers only)."""
+        from moldarwin.skill_index import find_skills
+        return json.dumps(find_skills(list_domains=True), ensure_ascii=False)
 
     @mcp.resource("moldarwin://skills/{slug}")
     def workflow(slug: str) -> str:
@@ -192,9 +212,24 @@ def costs() -> dict[str, str]:
     return {name: item["cost"] for name, item in tool_catalog().items()}
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser(prog="moldarwin-mcp", add_help=True)
+    parser.add_argument(
+        "--profile",
+        choices=("full", "thin"),
+        default=None,
+        help="Tool surface profile: 'thin' exposes 15 core primitives + lazy skill discovery; 'full' exposes all tools.",
+    )
+    parser.add_argument(
+        "--packs",
+        default=None,
+        help="Comma-separated domain packs to add to thin profile (e.g. screening,data,governance).",
+    )
+    args = parser.parse_args(argv)
     with stdio_input():
-        build().run()
+        build(profile=args.profile, packs=args.packs).run()
 
 
 if __name__ == "__main__":

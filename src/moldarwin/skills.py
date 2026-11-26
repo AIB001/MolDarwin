@@ -428,7 +428,8 @@ def read_member(slug: str, member: str = "SKILL.md", *, bundle_ref: dict | None 
     data = contents[member]
     return {"slug": manifest["slug"], "name": manifest["name"],
             "member": member, "content": data.decode("utf-8"),
-            "sha256": sha256(data), "manifest_sha256": manifest["manifest_sha256"]}
+            "sha256": sha256(data), "manifest_sha256": manifest["manifest_sha256"],
+            "available_members": [name for name in sorted(contents) if name != member]}
 
 
 def _canonical_member(member: str) -> None:

@@ -553,7 +553,7 @@ def register(mcp: Any) -> None:
 
         The larger case was this server, when it had nine tools and none of them spent: every
         refusal ``moldarwin_check_handoff`` produced was advice offered beside an action it had no
-        relationship with. The server now has 90 tools and seven that spend -- counted by
+        relationship with. The server now has 91 tools and seven that spend -- counted by
         ``tools/count_unguarded_spends.py`` from the registration index rather than remembered,
         because this sentence reasons from the number and had been stale twice -- so it is history
         rather than description. Five of the seven now take an authorization object: a gate token
