@@ -405,9 +405,192 @@ def test_the_spends_census_is_taken_from_the_registration_index():
 
     report = module.census()
     by_tool = {row["tool"]: row for row in report["detail"]}
-    for name in ("moldarwin_action_submit", "moldarwin_workflow_submit", "moldarwin_workflow_advance"):
+    for name in ("moldarwin_action_submit", "moldarwin_workflow_submit",
+                 "moldarwin_workflow_advance", "moldarwin_method_call"):
         assert by_tool[name]["spend_token_parameters"] == ["authorization_json"], name
+    assert report["spends_tools_accepting_no_authorization_object"] == 2
     assert report["spends_tools_accepting_no_authorization_object"] < report["spends_tools"]
-    # The class is not closed: these two remain unauthorized and this test says so out loud.
-    for name in ("moldarwin_active_submit", "moldarwin_method_call"):
+    # Remaining two SPENDS tools without a token parameter are named explicitly.
+    for name in ("moldarwin_active_submit", "moldarwin_workflow_reconcile"):
         assert by_tool[name]["accepts_an_authorization_object"] is False
+
+
+def test_action_prepare_mints_cleanly_under_stage_two_without_deadlocking(tmp_path, monkeypatch):
+    """Under MOLDARWIN_METHOD_AUTHORITY=required, the minting tool itself must not deadlock
+    by running preflight before minting the token."""
+
+    monkeypatch.setenv("MOLDARWIN_METHOD_AUTHORITY", "required")
+    tools = registered()
+    prepared = call(tools["moldarwin_action_prepare"], action_request(declaration(tmp_path)))
+    assert prepared["ok"] is True, prepared
+    assert prepared["method_authorization"]["state"] == "minted"
+    assert prepared["request"]["arguments"]["authorization"]["signature"]
+    assert prepared["authorization"]["nodes_without_one"] == []
+
+
+def test_saved_method_resolve_mints_and_method_call_enforces_authorization_under_stage_two(
+    tmp_path, monkeypatch
+):
+    """``moldarwin_method_resolve`` mints; ``moldarwin_method_call`` rules on it and never
+    mints on the caller's behalf, so Stage 2 refuses absent/tampered tokens and accepts the
+    minted one."""
+
+    from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+    from moldarwin.mcp.methods import register as register_methods
+    from moldarwin.research import ResearchJournal
+    from moldarwin.research.notes import save_progress
+    from moldarwin.research.saved_methods import publish_method
+    from moldarwin.runtime import service
+
+    collector = Collector()
+    register_methods(collector)
+    tools = collector.tools
+
+    store = CampaignStore(tmp_path / "research.sqlite")
+    store.configure(
+        CampaignSpec("fixture", 0, "wall_second", "fixture"),
+        [Endpoint("fixture", "diagnostic", "recorded", "count", "fixture/1", 0, queryable=False)],
+    )
+    entry = tmp_path / "ENTRY.json"
+    save_progress(
+        ResearchJournal(store), entry,
+        {"task_id": "t1", "branch_id": "main", "question": "Test saved method authority",
+         "summary": "Fixture", "conditions": {"scope": "test"}},
+    )
+    arguments = declaration(tmp_path)
+    published = publish_method(
+        entry, "fixture-sum", arguments, summary="fixture method", conditions={"scope": "test"}
+    )
+    pointer = published["pointer"]
+    invocation = {"request_id": "saved-auth-1", "limits": {"wall_second": 40}}
+
+    monkeypatch.setenv("MOLDARWIN_METHOD_AUTHORITY", "required")
+    launches = []
+    monkeypatch.setattr(service, "_launch", lambda s, jid: launches.append(jid))
+
+    # 1. Calling moldarwin_method_call with no token refuses under Stage 2 (never self-mints).
+    missing = call(
+        tools["moldarwin_method_call"],
+        str(entry), pointer, invocation, str(tmp_path / "rt-missing"),
+    )
+    assert missing["ok"] is False
+    assert missing["error"]["code"] == "NotAuthorizedMethod"
+    assert missing["error"]["retryable"] is False
+    assert launches == []
+
+    # 2. moldarwin_method_resolve mints cleanly under Stage 2 while keeping request deterministic.
+    resolved = call(
+        tools["moldarwin_method_resolve"],
+        str(entry), pointer, None, invocation,
+    )
+    assert resolved["ok"] is True, resolved
+    assert resolved["method_authorization"]["state"] == "minted"
+    token = resolved["method_authorization"]["authorization"]
+    assert resolved["authorized_request"]["arguments"]["authorization"] == token
+    assert "authorization" not in resolved["request"]["arguments"]
+
+    # 3. A tampered token is refused unconditionally.
+    tampered = dict(token, method_id="forged-method")
+    refused = call(
+        tools["moldarwin_method_call"],
+        str(entry), pointer, invocation, str(tmp_path / "rt-tampered"),
+        None, None, json.dumps(tampered),
+    )
+    assert refused["ok"] is False
+    assert refused["error"]["code"] == "NotAuthorizedMethod"
+    assert launches == []
+
+    # 4. Submitting with the minted token succeeds end-to-end under Stage 2.
+    submitted = call(
+        tools["moldarwin_method_call"],
+        str(entry), pointer, invocation, str(tmp_path / "rt-ok"),
+        None, None, json.dumps(token),
+    )
+    assert submitted["ok"] is True, submitted
+    assert submitted["submission"] == "submitted"
+    assert launches == ["saved-auth-1"]
+
+
+def test_screen_run_preflight_enforces_gate_authorization_on_gated_cascades(tmp_path, monkeypatch):
+    """Closing the ``screen.run`` bypass: a gated cascade cannot route around
+    ``moldarwin_screen_submit`` by dispatching ``operation='screen.run'`` through the runtime."""
+
+    from types import SimpleNamespace
+
+    from moldarwin.authority.gate import authorize_gate
+    from moldarwin.authority.grant import NotAuthorized
+    from moldarwin.screening import _prepare as real_prepare
+
+    config = tmp_path / "cascade.json"
+    config.write_text('{"kind":"cascade"}', encoding="utf-8")
+    batch_lib = tmp_path / "batch.csv"
+    batch_lib.write_text("id,smiles\nm1,CCO\n", encoding="utf-8")
+    panel_lib = tmp_path / "panel.csv"
+    panel_lib.write_text("id,smiles\np1,c1ccccc1\n", encoding="utf-8")
+
+    class FakePipeline:
+        def __init__(self, stages):
+            self._stages = stages
+
+        def model_dump(self, mode="json"):
+            return {"stages": [{"id": s} for s in self._stages]}
+
+    class FakeScreen:
+        def __init__(self, stages):
+            self._stages = stages
+
+        def plan(self, cfg, lib):
+            rev = "rev-panel" if str(lib) == str(panel_lib) else "rev-batch"
+            return SimpleNamespace(revision_id=rev, _internal={"pipeline": FakePipeline(self._stages)})
+
+    def fake_prepare_with(stages):
+        def _fake(cfg, lib, scratch, allow_copyleft=False):
+            screen = FakeScreen(stages)
+            compiled = screen.plan(cfg, lib)
+            prepared = {"request": {"inputs": {str(cfg): "a" * 64}, "revision_id": compiled.revision_id}}
+            return prepared, screen, compiled
+        return _fake
+
+    # Ungated funnel: no gate token needed.
+    monkeypatch.setattr("moldarwin.screening._prepare", fake_prepare_with(["standardize", "dock"]))
+    ungated = operations.preflight(
+        "screen.run",
+        {"config_path": str(config), "library_path": str(batch_lib)},
+        {"gpu_hours": 1},
+    )
+    assert ungated["gate_check"]["authorization_required"] is False
+
+    # Gated funnel with no token: refused with NotAuthorized.
+    monkeypatch.setattr("moldarwin.screening._prepare", fake_prepare_with(["standardize", "dock__gate"]))
+    with pytest.raises(NotAuthorized, match="gate stage"):
+        operations.preflight(
+            "screen.run",
+            {"config_path": str(config), "library_path": str(batch_lib)},
+            {"gpu_hours": 1},
+        )
+
+    # Gated funnel with valid token + panel reference library: admitted.
+    calibration = SimpleNamespace(
+        revision_id="rev-panel",
+        admissible=True,
+        recall=1.0,
+        panel_size=4,
+        actives=2,
+        rankable=(),
+        refusals=lambda: (),
+        as_dict=lambda: {"revision_id": "rev-panel", "panel_size": 4, "actives": 2, "recall": 1.0},
+    )
+    gate_token = authorize_gate(calibration).as_dict()
+    admitted = operations.preflight(
+        "screen.run",
+        {
+            "config_path": str(config),
+            "library_path": str(batch_lib),
+            "gate": gate_token,
+            "gate_reference_library": str(panel_lib),
+        },
+        {"gpu_hours": 1},
+    )
+    assert admitted["gate_check"]["authorization_required"] is True
+    assert admitted["gate_check"]["gate_revision_id"] == "rev-panel"
+    assert real_prepare is not None

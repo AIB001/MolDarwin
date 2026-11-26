@@ -556,9 +556,11 @@ def register(mcp: Any) -> None:
         relationship with. The server now has 89 tools and seven that spend -- counted by
         ``tools/count_unguarded_spends.py`` from the registration index rather than remembered,
         because this sentence reasons from the number and had been stale twice -- so it is history
-        rather than description. Four of the seven now take an authorization object: a gate token
+        rather than description. Five of the seven now take an authorization object: a gate token
         on ``moldarwin_screen_submit`` and a method token on ``moldarwin_action_submit``,
-        ``moldarwin_workflow_submit`` and ``moldarwin_workflow_advance``. But the half that matters *here* has not changed. No tool on
+        ``moldarwin_workflow_submit``, ``moldarwin_workflow_advance`` and ``moldarwin_method_call``
+        (and ``screen.run`` nodes enforce the same gate token at ``runtime/operations.preflight``).
+        But the half that matters *here* has not changed. No tool on
         this surface accepts **this** token, and none of the seven that spend is the expensive
         stage. So the governance of a GPU-hour still rests on you choosing to be governed nine
         rounds into a campaign, and the token below is still the only thing that makes it

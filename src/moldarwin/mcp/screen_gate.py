@@ -82,12 +82,11 @@ def declared_gates(plan: Any) -> tuple[tuple[str, ...], str]:
     return ids, f"measured_here: compiled stage ids ending {GATE_STAGE_SUFFIX!r}, over {len(stages)} stages"
 
 
-def token_from_json(gate_json: str) -> GateAuthorization | None:
-    """Rebuild a :class:`~moldarwin.authority.gate.GateAuthorization` from the tool argument.
+def token_from_value(gate: str | dict[str, Any] | None) -> GateAuthorization | None:
+    """Rebuild a :class:`~moldarwin.authority.gate.GateAuthorization` from JSON text or mapping.
 
-    The same construction ``mcp/sweep.py`` does for ``moldarwin_sweep_emit``, which had it inline and
-    was the only copy. A token whose fields have been edited does not verify -- the signature covers
-    every one of them -- so this is a parse rather than a trust decision, and
+    A token whose fields have been edited does not verify -- the signature covers every one of
+    them -- so this is a parse rather than a trust decision, and
     :func:`~moldarwin.authority.gate.require_gate` is what rules on it.
     """
 
@@ -95,9 +94,18 @@ def token_from_json(gate_json: str) -> GateAuthorization | None:
 
     from moldarwin.authority.gate import GateAuthorization
 
-    if not gate_json.strip():
+    if gate is None:
         return None
-    payload = json.loads(gate_json)
+    if isinstance(gate, str):
+        if not gate.strip():
+            return None
+        payload = json.loads(gate)
+    elif isinstance(gate, dict):
+        payload = gate
+    else:
+        raise ValueError(
+            "gate must be the `gate` object moldarwin_authorize_gates returned (dict or JSON string)"
+        )
     if not isinstance(payload, dict):
         raise ValueError(
             "gate_json must be the `gate` object moldarwin_authorize_gates returned, passed verbatim"
@@ -117,44 +125,32 @@ def token_from_json(gate_json: str) -> GateAuthorization | None:
     )
 
 
-def require(
+def token_from_json(gate_json: str) -> GateAuthorization | None:
+    """Rebuild a :class:`~moldarwin.authority.gate.GateAuthorization` from the tool argument."""
+
+    return token_from_value(gate_json)
+
+
+def require_plan(
+    screen: Any,
+    submitted: Any,
     *,
     config_path: Path,
-    workspace: Path,
-    library_path: Path | None,
-    allow_copyleft: bool,
-    gate_json: str,
+    gate: str | dict[str, Any] | None,
     gate_reference_library: Path | None,
 ) -> dict[str, Any]:
-    """Refuse a gated screen with no authorization for its funnel, or report why none is needed.
+    """Refuse an already-compiled gated screen plan with no valid authorization.
 
-    Order matters and is the cheapest-first order the rest of the repository uses: compile, scan for
-    gates, and only then ask for a token. A cascade with no threshold in it needs no calibration and
-    is not asked for one, because a guard that refuses work it has no argument against is a guard
-    hosts route around.
-
-    Returns a ``gate_check`` block for the response.
-
-    Raises:
-        NotAuthorized: From :func:`~moldarwin.authority.gate.require_gate`, with that function's three
-            distinct messages, or from here when a gated funnel arrives with no token at all. The
-            MCP boundary already classifies ``NotAuthorized`` as non-retryable and attaches the
-            gate remedy (``mcp/_common.py``'s refusal intercept), so this deliberately does not
-            catch it: none of its causes is fixed by calling again.
-        ValueError: When a token is supplied without the reference library its revision must be
-            compared against. That is not a refusal about science; it is an argument that cannot do
-            what the caller intends, and saying so is better than comparing against a revision that
-            can never match.
+    Shared by ``moldarwin_screen_submit`` and ``runtime/operations.py::preflight("screen.run")``
+    so workflow-dispatched screens cannot route around the gate that ``moldarwin_screen_submit``
+    enforces.
     """
 
     from moldarwin.authority.gate import require_gate
     from moldarwin.authority.grant import NotAuthorized
-    from moldarwin.boundary.screen import Screen
 
-    screen = Screen(workspace, allow_copyleft=allow_copyleft)
-    submitted = screen.plan(config_path, library_path)
     gates, basis = declared_gates(submitted)
-    token = token_from_json(gate_json)
+    token = token_from_value(gate)
 
     if not gates and basis.startswith("measured_here"):
         return {
@@ -185,18 +181,18 @@ def require(
             "all eight members of the SND1 panel including both co-crystal ligands while every log "
             "line reads SUCCEEDED. Screen the panel through this cascade, call "
             "moldarwin_calibrate_gates to read what the gates did to it, then moldarwin_authorize_gates, "
-            "and pass the returned gate object verbatim as gate_json together with "
-            "gate_reference_library set to the panel's library."
+            "and pass the returned gate object verbatim as gate_json (or gate on screen.run) together "
+            "with gate_reference_library set to the panel's library."
         )
 
     if gate_reference_library is None:
         raise ValueError(
-            "gate_json was supplied without gate_reference_library, and the comparison cannot be "
-            "made without it. A compiled revision covers the library as well as the funnel, so "
-            "this batch's own revision can never equal the one the panel produced -- measured, "
-            "five batches of one campaign compiled to five revisions from one unchanged config "
-            "file. Pass the calibration panel's library as gate_reference_library; it is excluded "
-            "from the plan request, so it does not move plan_id."
+            "gate authorization was supplied without gate_reference_library, and the comparison "
+            "cannot be made without it. A compiled revision covers the library as well as the "
+            "funnel, so this batch's own revision can never equal the one the panel produced -- "
+            "measured, five batches of one campaign compiled to five revisions from one unchanged "
+            "config file. Pass the calibration panel's library as gate_reference_library; it is "
+            "excluded from the plan request, so it does not move plan_id."
         )
 
     reference = screen.plan(config_path, gate_reference_library)
@@ -229,4 +225,28 @@ def require(
     }
 
 
-__all__ = ["GATE_STAGE_SUFFIX", "declared_gates", "require", "token_from_json"]
+def require(
+    *,
+    config_path: Path,
+    workspace: Path,
+    library_path: Path | None,
+    allow_copyleft: bool,
+    gate_json: str,
+    gate_reference_library: Path | None,
+) -> dict[str, Any]:
+    """Refuse a gated screen with no authorization for its funnel, or report why none is needed."""
+
+    from moldarwin.boundary.screen import Screen
+
+    screen = Screen(workspace, allow_copyleft=allow_copyleft)
+    submitted = screen.plan(config_path, library_path)
+    return require_plan(
+        screen,
+        submitted,
+        config_path=config_path,
+        gate=gate_json,
+        gate_reference_library=gate_reference_library,
+    )
+
+
+__all__ = ["GATE_STAGE_SUFFIX", "declared_gates", "require", "require_plan", "token_from_json", "token_from_value"]

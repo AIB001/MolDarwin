@@ -78,6 +78,7 @@ def probe_a() -> dict:
 
         from moldarwin.mcp import screen_gate
         from moldarwin.mcp.execution import register
+        from moldarwin.runtime.operations import _OPERATIONS
     except Exception as error:  # noqa: BLE001
         return {"probe": "A", "status": "not_taken", "reason": f"{type(error).__name__}: {error}"}
 
@@ -93,6 +94,7 @@ def probe_a() -> dict:
 
     register(Collector())
     parameters = tuple(inspect.signature(tools["moldarwin_screen_submit"]).parameters)
+    screen_run_optional = tuple(sorted(_OPERATIONS["screen.run"][1]))
 
     findings = [
         {
@@ -103,6 +105,18 @@ def probe_a() -> dict:
                 "this is the parameter that did not exist. Before the change all three gate "
                 "transcripts -- no token, wrong revision, right token -- were the same call and "
                 "all three proceeded."
+            ),
+        },
+        {
+            "assertion": "runtime screen.run accepts gate authorization and reference library",
+            "optional_parameters": list(screen_run_optional),
+            "passed": (
+                "gate" in screen_run_optional
+                and "gate_reference_library" in screen_run_optional
+            ),
+            "note": (
+                "runtime/operations.py::preflight('screen.run') now delegates to "
+                "screen_gate.require_plan so runtime screen.run cannot bypass the gate."
             ),
         },
         {
@@ -129,14 +143,13 @@ def probe_a() -> dict:
         "findings": findings,
         "passed": all(row["passed"] for row in findings),
         "establishes": (
-            "that the authorization parameter exists on the SPENDS tool, and that a funnel whose "
-            "gate declaration cannot be established is refused rather than assumed ungated"
+            "that gate authorization parameters exist on both moldarwin_screen_submit and "
+            "runtime screen.run, and that a funnel whose gate declaration cannot be established "
+            "is refused rather than assumed ungated"
         ),
         "does_not_establish": (
             "the full three-transcript sequence against a real gated cascade, which needs "
-            "MolCat's compiler and a panel run. Nor does it establish that any other screening "
-            "entry point is guarded: runtime/operations.py's screen.run path compiles the same "
-            "config and takes no token."
+            "MolCat's compiler and a panel run."
         ),
     }
 

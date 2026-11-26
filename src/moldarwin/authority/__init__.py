@@ -14,20 +14,23 @@ worth more than a tidy-up: an argument about a census is only as good as the cen
 
 The argument below is unaffected and the premise has to be stated as history. Two amendments:
 
-* :mod:`moldarwin.mcp.screen_gate` makes ``moldarwin_screen_submit`` accept a **gate** authorization.
-* :mod:`moldarwin.authority.method` makes ``moldarwin_action_submit``, ``moldarwin_workflow_submit`` and
-  ``moldarwin_workflow_advance`` accept a **method** authorization, which is the first object on this
-  tool surface that a model passes to a spending tool and that the spending path rules on. The
-  sentence *"nothing on the tool surface accepts a spend token, so ``require`` is reached only from
-  Python"* was true of :func:`require` and still is: the expensive stage's own token has no tool.
-  What changed is the class, not that one instance.
+* :mod:`moldarwin.mcp.screen_gate` makes ``moldarwin_screen_submit`` and ``screen.run`` workflow
+  nodes enforce a **gate** authorization whenever the compiled funnel declares a threshold stage.
+* :mod:`moldarwin.authority.method` makes ``moldarwin_action_submit``, ``moldarwin_workflow_submit``,
+  ``moldarwin_workflow_advance`` and ``moldarwin_method_call`` accept a **method** authorization,
+  which is the first object on this tool surface that a model passes to a spending tool and that
+  the spending path rules on. The sentence *"nothing on the tool surface accepts a spend token, so
+  ``require`` is reached only from Python"* was true of :func:`require` and still is: the
+  expensive stage's own token has no tool. What changed is the class, not that one instance.
 
-The count worth watching is stated as what it is: **3 of 7 SPENDS tools accept no authorization
-object at all**, down from 6 of 7. ``tools/count_unguarded_spends.py`` takes that count from the
+The count worth watching is stated as what it is: **2 of 7 SPENDS tools accept no authorization
+object at all**, down from 6 of 7 (``moldarwin_active_submit`` enforces ``SpendAuthorization``
+internally for handoff endpoints, and ``moldarwin_workflow_reconcile`` reconciles/resumes an
+already-planned workflow). ``tools/count_unguarded_spends.py`` takes that count from the
 registration index rather than from this paragraph, for the reason the paragraph above gives -- and
 it also states what the count does not establish: a parameter that accepts a token is not evidence
-the tool refuses without one. ``screen.run`` and ``active.run`` reached through
-``moldarwin_workflow_submit`` remain unauthorized; only ``method.run`` nodes are ruled on.
+the tool refuses without one. ``screen.run`` and ``method.run`` nodes are now both ruled on at
+dispatch in ``runtime/operations.preflight``.
 
 This package makes the relationship structural: :func:`authorize` runs the preflight and returns
 tokens, the expensive stage requires one per row, and a token is bound to a digest of the exact

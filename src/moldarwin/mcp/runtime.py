@@ -36,24 +36,24 @@ def register(mcp: Any) -> None:
         and `plan_id` verbatim; a token constructed by hand does not verify.
         """
         from moldarwin.mcp import method_authority
-        from moldarwin.runtime.api import prepare_action
+        from moldarwin.runtime.api import _action_request, prepare_action
 
-        prepared = prepare_action(request)
-        # `.get` rather than `[...]`: this tool delegates and must not assume more of the
-        # preparation's shape than it needs. Without a normalized request there is no declaration
-        # to mint over, and the response is what it always was.
-        normalized = prepared.get("request") if isinstance(prepared, dict) else None
-        if normalized is None:
+        minted: dict[str, Any] = {"state": "not_applicable", "operation": request.get("operation") if isinstance(request, dict) else None}
+        to_prepare = request
+        if isinstance(request, dict) and request.get("operation") == "method.run":
+            # Validate the action contract and mint BEFORE calling prepare_action so that
+            # Stage 2 (MOLDARWIN_METHOD_AUTHORITY=required) does not deadlock inside the very tool
+            # that mints the token. A pre-supplied tampered token stays untouched and is refused by
+            # prepare_action's preflight.
+            normalized = _action_request(request)
+            to_prepare, minted = method_authority.authorize_request(normalized)
+        prepared = prepare_action(to_prepare)
+        normalized_out = prepared.get("request") if isinstance(prepared, dict) else None
+        if normalized_out is None:
             return ok(prepared=prepared)
-        authorized, minted = method_authority.authorize_request(normalized)
-        if authorized is not normalized:
-            # Re-prepare so the returned plan_id is the one the authorized request plans to.
-            # prepare_action is read-only and FREE; a plan_id taken before the token was attached
-            # would be stale the moment the host submitted the request this tool told it to.
-            prepared = prepare_action(authorized)
-        return ok(prepared=prepared, request=prepared["request"],
+        return ok(prepared=prepared, request=normalized_out,
                   method_authorization=minted,
-                  authorization=method_authority.state(prepared["request"]))
+                  authorization=method_authority.state(normalized_out))
 
     @mcp.tool()
     @threaded_tool(Cost.SPENDS)

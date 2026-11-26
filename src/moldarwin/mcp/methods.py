@@ -56,31 +56,54 @@ def register(mcp: Any) -> None:
         """FREE. Read one catalog method; optionally return a ready action request.
 
         invocation={request_id, limits, inputs?, input_files?, executable?, max_seconds?}. Verifies source
-        originals and uses ordinary action preflight; does not run or optimize.
-        Send the returned request to moldarwin_action_submit with a workspace, then
-        recover its handle. Use catalog content_ref to pin a historical version.
-        moldarwin_method_call optionally combines resolution, submission and note bookkeeping.
+        originals, mints a MethodAuthorization onto the prepared request, and uses ordinary action
+        preflight; does not run or optimize. Send the returned request to moldarwin_action_submit
+        with a workspace (or pass the minted authorization verbatim as authorization_json to
+        moldarwin_method_call), then recover its handle. Use catalog content_ref to pin a historical
+        version.
         """
-        from moldarwin.research.saved_methods import resolve_saved_method
+        from moldarwin.mcp import method_authority
         from moldarwin.mcp.evidence import _entry_argument
-        return ok(**resolve_saved_method(_entry_argument(entry), pointer, branch_id=branch_id,
-                   invocation=invocation, max_bytes=max_bytes, query=query))
+        from moldarwin.research.saved_methods import resolve_saved_method
+
+        resolved = resolve_saved_method(
+            _entry_argument(entry), pointer, branch_id=branch_id,
+            invocation=invocation, max_bytes=max_bytes, query=query,
+            authorize=invocation is not None,
+        )
+        if "authorized_request" in resolved:
+            resolved = {**resolved, "authorization": method_authority.state(resolved["authorized_request"])}
+        return ok(**resolved)
 
     @mcp.tool()
     @tool(Cost.SPENDS)
     def moldarwin_method_call(entry: str, pointer: str, invocation: dict, workspace: str,
-                           branch_id: str | None = None, query: dict | None = None) -> str:
+                           branch_id: str | None = None, query: dict | None = None,
+                           authorization_json: str = "") -> str:
         """SPENDS. Call a chosen saved method and remember its handle automatically.
 
         Optional convenience over resolve/submit. Uses the existing action budget
         and request identity; a repeated request recovers the same execution.
+        Pass the ``authorization`` object returned by ``moldarwin_method_resolve`` verbatim as
+        ``authorization_json``; dispatch rules on it (and never mints one on the caller's behalf).
         Returns invocation_path for moldarwin_method_collect. No research graph,
         method evaluation or additional model call is required.
         """
+        from moldarwin.mcp import method_authority
         from moldarwin.research.saved_methods import call_saved_method
-        return ok(**call_saved_method(absolute_path(entry, label="entry"), pointer,
+
+        tokens = method_authority.tokens_from_json(authorization_json)
+        if tokens and "action" not in tokens:
+            raise ValueError(
+                "authorization_json for moldarwin_method_call must be the single authorization "
+                "object returned by moldarwin_method_resolve (or {\"action\": <token>})"
+            )
+        token = tokens.get("action") if tokens else None
+        return ok(**call_saved_method(
+            absolute_path(entry, label="entry"), pointer,
             invocation=invocation, workspace=absolute_path(workspace, label="workspace"),
-            branch_id=branch_id, query=query))
+            branch_id=branch_id, query=query, authorization=token,
+        ))
 
     @mcp.tool()
     @tool(Cost.CHEAP)

@@ -43,7 +43,8 @@ def publish_method(entry, resource_id, arguments, *, summary, conditions,
             "pointer": "/resources/" + resource_id.replace("~", "~0").replace("/", "~1")}
 
 
-def resolve_saved_method(entry, pointer, *, branch_id=None, invocation=None, max_bytes=16384, query=None):
+def resolve_saved_method(entry, pointer, *, branch_id=None, invocation=None, max_bytes=16384, query=None,
+                         authorize=False, authorization=None):
     """Resolve one selected method and optionally construct an existing action request.
 
     invocation supplies request_id, limits and optionally inputs / executable /
@@ -52,9 +53,16 @@ def resolve_saved_method(entry, pointer, *, branch_id=None, invocation=None, max
     Inputs override defaults by key. A host may select a local interpreter after
     relocation; source argv and files are resolved only through pinned originals.
     This prepares no new process and does not infer applicability from retrieval.
+    When ``authorize=True`` (used by the FREE ``moldarwin_method_resolve`` tool), a
+    ``MethodAuthorization`` is minted onto the prepared request before preflight so
+    Stage 2 (``MOLDARWIN_METHOD_AUTHORITY=required``) succeeds without deadlocking.
+    When ``authorization`` is supplied (used by ``moldarwin_method_call``), that token
+    is merged into the request and ruled on by preflight without minting anything new.
     """
+    from moldarwin.mcp import method_authority
+    from moldarwin.runtime.api import _action_request, prepare_action
+
     from .evidence_refs import resolve_artifact
-    from moldarwin.runtime.api import prepare_action
     from .notes import byte_size
 
     result = resolve_method(entry, pointer, branch_id=branch_id, max_bytes=max_bytes)
@@ -112,9 +120,43 @@ def resolve_saved_method(entry, pointer, *, branch_id=None, invocation=None, max
         "evidence_refs": [result["record_id"]]}
     if "max_seconds" in invocation:
         request["max_seconds"] = invocation["max_seconds"]
-    # The ordinary action preflight pins actual inputs and preserves idempotency.
-    prepared = prepare_action(request)
-    result.update(request=prepared["request"], plan_id=prepared["plan_id"], next_tool="moldarwin_action_submit",
+    minted = None
+    if authorization is not None:
+        request = method_authority.merge(request, {"action": authorization})
+        prepared = prepare_action(request)
+        result.update(request=prepared["request"], plan_id=prepared["plan_id"])
+    elif authorize:
+        from moldarwin.runtime import service
+        from moldarwin.runtime.schema import SCHEMA as WORKFLOW_SCHEMA
+
+        normalized = _action_request(request)
+        authorized_req, minted = method_authority.authorize_request(normalized)
+        prepared_auth = prepare_action(authorized_req)
+        # Preserve the deterministic unsigned request/plan_id for CLI/MCP parity while returning
+        # the minted token (for moldarwin_method_call authorization_json) and the authorized
+        # request/plan_id pair (for direct moldarwin_action_submit under Stage 1 or Stage 2).
+        unsigned_spec = {
+            "schema": WORKFLOW_SCHEMA,
+            "objective": "Execute host-selected " + normalized["operation"],
+            "nodes": [{"id": "action", "operation": normalized["operation"],
+                       "arguments": normalized["arguments"], "resources": normalized["limits"]}],
+            "limits": normalized["limits"], "max_seconds": normalized["max_seconds"],
+            "controller": {"mode": "ordered"}, "action_request": normalized,
+            "action_binding": prepared_auth["binding"],
+        }
+        unsigned_plan = service.plan(unsigned_spec)
+        result.update(
+            request=normalized,
+            plan_id=unsigned_plan["plan_id"],
+            authorized_request=prepared_auth["request"],
+            authorized_plan_id=prepared_auth["plan_id"],
+            method_authorization=minted,
+        )
+    else:
+        # The ordinary action preflight pins actual inputs and preserves idempotency.
+        prepared = prepare_action(request)
+        result.update(request=prepared["request"], plan_id=prepared["plan_id"])
+    result.update(next_tool="moldarwin_action_submit",
                   record_handle={"tool": "moldarwin_research_progress", "field": "pending_handles",
                       "when": "after submit, before waiting; save the returned handle in the current task entry"},
                   applicability="declared conditions only; no scientific suitability inferred")
@@ -159,7 +201,8 @@ def _with_related_feedback(result, query, max_bytes):
     return minimal if byte_size(minimal) <= max_bytes else result
 
 
-def call_saved_method(entry, pointer, *, invocation, workspace, branch_id=None, query=None):
+def call_saved_method(entry, pointer, *, invocation, workspace, branch_id=None, query=None,
+                      authorization=None):
     """Optionally submit a saved callable and remember its handle in this note.
 
     Uses the same runtime as prepare/submit. No graph, evaluation or extra model
@@ -167,7 +210,7 @@ def call_saved_method(entry, pointer, *, invocation, workspace, branch_id=None, 
     """
     from .method_invocations import call
     return call(entry, pointer, invocation=invocation, workspace=workspace,
-                branch_id=branch_id, query=query)
+                branch_id=branch_id, query=query, authorization=authorization)
 
 
 def collect_saved_method(invocation_path):

@@ -157,8 +157,14 @@ def _remember(intent, path, handle, result):
     return published
 
 
-def call(entry, pointer, *, invocation, workspace, branch_id=None, query=None):
-    """Submit one host-selected method and retain enough context for collection."""
+def call(entry, pointer, *, invocation, workspace, branch_id=None, query=None, authorization=None):
+    """Submit one host-selected method and retain enough context for collection.
+
+    Deliberately never mints a ``MethodAuthorization`` on the caller's behalf: a spending tool
+    that issued its own authorization would be authorising itself. Pass the token minted by
+    ``moldarwin_method_resolve`` via ``authorization`` so dispatch rules on it (and succeeds under
+    ``MOLDARWIN_METHOD_AUTHORITY=required``).
+    """
     from .saved_methods import resolve_saved_method
     entry = absolute(entry)
     workspace = absolute(workspace)
@@ -179,7 +185,10 @@ def call(entry, pointer, *, invocation, workspace, branch_id=None, query=None):
             if canonical(intent["selection"]) != canonical(selection):
                 raise ValueError("request id already belongs to a different method invocation")
         else:
-            resolved = resolve_saved_method(entry, pointer, branch_id=branch_id, invocation=invocation, query=query)
+            resolved = resolve_saved_method(
+                entry, pointer, branch_id=branch_id, invocation=invocation, query=query,
+                authorize=False, authorization=authorization,
+            )
             intent = {"schema": SCHEMA, "selection": selection, "entry": str(entry), "workspace": str(workspace),
                 "binding": _binding(entry_value(entry), branch_id), "pointer": pointer,
                 "resource_version": resolved["resource_version"], "method_summary": resolved["description"]["summary"],

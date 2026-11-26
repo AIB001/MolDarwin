@@ -31,7 +31,8 @@ _OPERATIONS = {
     "campaign.assays": ({"database", "snapshot", "review"}, set()),
     "campaign.handoffs": ({"database", "workspace", "artifact_id", "rationale"}, {"candidate_ids"}),
     "design.import": ({"database", "bundle_path"}, {"mode"}),
-    "screen.run": ({"config_path", "library_path"}, {"workers", "devices", "allow_copyleft"}),
+    "screen.run": ({"config_path", "library_path"},
+                   {"workers", "devices", "allow_copyleft", "gate", "gate_reference_library"}),
     "screen.export": ({"workspace", "run_id"}, set()),
     "active.run": ({"database", "max_rounds"}, {"min_new_admitted"}),
     "active.evaluate": ({"database", "candidate_id", "endpoint_id"}, set()),
@@ -54,9 +55,12 @@ def validate_arguments(operation: str, arguments: dict, *, deferred: bool = Fals
         return
     if references(arguments):
         raise ValueError("unresolved workflow output reference")
-    for key in ("database", "snapshot", "workspace", "config_path", "library_path", "bundle_path"):
+    for key in ("database", "snapshot", "workspace", "config_path", "library_path", "bundle_path",
+                "gate_reference_library"):
         if key in arguments:
             absolute(arguments[key])
+    if operation == "screen.run" and "gate" in arguments and not isinstance(arguments["gate"], (dict, str)):
+        raise ValueError("screen.run gate must be the GateAuthorization mapping or JSON string")
     if operation == "design.import" and arguments.get("mode", "pool") not in {"pool", "index_only"}:
         raise ValueError("design import mode must be pool or index_only")
     for key in ("allow_partial", "allow_copyleft"):
@@ -110,7 +114,9 @@ def input_hashes(value: Any) -> dict[str, str]:
                 result[checked["path"]] = checked["bundle_file_sha256"]
                 result.update({str(Path(checked["root"]) / ref["path"]): ref["sha256"]
                                for ref in checked["references"].values()})
-            elif isinstance(item, str) and (key.endswith("_path") or key in {"path", "input_sdf"}):
+            elif isinstance(item, str) and (
+                key.endswith("_path") or key in {"path", "input_sdf", "gate_reference_library"}
+            ):
                 path = absolute(item)
                 if not path.is_file():
                     raise FileNotFoundError(path)
@@ -247,14 +253,28 @@ def preflight(operation: str, parameters: dict, resources: dict) -> dict:
     if operation == "screen.run":
         if not resources:
             raise ValueError("screen steps require an explicit resource quote; GPU cost is not inferred from wall time")
+        from moldarwin.mcp import screen_gate
         from moldarwin.screening import _prepare
 
         with tempfile.TemporaryDirectory(prefix="moldarwin-screen-preflight-") as scratch:
-            prepared, _, _ = _prepare(params_config := parameters["config_path"], parameters["library_path"], scratch,
-                                      allow_copyleft=parameters.get("allow_copyleft", False))
+            prepared, screen, compiled = _prepare(
+                params_config := parameters["config_path"],
+                parameters["library_path"],
+                scratch,
+                allow_copyleft=parameters.get("allow_copyleft", False),
+            )
+            gate_ref = parameters.get("gate_reference_library")
+            gate_check = screen_gate.require_plan(
+                screen,
+                compiled,
+                config_path=Path(params_config),
+                gate=parameters.get("gate"),
+                gate_reference_library=Path(gate_ref) if gate_ref else None,
+            )
         inputs.update(prepared["request"]["inputs"])
         return {"inputs": inputs, "screen_inputs": prepared["request"]["inputs"],
-                "screen_revision": prepared["request"]["revision_id"], "configuration": params_config}
+                "screen_revision": prepared["request"]["revision_id"], "configuration": params_config,
+                "gate_check": gate_check}
     return {"inputs": inputs}
 
 
