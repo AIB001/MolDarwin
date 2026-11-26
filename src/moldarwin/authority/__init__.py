@@ -6,7 +6,7 @@ offered beside an action it had no relationship with, and the governance rested 
 to be governed.
 
 That sentence was in the present tense and is no longer true of the server. Counted from the single
-registration path ``mcp.server.tool_catalog`` builds: 89 tools, 47 free, 34 cheap, 7 that spend and
+registration path ``mcp.server.tool_catalog`` builds: 90 tools, 48 free, 34 cheap, 7 that spend and
 one no model may complete. The figure this docstring reasons *from* has twice been stale -- by
 thirty tools and two spenders when it said 57, and by two free tools when it said 87 -- which is
 worth more than a tidy-up: an argument about a census is only as good as the census, and

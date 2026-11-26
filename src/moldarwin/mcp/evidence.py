@@ -376,6 +376,36 @@ def register(mcp: Any) -> None:
 
     @mcp.tool()
     @tool(Cost.FREE)
+    def moldarwin_admission_view(workspace: str | None = None, checkpoint_ref: dict | None = None,
+                                 entry: str | dict | None = None, read_context: dict | None = None,
+                                 purpose: str | None = None, policy: dict | None = None,
+                                 labels: dict[str, str] | None = None,
+                                 bindings: list[dict] | None = None,
+                                 max_nodes: Annotated[int, Field(ge=1, le=128)] = 64,
+                                 max_bytes: Annotated[int, Field(ge=4096, le=262144)] = 65536,
+                                 scope: dict | None = None) -> str:
+        """FREE. Derive read-only node-level admission over a published research graph.
+
+        Reads committed dispatch-time moldarwin-admission-binding/1 artifacts from the
+        published workspace (plus optional caller-supplied bindings) and propagates leaf
+        admissions along relied_on edges with the assessment-regime membrane applied,
+        without changing rule() or mutating leaf records. Unbound historical records
+        stay not_recorded and are never backfilled.
+        Supply either workspace + checkpoint_ref, entry, or read_context.
+        Returns the untouched derived view (directly comparable via compare_views)
+        alongside binding_extraction counts. Never grants execution or writes state.
+        """
+        from moldarwin.research.admission_bindings import build_admission_view
+        ws = absolute_path(workspace, label="workspace") if workspace is not None else None
+        result = build_admission_view(
+            ws, checkpoint_ref=checkpoint_ref, entry=_entry_argument(entry),
+            read_context=read_context, policy=policy, purpose=purpose,
+            labels=labels, extra_bindings=bindings, max_nodes=max_nodes,
+            max_bytes=max_bytes, scope=scope)
+        return ok(**result)
+
+    @mcp.tool()
+    @tool(Cost.FREE)
     def moldarwin_evidence_query(workspace: str | None = None, query: Annotated[str, Field(max_length=4096)] = "",
                               filters: dict | None = None,
                               limit: Annotated[int, Field(ge=1, le=50)] = 10,

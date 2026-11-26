@@ -138,6 +138,9 @@ def _project_contents(ws, source, indexed):
                 if not isinstance(payload.get("conditions", {}), dict):
                     raise EvidenceError("note conditions must be explicit fields")
                 _check_result_meanings(payload)
+            elif schema == "moldarwin-admission-binding/1":
+                from .admission_bindings import validate_content as validate_admission_binding
+                validate_admission_binding(payload)
             else:
                 from .continuation import validate_content
                 validate_content(payload)

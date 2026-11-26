@@ -26,7 +26,8 @@ CONTENT_SCHEMAS = {"moldarwin-method-revision/1", "moldarwin-research-claim/1",
                    "moldarwin-defect-family/1", "moldarwin-opportunity-disposition/1",
                    "moldarwin-opportunity-reopen/1", "moldarwin-candidate-brief/1",
                    "moldarwin-research-decision/1", "moldarwin-research-decision-update/1",
-                   "moldarwin-evidence-window/1", "moldarwin-outcome-release/1", "moldarwin-research-note/1"}
+                   "moldarwin-evidence-window/1", "moldarwin-outcome-release/1", "moldarwin-research-note/1",
+                   "moldarwin-admission-binding/1"}
 
 
 

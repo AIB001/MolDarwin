@@ -305,3 +305,331 @@ def test_c2_taking_the_view_twice_over_the_same_inputs_derives_the_same_view_id(
     second = admission_view(graph, bindings)
     assert first["view_id"] == second["view_id"]
     assert first == second
+
+
+# ============================================================ constraint 3
+# "An admission state change keeps the old value and claim scope, per `supersedes`,
+# without erasing."
+#
+# Refusals for malformed `supersedes` (dangling, cyclic, multi-parent) already live in
+# `tests/test_admission_view.py`. What was missing was the positive clause: an actual state
+# change must keep both the prior admission and the prior claim scope readable in the
+# journal AND in the derived view, while refusing an unchained overwrite.
+
+
+def test_c3_supersedes_preserves_old_admission_and_claim_scope_in_derived_view():
+    """Positive check over `admission_view`: old admission and old claim_scope survive."""
+
+    from test_admission_view import binding, make_graph, nid
+
+    from moldarwin.learn.admission_view import admission_view
+
+    graph = make_graph(
+        ["decision-1", "leaf-1"],
+        [("decision-1", "leaf-1", "depends_on", "measured_result")],
+    )
+    old_scope = {"parent_id": "leaf-1", "protocol": "initial-run", "temperature_k": 300}
+    new_scope = {"parent_id": "leaf-1", "protocol": "waived-review", "temperature_k": 300}
+
+    first = binding("leaf-1", "withheld", action="act-1", scope=old_scope)
+    second = binding(
+        "leaf-1",
+        "admitted_under_waiver",
+        action="act-2",
+        scope=new_scope,
+        supersedes=first["ruling_digest"],
+    )
+
+    view = admission_view(graph, [first, second])
+    by_id = {node["node_id"]: node for node in view["nodes"]}
+    leaf_row = by_id[nid("leaf-1")]
+    decision_row = by_id[nid("decision-1")]
+
+    assert leaf_row["admission"] == "admitted_under_waiver"
+    assert leaf_row["binding"]["claim_scope"] == new_scope
+    assert leaf_row["history"] == [
+        {
+            "admission": "withheld",
+            "ruling_digest": first["ruling_digest"],
+            "claim_scope": old_scope,
+            "superseded_by": second["ruling_digest"],
+        }
+    ]
+    assert leaf_row["rests_on_superseded_premise"] is True
+    assert decision_row["rests_on_superseded_premise"] is True
+
+
+def test_c3_recorded_admission_state_change_keeps_old_artifact_and_claim_scope_readable(tmp_path):
+    """End-to-end persistence check: `supersedes` preserves the old artifact and scope on disk."""
+
+    from datetime import date
+    from pathlib import Path
+
+    from moldarwin.active import CampaignSpec, CampaignStore, Candidate, Endpoint, Evaluation
+    from moldarwin.active.store import StateError
+    from moldarwin.boundary.prism_v1 import file_identity
+    from moldarwin.faults.attribution import Observation
+    from moldarwin.judgment.waiver import Waiver, WaiverSet
+    from moldarwin.research.admission_bindings import record_admission_binding
+    from moldarwin.research.journal import ResearchJournal
+    from moldarwin.research.schema import Artifact
+
+    store = CampaignStore(tmp_path / "c3.sqlite")
+    store.configure(
+        CampaignSpec("fep", 10.0, "gpu_hour", "c3-fixture"),
+        [
+            Endpoint(
+                "fep",
+                "target",
+                "fep",
+                "kcal/mol",
+                "fep/1",
+                1.0,
+                queryable=True,
+                max_replicates=3,
+            )
+        ],
+    )
+    store.add_candidates([Candidate("mol-c3", "CCO", (1.0,))])
+    journal = ResearchJournal(store)
+
+    leaf_path = tmp_path / "leaf.txt"
+    leaf_path.write_text("c3 leaf evidence", encoding="utf-8")
+    leaf_id = journal.record(
+        Artifact(
+            str(leaf_path),
+            **file_identity(leaf_path),
+            source_kind="new_execution",
+            role="diagnostic",
+            bindings={},
+        )
+    )
+
+    bad_check = (
+        Observation("F_HYDROGENS_IMPLICIT", fired=True, detail="implicit H", evaluable=True),
+    )
+    r1 = store.start_round({"reason": "initial"})
+    a1 = store.reserve(r1, "mol-c3", "fep", {"reason": "initial"}).id
+    store.resolve(
+        a1,
+        Evaluation("mol-c3", "fep", -8.0, "kcal/mol", 1.0, status="ok", checks=bad_check),
+    )
+    store.finish_round(r1, {"done": True})
+    old_scope = {"parent_id": "mol-c3", "stage": "initial-ruling"}
+    b1 = record_admission_binding(
+        journal,
+        target_record_id=leaf_id,
+        action_id=a1,
+        claim_scope=old_scope,
+        directory=tmp_path / "bindings",
+    )
+
+    r2 = store.start_round({"reason": "waived"})
+    a2 = store.reserve(r2, "mol-c3", "fep", {"reason": "waived"}).id
+    waiver = WaiverSet(
+        (
+            Waiver(
+                "F_HYDROGENS_IMPLICIT",
+                "reviewed explicit hydrogen protonation externally",
+                "reviewer",
+                date(2030, 1, 1),
+            ),
+        )
+    )
+    store.resolve(
+        a2,
+        Evaluation("mol-c3", "fep", -8.0, "kcal/mol", 1.0, status="ok", checks=bad_check),
+        waivers=waiver,
+    )
+    store.finish_round(r2, {"done": True})
+    new_scope = {"parent_id": "mol-c3", "stage": "waived-ruling"}
+
+    # Unchained overwrite is refused.
+    with pytest.raises(StateError, match="supersedes"):
+        record_admission_binding(
+            journal,
+            target_record_id=leaf_id,
+            action_id=a2,
+            claim_scope=new_scope,
+            directory=tmp_path / "bindings",
+        )
+
+    b2 = record_admission_binding(
+        journal,
+        target_record_id=leaf_id,
+        action_id=a2,
+        claim_scope=new_scope,
+        directory=tmp_path / "bindings",
+        supersedes=b1["record_id"],
+    )
+
+    # Prior binding artifact and payload remain permanently readable and un-erased.
+    old_record = journal.get(b1["record_id"])
+    old_payload = json.loads(Path(old_record["path"]).read_text(encoding="utf-8"))
+    new_record = journal.get(b2["record_id"])
+    assert old_payload["ruling"]["admission"] == "withheld"
+    assert old_payload["claim_scope"] == old_scope
+    assert b1["record_id"] in new_record["parents"]
+
+
+# ============================================================ constraint 4
+# "`admission` is written at dispatch, never backfilled."
+#
+# The regime-unknown half is held by I20 in `test_admission_view.py`. The check below pins
+# the direct dispatch-join contract: a record carries no admission until a committed
+# `CampaignStore.observations` row exists, uncommitted/unknown dispatches are refused, and
+# deriving a view over historical unbound nodes leaves them `not_recorded` without writing
+# back to the store.
+
+
+def test_c4_admission_requires_committed_dispatch_and_unbound_records_are_never_backfilled(
+    tmp_path,
+):
+    from moldarwin.active import CampaignSpec, CampaignStore, Candidate, Endpoint
+    from moldarwin.active.store import StateError
+    from moldarwin.boundary.prism_v1 import file_identity
+    from moldarwin.research.admission_bindings import (
+        build_admission_view,
+        record_admission_binding,
+    )
+    from moldarwin.research.continuation import CHECKPOINT, STEP, record_content
+    from moldarwin.research.evidence_refs import make_ref
+    from moldarwin.research.graph_memory import node_identity
+    from moldarwin.research.journal import ResearchJournal
+    from moldarwin.research.schema import Artifact
+
+    store = CampaignStore(tmp_path / "c4.sqlite")
+    store.configure(
+        CampaignSpec("fep", 10.0, "gpu_hour", "c4-fixture"),
+        [Endpoint("fep", "target", "fep", "kcal/mol", "fep/1", 1.0, queryable=True)],
+    )
+    store.add_candidates([Candidate("mol-c4", "CCO", (1.0,))])
+    journal = ResearchJournal(store)
+
+    leaf_path = tmp_path / "historical_leaf.txt"
+    leaf_path.write_text("recorded before any dispatch ruling", encoding="utf-8")
+    leaf_id = journal.record(
+        Artifact(
+            str(leaf_path),
+            **file_identity(leaf_path),
+            source_kind="fixture",
+            role="diagnostic",
+            bindings={},
+        )
+    )
+    leaf_ref = make_ref("science", leaf_id, journal.get(leaf_id))
+
+    # Unknown action_id and reserved-but-unresolved action_id are both refused.
+    with pytest.raises(StateError, match="committed CampaignStore observation"):
+        record_admission_binding(
+            journal,
+            target_record_id=leaf_id,
+            action_id="missing-action",
+            claim_scope={"parent_id": "mol-c4"},
+            directory=tmp_path / "bindings",
+        )
+
+    r_pending = store.start_round({"reason": "not yet resolved"})
+    pending_id = store.reserve(r_pending, "mol-c4", "fep", {"reason": "not yet resolved"}).id
+    with pytest.raises(StateError, match="committed CampaignStore observation"):
+        record_admission_binding(
+            journal,
+            target_record_id=leaf_id,
+            action_id=pending_id,
+            claim_scope={"parent_id": "mol-c4"},
+            directory=tmp_path / "bindings",
+        )
+
+    # Publish a workspace containing the unbound historical leaf and derive an admission view.
+    step_id = record_content(
+        journal,
+        {
+            "schema": STEP,
+            "task_id": "t-c4",
+            "question": "Is historical leaf backfilled?",
+            "branch_id": "main",
+            "operation": "decision",
+            "reason": "Inspect historical leaf without dispatch ruling",
+            "input_refs": [leaf_ref],
+            "output_refs": [],
+            "method_refs": [],
+            "accounting_refs": [],
+            "source_watermarks": [],
+            "supersedes": [],
+            "detail": {
+                "choice": "defer",
+                "alternatives": [{"branch_id": "alt", "disposition": "skip", "reason": "none"}],
+                "basis_refs": [leaf_ref],
+                "reconsider_when": "after dispatch commits",
+            },
+        },
+        tmp_path / "content",
+        source_id="science",
+        source_kind="fixture",
+    )
+    step_ref = make_ref("science", step_id, journal.get(step_id))
+    authority = tmp_path / "STATUS.md"
+    authority.write_text("Active fixture.", encoding="utf-8")
+    cp_id = record_content(
+        journal,
+        {
+            "schema": CHECKPOINT,
+            "task_id": "t-c4",
+            "question": "Is historical leaf backfilled?",
+            "step_refs": [step_ref],
+            "claim_refs": [],
+            "counter_refs": [],
+            "method_refs": [],
+            "pending_handles": [],
+            "source_watermarks": [],
+            "branches": [
+                {
+                    "branch_id": "main",
+                    "state": "open",
+                    "basis_refs": [step_ref],
+                    "next_read_refs": [],
+                    "reconsider_when": "new dispatch",
+                }
+            ],
+            "supersedes": [],
+            "status_guards": [
+                {"location": str(authority), **file_identity(authority), "state": "active"}
+            ],
+        },
+        tmp_path / "content",
+        source_id="science",
+        source_kind="fixture",
+    )
+    cp_ref = make_ref("science", cp_id, journal.get(cp_id))
+    workspace = tmp_path / "workspace.json"
+    store_before = file_identity(store.path)
+    workspace.write_text(
+        json.dumps(
+            {
+                "schema": "moldarwin-evidence-workspace/1",
+                "workspace_id": "c4-ws",
+                "sources": [
+                    {
+                        "source_id": "science",
+                        "kind": "journal",
+                        "location": str(store.path),
+                        "identity": {"kind": "snapshot_sha256", "value": store_before["sha256"]},
+                    }
+                ],
+                "status_refs": [str(authority)],
+                "location_map": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = build_admission_view(
+        workspace,
+        checkpoint_ref=cp_ref,
+        scope={"root_refs": [leaf_ref], "ordinary_hops": 0},
+    )
+    by_id = {node["node_id"]: node for node in result["view"]["nodes"]}
+    assert by_id[node_identity(leaf_ref)]["leaf"] is None
+    assert by_id[node_identity(leaf_ref)]["admission"] == "not_recorded"
+    assert result["binding_extraction"]["bound_nodes"] == 0
+    assert file_identity(store.path) == store_before
