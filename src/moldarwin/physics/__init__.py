@@ -23,16 +23,44 @@ from moldarwin.physics.prism_bridge import (
     record_md_readout,
     validate_gro_integrity,
 )
+from moldarwin.physics.prism_fep import (
+    FEP_NETWORK_SCHEMA,
+    analyze_fep_network,
+    prepare_prism_fep_edge,
+    prepare_prism_mmpbsa_system,
+    record_fep_readout,
+)
+from moldarwin.physics.prism_gen import (
+    discover_prism_generators,
+    qualify_generated_poses,
+)
+from moldarwin.physics.rescoring import (
+    RESCORE_COMPARE_SCHEMA,
+    RESCORE_EVAL_SCHEMA,
+    compare_rescorers_for_rsi,
+    evaluate_rescorer_panel,
+)
 
 __all__ = [
     "COMPLEX_ORIGINS",
+    "FEP_NETWORK_SCHEMA",
     "MD_READOUT_SCHEMA",
+    "RESCORE_COMPARE_SCHEMA",
+    "RESCORE_EVAL_SCHEMA",
     "SCORER_SUPPORTED_ELEMENTS",
+    "analyze_fep_network",
     "analyze_md_trajectory",
     "compare_docking_vs_md",
+    "compare_rescorers_for_rsi",
+    "discover_prism_generators",
+    "evaluate_rescorer_panel",
     "patch_gromacs2026_artifacts",
     "preflight_scorer_elements",
+    "prepare_prism_fep_edge",
     "prepare_prism_md_system",
+    "prepare_prism_mmpbsa_system",
+    "qualify_generated_poses",
+    "record_fep_readout",
     "record_md_readout",
     "sanitize_ligand_sdf",
     "validate_complex_handoff",

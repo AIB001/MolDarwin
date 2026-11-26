@@ -299,6 +299,9 @@ def test_prism_mcp_pack_preserves_16_core_thin_tools_and_serves_preflight(tmp_pa
         "moldarwin_physics_preflight",
         "moldarwin_prism_prepare",
         "moldarwin_prism_analyze",
+        "moldarwin_prism_fep_prepare",
+        "moldarwin_prism_fep_analyze",
+        "moldarwin_rescore_evaluate",
     })
 
     mcp = build_mcp(profile="thin", packs=["prism"])
@@ -314,6 +317,99 @@ def test_prism_mcp_pack_preserves_16_core_thin_tools_and_serves_preflight(tmp_pa
         return names, json.loads(content[0].text)
 
     names, payload = asyncio.run(call_preflight())
-    assert len(names) == 19
+    assert len(names) == 22
     assert payload["ok"] is True
     assert payload["scorer_elements"]["excluded_by_element"] == {"B": 1}
+
+
+def test_fep_network_cycle_closure_mle_and_journal_recording(tmp_path):
+    from moldarwin.physics import FEP_NETWORK_SCHEMA, analyze_fep_network, record_fep_readout
+
+    # Clean converged 3-cycle: A->B (-1.0), B->C (-0.5), C->A (+1.4) -> hysteresis -0.1 kcal/mol
+    clean = analyze_fep_network(
+        [
+            {"edge_id": "e1", "from_id": "A", "to_id": "B", "ddg_kcal_mol": -1.0, "uncertainty_kcal_mol": 0.2, "overlap_min": 0.15},
+            {"edge_id": "e2", "from_id": "B", "to_id": "C", "ddg_kcal_mol": -0.5, "uncertainty_kcal_mol": 0.2, "overlap_min": 0.12},
+            {"edge_id": "e3", "from_id": "C", "to_id": "A", "ddg_kcal_mol": 1.4, "uncertainty_kcal_mol": 0.2, "overlap_min": 0.10},
+        ],
+        anchor_ligand="A",
+    )
+    assert clean["schema"] == FEP_NETWORK_SCHEMA
+    assert clean["network_converged"] is True
+    assert clean["cycles_checked"] == 1
+    assert abs(clean["max_cycle_closure_abs_kcal_mol"] - 0.1) < 1e-6
+    assert clean["relative_dg_kcal_mol"]["A"] == 0.0
+    assert clean["relative_dg_kcal_mol"]["C"] < clean["relative_dg_kcal_mol"]["B"] < 0.0
+
+    # Broken hysteresis 3-cycle (+2.5 kcal/mol) must fail convergence
+    bad = analyze_fep_network([
+        {"from_id": "A", "to_id": "B", "ddg_kcal_mol": -1.0, "uncertainty_kcal_mol": 0.2},
+        {"from_id": "B", "to_id": "C", "ddg_kcal_mol": -0.5, "uncertainty_kcal_mol": 0.2},
+        {"from_id": "C", "to_id": "A", "ddg_kcal_mol": 4.0, "uncertainty_kcal_mol": 0.2},
+    ])
+    assert bad["network_converged"] is False
+    assert bad["cycles_exceeding_limit"] == 1
+
+    store = CampaignStore(tmp_path / "fep.sqlite")
+    store.configure(
+        CampaignSpec(objective="md", budget=10.0, cost_unit="gpu", representation="fp"),
+        [Endpoint(id="md", target="SND1", quantity="rmsd", units="A", protocol="gmx", cost=1.0, requires_handoff=False)],
+    )
+    rec = record_fep_readout(ResearchJournal(store), clean, directory=tmp_path / "fep-out", target="SND1", series_id="C26")
+    assert Path(rec["path"]).is_file()
+
+
+def test_rescorer_evaluation_and_paired_rsi_rescue_verdict():
+    from moldarwin.physics import compare_rescorers_for_rsi, evaluate_rescorer_panel
+
+    # Reproduce SND1-MTDH pattern: Vina samples 1.11 A best pose, but ranks poorly (AUC < 0.4)
+    vina_panel = [
+        {"id": "C26_A2", "is_positive": True, "score": -6.2, "top1_rmsd_A": 4.11, "best_mode_rmsd_A": 1.11},
+        {"id": "C26_A6", "is_positive": True, "score": -6.0, "top1_rmsd_A": 6.50, "best_mode_rmsd_A": 1.13},
+        *[{"id": f"bg_{i}", "is_positive": False, "score": -7.5 + 0.08 * i} for i in range(30)],
+    ]
+    base = evaluate_rescorer_panel(vina_panel, scorer_name="vina", higher_better=False)
+    assert base["passed_gate"] is False
+    assert base["diagnosis"] == "sampling_succeeded_but_ranking_failed"
+    assert base["sampling_succeeded"] is True
+    assert base["top1_pose_recovered"] is False
+
+    # Candidate CNN rescorer rescues top-1 pose to 1.15 A and pushes positives to top ranks
+    cnn_panel = [
+        {"id": "C26_A2", "is_positive": True, "score": 0.92, "top1_rmsd_A": 1.15, "best_mode_rmsd_A": 1.11},
+        {"id": "C26_A6", "is_positive": True, "score": 0.88, "top1_rmsd_A": 1.30, "best_mode_rmsd_A": 1.13},
+        *[{"id": f"bg_{i}", "is_positive": False, "score": 0.70 - 0.02 * i} for i in range(30)],
+    ]
+    cand = evaluate_rescorer_panel(cnn_panel, scorer_name="gnina_cnn", higher_better=True)
+    assert cand["passed_gate"] is True
+    assert cand["roc_auc"] == 1.0
+    assert cand["ef5"] > 1.0
+
+    cmp = compare_rescorers_for_rsi(base, cand)
+    assert cmp["verdict"] == "improved_and_calibrated"
+    assert cmp["delta_roc_auc"] > 0.5
+    assert cmp["delta_top1_rmsd_A"] < -4.0
+
+
+def test_prism_gen_qualification_and_builtin_prism_skill_discoverable(tmp_path):
+    from moldarwin.physics import qualify_generated_poses
+    from moldarwin.skill_index import find_skills
+
+    rec = tmp_path / "rec.pdb"
+    rec.write_text(_sample_receptor_pdb(x=3.0), encoding="utf-8")
+    p1 = tmp_path / "p1.sdf"
+    p2 = tmp_path / "p2_dup.sdf"
+    p3 = tmp_path / "p3_bad.sdf"
+    p1.write_text(_sample_sdf(title="", z=1.5), encoding="utf-8")
+    p2.write_text(_sample_sdf(title="", z=1.5), encoding="utf-8")
+    p3.write_text(_sample_sdf(title="B1", z=0.0, extra_atom="B"), encoding="utf-8")
+
+    qual = qualify_generated_poses(rec, [p1, p2, p3], origin="prism_gen", scorer="unidock", sanitize_dir=tmp_path / "san")
+    assert qual["ready_count"] == 1
+    assert qual["duplicate_count"] == 1
+    assert qual["rejected_count"] == 1
+    assert Path(qual["ready"][0]["sanitized_path"]).read_text(encoding="utf-8").splitlines()[0] == "GEN1"
+
+    found = find_skills(query="prism gromacs fep rescoring", limit=5)
+    assert any(card["slug"] == "prism-physics" for card in found["skills"])
+    assert found["coverage"]["bodies_read"] == 0

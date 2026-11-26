@@ -1,8 +1,8 @@
-"""Optional ``prism`` MCP pack: 3 atomic physics preflight, build, and RSI readout primitives.
+"""Optional ``prism`` MCP pack: 6 atomic physics preflight, MD/FEP build, and RSI readout primitives.
 
-Deliberately avoids monolithic MD workflows: hardens only low-level invariants (blank SDF
-titles, scorer element compatibility, GROMACS 2026 EM/posre compatibility, TPR v138
-fallback) and returns compact physical observables that feed MolDarwin's RSI loop.
+Deliberately avoids monolithic MD/FEP workflows: hardens only low-level invariants (blank SDF
+titles, explicit hydrogens, scorer element compatibility, GROMACS 2026 EM/posre compatibility,
+TPR v138 fallback) and returns compact physical observables that feed MolDarwin's RSI loop.
 """
 
 from __future__ import annotations
@@ -127,3 +127,109 @@ def register(mcp: Any) -> None:
             stride=stride,
         )
         return ok(**result)
+
+    @mcp.tool()
+    @tool(Cost.CHEAP)
+    def moldarwin_prism_fep_prepare(
+        receptor_pdb: str,
+        ref_ligand_sdf: str,
+        mut_ligand_sdf: str,
+        out_dir: str,
+        ligand_forcefield: str = "gaff2",
+        forcefield: str = "amber14sb",
+        water_model: str = "tip3p",
+        lambda_windows: int = 11,
+        lambda_strategy: str = "decoupled",
+        overwrite: bool = False,
+    ) -> str:
+        """CHEAP. Sanitize reference and mutant ligands and build one pinned PRISM RBFE/FEP edge.
+
+        Enforces blank-title repair and explicit-hydrogen checks on both aligned 3D endpoints
+        before calling pinned PRISM, then validates generated GRO integrity. Does not launch
+        GPU lambda windows so the host schedules execution freely.
+        """
+        from moldarwin.physics.prism_fep import prepare_prism_fep_edge
+
+        result = prepare_prism_fep_edge(
+            absolute_path(receptor_pdb, label="receptor_pdb"),
+            absolute_path(ref_ligand_sdf, label="ref_ligand_sdf"),
+            absolute_path(mut_ligand_sdf, label="mut_ligand_sdf"),
+            absolute_path(out_dir, label="out_dir"),
+            ligand_forcefield=ligand_forcefield,
+            forcefield=forcefield,
+            water_model=water_model,
+            lambda_windows=lambda_windows,
+            lambda_strategy=lambda_strategy,
+            overwrite=overwrite,
+        )
+        return ok(**result)
+
+    @mcp.tool()
+    @tool(Cost.FREE)
+    def moldarwin_prism_fep_analyze(
+        edges: list[dict],
+        anchor_ligand: str | None = None,
+        cycle_closure_limit_kcal: float = 1.0,
+        max_edge_uncertainty_kcal: float = 1.0,
+    ) -> str:
+        """FREE. Audit an RBFE/FEP perturbation network for cycle-closure hysteresis and MLE dG.
+
+        Computes exact 3- and 4-node thermodynamic cycle closure residuals, flags failed or
+        high-uncertainty/low-overlap edges, and fits weighted least-squares relative free
+        energies without mutating any journal records.
+        """
+        from moldarwin.physics.prism_fep import analyze_fep_network
+
+        result = analyze_fep_network(
+            edges,
+            anchor_ligand=anchor_ligand,
+            cycle_closure_limit_kcal=cycle_closure_limit_kcal,
+            max_edge_uncertainty_kcal=max_edge_uncertainty_kcal,
+        )
+        return ok(**result)
+
+    @mcp.tool()
+    @tool(Cost.FREE)
+    def moldarwin_rescore_evaluate(
+        records: list[dict],
+        scorer_name: str,
+        higher_better: bool = False,
+        baseline_records: list[dict] | None = None,
+        baseline_scorer_name: str = "vina",
+        baseline_higher_better: bool = False,
+        top_rmsd_cutoff_A: float = 2.0,
+        auc_gate: float = 0.70,
+        ef5_gate: float = 1.0,
+    ) -> str:
+        """FREE. Evaluate a scoring or rescoring function on a paired control panel for RSI.
+
+        Computes tie-aware ROC-AUC, fractional-occupancy EF1%/EF5%, positive percentiles, and
+        sampling-vs-ranking diagnosis. When baseline_records are provided on the same panel,
+        also returns a paired RSI comparison verdict.
+        """
+        from moldarwin.physics.rescoring import (
+            compare_rescorers_for_rsi,
+            evaluate_rescorer_panel,
+        )
+
+        candidate = evaluate_rescorer_panel(
+            records,
+            scorer_name=scorer_name,
+            higher_better=higher_better,
+            top_rmsd_cutoff_A=top_rmsd_cutoff_A,
+            auc_gate=auc_gate,
+            ef5_gate=ef5_gate,
+        )
+        out: dict[str, Any] = {"evaluation": candidate}
+        if baseline_records is not None:
+            baseline = evaluate_rescorer_panel(
+                baseline_records,
+                scorer_name=baseline_scorer_name,
+                higher_better=baseline_higher_better,
+                top_rmsd_cutoff_A=top_rmsd_cutoff_A,
+                auc_gate=auc_gate,
+                ef5_gate=ef5_gate,
+            )
+            out["baseline"] = baseline
+            out["rsi_comparison"] = compare_rescorers_for_rsi(baseline, candidate)
+        return ok(**out)

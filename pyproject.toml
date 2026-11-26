@@ -123,6 +123,8 @@ packages = ["src/moldarwin"]
 ".claude/skills/moldarwin-method-literature" = "moldarwin/mcp/skills/bundles/method-literature"
 ".claude/skills/moldarwin-target-parameters" = "moldarwin/mcp/skills/bundles/target-parameters"
 ".claude/skills/moldarwin-memory-pruning" = "moldarwin/mcp/skills/bundles/memory-pruning"
+# 2026-11-26. Thin physics & PRISM RSI domain skill (preflight, rescoring, MD, RBFE/FEP).
+".claude/skills/moldarwin-prism-physics" = "moldarwin/mcp/skills/bundles/prism-physics"
 # MolOrigin bundles stay at their original asset path in both source and wheel;
 # skills.bundle_root and the legacy resource URIs resolve these same bytes.
 "asset" = "moldarwin/_assets"

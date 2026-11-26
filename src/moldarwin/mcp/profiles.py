@@ -143,6 +143,9 @@ TOOL_PACKS: dict[str, frozenset[str]] = {
         "moldarwin_physics_preflight",
         "moldarwin_prism_prepare",
         "moldarwin_prism_analyze",
+        "moldarwin_prism_fep_prepare",
+        "moldarwin_prism_fep_analyze",
+        "moldarwin_rescore_evaluate",
     }),
 }
 
