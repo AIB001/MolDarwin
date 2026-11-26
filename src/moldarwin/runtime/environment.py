@@ -224,9 +224,9 @@ def probe_environment(
 
     pinned_prism = False
     try:
-        from moldarwin.boundary.infra import locate
+        from moldarwin.boundary.infra import asset_directory
 
-        pinned_prism = locate("prism") is not None
+        pinned_prism = (asset_directory() / "prism" / "prism" / "__init__.py").is_file()
     except Exception:
         pinned_prism = False
 

@@ -7,10 +7,12 @@ workflow and without editing ``asset/prism`` (Hard Constraint 6).
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import math
+import re
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +26,119 @@ FEP_NETWORK_SCHEMA = "moldarwin-fep-network/1"
 DEFAULT_CYCLE_CLOSURE_LIMIT_KCAL: float = 1.0
 DEFAULT_MAX_EDGE_UNCERTAINTY_KCAL: float = 1.0
 DEFAULT_MIN_OVERLAP_THRESHOLD: float = 0.03
+
+
+#: Max allowed coordinate drift (Angstrom) when redirecting an aligned SDF coordinate
+#: source to its AmberTools/GAFF2-parameterized LIG.gro (Evidence: measured_here, live 7KNW
+#: C26-A2/C26-A6 FEP preparation).
+DEFAULT_FEP_SDF_GRO_TOL_A: float = 0.02
+
+
+def _parse_sdf_coords(path: Path) -> list[tuple[str, float, float, float]]:
+    """Parse (element_upper, x_A, y_A, z_A) from a V2000 SDF block without RDKit."""
+    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    if len(lines) < 5:
+        raise ValueError(f"SDF {path} is too short to contain a V2000 atom block")
+    counts = lines[3]
+    n_atoms = int(counts[:3].strip())
+    out: list[tuple[str, float, float, float]] = []
+    for line in lines[4 : 4 + n_atoms]:
+        parts = line.split()
+        x, y, z, sym = float(parts[0]), float(parts[1]), float(parts[2]), parts[3].upper()
+        out.append((sym, x, y, z))
+    return out
+
+
+def _parse_gro_coords(path: Path) -> list[tuple[str, float, float, float]]:
+    """Parse (element_upper_prefix, x_A, y_A, z_A) from a GROMACS GRO file (nm -> A)."""
+    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    if len(lines) < 3:
+        raise ValueError(f"GRO {path} is too short")
+    n_atoms = int(lines[1].strip())
+    out: list[tuple[str, float, float, float]] = []
+    for line in lines[2 : 2 + n_atoms]:
+        atom_name = line[10:15].strip()
+        sym = re.sub(r"[^A-Za-z]", "", atom_name).upper()
+        x = 10.0 * float(line[20:28])
+        y = 10.0 * float(line[28:36])
+        z = 10.0 * float(line[36:44])
+        out.append((sym, x, y, z))
+    return out
+
+
+def _verify_sdf_matches_gro(
+    sdf_path: Path,
+    gro_path: Path,
+    *,
+    tol_A: float = DEFAULT_FEP_SDF_GRO_TOL_A,
+) -> dict[str, Any]:
+    """Verify atom count, element order, and 3D coordinate fidelity between SDF and LIG.gro."""
+    chk = validate_gro_integrity(gro_path)
+    if not chk["valid"]:
+        raise RuntimeError(f"PRISM FEP fallback GRO {gro_path} failed integrity check: {chk['errors'][:3]}")
+    sdf_atoms = _parse_sdf_coords(sdf_path)
+    gro_atoms = _parse_gro_coords(gro_path)
+    if len(sdf_atoms) != len(gro_atoms):
+        raise RuntimeError(
+            f"atom count mismatch between {sdf_path} ({len(sdf_atoms)}) and {gro_path} ({len(gro_atoms)})"
+        )
+    max_shift = 0.0
+    for idx, ((s_sym, sx, sy, sz), (g_sym, gx, gy, gz)) in enumerate(
+        zip(sdf_atoms, gro_atoms, strict=True)
+    ):
+        if not g_sym.startswith(s_sym):
+            raise RuntimeError(
+                f"element mismatch at atom {idx} between {sdf_path} ({s_sym}) and {gro_path} ({g_sym})"
+            )
+        dist = math.sqrt((sx - gx) ** 2 + (sy - gy) ** 2 + (sz - gz) ** 2)
+        if dist > max_shift:
+            max_shift = dist
+    if max_shift > tol_A:
+        raise RuntimeError(
+            f"coordinate drift between {sdf_path} and {gro_path} ({max_shift:.4f} A) exceeds {tol_A} A"
+        )
+    return {
+        "sdf": str(sdf_path),
+        "gro": str(gro_path),
+        "atoms": len(gro_atoms),
+        "max_displacement_A": round(max_shift, 5),
+        "gro_sha256": _sha256_file(gro_path),
+    }
+
+
+@contextlib.contextmanager
+def _prism_fep_sdf_gro_guard(audit_log: list[dict[str, Any]]) -> Iterator[None]:
+    """Work around PRISM v1.2.0 HybridBuildService passing .sdf into its GRO reader.
+
+    Never modifies vendored ``asset/prism`` (Hard Constraint 6): temporarily wraps
+    ``HybridBuildService.resolve_coord_source`` so ``.sdf`` inputs redirect to the
+    corresponding verified AmberTools/GAFF2 ``LIG.gro`` and always restores the original.
+    """
+    try:
+        mod = __import__("prism.fep.modeling.hybrid_service", fromlist=["HybridBuildService"])
+        cls = mod.HybridBuildService
+    except Exception:
+        yield
+        return
+
+    original = cls.resolve_coord_source
+
+    def _safe_resolve_coord_source(path: Any, fallback: Any) -> Any:
+        if not path or Path(str(path)).suffix.lower() != ".sdf":
+            return original(path, fallback)
+        fb = Path(str(fallback))
+        if fb.is_dir():
+            fb = fb / "LIG.gro"
+        if not fb.is_file():
+            return original(path, fallback)
+        audit_log.append(_verify_sdf_matches_gro(Path(str(path)), fb))
+        return fb
+
+    cls.resolve_coord_source = staticmethod(_safe_resolve_coord_source)
+    try:
+        yield
+    finally:
+        cls.resolve_coord_source = staticmethod(original)
 
 
 def _sha256_file(path: Path) -> str:
@@ -90,7 +205,9 @@ def prepare_prism_fep_edge(
         lambda_windows=int(lambda_windows),
         lambda_strategy=lambda_strategy,
     )
-    build_result = builder.run()
+    coord_adapter_audit: list[dict[str, Any]] = []
+    with _prism_fep_sdf_gro_guard(coord_adapter_audit):
+        build_result = builder.run()
 
     fep_dir = out_root / "GMX_PROLIG_FEP"
     if not fep_dir.is_dir():
@@ -120,6 +237,7 @@ def prepare_prism_fep_edge(
         "lambda_windows": int(lambda_windows),
         "lambda_strategy": lambda_strategy,
         "gro_validations": gro_checks,
+        "coordinate_adapter_audit": coord_adapter_audit,
         "build_summary": str(build_result)[:500] if build_result is not None else None,
         "execution_performed": False,
     }

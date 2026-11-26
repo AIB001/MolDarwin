@@ -413,3 +413,38 @@ def test_prism_gen_qualification_and_builtin_prism_skill_discoverable(tmp_path):
     found = find_skills(query="prism gromacs fep rescoring", limit=5)
     assert any(card["slug"] == "prism-physics" for card in found["skills"])
     assert found["coverage"]["bodies_read"] == 0
+
+
+def test_fep_sdf_gro_coordinate_verification_accepts_match_and_rejects_drift(tmp_path):
+    from moldarwin.physics.prism_fep import _verify_sdf_matches_gro
+
+    sdf = tmp_path / "lig.sdf"
+    sdf.write_text(
+        "LIG\n  MolDarwin\n\n  2  1  0  0  0  0  0  0  0  0999 V2000\n"
+        "    1.0000    2.0000    3.0000 C   0  0  0  0  0  0  0  0  0  0  0  0\n"
+        "    2.0000    2.0000    3.0000 H   0  0  0  0  0  0  0  0  0  0  0  0\n"
+        "  1  2  1  0\nM  END\n$$$$\n",
+        encoding="utf-8",
+    )
+    gro_ok = tmp_path / "LIG_ok.gro"
+    gro_ok.write_text(
+        "LIG\n2\n"
+        "    1LIG     C1    1   0.100   0.200   0.300\n"
+        "    1LIG     H1    2   0.200   0.200   0.300\n"
+        "   5.00000   5.00000   5.00000\n",
+        encoding="utf-8",
+    )
+    rec = _verify_sdf_matches_gro(sdf, gro_ok)
+    assert rec["atoms"] == 2
+    assert rec["max_displacement_A"] == pytest.approx(0.0)
+
+    gro_bad = tmp_path / "LIG_bad.gro"
+    gro_bad.write_text(
+        "LIG\n2\n"
+        "    1LIG     C1    1   0.500   0.200   0.300\n"
+        "    1LIG     H1    2   0.200   0.200   0.300\n"
+        "   5.00000   5.00000   5.00000\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(RuntimeError, match="coordinate drift"):
+        _verify_sdf_matches_gro(sdf, gro_bad)
