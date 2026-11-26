@@ -120,7 +120,7 @@ def test_targeted_refresh_preserves_other_pins_and_reference_without_their_sourc
                 "reference": {"panel": {"sha256": "keep"}}}
     manifest = assets / "MANIFEST.json"
     manifest.write_text(json.dumps(previous))
-    monkeypatch.setattr(vendor_assets, "MolDarwin", tmp_path)
+    monkeypatch.setattr(vendor_assets, "MOLDARWIN", tmp_path)
     monkeypatch.setattr(vendor_assets, "ASSET", assets)
     monkeypatch.setattr(vendor_assets, "SOURCES", {"probe": source, "existing": tmp_path / "unavailable"})
     monkeypatch.setattr(sys, "argv", ["vendor_assets.py", "--write", "--asset", "probe"])

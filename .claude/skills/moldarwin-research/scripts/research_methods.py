@@ -1,6 +1,6 @@
 """Portable synthetic SDK examples; no scientific files, native calls or labels.
 
-Run with an MolDarwin interpreter: python research_methods.py [--output PATH].
+Run with a MolDarwin interpreter: python research_methods.py [--output PATH].
 Functions are independent examples, not a required sequence or research runner.
 """
 from __future__ import annotations

@@ -1,6 +1,6 @@
 ---
 name: moldarwin-execution-tuning
-description: Improve the execution speed or resource use of an MolDarwin scientific task by diagnosing the limiting CPU, GPU, I/O, batching, or reuse path without changing its scientific objective.
+description: Improve the execution speed or resource use of a MolDarwin scientific task by diagnosing the limiting CPU, GPU, I/O, batching, or reuse path without changing its scientific objective.
 ---
 
 # Tune scientific execution

@@ -1,9 +1,8 @@
 """MolDarwin — a CADD agent that knows how much to trust its own numbers.
 
-In metrology an moldarwin is the primary standard every other instrument is calibrated
-against. In optics a Fabry-Perot moldarwin extracts information from the interference
-between two beams -- that is, from their disagreement. The name carries both meanings
-because both are what this system is for.
+In metrology the primary standard is the one every other instrument is calibrated
+against. In optics a Fabry-Perot interferometer extracts information from the interference
+between two beams -- that is, from their disagreement. Both are what this system is for.
 
 It runs three packages as pinned infrastructure: MolOrigin for database evidence and sourcing,
 MolCat for ligand triage and docking, and PRISM for system building, MD and free energy.

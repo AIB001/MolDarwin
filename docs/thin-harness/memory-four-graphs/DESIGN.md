@@ -1,10 +1,24 @@
 # MolDarwin 四图研究记忆与方法改进设计
 
-日期：2026-10-21。状态：设计稿，尚未实现。面向总控、MolDarwin 组件和后续研究 chat。
+日期：2026-10-21。面向总控、MolDarwin 组件和后续研究 chat。
+
+**状态（2026-11-25 按代码核对，取代原来的"尚未实现"）。** 本文多数条目已落地，少数仍是设计名称，另有两处与代码不符，现按实测改写。核对方法是读 `src/moldarwin/`，不是读本目录的其他文档。
+
+已实现：E/J/X/R 节点与 8 种有类型的边（`research/graph_memory.py:25,44`，`validate_research_graph`、`build_research_graph`）、MCP 工具 `moldarwin_research_graph`（`mcp/evidence.py:354`）、`moldarwin-research-step/1`（`research/continuation.py:26`）、`moldarwin-research-handoff/1` 及其 plan/export/verify/relocate（`research/handoff.py`）、显式 schema 校验与投影（`research/evidence.py:95`）、带类型的关系遍历与反向依赖索引（`research/declared_relations.py:58,114`）、事件去重 handler（`research/research_hooks.py:284-293,328`）、前沿重建（`research/research_context.py:21,33`）与过期检测（`research/handoff.py:672`，`research/evidence.py:483`）。
+
+**四图是一次读取时的投影，不是四个存储。** 这一点比"关系视图"更强，必须写明：所有研究记录存在 `CampaignStore` 的单张 `metadata` 表里（前缀 `research:`，`research/journal.py:16`）；节点的 `kind` 在投影时由 `research/graph_memory.py:188` 一行三元表达式按 `operation` 与 `record_type` 推断，**不落盘、无索引、不能作为查询条件**（`research/evidence.py:17` 的 `FILTERS` 里没有 kind）。代码自己在每个节点盖 `kind_basis: "legacy_record_semantics_inferred"`，即"由旧记录语义推断"。其中 `E` 是该三元链的 `else` 兜底：凡不是 result/observation/judgment/node/plan/experiment 的记录都成为 E。唯一例外是 `moldarwin-research-trace/1` 的 `phase`，由宿主显式声明，盖的是 `kind_basis: "explicit_trace_phase"`。
+
+当前只有 `"J"` 被读取（`research/research_context.py:140,247,565` 三处），`E`/`X`/`R` 只写不读。因此"四图"目前的实际作用是投影与展示，不是检索结构。
+
+同属读时展示标签的还有节点上的四工作区 `home`（`HOMES = {"Search", "Judge", "Quick", "Deep"}`，`research/graph_memory.py:24,174-183`）：普通记录默认仅按 `operation`/`schema` 落入 `Search`、`Judge` 或 `Quick`，**永远不会自动归入 `Deep`**（除非调用方手传 `home_overrides`，或显式写入当前生产路径尚未调用的 `moldarwin-research-trace/1`）；全仓也没有检索过滤、预算授权或准入传播逻辑消费 `home`。
+
+真正承载推理的不是节点 kind，而是边的 `relied_on` / `used` 分类（`learn/admission_view.py:151-176`）与沿 `relied_on` 的 admission 传播（`:519-531`）。该分类从 `(edge kind, relation)` 导出，**完全不读节点 kind**；两者正交，互不冲突。
+
+仍为设计名称（代码中不存在）：`moldarwin-evidence-search/1`、`moldarwin-experiment-plan/1`、`moldarwin-golden-manifest/1`、`moldarwin-research-assessment/1`、`moldarwin-method-choice/1`。另有三个名称已被同义实现取代：`moldarwin-research-branch/1` → `moldarwin-branch-context/1`（`research/branch_context.py:129`）、`moldarwin-research-relations/1` → `relation_index`（`research/declared_relations.py:114`）、`moldarwin-research-assessment/1` → `moldarwin-revision-assessment/1`（`research/improvement.py`）。
 
 本方案将研究组织为四张相互连接的关系图：已有证据 E、科学判断 J、实验 X、新结果 R。四图共享可追溯的研究历史 H；宿主根据当前问题选择要读取、补充或执行的分支。memory 保存能影响后续判断的事实、条件、决策和未完成事项，支持新 chat 从当前研究位置继续。RSI 的改进对象限于科学方法 S 和方法使用及分支选择 U。
 
-**本轮不设计资源分配优化，不写实现，不恢复暂停的科学任务。** 已有预算检查、执行预留、收据、费用和恢复机制继续使用。GPU 配额、跨资源池调度、自动并发伸缩、lab 资源分配不进入本方案。R4b 状态仍以 [科学状态边界](SCOPE.md) 的暂停声明为准。
+**本方案不设计资源分配优化，不恢复暂停的科学任务。**（措辞按代码订正：这是**本设计**的范围声明，不是说系统没有。`economics/allocate.py:262` 的 `plan()` 已在固定 GPU-hour 预算下优化各级保留比例；`campaign/supervisor.py:573-623` 的 `_migrate` 已实现"生成器全部停止后把该卡并入筛选池"，受 `migrate_retired_devices` 开关控制，默认 `False`，由 `tests/test_sweep.py:3719-3823` 的六个用例覆盖。两者都不是本设计引入的。） 已有预算检查、执行预留、收据、费用和恢复机制继续使用。GPU 配额、跨资源池调度、自动并发伸缩、lab 资源分配不进入本方案。R4b 状态仍以 [科学状态边界](SCOPE.md) 的暂停声明为准。
 
 ## 1 已确定的设计边界
 
@@ -16,7 +30,7 @@
 | memory 不是聊天记录全集 | 保留结论、简洁理由、可复算推导、原件和状态；不把逐句对话或瞬时思考当作研究事实 |
 | 技能和图记录保持可选 | 已知 SDK、原件和方法仍可直接使用；完整图、技能注册或 RSI 评价不成为普通调用的前置门槛 |
 | 落档、打分、优化分开 | 事实及时保存；有可观测结果再打分；满足触发条件才提出改进 |
-| 方法和选择分开改进 | S 改进某一步怎么做，U 改进接下来做什么、读什么、跳过什么；G 是产生改进的已绑定方法，本轮不再增加 G 自我优化循环 |
+| 方法和选择分开改进 | S 改进某一步怎么做，U 改进接下来做什么、读什么、跳过什么；G 是产生改进的已绑定方法。**"本轮不再增加 G 自我优化循环"已按代码撤回**：`research/method_revision.py:113` 的守卫条件是 `producer_id != base_id`，即改进方法改自身时该检查按构造跳过，`target_kind="G"` 且 `base_method_ref == producer_method_ref` 可以正常通过。这是刻意容纳而非疏漏。未实现的是**自动触发**的 G 优化循环，不是 G 自改本身 |
 | 历史保持不可变 | 更正用新版本和 supersedes；方法回滚只改变后续选择，不抹掉结果、失败、费用和旧配置 |
 
 ## 2 四张图怎样连接
@@ -93,7 +107,7 @@ memory 分为不可变历史、可重建索引和当前工作视图三部分。�
 
 ### 拟新增的内容契约
 
-以下名称均为设计中的 Artifact 内容 schema，不是当前已经支持的 Python 类型或 SDK API。首版复用 Artifact 容器，不增加第二套 Journal。普通调用无需逐项填齐这些对象；只有声明相应接续、复用或 RSI 评价时才要求所依赖字段完整。
+以下九个名称中，`moldarwin-research-step/1`（`research/continuation.py:26`，已进入投影白名单 `research/evidence_refs.py:20`）与 `moldarwin-research-handoff/1`（`research/handoff.py`）**已是现行 schema**；另有三个已被同义实现取代（见开头状态节）；其余为设计名称，不是当前已经支持的 Python 类型或 SDK API。首版复用 Artifact 容器，不增加第二套 Journal。普通调用无需逐项填齐这些对象；只有声明相应接续、复用或 RSI 评价时才要求所依赖字段完整。
 
 | 拟新增契约 | 字段组与用途 |
 | --- | --- |
@@ -145,7 +159,7 @@ memory 分为不可变历史、可重建索引和当前工作视图三部分。�
 
 **当前可直接复用：** `query_evidence` 支持有界文本与结构化过滤，`read_evidence` 支持 record/summary/lineage/artifact；游标随查询、workspace 或来源水位改变而失效；location_map 支持在哈希校验下迁移原件。
 
-**当前限制：** query 是大小写折叠后的子串匹配，并非语义搜索；结果按来源及记录 ID 排序，不代表相关性排名。实现先 `_collect` 再过滤 source_ids，因此少量命中并不保证只读取少量来源。lineage 是直接发布关系，不是递归图查询。内容投影仅支持 claim 和 method_revision；新增 JSON 即便作为 Artifact 入库，也不会自动变成可搜索内容。
+**当前限制：** query 是大小写折叠后的子串匹配，并非语义搜索；结果按来源及记录 ID 排序，不代表相关性排名。`source_ids` 过滤已下推进 `_collect`（`research/evidence.py:490`），但显式声明的依赖来源仍会被读取，因此少量命中仍不保证只读取少量来源。lineage 是直接发布关系，不是递归图查询。内容投影的 schema 白名单现有 23 项（`research/evidence_refs.py:19-25`），结构化校验覆盖 claim、method_revision 与 research-note（`research/evidence.py:128-141`）；新增 JSON 即便作为 Artifact 入库，也不会自动变成可搜索内容。
 
 因此新增工作包括：显式 schema 校验及投影、带类型的关系遍历、反向依赖索引、覆盖可见的查询记录和小范围发布。索引是可重建缓存，按来源身份、水位和投影版本失效；底层记录才是依据。全文或向量索引留作经实际检索失败证明有必要后的扩展，本轮不把向量数据库设为前置条件。
 
@@ -234,7 +248,7 @@ S 和 U 同时改变时，先做分开对照；条件允许再做旧 S/新 S × 
 
 ## 10 与现有代码的对应关系
 
-以下“直接复用”指当前本地工作树存在相应实现，不表示新增设计已经运行或已经取得科学收益。设计核对源于 `5927aceb346475a6f97550f561e7eb3b291611da` 及当时未提交的工作树修改；现有实现已另行冻结为本分支的源码快照；[SOURCE_MANIFEST.json](SOURCE_MANIFEST.json) 记录所引源码字节身份，不能只用 HEAD 指代它们。
+以下“直接复用”指当前本地工作树存在相应实现，不表示新增设计已经运行或已经取得科学收益。设计核对源于 `5927aceb346475a6f97550f561e7eb3b291611da` 及当时未提交的工作树修改。**该提交不在本仓库历史中**（本仓库自 ETALON `5764928` 导入起算，`git cat-file` 取不到 5927aceb），`SOURCE_MANIFEST.json` 记的是另一个版本 `f4c8c46c…` 且路径仍为改名前的 `src/etalon/`；两者都只能作为设计时点的说明，不能作为可解析的引用。现有实现已另行冻结为本分支的源码快照；[SOURCE_MANIFEST.json](SOURCE_MANIFEST.json) 记录所引源码字节身份，不能只用 HEAD 指代它们。
 
 | 能力 | 结论 | 当前入口与需要补的部分 |
 | --- | --- | --- |
@@ -293,4 +307,6 @@ S 和 U 同时改变时，先做分开对照；条件允许再做旧 S/新 S × 
 
 架构不再等待这些参数才能讨论，但真正试用前需要在对应任务协议中确定：什么结果足以区分竞争解释、golden 的成员与分组、S/U 的评价指标和最小改进、重复问题触发阈值、检索覆盖与刷新条件，以及默认采用的作用域。宿主可在既有授权内作出这些研究决定，不增加一套普遍审批流程。
 
-资源配置在本方案中只作为已给定的运行条件与费用事实保留；资源分配优化继续延期。当前交付到此为设计文档，不包含源码改动、部署、科学执行或新的实验结果。
+资源配置在本方案中只作为已给定的运行条件与费用事实保留；**把资源分配纳入 memory 与 RSI 的改进对象**继续延期（系统已有的分配与迁移机制见本文开头第 19 行的订正）。
+
+当前交付到此为设计文档，不包含部署、科学执行或新的实验结果。源码改动的情况见开头的状态节：本文多数条目此后已实现，本文不再是"尚未实现"的设计稿。

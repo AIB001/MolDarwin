@@ -6,6 +6,14 @@ MolDarwin 是宿主 agent 的科学能力扩展。宿主拥有问题选择、下
 
 当前 I2 全量库接续以本文末尾“全量能力族覆盖”及各 DELIVERY 最新追加节为准。旧表的“仍为六项”和待补项描述对应当时固定来源；不删除其历史验收边界。主注册现在同时纳入 `.claude/skills/` 与 `asset/molorigin/skills/` 原内容。
 
+## 命名
+
+2026-11-25 起，本仓库的 agent 由 ETALON 改名为 MolDarwin，vendored 组件 MolQuarry、MolCascade 改名为 MolOrigin、MolCat；代码、标识符、路径和本目录的文档已随之替换。以下内容保持改名前的原样：
+
+- `tests/fixtures/thin_harness/` 的验收判据与复核记录，以及 `memory-four-graphs/` 下的图、候选 JSON 和 `SOURCE_MANIFEST.json`，保持原字节，其中仍是旧名。本目录文档与 `VALIDATION.json` 为这些文件记录的 SHA256 因此仍可核对。
+- 指向 `github.com/AIB001/ETALON` 固定提交的链接。这些提交只存在于该仓库；本仓库的历史从导入 ETALON `5764928` 开始。
+- 本目录文档为源码、skill 和 vendored 文件记录的 SHA256 与字节数。它们是改名前的测量值，没有重算，与改名后的文件不再相等。
+
 ## 阅读入口
 
 2026-11-11 认识论层升级的设计记录,按主题各自唯一负责:[RSI_ARCHITECTURE](RSI_ARCHITECTURE.md) 自我改进的边界与分级仪器;[HARDENING_CRITERION](HARDENING_CRITERION.md) 何处该在代码里硬化;[ASSESSMENT_REGIMES](ASSESSMENT_REGIMES.md) 两段式 regime 与宽松内置 benchmark 的归处(§7);[ADMISSION_PROPAGATION](ADMISSION_PROPAGATION.md) 传播与 v4 的「lesson 不是评估」;[STOCHASTIC_MEASUREMENT](STOCHASTIC_MEASUREMENT.md) 聚合声明与被否决的复制下限;[FIXED_TERMINOLOGY_STATUS](FIXED_TERMINOLOGY_STATUS.md) 固定术语的实现状态与撤回;[HARD_CONSTRAINT_ENFORCEMENT](HARD_CONSTRAINT_ENFORCEMENT.md) 七条硬约束逐条的执行状态,附「如何区分真失败与环境失败」。推导过程见 [ARCHITECTURE_REVIEW](ARCHITECTURE_REVIEW.md)。这些是增量设计记录,不是已通过的验收报告。

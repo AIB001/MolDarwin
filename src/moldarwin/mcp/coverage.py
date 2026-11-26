@@ -174,7 +174,7 @@ def merge(
 
     A host assertion that **fires** is never discarded, even against a minted observation that did
     not fire. Moving a check to fired is the one direction a non-computing party may move it, it is
-    how an ``moldarwin_council_adjudicate`` finding reaches this tool, and a wrong one costs compute
+    how a ``moldarwin_council_adjudicate`` finding reaches this tool, and a wrong one costs compute
     and shows up in the admission rate rather than buying a clean record.
 
     Returns:

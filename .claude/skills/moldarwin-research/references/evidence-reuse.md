@@ -85,7 +85,7 @@ the content shape rather than its truth or scientific admission.
 
 Publish only explicitly selected, safe-to-expose sources. The optional
 `publish_journals` example uses a read-only SQLite backup to make fixed copies
-of named existing journals and an `moldarwin-evidence-workspace/1` manifest. It
+of named existing journals and a `moldarwin-evidence-workspace/1` manifest. It
 preserves record bodies, original file paths and IDs. It writes no search text,
 expected answer, index or custom projection. Do not pass sealed journals: the
 snapshot is a file publication, not a security filter. Original Artifact files

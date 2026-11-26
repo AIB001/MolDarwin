@@ -2,14 +2,14 @@
   "status": "passed",
   "wheel_sha256": "6b71961494f11ff0fdbdea692adea1f05f4d2c74712e389c663597656807c9f2",
   "source_and_installed_bytes_checked": 325,
-  "python": "F:\\life_healthy\\MolDarwin\\.venv\\Scripts\\python.exe",
+  "python": "F:\\life_healthy\\ETALON\\.venv\\Scripts\\python.exe",
   "cwd": "F:\\life_healthy\\integration\\thin-harness-engineering-20261020",
   "modules": {
-    "moldarwin.runtime.api": "F:\\life_healthy\\integration\\thin-harness-engineering-20261020\\install-final\\moldarwin\\runtime\\api.py",
-    "moldarwin.research.journal": "F:\\life_healthy\\integration\\thin-harness-engineering-20261020\\install-final\\moldarwin\\research\\journal.py",
-    "moldarwin.skills": "F:\\life_healthy\\integration\\thin-harness-engineering-20261020\\install-final\\moldarwin\\skills.py",
-    "moldarwin.host": "F:\\life_healthy\\integration\\thin-harness-engineering-20261020\\install-final\\moldarwin\\host.py",
-    "moldarwin.mcp.server": "F:\\life_healthy\\integration\\thin-harness-engineering-20261020\\install-final\\moldarwin\\mcp\\server.py"
+    "etalon.runtime.api": "F:\\life_healthy\\integration\\thin-harness-engineering-20261020\\install-final\\etalon\\runtime\\api.py",
+    "etalon.research.journal": "F:\\life_healthy\\integration\\thin-harness-engineering-20261020\\install-final\\etalon\\research\\journal.py",
+    "etalon.skills": "F:\\life_healthy\\integration\\thin-harness-engineering-20261020\\install-final\\etalon\\skills.py",
+    "etalon.host": "F:\\life_healthy\\integration\\thin-harness-engineering-20261020\\install-final\\etalon\\host.py",
+    "etalon.mcp.server": "F:\\life_healthy\\integration\\thin-harness-engineering-20261020\\install-final\\etalon\\mcp\\server.py"
   },
   "bundles": {
     "campaign": "6fb8594704ae8125d83abaf5eaf5c862b36c31a79746b673f04efdd3e69ef696",

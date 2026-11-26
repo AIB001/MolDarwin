@@ -130,7 +130,7 @@ def install(target, *, research_entry, host="codex", hook_transport="mcp_tool", 
             return _initial(root, entry, host, hook_transport, adapter, selected_skills)
         manifest_path = adapter._member(root, adapter.MANIFEST)
         if not _io(manifest_path).is_file():
-            raise ValueError("existing project is not an MolDarwin export; choose a new adapter directory")
+            raise ValueError("existing project is not a MolDarwin export; choose a new adapter directory")
         old_bytes = _read(manifest_path)
         if len(old_bytes) > 4 * 1024 * 1024:
             raise ValueError("host manifest exceeds 4 MiB")

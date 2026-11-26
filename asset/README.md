@@ -8,7 +8,13 @@ place it could not be found.
 > introduces the mechanism for preventing exactly that -- so the check now exists and this table is
 > no longer maintained by hand alone.
 
-| Asset | Source commit | Files | Size | What it is |
+The "Files" column is what `MANIFEST.json` recorded when the asset was vendored. Counted on disk
+today, `molcat/` holds 177 and `prism/` 499; `molorigin/`'s 64 still agrees. Those three
+differences are the drift `tools/verify_assets.py` reports, and they predate the 2026-11-25
+rename described below -- the rename changed file contents and directory names, not which files
+are present.
+
+| Asset | Source commit | Files (manifest) | Size | What it is |
 | --- | --- | --- | --- | --- |
 | `molcat/` | `06f15d7e8274` | 168 | 4.0 MB | Ligand triage, docking and independent redock consistency. Content-addressed artifacts, enforced contracts, per-molecule gates. |
 | `prism/` | `f0492d964795` | 504 | 24.7 MB | GROMACS system building, MD, FEP, MM/PBSA, PMF, REST2, and a large trajectory-analysis layer. |
@@ -32,12 +38,12 @@ on the path explicitly, so which copy is in use is a fact about the process rath
 fact about the environment. Verified: importing with those paths first yields
 `asset/molcat/src/molcat/__init__.py`, `asset/prism/prism/__init__.py` and
 `asset/molorigin/src/molorigin/__init__.py`, a registry
-of 53 plugins, PRISM 1.2.0 and MolOrigin 0.5.0. Wheels include the same trees under
+of 59 plugins, PRISM 1.2.0 and MolOrigin 0.5.0. Wheels include the same trees under
 `moldarwin/_assets`; optional dependencies remain explicit installation extras.
 
 ## What was excluded, and why
 
-`tests/` from all three. 103 files from MolCat, 194 files and 19.7 MB from PRISM --
+`tests/` from all three, with one exception noted below. 103 files from MolCat, 194 files and 19.7 MB from PRISM --
 the latter dominated by full CHARMM36 force-field copies duplicated into FEP test fixtures.
 MolOrigin's 16 test files are also excluded; upstream suites can be run from their source repositories.
 Every other tracked file was
@@ -58,6 +64,31 @@ cannot find it would re-derive a worse version of it.
 
 It is copied rather than imported because importing it would mean depending on a test tree
 that is not here.
+
+One further file survives the exclusion: `molcat/tests/test_aizynth_evidence.py`. It is present
+on disk and not in the manifest's count, which is part of the drift named above. Either it was
+added after vendoring or the exclusion missed it; `tools/verify_assets.py --deep` is what says
+which, and re-vendoring is what settles it.
+
+## Renamed after vendoring
+
+`molcat/` and `molorigin/` are copies of the upstream projects MolCascade and MolQuarry. The
+commits in the table are commits of `github.com/AIB001/MolCascade` and
+`github.com/AIB001/MolQuarry`; checked on 2026-11-25, those repositories still carried those
+names and no `AIB001/MolCat` or `AIB001/MolOrigin` existed.
+
+On that date the names were replaced inside the two copies -- directories, packages,
+identifiers and environment variables (`molcascade` -> `molcat`, `MOLCASCADE_*` -> `MOLCAT_*`,
+`molquarry` -> `molorigin`, `MOLQUARRY_*` -> `MOLORIGIN_*`) -- and nothing else was edited; the
+clone address in `molcat/README.md` was left pointing at the repository that exists. Undoing
+the replacement gives back the bytes that were here before it. The copies are therefore not
+byte-identical to the pinned commits, and `MANIFEST.json` still records the trees as they were
+vendored: `tools/verify_assets.py` reports a mismatch, as it already did for all three assets
+before the rename.
+
+`tools/vendor_assets.py` copies a source as it is. Until an upstream project is renamed the
+same way, refreshing its asset would bring the old package name back and MolDarwin would not
+import it.
 
 ## Refreshing an asset
 

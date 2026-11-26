@@ -55,7 +55,7 @@ def check_build(
     """Observations from one build, given its manifest section and its captured output.
 
     Args:
-        build: The ``build`` section of an MolDarwin run manifest.
+        build: The ``build`` section of a MolDarwin run manifest.
         log: The captured build output. Without it the protonation check cannot be made
             and is reported unevaluable rather than clean -- the unmapped-residue lines
             exist only in that log, so an absent log is an unasked question.

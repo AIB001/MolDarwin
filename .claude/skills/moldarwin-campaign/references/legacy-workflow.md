@@ -164,7 +164,7 @@ contracts. Use the unified workflow service when a task crosses data, screening 
    `moldarwin_screen_configure`. Prepare `molcat` or `prism` executors with
    `moldarwin_executor_prepare`; use their returned endpoints in `campaign.create`, or register
    them in an existing campaign using `moldarwin_executor_register` with a rationale.
-2. Build an `moldarwin-workflow/1` graph of registered operations, absolute inputs, output references,
+2. Build a `moldarwin-workflow/1` graph of registered operations, absolute inputs, output references,
    dependencies and resource allowances. `moldarwin_workflow_plan` returns the normalized spec and
    input-bound `plan_id`. Scientific protocols, assay reviews and admission thresholds are explicit
    inputs; a controller decision cannot change them after submission.

@@ -5,11 +5,11 @@
   "protected_total": 209,
   "protected_unchanged": 207,
   "intentional_changes": {
-    "src/moldarwin/research/README.md": {
+    "src/etalon/research/README.md": {
       "baseline": "da3b8c98b09f516dcef4c01c12994f1ff2c1fd10b6b211c09ae310bb30e007d8",
       "current": "1a0cc0533afd5ed2fb4ed1cb3fc52f1b7be81c9fe1faae121203899191630aa8"
     },
-    "src/moldarwin/research/runtime.py": {
+    "src/etalon/research/runtime.py": {
       "baseline": "c76a8c93158e05a63ceb723c5fe0520671310fddd7c64ad3c06cd2130f08a38a",
       "current": "bea93bae34be98dc6c83b4f9f957e500bf0c81a4a73c8b5c71d522bff69e8cd9"
     }

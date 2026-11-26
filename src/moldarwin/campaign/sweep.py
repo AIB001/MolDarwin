@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS batch (
     outcome      TEXT,               -- committed | exhausted | failed, once recorded
     recorded_at  TEXT,
     gate         TEXT,               -- the calibration digest this batch was *emitted* under
-    moldarwin       TEXT                -- the MolDarwin revision that claimed it, i.e. that screened it
+    moldarwin    TEXT                -- the MolDarwin revision that claimed it, i.e. that screened it
 );
 """
 

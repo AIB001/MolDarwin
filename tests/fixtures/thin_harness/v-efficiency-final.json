@@ -1,5 +1,5 @@
 {
-  "schema": "moldarwin-independent-acceptance/1",
+  "schema": "etalon-independent-acceptance/1",
   "round": "thin-harness-efficiency-20261021",
   "protocol_sha256": "8e1b17e87f2f332c16fcf1c5cc852c9826e699b7a1a4088c5d544cdb1159d8a1",
   "E_freeze_sha256": "4dd17d485a08270e2157dfa8929e3d4d24c3d41451583f55b1e7378b1d9075e7",

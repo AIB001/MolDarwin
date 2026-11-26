@@ -106,7 +106,7 @@ python -m moldarwin active decision-benchmark --workspace runs/decision-ablation
 
 pip install -e '.[cascade]'               # actual CPU MolCat components and molecular features
 python examples/component_learning.py --workspace runs/components
-python -m moldarwin active components        # criteria AND individual plugin contracts
+python -m moldarwin active components     # criteria AND individual plugin contracts
 python examples/protocol_learning.py --workspace runs/protocols --output runs/protocols/report.json
 python -m moldarwin active protocols --database runs/protocols/campaign.sqlite  # read-only
 python examples/protocol_search.py --workspace runs/protocol-search --output runs/protocol-search/report.json
@@ -132,9 +132,9 @@ It reports unrestricted predictions separately from attainable and evidence-back
 `mf_kg` is an established-method baseline, not a claimed invention. These policies use one real
 observation per round; the new ablation harness matches this feedback frequency across all groups.
 
-In metrology an *moldarwin* is the primary standard every other instrument is calibrated
-against. In optics a Fabry–Pérot moldarwin extracts information from the interference between
-two beams — that is, from their disagreement. Both meanings are the point.
+In metrology the primary standard is the one every other instrument is calibrated
+against. In optics a Fabry–Pérot interferometer extracts information from the interference
+between two beams — that is, from their disagreement. MolDarwin is built to be both.
 
 MolDarwin runs three packages as infrastructure, keeping their pinned source trees intact:
 
@@ -308,9 +308,9 @@ src/moldarwin/
     screen.py       MolCat: plan → run → read back verified
     simulate.py     PRISM: build → drive → verify products and controlled process completion
   faults/       would a number from this be about the molecule it is filed under?
-    taxonomy.py     15 causes, each with a magnitude band and a consequence
+    taxonomy.py     20 causes, each with a magnitude band and a consequence
     preflight.py    10 of them, from one handoff row, before a GPU-second
-    postflight.py   5 of them, from a finished run's manifest and logs
+    postflight.py   10 of them, from a finished run's manifest and logs
     attribution.py  eliminate causes by magnitude; say UNEXPLAINED when nothing fits
   learn/        what may teach the screen, and whether a change beats noise
     admissible.py   the gate on the feedback
@@ -377,15 +377,19 @@ src/moldarwin/
 python -m moldarwin.mcp            # MCP server over stdio
 ```
 
-Thirty tools, and **each declares what it spends in its own description** so the classification is
-visible before a model chooses rather than after:
+Eighty-nine tools, and **each declares what it spends in its own description** so the
+classification is visible before a model chooses rather than after. By cost: 47 free, 34 cheap,
+7 that spend, 1 no model may complete. The seven and the one are listed in full because those are
+the rows a reader needs exactly; the free and cheap rows are a sample of a long list, and
+`moldarwin_capabilities` returns the whole catalogue from the running server rather than from
+this table.
 
 | cost | tools |
 |---|---|
-| **free** | `plan_campaign` `tune_screen` `stages` `infrastructure` `check_handoff` `check_stability` `rule_admissible` `authorize_spend` `council_reliability` `council_adjudicate` `active_status` `screen_status` `data_sources` `data_status` `data_review_template` |
-| **cheap** | `design_fep_network` `active_create` `active_plan` `active_replay` `doctor` `screen_plan` `screen_export` `data_plan` `data_run` `data_prepare` `data_import_candidates` `data_import_assays` `data_attach_handoffs` |
-| **spends** | `screen_submit` (plan-bound bulk execution; cost not metered or reserved in the active journal) |
-| **never by a model** | `recommend_waiver` |
+| **free** (47) | `plan_campaign` `tune_screen` `stages` `infrastructure` `check_handoff` `check_stability` `rule_admissible` `authorize_spend` `council_reliability` `council_adjudicate` `active_status` `screen_status` `data_sources` `data_status` `data_review_template` … |
+| **cheap** (34) | `design_fep_network` `active_create` `active_plan` `active_replay` `doctor` `screen_plan` `screen_export` `data_plan` `data_run` `data_prepare` `data_import_candidates` `data_import_assays` `data_attach_handoffs` … |
+| **spends** (7) | `screen_submit` (plan-bound bulk execution; cost not metered or reserved in the active journal) `method_call` `action_submit` `workflow_submit` `workflow_advance` `workflow_reconcile` `active_submit` |
+| **never by a model** (1) | `recommend_waiver` |
 
 A campaign has 750,000 actions, so the governance cannot be per-action confirmation the way a
 small-scale workflow's is. It is that **the expensive steps are guarded by cheap checks, and the
@@ -436,8 +440,9 @@ looks like the number is the same operation that turns a hallucination into a re
 
 ## The gate is an argument, not a suggestion
 
-Count this server's tools by what they spend: ten free, one cheap, one no model may complete. Until
-recently **none of them spent anything.** A model ran `moldarwin_check_handoff`, read a refusal, and
+Count this server's tools by what they spend: 47 free, 34 cheap, 7 that spend, one no model may
+complete. Until the execution tools arrived **none of them spent anything.** A model ran
+`moldarwin_check_handoff`, read a refusal, and
 then called PRISM's own server to build the system, because that is where building lives. Nothing
 connected the two. Every refusal was advice offered beside an action it had no relationship with,
 and the sentence above about guards rested on a model choosing to be guarded in round nine of a

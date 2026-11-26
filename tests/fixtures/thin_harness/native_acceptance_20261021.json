@@ -1,5 +1,5 @@
 {
-  "schema": "moldarwin-independent-native-acceptance/1",
+  "schema": "etalon-independent-native-acceptance/1",
   "date": "2026-10-21",
   "owner": "V",
   "phase": "protocol_before_native_results",
@@ -38,7 +38,7 @@
   ],
   "host_protocol": {
     "cases_per_host": ["Codex", "Claude Code"],
-    "entry": "The actual official native CLI launches or connects the MolDarwin MCP configuration in an isolated project. A Python MCP client is not the native host.",
+    "entry": "The actual official native CLI launches or connects the ETALON MCP configuration in an isolated project. A Python MCP client is not the native host.",
     "prompt_policy": {
       "supply": [
         "A bounded engineering task goal and fixture inputs.",
@@ -58,7 +58,7 @@
         "id": "HOST-01/native-entry",
         "required": [
           "The named native CLI executable/version and invocation are recorded.",
-          "The native run discovers the actual MolDarwin MCP surface and makes at least one substantive successful supported call with auditable output.",
+          "The native run discovers the actual ETALON MCP surface and makes at least one substantive successful supported call with auditable output.",
           "Raw host/tool logs bind the call to the actual server/package version and isolated fixture."
         ],
         "insufficient": [
@@ -70,7 +70,7 @@
       {
         "id": "HOST-01/no-skill",
         "required": [
-          "A native run performs a substantive supported MolDarwin operation without adopting a method first.",
+          "A native run performs a substantive supported ETALON operation without adopting a method first.",
           "Where ActionRequest is used, method_use_refs is empty and the same authoritative execution/receipt path is used.",
           "Output, execution state, verification and admission are interpreted at their actual levels."
         ],

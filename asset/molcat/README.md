@@ -18,8 +18,8 @@ as a claim of binding.
 Python 3.11 or newer is required.
 
 ```bash
-git clone https://github.com/AIB001/MolCat.git
-cd MolCat
+git clone https://github.com/AIB001/MolCascade.git
+cd MolCascade
 python -m pip install .
 ```
 

@@ -229,7 +229,11 @@ class CascadeExecutor:
             return Evaluation(candidate.id, endpoint.id, None, endpoint.units, 0.0, status="blocked",
                               provenance={**identity, "error": "protocol input changed or missing", "path": changed,
                                           "failure_code": "PROTOCOL_INPUT_CHANGED"})
-        from moldarwin.active.graph import execution_lineage, inspect_recipe, verify_execution_plan
+        from moldarwin.active.graph import (
+            execution_lineage,
+            inspect_recipe,
+            verify_execution_plan,
+        )
 
         try:
             graph = inspect_recipe(recipe)

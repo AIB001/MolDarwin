@@ -2,12 +2,12 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "MolDarwin · 每一步怎样读取与写入 memory",
+    "title": "ETALON · 每一步怎样读取与写入 memory",
     "locale": "zh-CN",
-    "output": ".archify/architecture-moldarwin-memory-20261021-232732/memory/memory.html",
+    "output": ".archify/architecture-etalon-memory-20261021-232732/memory/memory.html",
     "quality_profile": "showcase",
     "repository": {
-      "url": "https://github.com/AIB001/MolDarwin.git",
+      "url": "https://github.com/AIB001/ETALON.git",
       "revision": "fc570d6fca85f4c7be9defd04756c581cff07158",
       "link_mode": "web"
     }
@@ -29,7 +29,7 @@
       "tag": "已有 query/read",
       "sources": [
         {
-          "path": "src/moldarwin/research/evidence.py",
+          "path": "src/etalon/research/evidence.py",
           "line": 324,
           "end_line": 384
         }
@@ -73,7 +73,7 @@
       "tag": "已有 Journal · 内容部分待增",
       "sources": [
         {
-          "path": "src/moldarwin/research/journal.py",
+          "path": "src/etalon/research/journal.py",
           "line": 18,
           "end_line": 43
         },
@@ -100,7 +100,7 @@
       "tag": "已有 query/read",
       "sources": [
         {
-          "path": "src/moldarwin/research/evidence_refs.py",
+          "path": "src/etalon/research/evidence_refs.py",
           "line": 237,
           "end_line": 252
         }
@@ -144,7 +144,7 @@
       "tag": "已有 Journal · 内容部分待增",
       "sources": [
         {
-          "path": "src/moldarwin/research/journal.py",
+          "path": "src/etalon/research/journal.py",
           "line": 18,
           "end_line": 43
         },
@@ -171,7 +171,7 @@
       "tag": "已有 query/read",
       "sources": [
         {
-          "path": "src/moldarwin/runtime/api.py",
+          "path": "src/etalon/runtime/api.py",
           "line": 115,
           "end_line": 183
         }
@@ -215,7 +215,7 @@
       "tag": "已有 Journal · 内容部分待增",
       "sources": [
         {
-          "path": "src/moldarwin/research/journal.py",
+          "path": "src/etalon/research/journal.py",
           "line": 18,
           "end_line": 43
         },
@@ -242,7 +242,7 @@
       "tag": "已有 query/read",
       "sources": [
         {
-          "path": "src/moldarwin/research/journal.py",
+          "path": "src/etalon/research/journal.py",
           "line": 76,
           "end_line": 137
         }
@@ -286,7 +286,7 @@
       "tag": "已有 Journal · 内容部分待增",
       "sources": [
         {
-          "path": "src/moldarwin/research/journal.py",
+          "path": "src/etalon/research/journal.py",
           "line": 18,
           "end_line": 43
         },

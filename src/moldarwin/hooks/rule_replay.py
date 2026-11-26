@@ -29,7 +29,7 @@ a judgement that blocks is a judgement nobody can argue with at the point it act
 the difference and leaves the decision where it belongs.
 
 **Two sources for the rule, and the second one has just arrived.** Until this round the comparator
-and threshold lived only in an ``moldarwin-evaluation-contract/1`` and were *unrepresentable* in the
+and threshold lived only in a ``moldarwin-evaluation-contract/1`` and were *unrepresentable* in the
 journal's ``evaluation_plan`` step: ``research/continuation.py``'s ``_fields`` is an exact-field
 check in both directions, ``research/composition.py`` validated plan metrics against exactly
 ``("name", "family", "unit", "denominator", "missing_policy")`` with no optional tuple, and the
@@ -271,7 +271,7 @@ def assess(
     """Replay the rule and report the difference between it and the claim.
 
     Args:
-        contract: An ``moldarwin-evaluation-contract/1`` object, inline. Exactly one of this and
+        contract: A ``moldarwin-evaluation-contract/1`` object, inline. Exactly one of this and
             ``contract_ref`` is required by ``evaluate_contract`` itself.
         contract_ref: An evidence ref to a recorded contract.
         workspace: The published-evidence workspace the refs resolve against.

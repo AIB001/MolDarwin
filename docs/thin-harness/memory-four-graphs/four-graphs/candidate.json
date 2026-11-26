@@ -2,12 +2,12 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "MolDarwin · 四张图连接同一份研究历史",
+    "title": "ETALON · 四张图连接同一份研究历史",
     "locale": "zh-CN",
-    "output": ".archify/architecture-moldarwin-memory-20261021-232732/four-graphs/four-graphs.html",
+    "output": ".archify/architecture-etalon-memory-20261021-232732/four-graphs/four-graphs.html",
     "quality_profile": "showcase",
     "repository": {
-      "url": "https://github.com/AIB001/MolDarwin.git",
+      "url": "https://github.com/AIB001/ETALON.git",
       "revision": "fc570d6fca85f4c7be9defd04756c581cff07158",
       "link_mode": "web"
     }
@@ -117,12 +117,12 @@
       "tag": "已有基础 · 新内容契约待增",
       "sources": [
         {
-          "path": "src/moldarwin/research/journal.py",
+          "path": "src/etalon/research/journal.py",
           "line": 18,
           "end_line": 43
         },
         {
-          "path": "src/moldarwin/research/evidence.py",
+          "path": "src/etalon/research/evidence.py",
           "line": 324,
           "end_line": 384
         },
@@ -231,7 +231,7 @@
       "dot": "emerald",
       "title": "原架构能力如何接入",
       "items": [
-        "搜索与来源：MolOrigin / data-design；判断与对照：research / campaign。",
+        "搜索与来源：MolQuarry / data-design；判断与对照：research / campaign。",
         "实验调用：现有 SDK 与 runtime；结果保存：ResearchJournal 和 evidence。",
         "化学合成 / 采购 / lab 为 X 的候选路线，真实批次与测量进入 R；完整实时 lab 接口仍待新增。"
       ]

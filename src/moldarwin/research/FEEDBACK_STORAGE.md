@@ -11,7 +11,7 @@ they save. This also covers repeated feedback for a single condition. Larger
 collections automatically use `moldarwin-note-resource/2`. Its physical `description`
 omits `cases`; `cases_ref` points to an ordinary immutable resource index.
 That index contains small copy-on-write pages of case references. Each case is
-an `moldarwin-note-feedback-case/1` Artifact. The index, pages and cases are linked
+a `moldarwin-note-feedback-case/1` Artifact. The index, pages and cases are linked
 by Artifact parents; evidence originals keep their existing references. The
 existing journal and handoff preserve both. Readers
 reconstruct the complete description and check its original logical digest.

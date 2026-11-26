@@ -33,8 +33,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
-MolDarwin = Path(__file__).resolve().parent.parent
-ASSET = MolDarwin / "asset"
+MOLDARWIN = Path(__file__).resolve().parent.parent
+ASSET = MOLDARWIN / "asset"
 SOURCES = {
     "molcat": Path("/mnt/e/My_Project/MolCat"),
     "prism": Path("/mnt/e/My_Project/PRISM/PRISM_Alpha/PRISM-main"),
@@ -210,7 +210,7 @@ def main() -> int:
     rendered = json.dumps(manifest, indent=2, sort_keys=True) + "\n"
     if arguments.write:
         target.write_text(rendered, encoding="utf-8")
-        print(f"\nwritten: {target.relative_to(MolDarwin)}")
+        print(f"\nwritten: {target.relative_to(MOLDARWIN)}")
         return 0
 
     if not target.is_file():

@@ -25,7 +25,7 @@
 
 宿主可以直接使用新建／修改的本地 skill。记录只收到摘要时保留 host_reported；有可解析且核对过的快照才称 content_verified。不能要求先装进服务器内置目录才能探索，也不能把无法恢复的内容宣称为可重放。
 
-薄分支 [skills.py 固定基线](https://github.com/AIB001/MolDarwin/blob/d3889e6c0600605f018fb81ce3df1b420d6dcbf9/src/moldarwin/skills.py) 的六项 WORKFLOWS 是默认目录，不是上限。新增 bundle 引用必须保留有界读取、路径穿越和内容身份检查；不把动态 skill 读取变成任意服务器文件读取接口。
+薄分支 [skills.py 固定基线](https://github.com/AIB001/ETALON/blob/d3889e6c0600605f018fb81ce3df1b420d6dcbf9/src/etalon/skills.py) 的六项 WORKFLOWS 是默认目录，不是上限。新增 bundle 引用必须保留有界读取、路径穿越和内容身份检查；不把动态 skill 读取变成任意服务器文件读取接口。
 
 ## 2. MethodUse
 

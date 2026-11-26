@@ -88,7 +88,7 @@ discovers isolated engines at `<sys.prefix>/envs/<name>` and invokes them as sub
 path, never importing them.
 
 ```
-/home/shizq/.conda/envs/MolDarwin/           52 GB total
+/home/shizq/.conda/envs/MolDarwin/        52 GB total
 ├── bin/                                  python, prism, molcat, molorigin, gmx_MMPBSA
 ├── envs/
 │   ├── unidock/            393 MB         Uni-Dock 1.2.0, CUDA ≥ 12.8 build
@@ -101,9 +101,9 @@ path, never importing them.
 │   └── prism-gen-{flowr,molcraft,pocket2mol,pocketxmol,targetdiff}/   4.2–4.4 GB each
 └── opt/
     ├── boltz/              5.0 GB         weights + CCD — keep mols.tar
-    ├── molcat-backends/ 2.4 GB        KarmaDock checkout, GNINA binary + cuDNN, AiZynth data
+    ├── molcat-backends/    2.4 GB         KarmaDock checkout, GNINA binary + cuDNN, AiZynth data
     ├── prism-models/       1.1 GB         six checkpoints + pinned upstream source
-    └── molcat-assets/   21 MB         SCScore weights, rd_filters tables
+    └── molcat-assets/       21 MB         SCScore weights, rd_filters tables
 ```
 
 Deleting the prefix uninstalls everything. That is the point of the layout.
@@ -213,8 +213,8 @@ protocol stream.
 
 ```bash
 python -m moldarwin doctor --prism-python $CONDA_PREFIX/bin/python
-molcat doctor --allow-copyleft            # per-backend availability
-moldarwin_infrastructure                         # which copy loads, and whether it is pinned
+molcat doctor --allow-copyleft                # per-backend availability
+moldarwin_infrastructure                      # which copy loads, and whether it is pinned
 python -m pytest tests/ -q
 ```
 

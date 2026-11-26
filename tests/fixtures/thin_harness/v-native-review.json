@@ -45,27 +45,27 @@
   "posix_test_matches_raw_archive": true,
   "a_final_audit": {
     "at": 1792520511.3611472,
-    "python": "/root/zx/prism-minimal-20261017/engineering/moldarwin-thin-native-20261021-01/env/bin/python",
+    "python": "/root/zx/prism-minimal-20261017/engineering/etalon-thin-native-20261021-01/env/bin/python",
     "version": "3.11.17 (main, Oct  7 2026, 00:02:24) [GCC 15.3.0]",
     "modules": {
-      "moldarwin.runtime.api": {
-        "path": "/root/zx/prism-minimal-20261017/engineering/moldarwin-thin-native-20261021-01/source-v2/src/moldarwin/runtime/api.py",
+      "etalon.runtime.api": {
+        "path": "/root/zx/prism-minimal-20261017/engineering/etalon-thin-native-20261021-01/source-v2/src/etalon/runtime/api.py",
         "sha256": "8c15c65c71e2529484ebcea34dd7ede1e5d530c86bbb3f1de84294c3714f03d6"
       },
-      "moldarwin.runtime.service": {
-        "path": "/root/zx/prism-minimal-20261017/engineering/moldarwin-thin-native-20261021-01/source-v2/src/moldarwin/runtime/service.py",
+      "etalon.runtime.service": {
+        "path": "/root/zx/prism-minimal-20261017/engineering/etalon-thin-native-20261021-01/source-v2/src/etalon/runtime/service.py",
         "sha256": "ffff910947feeb153f535dc8b1e15eb4c8fd07ac54b779ce515dadb2623f50fa"
       },
-      "moldarwin.runtime.process": {
-        "path": "/root/zx/prism-minimal-20261017/engineering/moldarwin-thin-native-20261021-01/source-v2/src/moldarwin/runtime/process.py",
+      "etalon.runtime.process": {
+        "path": "/root/zx/prism-minimal-20261017/engineering/etalon-thin-native-20261021-01/source-v2/src/etalon/runtime/process.py",
         "sha256": "4cd2691c4d6603e2b1d6e59e8872d3536c7f769bef5b14b2ae742cf5d317658e"
       },
-      "moldarwin.active.store": {
-        "path": "/root/zx/prism-minimal-20261017/engineering/moldarwin-thin-native-20261021-01/source-v2/src/moldarwin/active/store.py",
+      "etalon.active.store": {
+        "path": "/root/zx/prism-minimal-20261017/engineering/etalon-thin-native-20261021-01/source-v2/src/etalon/active/store.py",
         "sha256": "f01c101748142fc801bbf618124e6d0a5dbcd2b9d5a47990ae2e1f33da0f511b"
       },
-      "moldarwin.active.runner": {
-        "path": "/root/zx/prism-minimal-20261017/engineering/moldarwin-thin-native-20261021-01/source-v2/src/moldarwin/active/runner.py",
+      "etalon.active.runner": {
+        "path": "/root/zx/prism-minimal-20261017/engineering/etalon-thin-native-20261021-01/source-v2/src/etalon/active/runner.py",
         "sha256": "ca6e8496ba847a286ad50e28bb56fc60c44451e7189b9b75f5d71b7ef86b4fdf"
       }
     },
@@ -244,19 +244,19 @@
       "classification": "legacy_posix_flock_unsupported"
     },
     {
-      "test_id": "tests/test_sweep.py::test_a_claimed_batch_carries_the_moldarwin_revision_that_will_screen_it",
+      "test_id": "tests/test_sweep.py::test_a_claimed_batch_carries_the_etalon_revision_that_will_screen_it",
       "windows": "failed",
       "linux": "passed",
       "classification": "legacy_posix_flock_unsupported"
     },
     {
-      "test_id": "tests/test_sweep.py::test_a_requeued_batch_is_attributed_to_the_moldarwin_that_rescreened_it",
+      "test_id": "tests/test_sweep.py::test_a_requeued_batch_is_attributed_to_the_etalon_that_rescreened_it",
       "windows": "failed",
       "linux": "passed",
       "classification": "legacy_posix_flock_unsupported"
     },
     {
-      "test_id": "tests/test_sweep.py::test_two_moldarwin_revisions_mark_one_funnel_s_batches_incomparable",
+      "test_id": "tests/test_sweep.py::test_two_etalon_revisions_mark_one_funnel_s_batches_incomparable",
       "windows": "failed",
       "linux": "passed",
       "classification": "legacy_posix_flock_unsupported"
@@ -278,13 +278,13 @@
         "wall_seconds": 111.63548183441162,
         "ended_unix": 1792520082.5603848
       },
-      "observed_moldarwin_tools": [
-        "moldarwin_capabilities",
-        "moldarwin_active_status",
-        "moldarwin_active_replay",
-        "moldarwin_active_status",
-        "moldarwin_events_read",
-        "moldarwin_events_read"
+      "observed_etalon_tools": [
+        "etalon_capabilities",
+        "etalon_active_status",
+        "etalon_active_replay",
+        "etalon_active_status",
+        "etalon_events_read",
+        "etalon_events_read"
       ],
       "observed_usage": [
         {
@@ -306,9 +306,9 @@
         "wall_seconds": 29.247594594955444,
         "ended_unix": 1792520319.1629858
       },
-      "observed_moldarwin_tools": [
-        "moldarwin_active_status",
-        "moldarwin_events_read"
+      "observed_etalon_tools": [
+        "etalon_active_status",
+        "etalon_events_read"
       ],
       "observed_usage": [
         {
@@ -330,9 +330,9 @@
         "wall_seconds": 26.860495567321777,
         "ended_unix": 1792520726.7958715
       },
-      "observed_moldarwin_tools": [
-        "moldarwin_active_status",
-        "moldarwin_events_read"
+      "observed_etalon_tools": [
+        "etalon_active_status",
+        "etalon_events_read"
       ],
       "observed_usage": [
         {
@@ -354,16 +354,16 @@
         "wall_seconds": 55.13736581802368,
         "ended_unix": 1792520226.9200528
       },
-      "observed_moldarwin_tools": [
-        "moldarwin_capabilities",
-        "moldarwin_active_status",
-        "moldarwin_action_prepare",
-        "moldarwin_action_submit",
-        "moldarwin_action_result",
-        "moldarwin_action_prepare",
-        "moldarwin_action_submit",
-        "moldarwin_action_result",
-        "moldarwin_active_status"
+      "observed_etalon_tools": [
+        "etalon_capabilities",
+        "etalon_active_status",
+        "etalon_action_prepare",
+        "etalon_action_submit",
+        "etalon_action_result",
+        "etalon_action_prepare",
+        "etalon_action_submit",
+        "etalon_action_result",
+        "etalon_active_status"
       ],
       "observed_usage": [
         {
@@ -385,20 +385,20 @@
         "wall_seconds": 182.81493473052979,
         "ended_unix": 1792520188.4685047
       },
-      "observed_moldarwin_tools": [
-        "moldarwin_capabilities",
-        "moldarwin_active_status",
-        "moldarwin_skill_read",
-        "moldarwin_active_replay",
-        "moldarwin_active_status",
-        "moldarwin_events_read",
-        "moldarwin_skill_read",
-        "moldarwin_events_read",
-        "moldarwin_action_result",
-        "moldarwin_method_record",
-        "moldarwin_method_record",
-        "moldarwin_events_read",
-        "moldarwin_method_record"
+      "observed_etalon_tools": [
+        "etalon_capabilities",
+        "etalon_active_status",
+        "etalon_skill_read",
+        "etalon_active_replay",
+        "etalon_active_status",
+        "etalon_events_read",
+        "etalon_skill_read",
+        "etalon_events_read",
+        "etalon_action_result",
+        "etalon_method_record",
+        "etalon_method_record",
+        "etalon_events_read",
+        "etalon_method_record"
       ],
       "observed_usage": [
         {
@@ -420,21 +420,21 @@
         "wall_seconds": 92.642737865448,
         "ended_unix": 1792520509.755399
       },
-      "observed_moldarwin_tools": [
-        "moldarwin_capabilities",
-        "moldarwin_skill_read",
-        "moldarwin_events_read",
-        "moldarwin_skill_read",
-        "moldarwin_events_read",
-        "moldarwin_active_status",
-        "moldarwin_skill_read",
-        "moldarwin_method_record",
-        "moldarwin_method_record",
-        "moldarwin_events_read",
-        "moldarwin_active_status",
-        "moldarwin_method_record",
-        "moldarwin_events_read",
-        "moldarwin_active_status"
+      "observed_etalon_tools": [
+        "etalon_capabilities",
+        "etalon_skill_read",
+        "etalon_events_read",
+        "etalon_skill_read",
+        "etalon_events_read",
+        "etalon_active_status",
+        "etalon_skill_read",
+        "etalon_method_record",
+        "etalon_method_record",
+        "etalon_events_read",
+        "etalon_active_status",
+        "etalon_method_record",
+        "etalon_events_read",
+        "etalon_active_status"
       ],
       "observed_usage": [
         {
@@ -456,7 +456,7 @@
         "wall_seconds": 4.861915826797485,
         "ended_unix": 1792519975.7965984
       },
-      "observed_moldarwin_tools": [],
+      "observed_etalon_tools": [],
       "observed_usage": [],
       "model": "claude-opus-4-7[1m]",
       "monetary_cost": {
@@ -479,7 +479,7 @@
   },
   "verdicts": {
     "Codex_HOST01": "passed for observed six bounded engineering attempts; original discovery reuses read-only DB and isolated rerun separately proves isolation",
-    "Claude_HOST01": "blocked by actual native HTTP401; attempted call failed, no substantive MolDarwin operation",
+    "Claude_HOST01": "blocked by actual native HTTP401; attempted call failed, no substantive ETALON operation",
     "ACT05_ACT06_RES07": "passed for actual isolated Linux fixtures; original v1 product failure and v3 lock readiness failure retained",
     "A32": "32 original IDs fail Windows and pass unchanged source on Linux; Windows support remains unsupported",
     "B5": "existing missing optional dependency; 5 same-source controls pass isolated overlay, default shared venv unchanged",

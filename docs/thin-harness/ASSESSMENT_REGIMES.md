@@ -235,7 +235,7 @@ limit in §6.
 The membrane is defined on the premise node's regime, not on the relation, so it needs no
 list of relations to stay correct. Two concrete routes exist today:
 
-- `method_links.py:75` — an `moldarwin-research-step/1` record with `operation ==
+- `method_links.py:75` — a `moldarwin-research-step/1` record with `operation ==
   "evaluation"` emits `add([detail["evaluation_ref"]], "evaluation_result")`, and
   `evaluation_result` is `relied_on` with basis `declared_relation`
   (`admission_view.py:26`; `ADMISSION_PROPAGATION.md` §3). This is the edge from an
@@ -501,7 +501,7 @@ instrument, and that is the whole of the answer.** §1's lane buys exactly what 
 needs — no predeclaration, reuse of seen bytes, cheap proxies, no comparator pairing — and
 costs exactly what such a judge must be made to cost: it structurally cannot be relied on.
 So the design requires **no new record type, no new regime value, and no new refusal.** A
-judge verdict recorded as an `moldarwin-method-evaluation/1` with
+judge verdict recorded as a `moldarwin-method-evaluation/1` with
 `assessment_role: "diagnostic"` is handled by the membrane as built.
 
 This is the use case that makes the `diagnostic` lane load-bearing rather than theoretical,

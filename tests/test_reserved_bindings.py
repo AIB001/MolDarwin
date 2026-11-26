@@ -168,7 +168,7 @@ def test_the_attribution_moldarwin_writes_itself_passes_its_own_reserved_shape(t
     {"capability": "", "basis": "declared"},  # empty name
     {"capability": "x", "basis": "guessed"},  # basis outside BASES
     {"capability": "x", "basis": "declared", "extra": 1},
-    "moldarwin_method_criterion",                # not a block at all
+    "moldarwin_method_criterion",             # not a block at all
 ])
 def test_a_malformed_reserved_block_is_refused_rather_than_stored(tmp_path, malformed):
     """A reserved name with the wrong shape reads afterwards as MolDarwin's own output.

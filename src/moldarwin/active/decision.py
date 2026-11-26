@@ -1,6 +1,6 @@
 """Global decision value, bounded protocol scouting, and a confirmation budget guard.
 
-KG is established prior art, not an MolDarwin invention. The guard/scouting are explicit
+KG is established prior art, not a MolDarwin invention. The guard/scouting are explicit
 heuristics, not a finite-budget optimality guarantee. One action is returned per round:
 the next choice must see its real outcome, not an invented independent batch fantasy.
 """

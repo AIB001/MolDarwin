@@ -150,7 +150,7 @@ def locate_gmx(candidates: tuple[str, ...] = ("gmx", "gmx_mpi")) -> Path:
         return path
     raise ToolchainError(
         "no real GROMACS binary on PATH. Source its GMXRC or add its bin directory, and "
-        "make sure an MolDarwin shim directory from an earlier run is not shadowing it."
+        "make sure a MolDarwin shim directory from an earlier run is not shadowing it."
     )
 
 

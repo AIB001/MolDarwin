@@ -315,7 +315,7 @@ def register(mcp: Any) -> None:
                 computed and a ruling over observations you reported. A row supplied here always
                 wins over a non-firing assertion for the same code; a *firing* assertion is kept
                 either way, because moving a check to fired is the one direction a party that did
-                not make the comparison may move it, and an moldarwin_council_adjudicate finding
+                not make the comparison may move it, and a moldarwin_council_adjudicate finding
                 arrives exactly that way.
             receptor_path: Absolute path to the receptor, which turns the receptor-identity check
                 from unevaluable into a digest comparison. Only read when ``records_json`` is given.
@@ -329,7 +329,7 @@ def register(mcp: Any) -> None:
                 ``unchecked_unless_minted`` additionally records a non-firing assertion for a cause
                 MolDarwin did not compute as unevaluable. The latter two change recorded verdicts and
                 refuse without ``audit_json``.
-            audit_json: An ``moldarwin-recomputability-audit/1`` object taken for the live catalogue,
+            audit_json: A ``moldarwin-recomputability-audit/1`` object taken for the live catalogue,
                 required by the two stricter policies. Filling ``unchecked`` moves nodes to
                 ``not_recorded`` in the derived admission view, which the reward counts as a loss,
                 so the decision is taken with four counts and a name on them rather than by

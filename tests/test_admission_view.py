@@ -76,7 +76,7 @@ def make_graph(names, edges, *, truncated=False, kinds=None, receipt="good", vie
     ``SCOPE``, ``issues == []`` and a correct graph view_id.
 
     ``experiences`` maps a node name to the ``experience`` projection block
-    ``_project_node`` writes for an ``moldarwin-method-experience/1`` record. Mirrors
+    ``_project_node`` writes for a ``moldarwin-method-experience/1`` record. Mirrors
     ``regimes`` and is passed verbatim for the same reason: the v4 membrane keys on
     the presence of that block, so a test must show the block it depends on.
 
@@ -1342,7 +1342,7 @@ def test_view_id_is_digest_of_rest_and_deterministic():
 # Each pair below is the demonstration by construction. The two graphs differ in one
 # projected field and in nothing else; the first propagates and the second does not.
 
-#: What research/graph_memory._project_node writes for an moldarwin-method-evaluation/1
+#: What research/graph_memory._project_node writes for a moldarwin-method-evaluation/1
 #: record. Only the two regime fields matter here; the rest is carried for shape.
 def _evaluation_block(role, basis=...):
     block = {"subjects": ["mv-1"], "comparators": ["mv-0"], "assessment_role": role,
@@ -1356,7 +1356,7 @@ def _membrane_graph(role, basis=..., relation="evaluation_result"):
     """J relies on p1 by a declared relied-class relation; p1 declares a regime.
 
     `evaluation_result` is the real reachable case: research/method_links.py emits it
-    from an `moldarwin-research-step/1` evaluation step to the `moldarwin-method-evaluation/1`
+    from a `moldarwin-research-step/1` evaluation step to the `moldarwin-method-evaluation/1`
     record it bound, and that record is the only projection carrying a regime.
     """
 

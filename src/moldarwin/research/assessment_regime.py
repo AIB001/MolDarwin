@@ -67,7 +67,7 @@ NOT_DECLARED = "regime_not_declared"
 #: why a lesson could be relied on.
 NOT_AN_ASSESSMENT = "not_an_assessment"
 
-#: Why a reliance on an `moldarwin-method-experience/1` degrades. A lesson is an
+#: Why a reliance on a `moldarwin-method-experience/1` degrades. A lesson is an
 #: interpretation: `graph_memory._project_node` gives it `kind = "J"` and never `"R"`, with
 #: the comment *"Moving an observation into Judge must not turn a measured result into an
 #: interpretation (or vice versa)"*. It has no freeze, no comparator and no predeclaration,

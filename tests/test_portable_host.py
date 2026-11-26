@@ -85,7 +85,7 @@ def test_install_preserves_user_changes_and_arbitrary_project(tmp_path):
     project = tmp_path / "user-project"
     project.mkdir()
     (project / "AGENTS.md").write_text("user instructions")
-    with pytest.raises(ValueError, match="not an MolDarwin export"):
+    with pytest.raises(ValueError, match="not a MolDarwin export"):
         host.install(project, research_entry=entry)
     assert (project / "AGENTS.md").read_text() == "user instructions"
     exported = tmp_path / "export"

@@ -7,10 +7,10 @@
   "protected_unchanged": true,
   "research_files": 38,
   "policy_executable_ast_unchanged": [
-    "src/moldarwin/campaign/loop.py",
-    "src/moldarwin/campaign/propose.py",
-    "src/moldarwin/campaign/pipeline.py",
-    "src/moldarwin/campaign/supervisor.py"
+    "src/etalon/campaign/loop.py",
+    "src/etalon/campaign/propose.py",
+    "src/etalon/campaign/pipeline.py",
+    "src/etalon/campaign/supervisor.py"
   ],
   "supervisor_bytes_unchanged": true,
   "fixed_production_files": 925,

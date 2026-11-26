@@ -43,7 +43,7 @@ applies to a fault's band.
 
 | hook | fires on | reads | can block |
 |---|---|---|---|
-| `rule_replay` | before a submission | an `moldarwin-evaluation-contract/1`, replayed by `evaluate_contract` | **yes**, one case |
+| `rule_replay` | before a submission | a `moldarwin-evaluation-contract/1`, replayed by `evaluate_contract` | **yes**, one case |
 | `budget_floor` | at `ready` | `CampaignStore(..., read_only=True).snapshot()` | no |
 | `tool_error_loop` | `PostToolUse` / `PostToolUseFailure` | the event, plus its own session memory | no |
 | `regime_drift` | periodically, or at `Stop` | `research_recorded` events, read-only | no |

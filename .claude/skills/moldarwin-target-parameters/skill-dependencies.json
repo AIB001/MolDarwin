@@ -1,0 +1,5 @@
+{
+  "schema": "moldarwin-skill-dependencies/1",
+  "required": [],
+  "optional": ["gate-calibration", "screening-sweep", "method-configuration", "method-literature"]
+}

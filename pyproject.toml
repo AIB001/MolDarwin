@@ -117,6 +117,10 @@ packages = ["src/moldarwin"]
 ".claude/skills/moldarwin-recomputability-audit" = "moldarwin/mcp/skills/bundles/recomputability-audit"
 ".claude/skills/moldarwin-step-corpus" = "moldarwin/mcp/skills/bundles/step-corpus"
 ".claude/skills/moldarwin-stochastic-oracle" = "moldarwin/mcp/skills/bundles/stochastic-oracle"
+# 2026-11-25. Two empirically grounded domain capabilities for gaps a review found: the method
+# literature nobody had searched, and the target-specific parameters a new campaign had to guess.
+".claude/skills/moldarwin-method-literature" = "moldarwin/mcp/skills/bundles/method-literature"
+".claude/skills/moldarwin-target-parameters" = "moldarwin/mcp/skills/bundles/target-parameters"
 # MolOrigin bundles stay at their original asset path in both source and wheel;
 # skills.bundle_root and the legacy resource URIs resolve these same bytes.
 "asset" = "moldarwin/_assets"

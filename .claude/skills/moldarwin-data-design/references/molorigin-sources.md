@@ -20,7 +20,7 @@ references and agent metadata. Those URIs remain valid alongside main-library
 discovery/export. Check the returned bundle version when recording use; the
 entrypoint alone does not identify changed references.
 
-Original MolOrigin text names its own CLI/SDK/MCP tools. In an MolDarwin-only MCP
+Original MolOrigin text names its own CLI/SDK/MCP tools. In a MolDarwin-only MCP
 session, map `list_sources/describe_source` to `moldarwin_data_sources`, acquisition
 to `moldarwin_data_plan/run`, and snapshot verification to `moldarwin_data_status`.
 For `collect_target_evidence`, use a `kind="collect"` request; for bundle building,

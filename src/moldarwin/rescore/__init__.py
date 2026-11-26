@@ -31,7 +31,12 @@ from moldarwin.rescore.features import (
     radius_for,
     read_pose,
 )
-from moldarwin.rescore.model import MIN_SAMPLES_PER_FEATURE, Rescorer, Throughput, resolve_device
+from moldarwin.rescore.model import (
+    MIN_SAMPLES_PER_FEATURE,
+    Rescorer,
+    Throughput,
+    resolve_device,
+)
 
 __all__ = [
     "ELEMENTS",

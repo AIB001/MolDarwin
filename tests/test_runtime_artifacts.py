@@ -12,7 +12,12 @@ import pytest
 from moldarwin.boundary.screen import Screen
 from moldarwin.campaign.design import component, compose
 from moldarwin.data.artifacts import new_run, seal, write_json
-from moldarwin.runtime.artifacts import DESIGN_SCHEMA, MAX_RESPONSE_BYTES, configure, read_result
+from moldarwin.runtime.artifacts import (
+    DESIGN_SCHEMA,
+    MAX_RESPONSE_BYTES,
+    configure,
+    read_result,
+)
 
 
 def design():

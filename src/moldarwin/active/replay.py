@@ -15,7 +15,14 @@ from pathlib import Path
 from typing import Any
 
 from moldarwin.active.runner import ActiveCampaign
-from moldarwin.active.schema import Action, CampaignSpec, Candidate, Endpoint, Evaluation, digest
+from moldarwin.active.schema import (
+    Action,
+    CampaignSpec,
+    Candidate,
+    Endpoint,
+    Evaluation,
+    digest,
+)
 from moldarwin.active.store import CampaignStore
 from moldarwin.authority.grant import SpendAuthorization
 from moldarwin.faults.attribution import Observation

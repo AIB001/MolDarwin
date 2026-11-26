@@ -16,7 +16,13 @@ from moldarwin.learn.calibrate import (
     hanley_mcneil_se,
     scaffold_groups,
 )
-from moldarwin.learn.conformal import Calibration, Interval, _quantile_index, calibrate, intervals
+from moldarwin.learn.conformal import (
+    Calibration,
+    Interval,
+    _quantile_index,
+    calibrate,
+    intervals,
+)
 from moldarwin.learn.surrogate import Features, Surrogate, pic50
 
 
