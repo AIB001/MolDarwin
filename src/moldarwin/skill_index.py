@@ -492,8 +492,102 @@ def find_skills(
     }
 
 
+def write_generated_skill(
+    directory: str | Path,
+    *,
+    name: str,
+    description: str,
+    body: str,
+    domain: str,
+    tags: list[str] | tuple[str, ...],
+    applicable_when: str,
+    invalid_when: str,
+    maturity: str = "draft",
+    tools: list[str] | tuple[str, ...] | None = None,
+    supersedes: str | None = None,
+    references: dict[str, str] | None = None,
+    overwrite: bool = False,
+) -> dict[str, Any]:
+    """Publish a fine-grained generated skill bundle with structured Tier-1 routing frontmatter.
+
+    Writes ``<directory>/<name>/SKILL.md`` (plus optional ``references/...`` files) atomically
+    and validates the resulting bundle via :func:`moldarwin.skills.snapshot`, so it becomes
+    immediately discoverable by :func:`find_skills` and readable via ``moldarwin_skill_read``
+    without restarting the MCP server.
+    """
+    if not isinstance(name, str) or not skills.SKILL_NAME.fullmatch(name):
+        raise ValueError(f"invalid skill name {name!r}; use lowercase letters, digits, and hyphens")
+    for label, text in (
+        ("description", description),
+        ("domain", domain),
+        ("applicable_when", applicable_when),
+        ("invalid_when", invalid_when),
+        ("body", body),
+    ):
+        if not isinstance(text, str) or not text.strip():
+            raise ValueError(f"{label} must be nonempty text")
+    if maturity not in _MATURITIES:
+        raise ValueError(f"maturity must be one of {sorted(_MATURITIES)}")
+    clean_tags = [t.strip().lower() for t in tags if isinstance(t, str) and t.strip()]
+    if not clean_tags:
+        raise ValueError("tags must contain at least one nonempty routing tag")
+
+    base = Path(directory)
+    if not base.is_absolute():
+        raise ValueError("skill output directory must be absolute")
+    if any(skills.redirected(p) for p in (base, *base.parents)):
+        raise ValueError("skill output directory cannot contain symlinks or junctions")
+
+    bundle_dir = base / name
+    if bundle_dir.exists() and not overwrite:
+        raise FileExistsError(f"skill bundle already exists: {bundle_dir}; pass overwrite=True or version the name")
+
+    def _one_line(val: str) -> str:
+        return " ".join(val.strip().splitlines())
+
+    front_lines = [
+        "---",
+        f"name: {name}",
+        f"description: {_one_line(description)}",
+        f"domain: {domain.strip().lower()}",
+        "tags: [" + ", ".join(dict.fromkeys(clean_tags)) + "]",
+        f"applicable_when: {_one_line(applicable_when)}",
+        f"invalid_when: {_one_line(invalid_when)}",
+        f"maturity: {maturity}",
+    ]
+    if tools:
+        clean_tools = [t.strip() for t in tools if isinstance(t, str) and t.strip()]
+        if clean_tools:
+            front_lines.append("tools: [" + ", ".join(dict.fromkeys(clean_tools)) + "]")
+    if supersedes:
+        front_lines.append(f"supersedes: {_one_line(supersedes)}")
+    front_lines.append("---")
+
+    skill_text = "\n".join(front_lines) + "\n\n" + body.strip() + "\n"
+    bundle_dir.mkdir(parents=True, exist_ok=True)
+    (bundle_dir / "SKILL.md").write_text(skill_text, encoding="utf-8")
+
+    for rel, content in (references or {}).items():
+        skills._canonical_member(rel)
+        target = bundle_dir / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+
+    slug = skills.derived_slug(name)
+    manifest, _ = skills.snapshot(slug, bundle_ref={"root": str(bundle_dir)})
+    return {
+        "slug": slug,
+        "name": name,
+        "root": str(bundle_dir),
+        "manifest_sha256": manifest["manifest_sha256"],
+        "bundle_ref": {"root": str(bundle_dir), "manifest_sha256": manifest["manifest_sha256"]},
+        "member_count": len(manifest["files"]),
+    }
+
+
 __all__ = [
     "ENV_SKILL_DIRS",
     "find_skills",
     "parse_skill_header",
+    "write_generated_skill",
 ]

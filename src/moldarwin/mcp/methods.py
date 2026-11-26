@@ -34,19 +34,25 @@ def register(mcp: Any) -> None:
                               branch_id: str | None = None, publication_id: str | None = None,
                               evidence: list[str] | None = None,
                               counterevidence: list[str] | None = None, parts: list[dict] | None = None,
-                              family: str | None = None, definitions: dict | None = None) -> str:
+                              family: str | None = None, definitions: dict | None = None,
+                              applicable_when: str | None = None,
+                              invalid_when: list[str] | None = None,
+                              comparison_ref: dict | None = None) -> str:
         """CHEAP. Save a callable method in the existing entry's resource catalog.
 
         arguments is the existing method.run contract (command argv, files,
         method_id, inputs, optional input_files/outputs/cwd). Pins declared files; preserves
-        other resources and contrary evidence. No execution or adoption occurs.
-        Programs accept --request/--result. Skills and judgments remain distinct.
+        other resources and contrary evidence. Optional applicable_when, invalid_when, and
+        comparison_ref surface reuse boundaries and paired comparison refs on recall.
+        No execution or adoption occurs. Programs accept --request/--result.
         """
         from moldarwin.research.saved_methods import publish_method
         return ok(**publish_method(absolute_path(entry, label="entry"), resource_id, arguments,
             summary=summary, conditions=conditions, branch_id=branch_id,
             publication_id=publication_id, evidence=evidence or (), counterevidence=counterevidence or (),
-            parts=parts, family=family, definitions=definitions))
+            parts=parts, family=family, definitions=definitions,
+            applicable_when=applicable_when, invalid_when=invalid_when,
+            comparison_ref=comparison_ref))
 
     @mcp.tool()
     @tool(Cost.FREE)

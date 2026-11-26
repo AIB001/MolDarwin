@@ -9,12 +9,15 @@ from .notes import _original_selection, original, patch_progress, resolve_method
 
 def publish_method(entry, resource_id, arguments, *, summary, conditions,
                    branch_id=None, publication_id=None, evidence=(), counterevidence=(),
-                   parts=None, family=None, definitions=None):
+                   parts=None, family=None, definitions=None,
+                   applicable_when=None, invalid_when=None, comparison_ref=None):
     """Pin executable files and merge one method; no adoption or execution implied.
 
     arguments uses method.run unchanged: argv, declared source/model files,
     default inputs and optional output paths. Programs consume --request/--result.
-    Evidence may describe a local improvement or a limitation; neither is invented.
+    Optional ``applicable_when``, ``invalid_when``, and ``comparison_ref`` travel
+    with the catalog descriptor so cross-target recall surfaces reuse boundaries
+    and paired evaluation provenance without loading raw transcripts.
     """
     if not isinstance(resource_id, str) or not resource_id or len(resource_id) > 160:
         raise ValueError("resource_id must be a nonempty bounded name")
@@ -36,6 +39,18 @@ def publish_method(entry, resource_id, arguments, *, summary, conditions,
     if definitions is not None:
         from .meta_context import _definition_map
         descriptor["definitions"] = _definition_map(definitions, unknown=True)
+    if applicable_when is not None:
+        if not isinstance(applicable_when, str) or not applicable_when.strip() or len(applicable_when) > 400:
+            raise ValueError("applicable_when must be nonempty text of at most 400 characters")
+        descriptor["applicable_when"] = applicable_when.strip()
+    if invalid_when is not None:
+        if (not isinstance(invalid_when, (list, tuple)) or len(invalid_when) > 32
+                or any(not isinstance(item, str) or not item.strip() or len(item) > 240 for item in invalid_when)):
+            raise ValueError("invalid_when must be a bounded list of nonempty boundary strings")
+        descriptor["invalid_when"] = [item.strip() for item in invalid_when]
+    if comparison_ref is not None:
+        from .evidence_refs import validate_ref
+        descriptor["comparison_ref"] = validate_ref(comparison_ref)
     result = patch_progress(entry, {}, branch_id=branch_id, publication_id=publication_id,
         evidence=evidence, counterevidence=counterevidence, resources={resource_id: descriptor})
     from moldarwin.active.schema import digest

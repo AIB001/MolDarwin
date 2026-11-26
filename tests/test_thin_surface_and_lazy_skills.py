@@ -273,3 +273,79 @@ def test_stealth_record_artifact_with_admission_binds_in_one_call(tmp_path):
     assert res["binding"]["target_record_id"] == artifact.id
     # Leaf record itself was never mutated.
     assert canonical(journal.get(artifact.id)) == canonical(journal.get(res["leaf_record_id"]))
+
+
+def test_write_generated_skill_and_method_boundary_recall(tmp_path):
+    from moldarwin.research.evidence_refs import make_ref
+    from moldarwin.research.notes import save_progress
+    from moldarwin.research.resource_catalog import build_resource_catalog
+    from moldarwin.research.saved_methods import publish_method
+    from moldarwin.skill_index import write_generated_skill
+
+    # 1. Zero-ceremony generated skill is immediately indexed and readable.
+    gen_dir = tmp_path / "live-skills"
+    gen_dir.mkdir()
+    published_skill = write_generated_skill(
+        gen_dir,
+        name="snd1-percentile-calibration",
+        description="Calibrate Uni-Dock percentile cutoffs on target-local active/inactive panels.",
+        body="# SND1 Percentile Calibration\nAlways calibrate on target controls, never transfer -8.0.",
+        domain="screening",
+        tags=["snd1", "calibration", "percentile", "unidock"],
+        applicable_when="Moving a docking cascade to a new target with measured controls.",
+        invalid_when="Target has zero verified inactive controls.",
+        maturity="validated",
+        references={"references/panel-math.md": "Percentile threshold formula.\n"},
+    )
+    found = find_skills(query="snd1 percentile calibration", extra_dirs=[str(gen_dir)], limit=3)
+    assert found["skills"][0]["slug"] == "snd1-percentile-calibration"
+    assert found["skills"][0]["invalid_when"] == "Target has zero verified inactive controls."
+    read_back = skills.read_member("snd1-percentile-calibration", bundle_ref=published_skill["bundle_ref"])
+    assert "never transfer -8.0" in read_back["content"]
+    assert read_back["available_members"] == ["references/panel-math.md"]
+
+    # 2. Callable method with applicable_when / invalid_when / comparison_ref surfaces in catalog.
+    store = CampaignStore(tmp_path / "m.sqlite")
+    store.configure(
+        CampaignSpec("fep", 10.0, "wall_second", "method-recall-fixture"),
+        [Endpoint("fep", "t", "fep", "kcal/mol", "fep/1", 1.0, queryable=False)],
+    )
+    entry_path = tmp_path / "ENTRY.json"
+    save_progress(
+        ResearchJournal(store),
+        entry_path,
+        {
+            "task_id": "t-recall",
+            "branch_id": "main",
+            "question": "Calibrate target gate cleanly",
+            "summary": "Initial progress",
+            "conditions": {"target_family": "tudor"},
+            "evidence": [],
+            "counterevidence": [],
+            "resources": {},
+        },
+    )
+    script = tmp_path / "calibrate_gate.py"
+    script.write_text("print('ok')\n", encoding="utf-8")
+    cmp_ref = make_ref("science", "artifact-comparison", {"adoption": "scoped"})
+
+    import sys
+
+    publish_method(
+        entry_path,
+        "percentile-gate-calibrator",
+        {"command": [sys.executable, str(script)], "files": [str(script)], "method_id": "cal-v1", "inputs": {}},
+        summary="Compute target-local percentile cutoff from control panel.",
+        conditions={"target_family": "tudor"},
+        applicable_when="Target has both active and inactive screening controls.",
+        invalid_when=["no_inactive_controls", "unmapped_panel_ids"],
+        comparison_ref=cmp_ref,
+    )
+
+    catalog = build_resource_catalog(entry=entry_path, kinds=["method"])
+    method_rows = [item for item in catalog["items"] if item["resource_id"] == "percentile-gate-calibrator"]
+    assert len(method_rows) == 1
+    row = method_rows[0]
+    assert row["applicable_when"] == "Target has both active and inactive screening controls."
+    assert row["invalid_when"] == ["no_inactive_controls", "unmapped_panel_ids"]
+    assert row["comparison_ref"] == cmp_ref

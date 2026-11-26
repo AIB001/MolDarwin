@@ -614,10 +614,51 @@ def record_artifact_with_admission(
     return {"leaf_record_id": leaf_id, "binding": binding}
 
 
+def make_admission_binding_hook(
+    journal: ResearchJournal,
+    *,
+    directory: str | Path,
+    target_resolver: Any,
+    scope_builder: Any = None,
+    source_kind: str = "new_execution",
+    role: str = "diagnostic",
+):
+    """Build a stealth ``post_resolve(action, result)`` callback for ``ActiveCampaign``.
+
+    Whenever ``CampaignStore.resolve`` commits an observation row, ``target_resolver(action, result)``
+    returns the ``ResearchJournal`` record ID to bind (or ``None`` to skip). If ``scope_builder``
+    is omitted, defaults to ``{"parent_id": action.candidate_id, "endpoint_id": action.endpoint_id}``.
+    Every binding still reads the committed ``Ruling`` verbatim from ``CampaignStore.observations``
+    without touching the leaf record (C1/C2/C4/C6).
+    """
+
+    def _hook(action: Any, result: Any) -> dict[str, Any] | None:
+        target_id = target_resolver(action, result)
+        if not target_id:
+            return None
+        scope = (
+            scope_builder(action, result)
+            if scope_builder is not None
+            else {"parent_id": action.candidate_id, "endpoint_id": action.endpoint_id}
+        )
+        return record_admission_binding(
+            journal,
+            target_record_id=target_id,
+            action_id=action.id,
+            claim_scope=scope,
+            directory=directory,
+            source_kind=source_kind,
+            role=role,
+        )
+
+    return _hook
+
+
 __all__ = [
     "SCHEMA",
     "build_admission_view",
     "extract_admission_bindings",
+    "make_admission_binding_hook",
     "record_admission_binding",
     "record_artifact_with_admission",
     "summarize_admission_view",

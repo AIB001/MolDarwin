@@ -124,7 +124,8 @@ def _note_catalog(entry, *, kinds, skill_refs, purpose, limit, cursor, max_bytes
                     next_read={"entry": details, "view": "selected", "selectors": [selector]},
                     links=resource.get("links", []), verification="descriptor_only; resolve source before execution")
                 row.update({k: resource[k] for k in ("parts", "definitions", "family", "status", "subject",
-                    "feedback", "feedback_summary", "support_refs", "counter_refs", "requires", "irrelevant", "available_at") if k in resource})
+                    "feedback", "feedback_summary", "support_refs", "counter_refs", "requires", "irrelevant",
+                    "applicable_when", "invalid_when", "comparison_ref", "available_at") if k in resource})
                 row["resource_version"] = resource["descriptor_digest"]
                 row["note_counterevidence"] = {"count": len(note.get("counterevidence", [])),
                     "content_ref": details, "pointer": "/counterevidence"}

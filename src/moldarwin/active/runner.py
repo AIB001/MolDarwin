@@ -53,7 +53,8 @@ class ActiveCampaign:
                  receptor_path: str | Path | None = None, waivers: WaiverSet | None = None,
                  toolchain_active: bool | None = None,
                  checkpoint: Callable[[], None] | None = None,
-                 result_observer: Callable[[Action, Evaluation], None] | None = None) -> None:
+                 result_observer: Callable[[Action, Evaluation], None] | None = None,
+                 post_resolve: Callable[[Action, Evaluation], None] | None = None) -> None:
         self.store = store
         self.executor = executor
         self.receptor_path = Path(receptor_path).resolve() if receptor_path is not None else None
@@ -63,6 +64,9 @@ class ActiveCampaign:
         # leave the action pending, so the observer is outside the executor error handler.
         self.checkpoint = checkpoint
         self.result_observer = result_observer
+        # Optional post-commit hook fired immediately after CampaignStore.resolve commits
+        # an observation row (e.g. stealth dispatch-time admission binding).
+        self.post_resolve = post_resolve
 
     def plan(self) -> tuple[MultiEndpointGP | None, list[Choice], str]:
         """Read-only planning. The same decision is recomputed before execution."""
@@ -246,6 +250,8 @@ class ActiveCampaign:
                 if self.result_observer is not None:
                     self.result_observer(action, result)
                 self.store.resolve(action.id, result, waivers=self.waivers)
+                if self.post_resolve is not None:
+                    self.post_resolve(action, result)
                 return
         self.store.start_action(action.id)
         try:
@@ -271,6 +277,8 @@ class ActiveCampaign:
         if self.result_observer is not None:
             self.result_observer(action, result)
         self.store.resolve(action.id, result, waivers=self.waivers)
+        if self.post_resolve is not None:
+            self.post_resolve(action, result)
 
     def evaluate(self, candidate_id: str, endpoint_id: str, *, decision: dict | None = None,
                  max_cost: float | None = None) -> dict:

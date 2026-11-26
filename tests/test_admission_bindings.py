@@ -859,3 +859,58 @@ def test_summary_mode_shadow_probe_and_live_revision_compare_mcp(tmp_path):
     assert cmp_full["comparison"]["schema"] == "moldarwin-revision-comparison/1"
     assert cmp_full["comparison"]["adoption"] == "full"
     assert len(json.dumps(cmp_summary)) < len(json.dumps(cmp_full))
+
+
+def test_active_campaign_post_resolve_hook_silently_binds_admission(tmp_path):
+    """Live ActiveCampaign.evaluate with post_resolve=make_admission_binding_hook commits
+    an admission binding automatically at dispatch settlement without mutating the leaf."""
+    from moldarwin.active.runner import ActiveCampaign
+    from moldarwin.research.admission_bindings import make_admission_binding_hook
+
+    case = _make_campaign_graph(tmp_path)
+    store, journal = case["store"], case["journal"]
+    store.register_endpoints(
+        [
+            Endpoint(
+                "dock",
+                "target-a",
+                "docking",
+                "kcal/mol",
+                "dock/1",
+                0.5,
+                requires_handoff=False,
+                queryable=True,
+                max_replicates=4,
+            )
+        ],
+        rationale="non-handoff endpoint for stealth binding test",
+    )
+    scope = {"root_refs": [case["decision_ref"], case["unbound_ref"]], "ordinary_hops": 1}
+
+    def fake_executor(action, candidate, endpoint, grant):
+        return Evaluation(
+            candidate_id=candidate.id,
+            endpoint_id=endpoint.id,
+            value=-10.1,
+            units=endpoint.units,
+            cost=0.5,
+            status="ok",
+        )
+
+    hook = make_admission_binding_hook(
+        journal,
+        directory=case["bindings_dir"],
+        target_resolver=lambda action, result: case["measured_id"],
+    )
+    campaign = ActiveCampaign(store, executor=fake_executor, post_resolve=hook)
+    outcome = campaign.evaluate("mol-1", "dock")
+    assert len(outcome["actions"]) == 1
+    assert store.observations()[0]["admitted"] is True
+
+    case["publish"]()
+    res = build_admission_view(
+        case["workspace"], checkpoint_ref=case["checkpoint"], scope=scope, detail="summary"
+    )
+    assert res["binding_extraction"]["bound_nodes"] == 1
+    assert res["summary"]["counts_by_admission"]["admitted"] == 2
+    assert res["summary"]["omitted_clean_admitted_nodes"] == 2

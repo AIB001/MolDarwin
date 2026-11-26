@@ -25,7 +25,8 @@ FEEDBACK_PAGE_SIZE = 16
 FEEDBACK_INLINE_CASES = 32
 SUMMARY_FIELDS = (
     "kind", "form", "summary", "conditions", "links", "parts", "definitions",
-    "requires", "irrelevant", "irrelevant_when", "invalid_when", "applicability", "scope", "available_at",
+    "requires", "irrelevant", "irrelevant_when", "applicable_when", "invalid_when",
+    "comparison_ref", "applicability", "scope", "available_at",
     "support_refs", "counter_refs", "evidence", "counterevidence", "evidence_refs",
     "family", "family_id", "status", "feedback", "capability_id", "tags", "subject",
 )
