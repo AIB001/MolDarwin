@@ -17,6 +17,10 @@ opportunity/patch chain, or routine review phase is required.
   `moldarwin_method_call` → `moldarwin_method_collect` rather than rewriting them.
 - **Carry methods, never target-specific cutoffs:** Transfer cascades and code across
   targets, never scalar docking thresholds; calibrate against each target's own controls.
+- **Autonomous planning & compute hygiene:** For open-ended goals without a step-by-step
+  plan, inspect idle GPUs/engines once via `moldarwin_capabilities(detail="summary", skills=[], tools=[], operations=[], include_environment=True)`
+  (or `SessionStart` `[moldarwin-env]`), size runs from a `<=5%` micro-pilot + control gate,
+  never use `busy_gpus`, and load `moldarwin-autonomous-planning` on demand.
 
 ## Epistemic & Execution Boundaries
 - Keep `completion`, `verification`, and `admission` distinct. `diagnostic` runs and

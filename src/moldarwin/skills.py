@@ -132,7 +132,7 @@ def discover_bundles(sources: tuple[Path, ...] | None = None) -> tuple[dict[str,
                                             f"slug; rename one of the bundles")
                 continue
             registered[slug] = name
-    return registered, unregistered
+    return dict(sorted(registered.items())), dict(sorted(unregistered.items()))
 
 
 WORKFLOWS, UNREGISTERED = discover_bundles()

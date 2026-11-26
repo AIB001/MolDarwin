@@ -436,6 +436,16 @@ def handle_event(entry, event, *, host, state_dir, policy=None, max_bytes=16384,
             payload = _delivery_payload(context, previous, event_name=event_name,
                                         entry=entry_identity, config=config)
             text = _envelope(payload)
+            if event_name == "SessionStart" and (
+                os.environ.get("MOLDARWIN_SESSION_ENV_PROBE") == "1"
+                or os.environ.get("MOLDARWIN_CHARTER_PATH")
+            ):
+                from moldarwin.runtime.environment import (
+                    format_environment_card,
+                    probe_environment,
+                )
+
+                text = text + "\n" + format_environment_card(probe_environment())
             output = {"hookSpecificOutput": {"hookEventName": event_name, "additionalContext": text}}
             injection = {"status": "prepared_for_host_not_consumption_verified",
                          "text_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),

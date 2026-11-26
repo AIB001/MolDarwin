@@ -66,16 +66,18 @@ def register(mcp: Any) -> None:
     @tool(Cost.FREE)
     def moldarwin_capabilities(detail: str = "full", skills: list[str] | None = None,
                             tools: list[str] | None = None,
-                            operations: list[str] | None = None) -> str:
+                            operations: list[str] | None = None,
+                            include_environment: bool = False) -> str:
         """FREE. Discover all or selected capabilities; known tools need no discovery call.
 
         Defaults retain the full catalog. detail='summary' omits file manifests.
         Each selector is exact names: null means all, [] means none. For example,
         skills=['campaign'], tools=[], operations=[] reads just that skill bundle.
-        Summary includes entrypoints and complete selected-bundle version digests;
-        detail='full' expands their member inventory. This is not a method whitelist.
-        tools lists only this server's callable registrations. operations describes
-        the general runtime API, not additional callable tools on this instance.
+        Set include_environment=True for a compact live compute/GPU/engine/charter snapshot
+        without exploratory shell turns. Summary includes entrypoints and complete
+        selected-bundle version digests; detail='full' expands their member inventory.
+        This is not a method whitelist. tools lists only this server's callable registrations.
+        operations describes the general runtime API, not additional callable tools on this instance.
         """
         from moldarwin.skills import _selection, catalog
 
@@ -100,6 +102,11 @@ def register(mcp: Any) -> None:
         if detail == "summary":
             from moldarwin.mcp.profiles import pack_summary
             extra["available_packs"] = pack_summary()
+        if include_environment:
+            from moldarwin.runtime.environment import format_environment_card, probe_environment
+            env = probe_environment()
+            extra["environment"] = env
+            extra["environment_card"] = format_environment_card(env)
         return ok(**report, **extra, tools=tool_report, operations=operation_report,
                   runtime={"python": sys.executable, "module": str(Path(__file__).resolve()),
                            "durable_workers": "Linux /proc and POSIX locks required"})

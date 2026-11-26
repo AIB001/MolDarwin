@@ -1,0 +1,10 @@
+{
+  "task_id": "hsp90_open_discovery",
+  "wall_clock_min": 45,
+  "gpu_policy": "idle_only",
+  "output_contract": [
+    "delivery/REPORT.md",
+    "delivery/summary.json",
+    "delivery/top_candidates.csv"
+  ]
+}
