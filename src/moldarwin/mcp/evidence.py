@@ -381,6 +381,8 @@ def register(mcp: Any) -> None:
                                  purpose: str | None = None, policy: dict | None = None,
                                  labels: dict[str, str] | None = None,
                                  bindings: list[dict] | None = None,
+                                 shadow_nodes: list[str] | None = None,
+                                 detail: Literal["full", "summary"] = "full",
                                  max_nodes: Annotated[int, Field(ge=1, le=128)] = 64,
                                  max_bytes: Annotated[int, Field(ge=4096, le=262144)] = 65536,
                                  scope: dict | None = None) -> str:
@@ -391,17 +393,18 @@ def register(mcp: Any) -> None:
         admissions along relied_on edges with the assessment-regime membrane applied,
         without changing rule() or mutating leaf records. Unbound historical records
         stay not_recorded and are never backfilled.
-        Supply either workspace + checkpoint_ref, entry, or read_context.
-        Returns the untouched derived view (directly comparable via compare_views)
-        alongside binding_extraction counts. Never grants execution or writes state.
+        Use detail='summary' for a token-compact decision view omitting undisputed
+        admitted nodes, or detail='full' for the complete view directly comparable via
+        compare_views. Supply shadow_nodes to test read-only memory pruning safety
+        (check_shadow) before hiding records from default views. Never grants execution.
         """
         from moldarwin.research.admission_bindings import build_admission_view
         ws = absolute_path(workspace, label="workspace") if workspace is not None else None
         result = build_admission_view(
             ws, checkpoint_ref=checkpoint_ref, entry=_entry_argument(entry),
             read_context=read_context, policy=policy, purpose=purpose,
-            labels=labels, extra_bindings=bindings, max_nodes=max_nodes,
-            max_bytes=max_bytes, scope=scope)
+            labels=labels, extra_bindings=bindings, shadow_nodes=shadow_nodes,
+            detail=detail, max_nodes=max_nodes, max_bytes=max_bytes, scope=scope)
         return ok(**result)
 
     @mcp.tool()

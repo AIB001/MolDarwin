@@ -729,3 +729,133 @@ def test_live_membrane_degrades_diagnostic_evaluation_even_when_dispatch_bound(t
     assert by_id[decision_nid]["regime_refused_premises"] == [diag_nid]
     assert by_id[decision_nid]["admission"] == "not_recorded"
     assert "premise_regime_cannot_carry_reliance" in by_id[decision_nid]["reasons"]
+
+
+def test_summary_mode_shadow_probe_and_live_revision_compare_mcp(tmp_path):
+    """End-to-end Track 2.1 bridge:
+    - moldarwin_admission_view(detail='summary', shadow_nodes=[...]) shrinks payload and checks pruning safety;
+    - moldarwin_revision_compare consumes live admission views + COST directly in thin profile.
+    """
+    import asyncio
+
+    from moldarwin.mcp.server import build
+
+    case = _make_campaign_graph(tmp_path)
+    store, journal = case["store"], case["journal"]
+    scope = {"root_refs": [case["decision_ref"], case["unbound_ref"]], "ordinary_hops": 1}
+
+    action_id = _resolve_action(store, value=-9.5)
+    record_admission_binding(
+        journal,
+        target_record_id=case["measured_id"],
+        action_id=action_id,
+        claim_scope={"parent_id": "mol-1", "protocol": "fep/1"},
+        directory=case["bindings_dir"],
+    )
+    case["publish"]()
+
+    thin_server = build(profile="thin")
+
+    def call(tool_name: str, args: dict) -> dict:
+        raw = asyncio.run(thin_server.call_tool(tool_name, args))
+        blocks = raw[0] if isinstance(raw, tuple) else raw
+        return json.loads(blocks[0].text)
+
+    measured_nid = node_identity(case["measured_ref"])
+    unbound_nid = node_identity(case["unbound_ref"])
+    decision_nid = node_identity(case["decision_ref"])
+
+    full_res = call(
+        "moldarwin_admission_view",
+        {"workspace": str(case["workspace"]), "checkpoint_ref": case["checkpoint"], "scope": scope},
+    )
+    summary_res = call(
+        "moldarwin_admission_view",
+        {
+            "workspace": str(case["workspace"]),
+            "checkpoint_ref": case["checkpoint"],
+            "scope": scope,
+            "detail": "summary",
+            "shadow_nodes": [measured_nid],
+        },
+    )
+    assert summary_res["ok"] is True
+    assert "view" not in summary_res
+    assert summary_res["summary"]["omitted_clean_admitted_nodes"] == 2
+    assert summary_res["summary"]["counts_by_admission"]["admitted"] == 2
+    assert summary_res["summary"]["counts_by_admission"]["not_recorded"] == 2
+    assert len(json.dumps(summary_res["summary"])) < len(json.dumps(full_res["view"]))
+    # Shadowing the relied-on measured leaf is flagged unsafe (decision loses its premise).
+    assert summary_res["shadow_report"]["safe"] is False
+    assert summary_res["shadow_report"]["deleted_anything"] is False
+    assert measured_nid in summary_res["shadow_report"]["load_bearing"]
+    assert any(loss["node_id"] == decision_nid for loss in summary_res["shadow_report"]["losses"])
+
+    # Shadowing the unrelated unbound leaf is safe.
+    safe_shadow = call(
+        "moldarwin_admission_view",
+        {
+            "workspace": str(case["workspace"]),
+            "checkpoint_ref": case["checkpoint"],
+            "scope": scope,
+            "detail": "summary",
+            "shadow_nodes": [unbound_nid],
+        },
+    )
+    assert safe_shadow["shadow_report"]["safe"] is True
+    assert unbound_nid in safe_shadow["shadow_report"]["free"]
+
+    # Live moldarwin_revision_compare over 8 paired tasks (warrant extracted from live views + cost).
+    base_view = full_res["view"]
+    task_nodes = {f"t{i}": {"base": unbound_nid, "candidate": decision_nid} for i in range(8)}
+    cost_dim = {
+        "name": "wall_seconds",
+        "family": "cost",
+        "unit": "s",
+        "base": {f"t{i}": 100.0 for i in range(8)},
+        "candidate": {f"t{i}": 60.0 for i in range(8)},
+    }
+    cmp_summary = call(
+        "moldarwin_revision_compare",
+        {
+            "assessment_role": "independent_validation",
+            "declared_scope": ["snd1", "alk2"],
+            "measured_scope": ["snd1"],
+            "base_view": {
+                "workspace": str(case["workspace"]),
+                "checkpoint_ref": case["checkpoint"],
+                "scope": scope,
+            },
+            "candidate_view": base_view,
+            "task_nodes": task_nodes,
+            "dimensions": [cost_dim],
+        },
+    )
+    assert cmp_summary["ok"] is True
+    assert cmp_summary["detail"] == "summary"
+    c = cmp_summary["comparison"]
+    assert c["adoption"] == "scoped"
+    assert c["gain"] == "both"
+    assert c["waiver_change"] == 0
+    assert c["scope"] == ["snd1"]
+    assert {d["name"]: d["verdict"] for d in c["dimensions"]} == {
+        "warrant": "better",
+        "wall_seconds": "better",
+    }
+
+    cmp_full = call(
+        "moldarwin_revision_compare",
+        {
+            "assessment_role": "independent_validation",
+            "declared_scope": ["snd1"],
+            "base_view": base_view,
+            "candidate_view": base_view,
+            "task_nodes": task_nodes,
+            "dimensions": [cost_dim],
+            "detail": "full",
+        },
+    )
+    assert cmp_full["ok"] is True
+    assert cmp_full["comparison"]["schema"] == "moldarwin-revision-comparison/1"
+    assert cmp_full["comparison"]["adoption"] == "full"
+    assert len(json.dumps(cmp_summary)) < len(json.dumps(cmp_full))

@@ -21,7 +21,7 @@ ENV_PROFILE = "MOLDARWIN_MCP_PROFILE"
 ENV_PACKS = "MOLDARWIN_MCP_PACKS"
 PROFILES = ("full", "thin")
 
-#: 15 core primitives for the thin default surface.
+#: 16 core primitives for the thin default surface.
 THIN_CORE_TOOLS: frozenset[str] = frozenset({
     # Lazy discovery & on-demand skill loading (3)
     "moldarwin_skill_find",
@@ -32,11 +32,12 @@ THIN_CORE_TOOLS: frozenset[str] = frozenset({
     "moldarwin_research_progress",
     "moldarwin_evidence_read",
     "moldarwin_admission_view",
-    # Reusable callable method library & RSI execution (4)
+    # Reusable callable method library & paired RSI comparison (5)
     "moldarwin_method_publish",
     "moldarwin_method_resolve",
     "moldarwin_method_call",
     "moldarwin_method_collect",
+    "moldarwin_revision_compare",
     # Guarded runtime execution & native hook (4)
     "moldarwin_action_prepare",
     "moldarwin_action_submit",

@@ -214,3 +214,120 @@ def register(mcp: Any) -> None:
         record = ResearchJournal(store).get(record_id)
         method_record_from_dict(record)
         return ok(record_id=record_id, record=record)
+
+    @mcp.tool()
+    @tool(Cost.FREE)
+    def moldarwin_revision_compare(
+        assessment_role: str,
+        declared_scope: list[str],
+        dimensions: list[dict[str, Any]] | None = None,
+        measured_scope: list[str] | None = None,
+        base_catalogue_digest: str | None = None,
+        candidate_catalogue_digest: str | None = None,
+        base_view: dict[str, Any] | None = None,
+        candidate_view: dict[str, Any] | None = None,
+        task_nodes: dict[str, Any] | None = None,
+        alpha: float = 0.05,
+        detail: str = "summary",
+    ) -> str:
+        """FREE. Paired Pareto comparison of a candidate method or skill against its baseline.
+
+        Computes exact sign/McNemar tests per dimension across warrant, refusal, coverage,
+        provenance, and cost without collapsing them into one scalar score. A cost saving
+        never pays for a quality or warrant regression; waivers are tracked as cost, not wins;
+        and diagnostic measurements are capped at diagnostic_only.
+
+        Optionally pass base_view + candidate_view (either verbatim derived views or
+        workspace/entry selectors) plus task_nodes ({task_id: node_id} or
+        {task_id: {"base": ..., "candidate": ...}}) to extract paired warrant observations
+        and fault-catalogue digests automatically. Defaults to detail='summary' for compact
+        token usage; pass detail='full' for the complete comparison object accepted by
+        resolve_method_revision. Never modifies records or promotes a method.
+        """
+        from moldarwin.economics.stage import Evidence
+        from moldarwin.mcp.evidence import _entry_argument
+        from moldarwin.research.admission_bindings import build_admission_view
+        from moldarwin.research.revision_score import (
+            Dimension,
+            Family,
+            compact_comparison,
+            compare_revision,
+            warrant_observations_from_admission_view,
+        )
+
+        if detail not in {"summary", "full"}:
+            raise ValueError("detail must be 'summary' or 'full'")
+
+        def _resolve_view(spec: dict[str, Any]) -> dict[str, Any]:
+            if not isinstance(spec, dict):
+                raise ValueError("view input must be a mapping")
+            if "nodes" in spec and "catalogue_digest" in spec:
+                return spec
+            ws = spec.get("workspace")
+            return build_admission_view(
+                absolute_path(ws, label="workspace") if ws is not None else None,
+                checkpoint_ref=spec.get("checkpoint_ref"),
+                entry=_entry_argument(spec["entry"]) if "entry" in spec else None,
+                read_context=spec.get("read_context"),
+                policy=spec.get("policy"),
+                purpose=spec.get("purpose"),
+                labels=spec.get("labels"),
+                extra_bindings=spec.get("bindings"),
+                scope=spec.get("scope"),
+                detail="full",
+            )["view"]
+
+        parsed: list[tuple[Dimension, dict[str, Any], dict[str, Any]]] = []
+        base_digest = base_catalogue_digest
+        cand_digest = candidate_catalogue_digest
+
+        if base_view is not None or candidate_view is not None:
+            if base_view is None or candidate_view is None or not task_nodes:
+                raise ValueError("base_view, candidate_view, and task_nodes must be supplied together")
+            b_map: dict[str, str] = {}
+            c_map: dict[str, str] = {}
+            for task_id, target in task_nodes.items():
+                if isinstance(target, str):
+                    b_map[task_id] = target
+                    c_map[task_id] = target
+                elif isinstance(target, dict) and set(target) == {"base", "candidate"}:
+                    b_map[task_id] = target["base"]
+                    c_map[task_id] = target["candidate"]
+                else:
+                    raise ValueError(
+                        f"task_nodes[{task_id!r}] must be a node_id string or "
+                        "{'base': node_id, 'candidate': node_id}"
+                    )
+            b_warrant, b_cat = warrant_observations_from_admission_view(_resolve_view(base_view), b_map)
+            c_warrant, c_cat = warrant_observations_from_admission_view(_resolve_view(candidate_view), c_map)
+            if base_digest is not None and base_digest != b_cat:
+                raise ValueError("base_catalogue_digest disagrees with base_view catalogue_digest")
+            if cand_digest is not None and cand_digest != c_cat:
+                raise ValueError("candidate_catalogue_digest disagrees with candidate_view catalogue_digest")
+            base_digest, cand_digest = b_cat, c_cat
+            parsed.append((Dimension("warrant", Family.WARRANT), b_warrant, c_warrant))
+
+        for entry_dim in dimensions or ():
+            if not isinstance(entry_dim, dict):
+                raise ValueError("each dimension entry must be an object")
+            dim = Dimension(
+                name=entry_dim["name"],
+                family=Family(entry_dim["family"]),
+                minimum_gain=entry_dim.get("minimum_gain", 0.0),
+                minimum_gain_evidence=Evidence(entry_dim.get("minimum_gain_evidence", "convention")),
+                minimum_gain_source=entry_dim.get("minimum_gain_source", ""),
+                unit=entry_dim.get("unit", ""),
+            )
+            parsed.append((dim, entry_dim["base"], entry_dim["candidate"]))
+
+        comparison = compare_revision(
+            dimensions=parsed,
+            assessment_role=assessment_role,
+            base_catalogue_digest=base_digest or "",
+            candidate_catalogue_digest=cand_digest or "",
+            declared_scope=declared_scope,
+            measured_scope=measured_scope or (),
+            alpha=alpha,
+        )
+        payload = compact_comparison(comparison) if detail == "summary" else comparison.as_dict()
+        return ok(detail=detail, comparison=payload)

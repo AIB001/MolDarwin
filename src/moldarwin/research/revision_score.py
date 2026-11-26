@@ -701,6 +701,79 @@ def compare_revision(
         waiver_change=waiver_change, note=note)
 
 
+def warrant_observations_from_admission_view(
+    view: Mapping[str, object],
+    task_nodes: Mapping[str, str],
+    *,
+    use_exact: bool = True,
+) -> tuple[dict[str, str], str]:
+    """Extract paired ``WARRANT`` observations and ``catalogue_digest`` from an admission view.
+
+    Refuses any task whose mapped ``node_id`` is absent from ``view['nodes']`` rather than
+    silently dropping tasks (preserves paired denominator honesty).
+    """
+
+    if not isinstance(view, Mapping) or "nodes" not in view or "catalogue_digest" not in view:
+        raise ValueError("view must be an admission_view output carrying nodes and catalogue_digest")
+    cat_digest = view["catalogue_digest"]
+    if not isinstance(cat_digest, str) or not cat_digest:
+        raise ValueError("view catalogue_digest must be nonempty text")
+    nodes_raw = view["nodes"]
+    if not isinstance(nodes_raw, Sequence):
+        raise ValueError("view nodes must be a sequence")
+    if not isinstance(task_nodes, Mapping) or not task_nodes:
+        raise ValueError("task_nodes must map at least one task_id to a graph node_id")
+
+    field = "exact_admission" if use_exact else "admission"
+    by_id: dict[str, Mapping[str, object]] = {}
+    for row in nodes_raw:
+        if isinstance(row, Mapping) and isinstance(row.get("node_id"), str):
+            by_id[row["node_id"]] = row
+
+    observations: dict[str, str] = {}
+    for task_id, node_id in task_nodes.items():
+        if not isinstance(task_id, str) or not task_id or not isinstance(node_id, str) or not node_id:
+            raise ValueError("task_nodes entries must be nonempty string pairs")
+        row = by_id.get(node_id)
+        if row is None:
+            raise NotComparable(f"task {task_id!r} references node {node_id!r} absent from admission view")
+        value = row.get(field)
+        if not isinstance(value, str) or value not in ADMISSION_STATES:
+            raise ValueError(f"node {node_id!r} carries invalid {field}: {value!r}")
+        observations[task_id] = value
+    return observations, cat_digest
+
+
+def compact_comparison(comparison: Comparison) -> dict[str, object]:
+    """Token-efficient summary card of a :class:`Comparison` preserving every decision fact."""
+
+    return {
+        "adoption": comparison.adoption.value,
+        "outcome": comparison.outcome,
+        "gain": comparison.gain.value,
+        "assessment_role": comparison.assessment_role,
+        "task_count": len(comparison.tasks),
+        "waiver_change": comparison.waiver_change,
+        "scope": list(comparison.scope),
+        "declared_scope": list(comparison.declared_scope),
+        "catalogue_digest": comparison.catalogue_digest,
+        "dimensions": [
+            {
+                "name": item.dimension.name,
+                "family": item.dimension.family.value,
+                "verdict": item.verdict.value,
+                "wins": f"{item.candidate_wins}-{item.base_wins} (ties:{item.ties})",
+                "effect": item.effect,
+                "unit": item.dimension.unit or "task",
+                "p_value": round(item.p_value, 6),
+            }
+            for item in comparison.dimensions
+        ],
+        "reservations": list(comparison.reservations),
+        "note": comparison.note,
+    }
+
+
 __all__ = [
     "ADMISSION_STATES",
     "Adoption",
@@ -714,9 +787,11 @@ __all__ = [
     "NotComparable",
     "Verdict",
     "WARRANTED_STATE",
+    "compact_comparison",
     "compare_dimension",
     "compare_revision",
     "median_difference_interval",
     "minimum_discordant_pairs",
     "two_sided_sign_p",
+    "warrant_observations_from_admission_view",
 ]

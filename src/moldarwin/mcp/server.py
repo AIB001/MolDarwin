@@ -220,7 +220,7 @@ def main(argv: list[str] | None = None) -> None:
         "--profile",
         choices=("full", "thin"),
         default=None,
-        help="Tool surface profile: 'thin' exposes 15 core primitives + lazy skill discovery; 'full' exposes all tools.",
+        help="Tool surface profile: 'thin' exposes 16 core primitives + lazy skill discovery; 'full' exposes all tools.",
     )
     parser.add_argument(
         "--packs",

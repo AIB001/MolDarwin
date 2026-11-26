@@ -417,6 +417,63 @@ def extract_admission_bindings(
     return bindings, summary
 
 
+def summarize_admission_view(view: dict[str, Any]) -> dict[str, Any]:
+    """Token-efficient summary of an admission view keeping 100% of actionable signals.
+
+    Omits clean, undisputed ``admitted`` nodes from the node list (while reporting their
+    exact count) and retains every ``withheld``, ``not_recorded``, ``admitted_under_waiver``,
+    membrane-degraded, or superseded node.
+    """
+
+    counts_admission: dict[str, int] = {}
+    counts_exact: dict[str, int] = {}
+    noteworthy: list[dict[str, Any]] = []
+    clean_omitted = 0
+
+    for node in view["nodes"]:
+        adm = node["admission"]
+        ex = node["exact_admission"]
+        counts_admission[adm] = counts_admission.get(adm, 0) + 1
+        counts_exact[ex] = counts_exact.get(ex, 0) + 1
+        interesting = (
+            adm != "admitted"
+            or ex != "admitted"
+            or bool(node.get("regime_refused_premises"))
+            or bool(node.get("rests_on_superseded_premise"))
+            or bool(node.get("history"))
+        )
+        if interesting:
+            noteworthy.append({
+                "node_id": node["node_id"],
+                "kind": node["kind"],
+                "admission": adm,
+                "exact_admission": ex,
+                "leaf": node["leaf"],
+                "limiting_leaves": node["limiting_leaves"],
+                "regime_refused_premises": node["regime_refused_premises"],
+                "rests_on_superseded_premise": node["rests_on_superseded_premise"],
+                "reasons": node["reasons"],
+            })
+        else:
+            clean_omitted += 1
+
+    return {
+        "schema": "moldarwin-admission-view-summary/1",
+        "view_id": view["view_id"],
+        "view_version": view["view_version"],
+        "graph_view_id": view["graph_view_id"],
+        "catalogue_digest": view["catalogue_digest"],
+        "graph_completeness": view["graph_completeness"],
+        "membrane": view["membrane"],
+        "total_nodes": len(view["nodes"]),
+        "total_edges": len(view["edges"]),
+        "counts_by_admission": dict(sorted(counts_admission.items())),
+        "counts_by_exact_admission": dict(sorted(counts_exact.items())),
+        "noteworthy_nodes": noteworthy,
+        "omitted_clean_admitted_nodes": clean_omitted,
+    }
+
+
 def build_admission_view(
     workspace: Any = None,
     *,
@@ -427,6 +484,8 @@ def build_admission_view(
     purpose: str | None = None,
     labels: dict[str, str] | None = None,
     extra_bindings: list[dict[str, Any]] | None = None,
+    shadow_nodes: list[str] | tuple[str, ...] | None = None,
+    detail: str = "full",
     max_nodes: int = 64,
     max_bytes: int = 65536,
     as_of: dict[str, Any] | None = None,
@@ -434,10 +493,16 @@ def build_admission_view(
 ) -> dict[str, Any]:
     """Build a read-only derived admission view from a published workspace and recorded bindings.
 
-    Returns ``view`` verbatim from :func:`moldarwin.learn.admission_view.admission_view` (so its
-    ``view_id`` remains directly comparable via ``compare_views``) alongside explicit
-    ``binding_extraction`` counts and denominators. Never mutates any leaf record or store.
+    With ``detail="full"`` (default), returns ``view`` verbatim from
+    :func:`moldarwin.learn.admission_view.admission_view` (directly comparable via
+    ``compare_views``). With ``detail="summary"``, returns a token-compact ``summary`` card
+    retaining all non-clean/membrane/superseded nodes and exact denominators. When
+    ``shadow_nodes`` is supplied, runs :func:`moldarwin.learn.memory_shadow.check_shadow`
+    read-only and returns ``shadow_report``. Never mutates any leaf record or store.
     """
+
+    if detail not in {"full", "summary"}:
+        raise ValueError("detail must be 'full' or 'summary'")
 
     selectors = sum(
         x is not None for x in (workspace if checkpoint_ref is not None else None, entry, read_context)
@@ -483,15 +548,15 @@ def build_admission_view(
         ws, graph, policy=effective_policy, purpose=effective_purpose
     )
     extras = list(extra_bindings) if extra_bindings is not None else []
-    view = admission_view(graph, [*recorded, *extras], labels=labels)
+    all_bindings = [*recorded, *extras]
+    view = admission_view(graph, all_bindings, labels=labels)
 
     mode = (
         "recorded_dispatch_bindings"
         if not extras
         else ("mixed" if recorded else "caller_declared")
     )
-    return {
-        "view": view,
+    result: dict[str, Any] = {
         "graph_view_id": graph["view_id"],
         "checkpoint_ref": graph["checkpoint_ref"],
         "binding_extraction": {
@@ -502,6 +567,18 @@ def build_admission_view(
         "execution_permission": "not_granted",
         "automatic_retry": False,
     }
+    if detail == "summary":
+        result["summary"] = summarize_admission_view(view)
+    else:
+        result["view"] = view
+
+    if shadow_nodes is not None:
+        from moldarwin.learn.memory_shadow import check_shadow
+
+        report = check_shadow(graph, all_bindings, shadow=shadow_nodes, labels=labels)
+        result["shadow_report"] = report.as_dict()
+
+    return result
 
 
 def record_artifact_with_admission(
@@ -543,5 +620,6 @@ __all__ = [
     "extract_admission_bindings",
     "record_admission_binding",
     "record_artifact_with_admission",
+    "summarize_admission_view",
     "validate_content",
 ]

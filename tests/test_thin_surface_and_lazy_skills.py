@@ -31,7 +31,7 @@ def _call_mcp(server, tool_name: str, arguments: dict) -> dict:
 
 def test_thin_profile_and_domain_packs_partition_entire_catalog_cleanly(monkeypatch):
     full_names = set(tool_catalog())
-    assert len(THIN_CORE_TOOLS) == 15
+    assert len(THIN_CORE_TOOLS) == 16
     assert full_names >= THIN_CORE_TOOLS
 
     # Packs must be pairwise disjoint, disjoint from THIN_CORE_TOOLS, and cover 100% of full.
@@ -43,11 +43,11 @@ def test_thin_profile_and_domain_packs_partition_entire_catalog_cleanly(monkeypa
         seen |= pack_tools
     assert seen == full_names, f"tools missing from profiles/packs: {sorted(full_names - seen)}"
 
-    # Thin server registers ONLY the 15 core primitives.
+    # Thin server registers ONLY the 16 core primitives.
     thin_server = build(profile="thin")
     thin_registered = {item.name for item in asyncio.run(thin_server.list_tools())}
     assert thin_registered == set(THIN_CORE_TOOLS)
-    assert len(thin_registered) == 15
+    assert len(thin_registered) == 16
 
     # moldarwin_capabilities(detail="summary") reports only registered tools + available_packs.
     caps = _call_mcp(
