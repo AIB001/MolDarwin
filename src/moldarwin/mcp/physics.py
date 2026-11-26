@@ -70,14 +70,17 @@ def register(mcp: Any) -> None:
         water_model: str = "tip3p",
         ligand_resname: str = "LIG",
         prod_ns: float | None = 5.0,
+        protonation: Literal["propka", "gromacs"] = "propka",
+        ph: float = 7.4,
+        staged_equilibration: bool = False,
         overwrite: bool = False,
     ) -> str:
         """CHEAP. Sanitize inputs and build a GROMACS 2026-ready explicit-solvent PRISM system.
 
-        Repairs blank ligand SDF titles before calling pinned PRISM, validates generated GRO
-        column integrity, stages ligand position restraints, and writes an editable
-        run_md_gmx2026.sh script (CPU PME for EM; GPU PME/NB/bonded/update for NVT/NPT/MD).
-        Does not launch GPU production MD so the host stays free to schedule runs directly.
+        Defaults to PROPKA protonation at pH 7.4, repairs blank ligand SDF titles before calling
+        pinned PRISM, validates generated GRO column integrity, stages ligand position restraints,
+        and writes an editable run_md_gmx2026.sh script supporting replica seeds and optional
+        staged NPT ligand-release equilibration. Does not launch GPU production MD.
         """
         from moldarwin.physics.prism_bridge import prepare_prism_md_system
 
@@ -90,6 +93,9 @@ def register(mcp: Any) -> None:
             water_model=water_model,
             ligand_resname=ligand_resname,
             prod_ns=prod_ns,
+            protonation=protonation,
+            ph=ph,
+            staged_equilibration=staged_equilibration,
             overwrite=overwrite,
         )
         return ok(**result)
@@ -140,13 +146,16 @@ def register(mcp: Any) -> None:
         water_model: str = "tip3p",
         lambda_windows: int = 11,
         lambda_strategy: str = "decoupled",
+        prod_ns: float | None = 2.0,
+        protonation: Literal["propka", "gromacs"] = "propka",
+        ph: float = 7.4,
         overwrite: bool = False,
     ) -> str:
         """CHEAP. Sanitize reference and mutant ligands and build one pinned PRISM RBFE/FEP edge.
 
-        Enforces blank-title repair and explicit-hydrogen checks on both aligned 3D endpoints
-        before calling pinned PRISM, then validates generated GRO integrity. Does not launch
-        GPU lambda windows so the host schedules execution freely.
+        Enforces blank-title repair, explicit-hydrogen checks, PROPKA pH 7.4 config, PRISM v1.2.0
+        SDF->GRO coordinate-fidelity guard, GRO validation, and production MDP patching (finite
+        prod_ns, calc-lambda-neighbors=-1 for exact MBAR, zero .trr output). Does not launch GPUs.
         """
         from moldarwin.physics.prism_fep import prepare_prism_fep_edge
 
@@ -160,6 +169,9 @@ def register(mcp: Any) -> None:
             water_model=water_model,
             lambda_windows=lambda_windows,
             lambda_strategy=lambda_strategy,
+            prod_ns=prod_ns,
+            protonation=protonation,
+            ph=ph,
             overwrite=overwrite,
         )
         return ok(**result)

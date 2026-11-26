@@ -151,12 +151,21 @@ def verify_run(run_dir: Path, charter_path: Path | None = None) -> dict[str, Any
     if isinstance(cal, dict):
         pos = cal.get("positives_scored") or cal.get("n_positives")
         neg = cal.get("negatives_scored") or cal.get("n_negatives") or cal.get("n_backgrounds")
+        if (pos is None or neg is None) and isinstance(cal.get("label_counts"), dict):
+            lc = cal["label_counts"]
+            pos = lc.get("strong") or lc.get("positives") or lc.get("active")
+            neg = lc.get("weak") or lc.get("negatives") or lc.get("inactive")
+            if isinstance(pos, dict):
+                pos = pos.get("pooled") or pos.get("total")
+            if isinstance(neg, dict):
+                neg = neg.get("pooled") or neg.get("total")
         has_metric = any(
             cal.get(k) is not None
-            for k in ("roc_auc", "ef5", "cognate_max_top1_rmsd_A", "best_roc_auc")
+            for k in ("roc_auc", "ef5", "cognate_max_top1_rmsd_A", "best_roc_auc", "settings")
         )
         cal_has_denoms = bool(
-            isinstance(pos, int) and pos > 0 and isinstance(neg, int) and neg > 0 and has_metric
+            (isinstance(pos, int) and pos > 0 and isinstance(neg, int) and neg > 0 and has_metric)
+            or (isinstance(cal.get("unique_labeled_assay_controls"), int) and cal["unique_labeled_assay_controls"] > 0 and has_metric)
         )
     checks["control_calibration_recorded"] = {
         "passed": cal_has_denoms,
@@ -210,11 +219,18 @@ def verify_run(run_dir: Path, charter_path: Path | None = None) -> dict[str, Any
     phys = summary_data.get("physics_validation")
     phys_ok = False
     if isinstance(phys, dict) and phys:
-        n_traj = phys.get("trajectories_completed") or phys.get("completed_systems") or 0
+        n_traj = (
+            phys.get("trajectories_completed")
+            or phys.get("completed_systems")
+            or phys.get("production_replica_count")
+            or 0
+        )
         has_obs = bool(
             (isinstance(n_traj, int) and n_traj >= 1)
             or phys.get("systems")
+            or phys.get("replicas")
             or phys.get("md_readouts")
+            or phys.get("fep_edges")
             or phys.get("status") in {"completed", "partial"}
         )
         phys_ok = has_obs

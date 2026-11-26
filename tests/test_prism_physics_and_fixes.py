@@ -156,7 +156,7 @@ def test_patch_gromacs2026_stages_posre_and_writes_cpu_em_gpu_md_script(tmp_path
     script = (md_dir / "run_md_gmx2026.sh").read_text(encoding="utf-8")
     assert 'export OMP_NUM_THREADS="$NTOMP"' in script
     assert "-deffnm em" in script and "-pme cpu" in script and "-r solv_ions.gro" in script
-    assert "-deffnm md" in script and "-nb gpu -pme gpu -bonded gpu -update gpu" in script
+    assert '-deffnm "${OUT_PREFIX}md"' in script and "-nb gpu -pme gpu -bonded gpu -update gpu" in script
 
 
 def test_patch_gromacs2026_stages_sibling_mdps_and_detects_amb2gmx_posre(tmp_path):
@@ -448,3 +448,78 @@ def test_fep_sdf_gro_coordinate_verification_accepts_match_and_rejects_drift(tmp
     )
     with pytest.raises(RuntimeError, match="coordinate drift"):
         _verify_sdf_matches_gro(sdf, gro_bad)
+
+
+def test_conserved_pocket_waters_md_control_gate_and_fep_mdp_patch(tmp_path):
+    from moldarwin.physics import (
+        evaluate_md_control_gate,
+        patch_gromacs2026_artifacts,
+        patch_prism_fep_mdps,
+        select_conserved_pocket_waters,
+    )
+
+    # 1. Conserved bridging water selection: retains W1 (bridge, low B), rejects W2 (high B), W3 (far bulk)
+    raw_pdb = tmp_path / "raw.pdb"
+    raw_pdb.write_text(
+        "ATOM      1  OG  SER A  10       3.000   0.000   0.000  1.00 20.00           O\n"
+        "HETATM    2  O   HOH A 201       1.500   1.000   0.000  1.00 22.00           O\n"
+        "HETATM    3  O   HOH A 202       1.500  -1.000   0.000  1.00 60.00           O\n"
+        "HETATM    4  O   HOH A 203      15.000  15.000  15.000  1.00 18.00           O\n"
+        "END\n",
+        encoding="utf-8",
+    )
+    lig_sdf = tmp_path / "lig.sdf"
+    lig_sdf.write_text(_sample_sdf(title="LIG", z=0.5), encoding="utf-8")
+    w_rep = select_conserved_pocket_waters(
+        raw_pdb, lig_sdf, out_pdb=tmp_path / "rec_with_wat.pdb", receptor_base_pdb=raw_pdb
+    )
+    assert w_rep["total_crystal_waters"] == 3
+    assert w_rep["retained_count"] == 1
+    assert w_rep["retained_waters"][0]["water_id"] == "A:201"
+    assert Path(w_rep["written_pdb"]).is_file()
+
+    # 2. Multi-replica MD control gate
+    g_pass = evaluate_md_control_gate([
+        {"ligand_rmsd_last_20pct_A": 0.75, "pocket_contact_occupancy": 1.0},
+        {"ligand_rmsd_last_20pct_A": 1.48, "pocket_contact_occupancy": 0.98},
+        {"ligand_rmsd_last_20pct_A": 1.20, "pocket_contact_occupancy": 0.99},
+    ])
+    assert g_pass["passed_gate"] is True
+    assert g_pass["median_tail_rmsd_A"] == pytest.approx(1.2)
+
+    g_fail = evaluate_md_control_gate([
+        {"ligand_rmsd_last_20pct_A": 4.72, "pocket_contact_occupancy": 1.0},
+        {"ligand_rmsd_last_20pct_A": 3.80, "pocket_contact_occupancy": 1.0},
+    ])
+    assert g_fail["passed_gate"] is False
+
+    # 3. PRISM FEP prod_*.mdp patching (500 ns -> 2.0 ns, calc-lambda-neighbors -> -1, zero trr)
+    fep_dir = tmp_path / "GMX_PROLIG_FEP"
+    mdp_dir = fep_dir / "bound" / "repeat1" / "mdps"
+    mdp_dir.mkdir(parents=True)
+    (mdp_dir / "prod_00.mdp").write_text(
+        "integrator = md\ndt = 0.002\nnsteps = 250000000\n"
+        "nstxout = 5000\nnstvout = 5000\nnstxout-compressed = 250000\n"
+        "calc-lambda-neighbors = 1\n",
+        encoding="utf-8",
+    )
+    fep_patch = patch_prism_fep_mdps(fep_dir, prod_ns=2.0, calc_lambda_neighbors=-1, zero_trr=True)
+    assert fep_patch["patched_count"] == 1
+    assert fep_patch["target_nsteps"] == 1000000
+    patched_txt = (mdp_dir / "prod_00.mdp").read_text(encoding="utf-8")
+    assert "nsteps = 1000000" in patched_txt
+    assert "calc-lambda-neighbors = -1" in patched_txt
+    assert "nstxout = 0" in patched_txt
+
+    # 4. Staged equilibration + replica seed support in run_md_gmx2026.sh
+    md_dir = tmp_path / "md_staged"
+    md_dir.mkdir()
+    (md_dir / "solv_ions.gro").write_text("S\n0\n 5 5 5\n", encoding="utf-8")
+    (md_dir / "npt.mdp").write_text("define = -DPOSRES\nnsteps = 50000\n", encoding="utf-8")
+    (md_dir / "md.mdp").write_text("dt = 0.002\nnsteps = 1000\n", encoding="utf-8")
+    p_rep = patch_gromacs2026_artifacts(md_dir, prod_ns=10.0, staged_equilibration=True)
+    assert p_rep["staged_equilibration"] is True
+    assert (md_dir / "npt_release.mdp").is_file()
+    sh = Path(p_rep["script_path"]).read_text(encoding="utf-8")
+    assert "GMX_GEN_SEED" in sh
+    assert "npt_release.mdp" in sh

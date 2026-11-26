@@ -149,6 +149,175 @@ def _sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
+def patch_prism_fep_mdps(
+    fep_dir: str | Path,
+    *,
+    prod_ns: float | None = 2.0,
+    calc_lambda_neighbors: int = -1,
+    zero_trr: bool = True,
+) -> dict[str, Any]:
+    """Patch generated PRISM-FEP ``prod_*.mdp`` files for finite runtime and exact MBAR.
+
+    Fixes three empirically observed defaults in PRISM-FEP outputs without editing ``asset/prism``:
+    1. Replaces default ``nsteps = 250000000`` (500 ns/window) with explicit ``prod_ns``.
+    2. Sets ``calc-lambda-neighbors = -1`` so ``dhdl.xvg`` records all lambda states for full MBAR.
+    3. Optionally zeroes uncompressed ``nstxout``/``nstvout`` (.trr) while retaining ``.xtc``/``dhdl.xvg``.
+    """
+    root = Path(fep_dir).resolve()
+    prod_mdps = sorted(root.rglob("prod_*.mdp"))
+    patched_files: list[str] = []
+    target_nsteps: int | None = None
+
+    for mdp in prod_mdps:
+        text = mdp.read_text(encoding="utf-8", errors="replace")
+        new_text = text
+
+        if prod_ns is not None:
+            if prod_ns <= 0 or not math.isfinite(prod_ns):
+                raise ValueError("prod_ns must be finite and positive")
+            dt_match = re.search(r"(?im)^\s*dt\s*=\s*([0-9.eE+-]+)", new_text)
+            dt_ps = float(dt_match.group(1)) if dt_match else 0.002
+            target_nsteps = max(1, int(round((prod_ns * 1000.0) / dt_ps)))
+            if re.search(r"(?im)^\s*nsteps\s*=", new_text):
+                new_text = re.sub(r"(?im)^(\s*nsteps\s*=\s*)[0-9]+", rf"\g<1>{target_nsteps}", new_text)
+            else:
+                new_text = new_text.rstrip() + f"\nnsteps = {target_nsteps}\n"
+
+        if re.search(r"(?im)^\s*calc-lambda-neighbors\s*=", new_text):
+            new_text = re.sub(
+                r"(?im)^(\s*calc-lambda-neighbors\s*=\s*)-?[0-9]+",
+                rf"\g<1>{int(calc_lambda_neighbors)}",
+                new_text,
+            )
+        else:
+            new_text = new_text.rstrip() + f"\ncalc-lambda-neighbors = {int(calc_lambda_neighbors)}\n"
+
+        if zero_trr:
+            new_text = re.sub(r"(?im)^(\s*nstxout\s*=\s*)[0-9]+", r"\g<1>0", new_text)
+            new_text = re.sub(r"(?im)^(\s*nstvout\s*=\s*)[0-9]+", r"\g<1>0", new_text)
+            new_text = re.sub(r"(?im)^(\s*nstxout-compressed\s*=\s*)[0-9]+", r"\g<1>5000", new_text)
+
+        if new_text != text:
+            mdp.write_text(new_text, encoding="utf-8")
+            patched_files.append(str(mdp))
+
+    return {
+        "schema": "moldarwin-prism-fep-mdp-patch/1",
+        "fep_dir": str(root),
+        "prod_mdp_count": len(prod_mdps),
+        "patched_count": len(patched_files),
+        "prod_ns": prod_ns,
+        "target_nsteps": target_nsteps,
+        "calc_lambda_neighbors": int(calc_lambda_neighbors),
+        "zero_trr": bool(zero_trr),
+    }
+
+
+def _estimate_leg_mbar(leg_dir: Path, *, discard_fraction: float = 0.2, temp_k: float = 310.0) -> dict[str, Any]:
+    """Compute leg free energy (kcal/mol) and minimum off-diagonal MBAR overlap from dhdl.xvg files."""
+    import numpy as np
+    from alchemlyb.estimators import MBAR
+    from alchemlyb.parsing.gmx import extract_u_nk
+    from alchemlyb.preprocessing.subsampling import statistical_inefficiency
+
+    xvg_files: list[Path] = []
+    for win_dir in sorted(leg_dir.glob("window_*")):
+        cand = next(
+            (p for p in (win_dir / "prod_dhdl.xvg", win_dir / "prod.xvg", win_dir / "dhdl.xvg") if p.is_file()),
+            None,
+        )
+        if cand is not None:
+            xvg_files.append(cand)
+    if len(xvg_files) < 2:
+        raise FileNotFoundError(f"fewer than 2 completed window dhdl.xvg files under {leg_dir}")
+
+    dfs = []
+    for xvg in xvg_files:
+        u_nk = extract_u_nk(str(xvg), T=temp_k)
+        n_rows = len(u_nk)
+        start = int(n_rows * discard_fraction)
+        u_trim = u_nk.iloc[start:] if start < n_rows - 2 else u_nk
+        try:
+            u_sub = statistical_inefficiency(u_trim, u_trim.iloc[:, 0])
+            if len(u_sub) >= 5:
+                u_trim = u_sub
+        except Exception:
+            pass
+        dfs.append(u_trim)
+
+    import pandas as pd
+
+    combined = pd.concat(dfs)
+    mbar = MBAR().fit(combined)
+    # alchemlyb returns kT units; convert to kcal/mol via R * T (kcal/(mol*K)).
+    rt_kcal = 0.00198720425864083 * float(temp_k)
+    dg_kt = float(mbar.delta_f_.iloc[0, -1])
+    err_kt = float(mbar.d_delta_f_.iloc[0, -1])
+
+    overlap_min: float | None = None
+    try:
+        ov = np.asarray(mbar.overlap_matrix, dtype=float)
+        if ov.ndim == 2 and ov.shape[0] >= 2:
+            off_diag = [float(ov[i, i + 1]) for i in range(ov.shape[0] - 1)]
+            overlap_min = round(min(off_diag), 4)
+    except Exception:
+        overlap_min = None
+
+    return {
+        "leg_dir": str(leg_dir),
+        "windows": len(xvg_files),
+        "dg_kcal_mol": round(dg_kt * rt_kcal, 4),
+        "uncertainty_kcal_mol": round(err_kt * rt_kcal, 4),
+        "overlap_min": overlap_min,
+        "temp_k": float(temp_k),
+        "discard_fraction": float(discard_fraction),
+    }
+
+
+def evaluate_prism_fep_edge(
+    fep_dir: str | Path,
+    *,
+    from_id: str,
+    to_id: str,
+    repeat: int = 1,
+    discard_fraction: float = 0.2,
+    temp_k: float = 310.0,
+) -> dict[str, Any]:
+    """Compute MBAR ``ddg = dG_bound - dG_unbound`` and overlap diagnostics for one PRISM FEP edge.
+
+    Returns an edge dictionary directly consumable by :func:`analyze_fep_network`.
+    """
+    root = Path(fep_dir).resolve()
+    bound_dir = root / "bound" / f"repeat{repeat}"
+    unbound_dir = root / "unbound" / f"repeat{repeat}"
+    if not bound_dir.is_dir():
+        bound_dir = root / "bound"
+    if not unbound_dir.is_dir():
+        unbound_dir = root / "unbound"
+
+    bound = _estimate_leg_mbar(bound_dir, discard_fraction=discard_fraction, temp_k=temp_k)
+    unbound = _estimate_leg_mbar(unbound_dir, discard_fraction=discard_fraction, temp_k=temp_k)
+
+    ddg = round(bound["dg_kcal_mol"] - unbound["dg_kcal_mol"], 4)
+    unc = round(math.sqrt(bound["uncertainty_kcal_mol"] ** 2 + unbound["uncertainty_kcal_mol"] ** 2), 4)
+    overlaps = [x for x in (bound["overlap_min"], unbound["overlap_min"]) if x is not None]
+    ov_min = min(overlaps) if overlaps else None
+
+    return {
+        "schema": "moldarwin-prism-fep-edge-eval/1",
+        "edge_id": f"{from_id}->{to_id}",
+        "from_id": str(from_id),
+        "to_id": str(to_id),
+        "status": "ok",
+        "estimator": "MBAR",
+        "ddg_kcal_mol": ddg,
+        "uncertainty_kcal_mol": unc,
+        "overlap_min": ov_min,
+        "bound": bound,
+        "unbound": unbound,
+    }
+
+
 def prepare_prism_fep_edge(
     receptor_pdb: str | Path,
     ref_ligand_sdf: str | Path,
@@ -160,14 +329,18 @@ def prepare_prism_fep_edge(
     water_model: str = "tip3p",
     lambda_windows: int = 11,
     lambda_strategy: str = "decoupled",
+    prod_ns: float | None = 2.0,
+    protonation: str = "propka",
+    ph: float = 7.4,
     overwrite: bool = False,
     require_explicit_h: bool = True,
 ) -> dict[str, Any]:
     """Sanitize reference & mutant ligands and build one pinned PRISM RBFE/FEP edge.
 
-    Enforces blank-title repair and explicit-hydrogen checks on both ligands before
-    AmberTools parameterization, then validates any generated GRO topologies under
-    ``GMX_PROLIG_FEP/``. Never launches GPU lambda windows so the host schedules freely.
+    Enforces blank-title repair, explicit-hydrogen checks, PROPKA pH 7.4 config,
+    PRISM v1.2.0 SDF->GRO coordinate-adapter guard, and production MDP patching
+    (finite ``prod_ns``, ``calc-lambda-neighbors = -1`` for exact MBAR, zero ``.trr``).
+    Never launches GPU lambda windows so the host schedules execution freely.
     """
     from moldarwin.boundary.infra import load as load_infra
 
@@ -190,21 +363,33 @@ def prepare_prism_fep_edge(
     if not ref_rep["is_3d"] or not mut_rep["is_3d"]:
         raise ValueError("both reference and mutant ligand SDFs must carry aligned 3D coordinates for FEP")
 
+    cfg_path = out_root / "prism_protonation_config.yaml"
+    cfg_path.write_text(
+        f"protonation:\n  method: {protonation}\n  ph: {float(ph):.2f}\n",
+        encoding="utf-8",
+    )
+
     prism_infra = load_infra("prism")
     builder_mod = __import__("prism.builder.core", fromlist=["PRISMBuilder"])
-    builder = builder_mod.PRISMBuilder(
-        protein_path=str(rec_path),
-        ligand_paths=str(ref_clean),
-        output_dir=str(out_root),
-        ligand_forcefield=ligand_forcefield,
-        forcefield=forcefield,
-        water_model=water_model,
-        overwrite=overwrite,
-        fep_mode=True,
-        mutant_ligand=str(mut_clean),
-        lambda_windows=int(lambda_windows),
-        lambda_strategy=lambda_strategy,
-    )
+    builder_kwargs: dict[str, Any] = {
+        "protein_path": str(rec_path),
+        "ligand_paths": str(ref_clean),
+        "output_dir": str(out_root),
+        "ligand_forcefield": ligand_forcefield,
+        "forcefield": forcefield,
+        "water_model": water_model,
+        "config_path": str(cfg_path),
+        "overwrite": overwrite,
+        "fep_mode": True,
+        "mutant_ligand": str(mut_clean),
+        "lambda_windows": int(lambda_windows),
+        "lambda_strategy": lambda_strategy,
+    }
+    try:
+        builder = builder_mod.PRISMBuilder(**builder_kwargs)
+    except TypeError:
+        builder_kwargs.pop("config_path", None)
+        builder = builder_mod.PRISMBuilder(**builder_kwargs)
     coord_adapter_audit: list[dict[str, Any]] = []
     with _prism_fep_sdf_gro_guard(coord_adapter_audit):
         build_result = builder.run()
@@ -225,17 +410,21 @@ def prepare_prism_fep_edge(
         if not chk["valid"]:
             raise RuntimeError(f"PRISM-FEP produced corrupted GRO at {gro_file}: {chk['errors'][:3]}")
 
+    mdp_patch = patch_prism_fep_mdps(fep_dir, prod_ns=prod_ns, calc_lambda_neighbors=-1, zero_trr=True)
+
     return {
         "schema": "moldarwin-prism-fep-prepare/1",
         "prism_provenance": prism_infra.provenance(),
         "receptor_pdb": str(rec_path),
         "receptor_sha256": _sha256_file(rec_path),
+        "protonation": {"method": protonation, "ph": float(ph), "config_path": str(cfg_path)},
         "ref_sanitization": ref_rep,
         "mut_sanitization": mut_rep,
         "output_dir": str(out_root),
         "fep_dir": str(fep_dir),
         "lambda_windows": int(lambda_windows),
         "lambda_strategy": lambda_strategy,
+        "mdp_patch": mdp_patch,
         "gro_validations": gro_checks,
         "coordinate_adapter_audit": coord_adapter_audit,
         "build_summary": str(build_result)[:500] if build_result is not None else None,
