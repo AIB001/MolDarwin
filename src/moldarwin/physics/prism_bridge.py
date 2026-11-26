@@ -419,10 +419,15 @@ def analyze_md_trajectory(
     lig_polar = u.select_atoms(f"resname {ligand_resname} and (name N* O* F* S*)")
     prot_polar = u.select_atoms("protein and (name N* O* S*)")
 
-    # Reference frame 0 coordinates for alignment.
+    # Reference frame 0 coordinates for alignment (with minimum-image wrap of ligand to protein).
     u.trajectory[0]
     ref_bb = protein_bb.positions.copy()
     ref_lig = ligand_heavy.positions.copy()
+    ref_box = u.trajectory.ts.dimensions
+    if ref_box is not None and len(ref_box) >= 3 and all(float(ref_box[i]) > 0 for i in range(3)):
+        box_len = np.asarray(ref_box[:3], dtype=float)
+        delta = ref_lig.mean(axis=0) - ref_bb.mean(axis=0)
+        ref_lig = ref_lig - np.round(delta / box_len) * box_len
     ref_bb_center = ref_bb.mean(axis=0)
     ref_bb_centered = ref_bb - ref_bb_center
     ref_lig_centered = ref_lig - ref_bb_center
@@ -442,6 +447,12 @@ def analyze_md_trajectory(
         times_ps.append(float(ts.time))
         cur_bb = protein_bb.positions.copy()
         cur_lig = ligand_heavy.positions.copy()
+        # Minimum-image wrap ligand COM into the protein's periodic image so PBC box jumps
+        # never produce spurious ~box-length RMSD spikes.
+        if ts.dimensions is not None and len(ts.dimensions) >= 3 and all(float(ts.dimensions[i]) > 0 for i in range(3)):
+            box_len = np.asarray(ts.dimensions[:3], dtype=float)
+            delta = cur_lig.mean(axis=0) - cur_bb.mean(axis=0)
+            cur_lig = cur_lig - np.round(delta / box_len) * box_len
         cur_bb_center = cur_bb.mean(axis=0)
         R, _ = align.rotation_matrix(cur_bb - cur_bb_center, ref_bb_centered)
         aligned_bb = (cur_bb - cur_bb_center) @ R.T
