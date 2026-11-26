@@ -11,7 +11,7 @@ import os
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
-from moldarwin.judgment.advisor import AdvisorError, ClaudeCli, Transport
+from moldarwin.judgment.advisor import AdvisorError, ClaudeCli, CodexCli, Transport
 
 _PROVIDERS = {
     "openai": ("https://api.openai.com/v1", "OPENAI_API_KEY"),
@@ -126,7 +126,7 @@ def transport_from_env() -> Transport:
 
     MOLDARWIN_LLM_PROVIDER and MOLDARWIN_LLM_MODEL are required. API keys use the
     provider's standard environment variable; MOLDARWIN_LLM_BASE_URL is optional.
-    claude-cli keeps using the operator's existing CLI login.
+    ``claude-cli`` and ``codex-cli`` reuse the operator's existing CLI login.
     """
     provider = os.environ.get("MOLDARWIN_LLM_PROVIDER", "").strip().lower()
     model = os.environ.get("MOLDARWIN_LLM_MODEL", "").strip()
@@ -134,4 +134,6 @@ def transport_from_env() -> Transport:
         raise ValueError("set MOLDARWIN_LLM_MODEL to an available model in your account")
     if provider == "claude-cli":
         return ClaudeCli(model=model)
+    if provider == "codex-cli":
+        return CodexCli(model=model)
     return HttpAdvisor(provider, model, base_url=os.environ.get("MOLDARWIN_LLM_BASE_URL", ""))

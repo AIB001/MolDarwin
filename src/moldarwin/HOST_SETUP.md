@@ -13,33 +13,38 @@ with the actual interpreter that should serve the tools:
 ```bash
 python -m moldarwin.host catalog
 python -m moldarwin.host catalog --detail summary --skills campaign
-python -m moldarwin.host export --target /absolute/new/project --host codex
+python -m moldarwin.host export --target /absolute/new/project --host codex --profile thin --skills
 python -m moldarwin.host verify --target /absolute/new/project
 ```
 
-The target must be new. For an existing research project, export to a separate
-directory and deliberately integrate the generated files with its existing
-configuration. Export does not modify global settings or overwrite instructions.
+The target must be new. Pass `--profile thin` (optionally with `--packs screening data`
+and `--skill-dirs /absolute/generated-skills`) to expose the 16-tool core surface and
+3-tier lazy skill discovery symmetrically for both `--host codex` and `--host claude`;
+pass `--skills` with no slugs to avoid copying all static bundles when using MCP
+`moldarwin_skill_find` on demand. Omit `--profile` for the legacy 92-tool surface.
+For an existing research project, export to a separate directory and deliberately
+integrate the generated files with its existing configuration. Export does not modify
+global settings or overwrite instructions.
 
-To add selected native Codex skills to an existing project:
+To add selected native skills to an existing Codex or Claude Code project:
 
 ```bash
-python -m moldarwin.host skills-install --target /absolute/existing/project --skills research method-optimization skill-improvement
+python -m moldarwin.host skills-install --host codex --target /absolute/existing/project --skills research method-optimization skill-improvement
 ```
 
-This copies those bundles and their required dependencies into `.agents/skills/`.
-Rerun the same command after source changes; an unchanged selection writes no
-skill files. The source bundles remain authoritative. The small
-`.agents/moldarwin-skills.json` inventory supports updates while preserving unrelated
-skills and refusing to replace local edits. Project instructions, MCP settings,
-research entries and running jobs remain intact. Installation verifies file
-contents; native discovery and use belong to the host. No global installation
-or MCP connection is created by this command.
+This copies those bundles and their required dependencies into `.agents/skills/`
+(`--host codex`) or `.claude/skills/` (`--host claude`). Rerun the same command after
+source changes; an unchanged selection writes no skill files. The source bundles remain
+authoritative. The small `.agents/moldarwin-skills.json` (or `.claude/moldarwin-skills.json`)
+inventory supports updates while preserving unrelated skills and refusing to replace local
+edits. Project instructions, MCP settings, research entries and running jobs remain intact.
+Installation verifies file contents; native discovery and use belong to the host. No global
+installation or MCP connection is created by this command.
 
 For a relocatable research adapter, use the intended environment's Python:
 
 ```bash
-python -m moldarwin.host install --host codex --target /absolute/new/project --research-entry /absolute/CURRENT.json
+python -m moldarwin.host install --host codex --profile thin --target /absolute/new/project --research-entry /absolute/CURRENT.json
 python -m moldarwin.host doctor --target /absolute/new/project
 ```
 

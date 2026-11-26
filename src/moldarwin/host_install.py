@@ -64,12 +64,14 @@ def _finish(archive, intent, adapter):
     _immutable(archive / "receipt.json", adapter._json({**intent, "status": "complete"}))
 
 
-def _initial(root, entry, host, hook_transport, adapter, selected_skills=None):
+def _initial(root, entry, host, hook_transport, adapter, selected_skills=None,
+             mcp_profile=None, mcp_packs=None, skill_dirs=None):
     """Publish a complete new directory; preserve a resumable sibling staging area."""
     config = {"entry": str(entry), "state_dir": str(root / ".moldarwin/research-hook-receipts"),
               "launcher": str(root / ".moldarwin/research-hook.py")}
     current, files = adapter._payload(host, config, hook_transport=hook_transport, portable=True,
-                                     selected_skills=selected_skills)
+                                     selected_skills=selected_skills, mcp_profile=mcp_profile,
+                                     mcp_packs=mcp_packs, skill_dirs=skill_dirs)
     new_bytes = adapter._json(current)
     stage = adapter._root(root.parent / (".moldarwin-install-" + hashlib.sha256(str(root).encode()).hexdigest()[:24]))
     operation = hashlib.sha256(b"initial\0" + new_bytes).hexdigest()
@@ -112,7 +114,8 @@ def _initial(root, entry, host, hook_transport, adapter, selected_skills=None):
             "operation": str(final_archive), "native_activation": "requires_host_discovery_and_trust_review"}
 
 
-def install(target, *, research_entry, host="codex", hook_transport="mcp_tool", selected_skills=None):
+def install(target, *, research_entry, host="codex", hook_transport="mcp_tool", selected_skills=None,
+            mcp_profile=None, mcp_packs=None, skill_dirs=None):
     """Create a project or rebind an unchanged portable export after moving it.
 
     No dependency installation or shared-runtime upgrade is implicit. Existing
@@ -127,7 +130,8 @@ def install(target, *, research_entry, host="codex", hook_transport="mcp_tool", 
     lock = root.parent / (".moldarwin-install-" + hashlib.sha256(str(root).encode()).hexdigest()[:24] + "-writer")
     with adapter._consumer_lock(_io(lock)):
         if not _io(root).exists():
-            return _initial(root, entry, host, hook_transport, adapter, selected_skills)
+            return _initial(root, entry, host, hook_transport, adapter, selected_skills,
+                            mcp_profile=mcp_profile, mcp_packs=mcp_packs, skill_dirs=skill_dirs)
         manifest_path = adapter._member(root, adapter.MANIFEST)
         if not _io(manifest_path).is_file():
             raise ValueError("existing project is not a MolDarwin export; choose a new adapter directory")
@@ -146,6 +150,12 @@ def install(target, *, research_entry, host="codex", hook_transport="mcp_tool", 
             selected = adapter.skills.select_skills(selected_skills, "selected_skills")
             if not set(previous) <= set(selected):
                 raise ValueError("install cannot remove selected skills; export a new adapter version")
+        if mcp_profile is None:
+            mcp_profile = old.get("mcp_profile")
+        if mcp_packs is None and mcp_profile != "full":
+            mcp_packs = old.get("mcp_packs")
+        if skill_dirs is None:
+            skill_dirs = old.get("skill_dirs")
         workset = None
         if "task_workset_digest" in old:
             workset = json.loads(_read(adapter._member(root, ".moldarwin/task-workset.json")))
@@ -155,7 +165,8 @@ def install(target, *, research_entry, host="codex", hook_transport="mcp_tool", 
                   "launcher": str(root / ".moldarwin/research-hook.py")}
         current, files = adapter._payload(host, config, workset,
                                           hook_transport=hook_transport, portable=True,
-                                          selected_skills=selected_skills)
+                                          selected_skills=selected_skills, mcp_profile=mcp_profile,
+                                          mcp_packs=mcp_packs, skill_dirs=skill_dirs)
         new_bytes = adapter._json(current)
         pending = None
         installation_root = adapter._member(root, ".moldarwin/installations")
@@ -259,7 +270,11 @@ def doctor(target):
                 "mcp_reachability": "not_checked", "native_event_acceptance": "not_verified",
                 "model_consumption": "not_verified"},
             "acceptance_complete": False,
-            "host": saved["host"], "transport": transport, "verification": verification,
+            "host": saved["host"], "transport": transport,
+            "mcp_profile": saved.get("mcp_profile", "full"),
+            "mcp_packs": saved.get("mcp_packs", []),
+            "skill_dirs": saved.get("skill_dirs", []),
+            "verification": verification,
             "entry_exists_on_server": bool(entry and Path(entry).is_file()),
             "configured_events": events,
             "startup_delivery": "command_adapter; later tool events use MCP"

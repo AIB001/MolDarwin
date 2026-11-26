@@ -57,6 +57,8 @@ def build(
     server_class = require_mcp()
     guide_name = "mcp-entry-thin.md" if selected_profile == "thin" else "mcp-entry.md"
     guidance = ROLE_PATH.parent / "host-guides" / guide_name
+    if not guidance.is_file():
+        guidance = ROLE_PATH
     mcp = server_class("moldarwin", instructions=guidance.read_text(encoding="utf-8"))
     register_tools(mcp, profile=selected_profile, packs=selected_packs)
 
@@ -229,7 +231,10 @@ def main(argv: list[str] | None = None) -> None:
     )
     args = parser.parse_args(argv)
     with stdio_input():
-        build(profile=args.profile, packs=args.packs).run()
+        if args.profile is None and args.packs is None:
+            build().run()
+        else:
+            build(profile=args.profile, packs=args.packs).run()
 
 
 if __name__ == "__main__":

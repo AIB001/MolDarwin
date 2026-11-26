@@ -15,7 +15,14 @@ silently wrong comparator invalidates every later round and a waiver's whole val
 somebody accepted a consequence and can be asked about it.
 """
 
-from moldarwin.judgment.advisor import AdvisorError, Advisory, ClaudeCli, Scripted, Transport
+from moldarwin.judgment.advisor import (
+    AdvisorError,
+    Advisory,
+    ClaudeCli,
+    CodexCli,
+    Scripted,
+    Transport,
+)
 from moldarwin.judgment.proposal import (
     AUTONOMY,
     Act,
@@ -38,6 +45,7 @@ __all__ = [
     "Advisory",
     "Autonomy",
     "ClaudeCli",
+    "CodexCli",
     "NotAnAdvisorsDecision",
     "Proposal",
     "Scripted",

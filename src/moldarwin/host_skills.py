@@ -1,8 +1,8 @@
-"""Sync selected Codex skills into an existing project without rebinding it.
+"""Sync selected native host skills (Codex or Claude Code) without rebinding.
 
 Source bundles remain authoritative. The small ownership file permits updates
 and interrupted-copy retries while preserving unrelated skills and local edits.
-It does not alter AGENTS.md, MCP settings, research entries or running jobs.
+It does not alter AGENTS.md, CLAUDE.md, MCP settings, research entries or running jobs.
 """
 from __future__ import annotations
 
@@ -15,6 +15,14 @@ from moldarwin import skills
 from moldarwin.runtime.files import _consumer_lock
 
 MANIFEST = ".agents/moldarwin-skills.json"
+MANIFESTS = {
+    "codex": ".agents/moldarwin-skills.json",
+    "claude": ".claude/moldarwin-skills.json",
+}
+SKILL_ROOTS = {
+    "codex": ".agents/skills",
+    "claude": ".claude/skills",
+}
 
 
 def _write(path, content):
@@ -32,23 +40,27 @@ def _write(path, content):
             temporary.unlink(missing_ok=True)
 
 
-def install(target, *, selected_skills):
+def install(target, *, selected_skills, host: str = "codex"):
     """Install explicit skills plus dependencies; a repeated sync writes nothing."""
     from moldarwin.host import _json, _member, _root
 
+    if host not in SKILL_ROOTS:
+        raise ValueError("host must be codex or claude")
     chosen = skills.select_skills(selected_skills, "selected_skills")
     if selected_skills is None or not chosen:
         raise ValueError("select at least one skill explicitly")
     _, snapshots = skills.snapshot_selection([{"slug": slug} for slug in chosen])
     root = _root(target)
-    record_path = _member(root, MANIFEST)
+    manifest_rel = MANIFESTS[host]
+    skills_root = SKILL_ROOTS[host]
+    record_path = _member(root, manifest_rel)
     record_path.parent.mkdir(parents=True, exist_ok=True)
     with _consumer_lock(record_path):
-        saved = {"schema": "moldarwin-native-skills/1", "host": "codex", "bundles": {}}
+        saved = {"schema": "moldarwin-native-skills/1", "host": host, "bundles": {}}
         if record_path.exists():
             saved = json.loads(record_path.read_bytes())
             if (not isinstance(saved, dict)
-                    or saved.get("schema") != "moldarwin-native-skills/1" or saved.get("host") != "codex"
+                    or saved.get("schema") != "moldarwin-native-skills/1" or saved.get("host") != host
                     or not isinstance(saved.get("bundles"), dict)):
                 raise ValueError("invalid native skill ownership file")
         bundles = dict(saved["bundles"])
@@ -56,7 +68,7 @@ def install(target, *, selected_skills):
         for manifest, content in snapshots:
             name = manifest["name"]
             selected.append(name)
-            prefix = ".agents/skills/" + name + "/"
+            prefix = f"{skills_root}/{name}/"
             previous = bundles.get(name, {})
             if not isinstance(previous, dict):
                 raise ValueError("invalid owned skill inventory: " + name)
@@ -97,16 +109,16 @@ def install(target, *, selected_skills):
             _write(_member(root, member), data)
         for member in sorted(removals):
             _member(root, member).unlink()
-        record = _json({"schema": "moldarwin-native-skills/1", "host": "codex", "bundles": bundles})
+        record = _json({"schema": "moldarwin-native-skills/1", "host": host, "bundles": bundles})
         if not record_path.exists() or record_path.read_bytes() != record:
             _write(record_path, record)
         verified = all(_member(root, member).read_bytes() == data
                        for manifest, content in snapshots
-                       for member, data in ((".agents/skills/" + manifest["name"] + "/" + key, value)
+                       for member, data in ((f"{skills_root}/{manifest['name']}/{key}", value)
                                             for key, value in content.items()))
         if not verified:
             raise ValueError("native skill bytes changed during installation")
-        return {"target": str(root), "manifest": str(record_path), "skills": selected,
+        return {"target": str(root), "host": host, "manifest": str(record_path), "skills": selected,
                 "written_files": len(writes), "removed_files": len(removals), "verified": True,
                 "status": "updated" if writes or removals else "unchanged",
                 "host_discovery": "files_installed; native discovery not observed by installer"}

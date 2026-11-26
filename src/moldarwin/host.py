@@ -114,11 +114,52 @@ def _research_hook_files(host: str, source: dict, config: dict,
     return {".moldarwin/research-hook.py": launcher.encode("utf-8"), config_name: _json({"hooks": hooks})}
 
 
+def _normalize_mcp_options(
+    mcp_profile: str | None = None,
+    mcp_packs: list[str] | tuple[str, ...] | str | None = None,
+    skill_dirs: list[str | Path] | tuple[str | Path, ...] | None = None,
+) -> tuple[str | None, list[str] | None, list[str] | None]:
+    """Validate optional thin-surface profile, domain packs, and extra skill directories."""
+    from moldarwin.mcp.profiles import resolve_packs, resolve_profile
+
+    profile = resolve_profile(mcp_profile) if mcp_profile is not None else None
+    packs: list[str] | None = None
+    if mcp_packs is not None:
+        resolved = list(resolve_packs(mcp_packs))
+        if resolved:
+            if profile == "full":
+                raise ValueError("mcp_packs requires mcp_profile='thin'")
+            if profile is None:
+                profile = "thin"
+            packs = resolved
+        else:
+            packs = []
+    dirs: list[str] | None = None
+    if skill_dirs is not None:
+        if isinstance(skill_dirs, (str, Path)):
+            raise ValueError("skill_dirs must be a sequence of absolute directory paths")
+        seen: dict[str, None] = {}
+        for item in skill_dirs:
+            raw = str(item).strip() if isinstance(item, (str, Path)) else ""
+            if (not raw or not Path(raw).is_absolute() or os.pathsep in raw
+                    or any(ord(ch) < 32 for ch in raw)):
+                raise ValueError("each skill_dir must be a valid absolute path")
+            seen[raw] = None
+        dirs = list(seen)
+    return profile, packs, dirs
+
+
 def _payload(host: str, research_hooks: dict | None = None, task_workset: dict | None = None,
              *, hook_transport: str = "command", portable: bool = False,
-             selected_skills: list[str] | None = None) -> tuple[dict, dict[str, bytes]]:
+             selected_skills: list[str] | None = None,
+             mcp_profile: str | None = None,
+             mcp_packs: list[str] | tuple[str, ...] | str | None = None,
+             skill_dirs: list[str | Path] | tuple[str | Path, ...] | None = None) -> tuple[dict, dict[str, bytes]]:
     if host not in {"codex", "claude"}:
         raise ValueError("host must be codex or claude")
+    resolved_profile, resolved_packs, resolved_skill_dirs = _normalize_mcp_options(
+        mcp_profile, mcp_packs, skill_dirs
+    )
     source = _source()
     files: dict[str, bytes] = {}
     versions = []
@@ -159,16 +200,20 @@ def _payload(host: str, research_hooks: dict | None = None, task_workset: dict |
     if research_hooks and hook_transport == "mcp_tool":
         launch["env"]["MOLDARWIN_RESEARCH_HOOK_BINDING"] = str(
             Path(research_hooks["launcher"]).parent / "research-hook-binding.json")
+    if resolved_profile is not None:
+        launch["env"]["MOLDARWIN_MCP_PROFILE"] = resolved_profile
+    if resolved_packs:
+        launch["env"]["MOLDARWIN_MCP_PACKS"] = ",".join(resolved_packs)
+    if resolved_skill_dirs:
+        launch["env"]["MOLDARWIN_SKILL_DIRS"] = os.pathsep.join(resolved_skill_dirs)
     if host == "codex":
+        env_lines = "".join(f"{key} = {json.dumps(val)}\n" for key, val in launch["env"].items())
         files[".codex/config.toml"] = (
             "[mcp_servers.moldarwin]\n"
             f"command = {json.dumps(launch['command'])}\n"
             'args = ["-m", "moldarwin.mcp"]\n'
             "\n[mcp_servers.moldarwin.env]\n"
-            f"PYTHONPATH = {json.dumps(source['pythonpath'])}\n"
-            'PYTHONUTF8 = "1"\n' +
-            (f"MOLDARWIN_RESEARCH_HOOK_BINDING = {json.dumps(launch['env']['MOLDARWIN_RESEARCH_HOOK_BINDING'])}\n"
-             if "MOLDARWIN_RESEARCH_HOOK_BINDING" in launch["env"] else "")
+            + env_lines
         ).encode()
     else:
         files[".mcp.json"] = _json({"mcpServers": {"moldarwin": {"type": "stdio", **launch}}})
@@ -194,6 +239,12 @@ def _payload(host: str, research_hooks: dict | None = None, task_workset: dict |
     if hook_transport != "command" or portable:
         manifest["hook_transport"] = hook_transport
         manifest["portable"] = portable
+    if resolved_profile is not None:
+        manifest["mcp_profile"] = resolved_profile
+    if resolved_packs is not None:
+        manifest["mcp_packs"] = list(resolved_packs)
+    if resolved_skill_dirs is not None:
+        manifest["skill_dirs"] = list(resolved_skill_dirs)
     if task_workset is not None:
         manifest["task_workset_digest"] = task_workset["digest"]
         manifest["skill_selection"] = selection
@@ -214,7 +265,10 @@ def _root(target: str | Path) -> Path:
 
 def export(target: str | Path, host: str = "codex", *, research_entry: str | Path | None = None,
            task_workset: dict | None = None, hook_transport: str = "command",
-           portable: bool = False, selected_skills: list[str] | None = None) -> dict:
+           portable: bool = False, selected_skills: list[str] | None = None,
+           mcp_profile: str | None = None,
+           mcp_packs: list[str] | tuple[str, ...] | str | None = None,
+           skill_dirs: list[str | Path] | tuple[str | Path, ...] | None = None) -> dict:
     """Create an export without modifying existing projects or host settings."""
     root = _root(target)
     config = None
@@ -228,7 +282,9 @@ def export(target: str | Path, host: str = "codex", *, research_entry: str | Pat
         raise ValueError("hook transport must be command or mcp_tool")
     manifest, files = _payload(host, config, task_workset,
                                hook_transport=hook_transport, portable=portable,
-                               selected_skills=selected_skills)
+                               selected_skills=selected_skills,
+                               mcp_profile=mcp_profile, mcp_packs=mcp_packs,
+                               skill_dirs=skill_dirs)
     # Fail even for an existing empty directory. No existing role or config is replaced.
     root.mkdir(parents=True, exist_ok=False)
     for name, data in files.items():
@@ -273,7 +329,9 @@ def verify(target: str | Path) -> dict:
             raise ValueError("export workset identity mismatch")
     current, current_files = _payload(saved["host"], saved.get("research_hooks"), workset,
         hook_transport=saved.get("hook_transport", "command"), portable=saved.get("portable", False),
-        selected_skills=saved.get("selected_skills"))
+        selected_skills=saved.get("selected_skills"),
+        mcp_profile=saved.get("mcp_profile"), mcp_packs=saved.get("mcp_packs"),
+        skill_dirs=saved.get("skill_dirs"))
     files = saved.get("files")
     if not isinstance(files, dict) or not files or len(files) > 2000:
         raise ValueError("host manifest needs a bounded file inventory")
@@ -306,7 +364,8 @@ def verify(target: str | Path) -> dict:
     # cannot hide a missing reference or pass as the current source version.
     source_matches = all(saved.get(key) == current.get(key) for key in
                          ("skills", "catalog_sha256", "usage_method", "files",
-                          "selected_skills", "skill_selection", "skill_dependency_closure"))
+                          "selected_skills", "skill_selection", "skill_dependency_closure",
+                          "mcp_profile", "mcp_packs", "skill_dirs"))
     runtime_matches = saved.get("source") == current["source"]
     return {"target": str(root), "export_matches_manifest": not (changed or missing or unexpected),
             "matches_current_source": source_matches, "runtime_matches": runtime_matches,
@@ -410,17 +469,19 @@ def consume_events(log_ref: dict, *, state_path: str | Path, handler_method_vers
         return {"handled": handled, "skipped": skipped, "next_cursor": state["cursor"],
                 "has_more": page["has_more"], "delivery": "at_least_once_with_stable_request_id"}
 
-def install(target, *, research_entry, host="codex", hook_transport="mcp_tool", selected_skills=None):
+def install(target, *, research_entry, host="codex", hook_transport="mcp_tool", selected_skills=None,
+            mcp_profile=None, mcp_packs=None, skill_dirs=None):
     """Install or relocate an owned portable project, preserving previous bytes."""
     from moldarwin.host_install import install as bind
     return bind(target, research_entry=research_entry, host=host, hook_transport=hook_transport,
-                selected_skills=selected_skills)
+                selected_skills=selected_skills, mcp_profile=mcp_profile,
+                mcp_packs=mcp_packs, skill_dirs=skill_dirs)
 
 
-def install_skills(target, *, selected_skills):
-    """Sync only selected native Codex skills into an existing project."""
+def install_skills(target, *, selected_skills, host: str = "codex"):
+    """Sync only selected native skills into an existing Codex or Claude Code project."""
     from moldarwin.host_skills import install as sync
-    return sync(target, selected_skills=selected_skills)
+    return sync(target, selected_skills=selected_skills, host=host)
 
 
 def doctor(target):
@@ -446,6 +507,12 @@ def main() -> int:
                         help="include a recipe for explicit runtime/entry rebinding")
     create.add_argument("--skills", nargs="*", default=None,
                         help="selected skill slugs plus required dependencies; omit for all, empty for none")
+    create.add_argument("--profile", choices=("full", "thin"), default=None,
+                        help="MCP tool-surface profile written to host config ('thin' = 16 core tools)")
+    create.add_argument("--packs", nargs="*", default=None,
+                        help="optional domain tool packs layered on top of --profile thin")
+    create.add_argument("--skill-dirs", nargs="*", default=None,
+                        help="absolute directories of live generated skills exposed via MOLDARWIN_SKILL_DIRS")
     setup = sub.add_parser("install", help="create or rebind a portable host project")
     setup.add_argument("--target", type=Path, required=True)
     setup.add_argument("--host", choices=("codex", "claude"), default="codex")
@@ -453,8 +520,15 @@ def main() -> int:
     setup.add_argument("--hook-transport", choices=("command", "mcp_tool"), default="mcp_tool")
     setup.add_argument("--skills", nargs="*", default=None,
                        help="selected skills plus required dependencies; rebind preserves the saved selection")
-    native = sub.add_parser("skills-install", help="sync selected Codex skills; preserve project instructions and MCP settings")
+    setup.add_argument("--profile", choices=("full", "thin"), default=None,
+                       help="MCP tool-surface profile ('thin' = 16 core tools); rebind preserves saved value")
+    setup.add_argument("--packs", nargs="*", default=None,
+                       help="optional domain tool packs for --profile thin; rebind preserves saved value")
+    setup.add_argument("--skill-dirs", nargs="*", default=None,
+                       help="absolute directories for live generated skills; rebind preserves saved value")
+    native = sub.add_parser("skills-install", help="sync selected native skills; preserve project instructions and MCP settings")
     native.add_argument("--target", type=Path, required=True)
+    native.add_argument("--host", choices=("codex", "claude"), default="codex")
     native.add_argument("--skills", nargs="+", required=True,
                         help="explicit skill slugs plus their declared dependencies")
     diagnose = sub.add_parser("doctor", help="check bindings; native trust/delivery remain separate")
@@ -468,12 +542,15 @@ def main() -> int:
         elif args.command == "export":
             report = export(args.target, args.host, research_entry=args.research_entry,
                             hook_transport=args.hook_transport, portable=args.portable,
-                            selected_skills=args.skills)
+                            selected_skills=args.skills, mcp_profile=args.profile,
+                            mcp_packs=args.packs, skill_dirs=args.skill_dirs)
         elif args.command == "install":
             report = install(args.target, host=args.host, research_entry=args.research_entry,
-                             hook_transport=args.hook_transport, selected_skills=args.skills)
+                             hook_transport=args.hook_transport, selected_skills=args.skills,
+                             mcp_profile=args.profile, mcp_packs=args.packs,
+                             skill_dirs=args.skill_dirs)
         elif args.command == "skills-install":
-            report = install_skills(args.target, selected_skills=args.skills)
+            report = install_skills(args.target, selected_skills=args.skills, host=args.host)
         elif args.command == "doctor":
             report = doctor(args.target)
         else:

@@ -32,6 +32,7 @@ import json
 import re
 import shutil
 import subprocess
+import tempfile
 import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
@@ -110,6 +111,71 @@ class ClaudeCli:
                 f"{completed.stderr.strip()[-400:] or 'no stderr'}"
             )
         return completed.stdout
+
+
+@dataclass(frozen=True, slots=True)
+class CodexCli:
+    """Reach Codex through the ``codex`` binary already on the operator's machine.
+
+    Symmetric peer to :class:`ClaudeCli`: uses the operator's existing CLI login
+    or ``~/.codex/config.toml`` provider with no new secret stored in campaign files.
+
+    Runs ``codex exec`` in read-only, ephemeral, non-interactive one-shot mode so
+    no session history accumulates across rounds and no workspace mutation occurs.
+    """
+
+    model: str = ""
+    binary: str = "codex"
+    timeout: int = 300
+    name: str = "codex-cli"
+
+    def ask(self, prompt: str) -> str:
+        found = shutil.which(self.binary)
+        if found is None:
+            raise AdvisorError(
+                f"no {self.binary!r} on PATH. This transport uses the operator's existing "
+                "login rather than an API key, so it needs the CLI itself to be installed."
+            )
+        with tempfile.TemporaryDirectory(prefix="moldarwin-codex-advisor-") as tmp:
+            out_path = Path(tmp) / "last-message.txt"
+            command = [
+                found,
+                "exec",
+                "--sandbox",
+                "read-only",
+                "--skip-git-repo-check",
+                "--ephemeral",
+                "--color",
+                "never",
+            ]
+            if self.model:
+                command.extend(["--model", self.model])
+            command.extend(["-o", str(out_path), "-"])
+            try:
+                completed = subprocess.run(
+                    command,
+                    input=prompt,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    timeout=self.timeout,
+                    # Clean cwd: match ClaudeCli so project-local files do not skew advice.
+                    cwd=str(Path.home()),
+                )
+            except subprocess.TimeoutExpired as expired:
+                raise AdvisorError(
+                    f"{self.binary} did not answer within {self.timeout}s"
+                ) from expired
+            if completed.returncode != 0:
+                raise AdvisorError(
+                    f"{self.binary} exited {completed.returncode}: "
+                    f"{completed.stderr.strip()[-400:] or 'no stderr'}"
+                )
+            if out_path.is_file():
+                text = out_path.read_text(encoding="utf-8")
+                if text.strip():
+                    return text
+            return completed.stdout
 
 
 @dataclass(frozen=True, slots=True)
@@ -275,4 +341,4 @@ not confident, say so in the reason rather than choosing differently.
 """
 
 
-__all__ = ["Advisory", "AdvisorError", "ClaudeCli", "Scripted", "Transport"]
+__all__ = ["Advisory", "AdvisorError", "ClaudeCli", "CodexCli", "Scripted", "Transport"]
