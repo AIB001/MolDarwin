@@ -6,6 +6,14 @@ MolDarwin 是宿主 agent 的科学能力扩展。宿主拥有问题选择、下
 
 当前 I2 全量库接续以本文末尾“全量能力族覆盖”及各 DELIVERY 最新追加节为准。旧表的“仍为六项”和待补项描述对应当时固定来源；不删除其历史验收边界。主注册现在同时纳入 `.claude/skills/` 与 `asset/molorigin/skills/` 原内容。
 
+## 2026-11-25 新增：修订打分与记忆遮蔽
+
+两处此前只有 prose、没有仪器的地方，现在有了代码。
+
+**修订打分**（`src/moldarwin/research/revision_score.py`，`tests/test_revision_score.py`）。在此之前 `resolve_method_revision` 的采纳口只检查三件存在性的事：候选在 evaluation 的 subjects 里、`result_refs` 非空、`accounting_refs` 非空；它**不读** evaluation 的结论。现在 `compare_revision` 按维度逐一判决（warrant / refusal / coverage / provenance / cost），任务成对、McNemar 精确符号检验、`MINIMUM_DISCORDANT_PAIRS = 6`（算术：5 对全部同向时双侧 p=0.0625 > 0.05，永远达不到结论）。输出不是一个标量 —— 仓库自己的理由是"band 与 consequence 是两个问题，一个字段答不了两个"，同理 cost 的节省不能抵 quality 的回退 —— 而是每维一个判决加一个采纳档位 `full / scoped / diagnostic_only / refused`，"接受到什么程度"落在**范围**上。计数规则沿用 RSI_REWARD：只有 `admitted` 进分子，`admitted_under_waiver` 不是胜利且计入成本（D3），`not_recorded` 是损失（D4），两侧 fault catalogue 摘要不同则拒绝比较。接到 `resolve_method_revision` 后，给了比较就必须与其结论一致；没给也允许，但记录为 `adoption_basis: "host_assertion"` 而非 `"measured_comparison"` —— 要防的不是"出现一次没有根据的采纳"，而是"事后看不出它没有根据"。
+
+**记忆遮蔽**（`src/moldarwin/learn/memory_shadow.py`，`tests/test_memory_shadow.py`）。读取有上限而记忆没有，所以迟早要有东西不进默认视图。判据不是年龄、大小或看起来重不重要：`check_shadow` 对原图和去掉候选记录的图各跑一次 `admission_view`，报告每一个判决发生移动的存活节点。只被 `used` 边指向的记录可以免费遮蔽，在 `relied_on` 路径上的不行。**不删除任何东西** —— `ResearchJournal` 没有 delete 方法，被遮蔽的记录仍可按引用读取，与 superseded 记录一样。这是 RSI_ARCHITECTURE 第 2 级此前缺的那个仪器的一部分，见该文 §5.1 对适用范围的界定。
+
 ## 命名
 
 2026-11-25 起，本仓库的 agent 由 ETALON 改名为 MolDarwin，vendored 组件 MolQuarry、MolCascade 改名为 MolOrigin、MolCat；代码、标识符、路径和本目录的文档已随之替换。以下内容保持改名前的原样：

@@ -10,6 +10,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import sqlite3
@@ -58,6 +59,39 @@ def _watermarks(value):
         if sid in seen or (mark is not None and (type(mark) is not int or mark < 0)):
             raise EvidenceError("invalid or duplicate source watermark")
         seen.add(sid)
+
+
+def _comparison(value):
+    """A bounded summary of a revision comparison, enough to read the decision back.
+
+    Bounded on purpose: the full comparison carries a prose note per dimension and the step
+    has 16 KiB for everything. What is kept is what a later reader needs to see that the
+    adoption was earned -- the level, what was bought, the catalogue the two sides shared,
+    and each dimension's verdict with its effect. The prose lives in ``reconsider_when``.
+    """
+
+    from .revision_score import Adoption, Family, Gain, Verdict
+    _fields(value, ("adoption", "gain", "catalogue_digest", "dimensions"))
+    if value["adoption"] not in {level.value for level in Adoption}:
+        raise EvidenceError("unknown adoption level")
+    if value["gain"] not in {gain.value for gain in Gain}:
+        raise EvidenceError("unknown gain")
+    _sha(value["catalogue_digest"])
+    for row in _list(value["dimensions"], nonempty=True, limit=32):
+        _fields(row, ("name", "family", "verdict", "effect", "p_value"))
+        _text(row["name"])
+        if row["family"] not in {family.value for family in Family}:
+            raise EvidenceError("unknown comparison family")
+        if row["verdict"] not in {verdict.value for verdict in Verdict}:
+            raise EvidenceError("unknown comparison verdict")
+        for key in ("effect", "p_value"):
+            number = row[key]
+            if isinstance(number, bool) or not isinstance(number, int | float):
+                raise EvidenceError("a comparison effect and p-value must be numbers")
+            if not math.isfinite(float(number)):
+                raise EvidenceError("a comparison effect and p-value must be finite")
+        if not 0.0 <= float(row["p_value"]) <= 1.0:
+            raise EvidenceError("a p-value outside [0, 1] is not a p-value")
 
 
 def _handle(value):
@@ -172,7 +206,8 @@ def validate_content(payload):
             for handle in _list(detail["action_handles"]):
                 _handle(handle)
         elif operation == "decision":
-            _fields(detail, ("choice", "alternatives", "basis_refs", "reconsider_when"))
+            _fields(detail, ("choice", "alternatives", "basis_refs", "reconsider_when"),
+                    ("adoption_basis", "comparison"))
             if detail["choice"] not in {"reuse", "proceed", "fork", "merge", "defer", "stop", "reconsider"}:
                 raise EvidenceError("unknown branch choice")
             _refs(detail["basis_refs"], nonempty=True)
@@ -181,6 +216,18 @@ def validate_content(payload):
                 _fields(alternative, ("branch_id", "disposition", "reason"))
                 for text in alternative.values():
                     _text(text)
+            # Whether the choice rests on a measured comparison or on the host saying so.
+            # A field rather than an inference, so the two cannot read alike later; absent on
+            # a decision that is not a method resolution at all.
+            if "adoption_basis" in detail:
+                if detail["adoption_basis"] not in {"measured_comparison", "host_assertion"}:
+                    raise EvidenceError("unknown adoption basis")
+                if (detail["adoption_basis"] == "measured_comparison") != ("comparison" in detail):
+                    raise EvidenceError("a measured adoption basis needs its comparison, and only it")
+            elif "comparison" in detail:
+                raise EvidenceError("a recorded comparison needs its adoption basis")
+            if "comparison" in detail:
+                _comparison(detail["comparison"])
         elif operation in {"node", "evaluation_plan", "evaluation"}:
             from .composition import validate_step_extension
             validate_step_extension(payload)

@@ -179,21 +179,43 @@ changed judge carrying a changed digest cannot silently carry anything across.
 
 ---
 
-## 5. The ladder, and the two rungs with no instrument here
+## 5. The ladder, and the two rungs still short of an instrument
 
 | Level | What changes | Instrument it needs | Status here |
 | --- | --- | --- | --- |
 | 1 | note content | the append-only raw log | **have it** (§2.1) |
-| 2 | how memory is organised | replay over an episodic trace | **no instrument** |
+| 2 | how memory is organised | replay over an episodic trace | **partial** (§5.1) |
 | 3 | its own conventions and instructions | before/after on held-out tasks | **instrument is contested** |
 | 4 | harness code and tools | human review | **have it** |
 
-**Level 2 has no instrument, measured.** A replay test needs an episodic trace. The real
-journals contain **0 `observations` rows** and no reasoning log; they record what was
+### 5.1 Level 2: an instrument for one change, not for the rung
+
+**The general case still has no instrument, measured.** A replay test needs an episodic trace.
+The real journals contain **0 `observations` rows** and no reasoning log; they record what was
 produced, not what was deliberated (Evidence: `measured_here`, read-only over five journals,
 2026-11-10). Half of the adjacent gap was closed in that round — every record written inside
 a dispatched MCP verb now carries which verb wrote it — but the trace itself does not exist.
-So **the first work on level 2 is building its instrument, not climbing to it.**
+So for "is this a better way to organise memory", **the first work is still building the
+instrument, not climbing to it.**
+
+**One level-2 change does now have one.** The change is *shadowing*: leaving a stretch of
+memory out of a default view because reading is bounded and memory is not. For that one
+question the instrument is exact and needs no trace, because the thing at risk is already
+computable — `learn/memory_shadow.check_shadow` runs `admission_view` on the graph and on the
+graph without the proposed records, and reports every surviving node whose verdict moved
+(Evidence: `measured_here`, `tests/test_memory_shadow.py`, 2026-11-25).
+
+It recomputes rather than reasoning over `relied_on` edges, although that reasoning is
+available and correct, because the propagation has corners a walk misses: a cyclic component
+takes `not_recorded` whatever its premises hold, so does a node with neither premise nor
+ruling, and the membrane degrades a relied-class edge on the *premise's* regime rather than on
+the edge. Recomputation cannot drift from the rules it describes; an argument about edges can.
+
+What this does not do, and the distinction matters for the rung as a whole: it answers *what
+does this shadow cost*, never *is this shadow a good idea*. Whether the host will want a record
+next week is a claim about the future and is exactly what the missing episodic trace would be
+evidence for. Nothing is deleted either way — `ResearchJournal` has no delete method, and a
+shadowed record stays readable by reference, as a superseded one does.
 
 **Level 3's instrument is the one `RSI_REWARD.md` argues against.** Its position is that no
 split of an external benchmark protects against learning the verifier. A held-out

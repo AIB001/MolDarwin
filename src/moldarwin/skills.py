@@ -183,7 +183,10 @@ def skill_reference(identifier: str) -> dict:
 def library_catalog() -> dict:
     """Optional discovery groups; they do not constrain selection or duplicate bundles."""
     memory = ["research-context", "research", "research-index", "research-decision"]
-    rsi = ["skill-improvement", "execution-tuning", "method-optimization", "workflow-optimization", "rsi-skill-creator"]
+    # memory-pruning belongs here rather than in execution: what it changes is how memory is
+    # organised, which is an object of improvement, not a step of the science.
+    rsi = ["skill-improvement", "execution-tuning", "method-optimization", "workflow-optimization",
+           "rsi-skill-creator", "memory-pruning"]
     return {"schema": "moldarwin-skill-libraries/1", "libraries": {
         "memory": memory,
         "execution": [slug for slug in WORKFLOWS if slug not in memory + rsi],
