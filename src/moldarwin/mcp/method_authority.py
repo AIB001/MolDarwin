@@ -137,6 +137,12 @@ def tokens_from_json(authorization_json: str) -> dict[str, Any]:
         )
     if "signature" in payload:
         return {"action": payload}
+    # Convenience unwrap when a caller passes the top-level wrapper containing
+    # authorization_token or authorization alongside summary metadata.
+    for wrapper_key in ("authorization_token", "authorization"):
+        inner = payload.get(wrapper_key)
+        if isinstance(inner, dict) and "signature" in inner:
+            return {"action": inner}
     return {str(key): value for key, value in payload.items()}
 
 

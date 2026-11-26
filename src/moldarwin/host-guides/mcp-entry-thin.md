@@ -25,5 +25,5 @@ only irreversible spend, provenance identity, and admission boundaries.
   defaults only after paired `independent_validation` in `moldarwin_revision_compare`; test
   pruning via `moldarwin_admission_view(..., shadow_nodes=[...])`.
 - Need domain MCP packs (`screening`, `sweep`, `data`, `governance`, `active`, `workflow`,
-  `planning`, `research-extended`)? Enable via `MOLDARWIN_MCP_PACKS` / `--packs` or call the
-  Python SDK directly.
+  `planning`, `research-extended`, `prism`)? Enable via `MOLDARWIN_MCP_PACKS` / `--packs` or
+  call the Python SDK directly.

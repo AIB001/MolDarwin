@@ -78,7 +78,12 @@ def register(mcp: Any) -> None:
             authorize=invocation is not None,
         )
         if "authorized_request" in resolved:
-            resolved = {**resolved, "authorization": method_authority.state(resolved["authorized_request"])}
+            auth_token = resolved["authorized_request"].get("arguments", {}).get("authorization")
+            resolved = {
+                **resolved,
+                "authorization": method_authority.state(resolved["authorized_request"]),
+                **({"authorization_token": auth_token} if isinstance(auth_token, dict) else {}),
+            }
         return ok(**resolved)
 
     @mcp.tool()
@@ -90,7 +95,7 @@ def register(mcp: Any) -> None:
 
         Optional convenience over resolve/submit. Uses the existing action budget
         and request identity; a repeated request recovers the same execution.
-        Pass the ``authorization`` object returned by ``moldarwin_method_resolve`` verbatim as
+        Pass ``authorization_token`` returned by ``moldarwin_method_resolve`` verbatim as
         ``authorization_json``; dispatch rules on it (and never mints one on the caller's behalf).
         Returns invocation_path for moldarwin_method_collect. No research graph,
         method evaluation or additional model call is required.
@@ -101,8 +106,8 @@ def register(mcp: Any) -> None:
         tokens = method_authority.tokens_from_json(authorization_json)
         if tokens and "action" not in tokens:
             raise ValueError(
-                "authorization_json for moldarwin_method_call must be the single authorization "
-                "object returned by moldarwin_method_resolve (or {\"action\": <token>})"
+                "authorization_json for moldarwin_method_call must be authorization_token "
+                "returned by moldarwin_method_resolve (or {\"action\": <token>})"
             )
         token = tokens.get("action") if tokens else None
         return ok(**call_saved_method(

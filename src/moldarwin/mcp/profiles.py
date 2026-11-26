@@ -139,6 +139,11 @@ TOOL_PACKS: dict[str, frozenset[str]] = {
         "moldarwin_method_record",
         "moldarwin_method_read",
     }),
+    "prism": frozenset({
+        "moldarwin_physics_preflight",
+        "moldarwin_prism_prepare",
+        "moldarwin_prism_analyze",
+    }),
 }
 
 

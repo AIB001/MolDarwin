@@ -88,7 +88,9 @@ def campaign_secret() -> bytes:
         return supplied.encode("utf-8")
     global _PROCESS_SECRET
     if _PROCESS_SECRET is None:
-        _PROCESS_SECRET = secrets.token_bytes(32)
+        # Printable ASCII hex so spawned child workers can inherit the parent session secret
+        # via MOLDARWIN_AUTHORITY_KEY while keeping full 256-bit per-process entropy.
+        _PROCESS_SECRET = secrets.token_hex(32).encode("ascii")
     return _PROCESS_SECRET
 
 

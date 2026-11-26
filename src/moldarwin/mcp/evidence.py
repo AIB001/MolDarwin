@@ -384,7 +384,7 @@ def register(mcp: Any) -> None:
                                  shadow_nodes: list[str] | None = None,
                                  detail: Literal["full", "summary"] = "full",
                                  max_nodes: Annotated[int, Field(ge=1, le=128)] = 64,
-                                 max_bytes: Annotated[int, Field(ge=4096, le=262144)] = 65536,
+                                 max_bytes: Annotated[int, Field(ge=1024, le=262144)] = 65536,
                                  scope: dict | None = None) -> str:
         """FREE. Derive read-only node-level admission over a published research graph.
 

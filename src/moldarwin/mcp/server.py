@@ -27,9 +27,21 @@ def _skill_path(slug: str = "campaign") -> Path:
 
 def tool_modules() -> tuple[Any, ...]:
     """One module source for registration, cost discovery and compatibility clients."""
-    from moldarwin.mcp import active, data, evidence, execution, governance, host, methods, planning, runtime, sweep
+    from moldarwin.mcp import (
+        active,
+        data,
+        evidence,
+        execution,
+        governance,
+        host,
+        methods,
+        physics,
+        planning,
+        runtime,
+        sweep,
+    )
 
-    return (planning, governance, active, execution, data, runtime, sweep, host, methods, evidence)
+    return (planning, governance, active, execution, data, runtime, sweep, host, methods, evidence, physics)
 
 
 def register_tools(

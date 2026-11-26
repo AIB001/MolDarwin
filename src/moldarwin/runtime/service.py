@@ -176,6 +176,9 @@ def _launch(store: RuntimeStore, job_id: str) -> None:
             with log_path.open("x", encoding="utf-8") as log:
                 env = dict(os.environ)
                 env["PYTHONPATH"] = os.pathsep.join(filter(None, (str(Path(__file__).resolve().parents[2]), env.get("PYTHONPATH", ""))))
+                if not env.get("MOLDARWIN_AUTHORITY_KEY"):
+                    from moldarwin.authority.subject import campaign_secret
+                    env["MOLDARWIN_AUTHORITY_KEY"] = campaign_secret().decode("utf-8")
                 child = subprocess.Popen([sys.executable, "-m", "moldarwin.runtime.worker", str(store.workspace), job_id, str(epoch)],
                            stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
                            cwd=root, env=env, start_new_session=True)

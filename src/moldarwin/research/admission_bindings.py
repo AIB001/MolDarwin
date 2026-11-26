@@ -474,6 +474,105 @@ def summarize_admission_view(view: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _note_entry_admission_view(
+    entry_data: dict[str, Any],
+    *,
+    detail: str,
+    shadow_nodes: list[str] | tuple[str, ...] | None,
+) -> dict[str, Any]:
+    """Read-only admission inspection for lightweight ``moldarwin-note-entry/1`` entries.
+
+    A thin note entry has no published graph checkpoint, so premise-edge propagation cannot
+    be claimed. Instead of failing, report exact committed CampaignStore observation counts
+    and any recorded dispatch-time ``moldarwin-admission-binding/1`` artifacts in the note's
+    journal without mutating leaves or fabricating graph verdicts (C2, C7).
+    """
+    from moldarwin.research.notes import entry_journal
+
+    journal = entry_journal(entry_data, read_only=True)
+    with journal.store.connection() as db:
+        obs_rows = db.execute("SELECT admitted FROM observations").fetchall()
+        meta_rows = db.execute(
+            "SELECT key, body FROM metadata WHERE key LIKE ? ORDER BY rowid",
+            (PREFIX + "%",),
+        ).fetchall()
+    obs_total = len(obs_rows)
+    obs_admitted = sum(1 for row in obs_rows if bool(row["admitted"]))
+    obs_withheld = obs_total - obs_admitted
+
+    counts_by_admission: dict[str, int] = {}
+    binding_summaries: list[dict[str, Any]] = []
+    for key, raw_body in meta_rows:
+        record = json.loads(raw_body)
+        bindings = record.get("bindings")
+        if not isinstance(bindings, dict) or bindings.get("schema") != SCHEMA:
+            continue
+        record_id = key.removeprefix(PREFIX)
+        try:
+            path = journal.artifact_path(Artifact(**record))
+            payload = validate_content(json.loads(path.read_text(encoding="utf-8-sig")))
+        except Exception:
+            continue
+        adm = str(payload["ruling"]["admission"])
+        counts_by_admission[adm] = counts_by_admission.get(adm, 0) + 1
+        binding_summaries.append({
+            "binding_record_id": record_id,
+            "target_record_id": payload["target_record_id"],
+            "action_id": payload["dispatch_ref"]["action_id"],
+            "admission": adm,
+            "store_status": payload["store_status"],
+            "claim_scope": payload["claim_scope"],
+        })
+
+    result: dict[str, Any] = {
+        "schema": "moldarwin-note-admission-view/1",
+        "entry_mode": "note_entry",
+        "graph_checkpoint_present": False,
+        "task_id": entry_data.get("task_id"),
+        "branch_id": entry_data.get("branch_id"),
+        "record_id": entry_data.get("record_id"),
+        "scientific_admission": "not_propagated_without_graph_checkpoint",
+        "observations": {
+            "total": obs_total,
+            "admitted": obs_admitted,
+            "withheld": obs_withheld,
+        },
+        "journal_records_total": len(meta_rows),
+        "binding_extraction": {
+            "binding_artifacts_found": len(binding_summaries),
+            "counts_by_admission": dict(sorted(counts_by_admission.items())),
+            "binding_source_mode": "recorded_dispatch_bindings" if binding_summaries else "none",
+        },
+        "note": (
+            "Thin note-only entry without a published research-graph checkpoint. "
+            "Observations and direct dispatch bindings are reported verbatim; "
+            "premise-edge admission propagation requires a published graph checkpoint."
+        ),
+        "execution_permission": "not_granted",
+        "automatic_retry": False,
+    }
+    if detail == "full":
+        result["bindings"] = binding_summaries
+    else:
+        result["summary"] = {
+            "schema": "moldarwin-note-admission-summary/1",
+            "entry_mode": "note_entry",
+            "graph_checkpoint_present": False,
+            "observations_total": obs_total,
+            "observations_admitted": obs_admitted,
+            "observations_withheld": obs_withheld,
+            "binding_artifacts_found": len(binding_summaries),
+            "counts_by_admission": dict(sorted(counts_by_admission.items())),
+            "noteworthy_bindings": [b for b in binding_summaries if b["admission"] != "admitted"],
+        }
+    if shadow_nodes is not None:
+        result["shadow_report"] = {
+            "status": "not_applicable_without_graph_checkpoint",
+            "requested_shadow_nodes": list(shadow_nodes),
+        }
+    return result
+
+
 def build_admission_view(
     workspace: Any = None,
     *,
@@ -499,6 +598,8 @@ def build_admission_view(
     retaining all non-clean/membrane/superseded nodes and exact denominators. When
     ``shadow_nodes`` is supplied, runs :func:`moldarwin.learn.memory_shadow.check_shadow`
     read-only and returns ``shadow_report``. Never mutates any leaf record or store.
+    Also accepts lightweight ``moldarwin-note-entry/1`` entries cleanly, distinguishing
+    note-only state from graph-checkpoint propagation.
     """
 
     if detail not in {"full", "summary"}:
@@ -511,6 +612,18 @@ def build_admission_view(
         raise EvidenceError("workspace and checkpoint_ref must be supplied together")
     if selectors != 1:
         raise EvidenceError("supply exactly one of (workspace + checkpoint_ref), entry, or read_context")
+
+    if entry is not None:
+        from moldarwin.research.notes import ENTRY as NOTE_ENTRY, entry_value
+
+        try:
+            candidate = entry_value(entry)
+        except Exception:
+            candidate = None
+        if isinstance(candidate, dict) and candidate.get("schema") == NOTE_ENTRY:
+            return _note_entry_admission_view(
+                candidate, detail=detail, shadow_nodes=shadow_nodes
+            )
 
     effective_policy = policy
     effective_purpose = "research" if purpose is None else purpose
