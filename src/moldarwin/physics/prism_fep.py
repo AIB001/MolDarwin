@@ -149,12 +149,77 @@ def _sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
+def enforce_invariant_dummy_masses(hybrid_itp: str | Path) -> dict[str, Any]:
+    """Keep dummy-atom masses invariant across A/B endpoints to unlock GROMACS GPU update.
+
+    GROMACS 2026 rejects ``-update gpu`` when atomic masses change between state A and B
+    (e.g., ``DUM_H`` changing from 1.008 to 12.011 amu). Setting each dummy atom's mass
+    equal to its real endpoint cancels identically between bound and unbound legs
+    (kinetic-energy contribution is environment-independent) while preserving full GPU speed.
+    """
+    path = Path(hybrid_itp).resolve()
+    if not path.is_file():
+        raise FileNotFoundError(f"hybrid ITP not found: {path}")
+
+    source_sha = _sha256_file(path)
+    in_atoms = False
+    out_lines: list[str] = []
+    changes: list[dict[str, Any]] = []
+
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        clean, sep, comment = line.partition(";")
+        stripped = clean.strip()
+        if stripped.startswith("["):
+            in_atoms = stripped.replace(" ", "") == "[atoms]"
+        vals = stripped.split()
+        if in_atoms and len(vals) == 11 and vals[0].isdigit():
+            type_a, type_b = vals[1], vals[8]
+            mass_a, mass_b = float(vals[7]), float(vals[10])
+            if abs(mass_a - mass_b) > 1e-6 and (type_a.startswith("DUM_") ^ type_b.startswith("DUM_")):
+                if type_a.startswith("DUM_"):
+                    vals[7] = vals[10]
+                    new_mass = mass_b
+                else:
+                    vals[10] = vals[7]
+                    new_mass = mass_a
+                changes.append({
+                    "index": int(vals[0]),
+                    "atom": vals[4],
+                    "mass_a": mass_a,
+                    "mass_b": mass_b,
+                    "new_mass": new_mass,
+                })
+                padded = (
+                    f"{int(vals[0]):6d} {vals[1]:>12s} {int(vals[2]):6d} {vals[3]:>6s} "
+                    f"{vals[4]:>6s} {int(vals[5]):6d} {float(vals[6]):10.6f} {float(vals[7]):10.5f}  "
+                    f"{vals[8]:>12s} {float(vals[9]):10.6f} {float(vals[10]):10.5f}"
+                )
+                line = f"{padded} ;{comment}" if sep else padded
+        out_lines.append(line)
+
+    if changes:
+        backup = path.with_suffix(".itp.prism_original")
+        if not backup.exists():
+            backup.write_bytes(path.read_bytes())
+        path.write_text("\n".join(out_lines) + "\n", encoding="utf-8")
+
+    return {
+        "schema": "moldarwin-fep-invariant-masses/1",
+        "path": str(path),
+        "source_sha256": source_sha,
+        "patched_sha256": _sha256_file(path),
+        "changed_atoms": len(changes),
+        "changes": changes,
+    }
+
+
 def patch_prism_fep_mdps(
     fep_dir: str | Path,
     *,
     prod_ns: float | None = 2.0,
     calc_lambda_neighbors: int = -1,
     zero_trr: bool = True,
+    coupled_lambdas: Sequence[float] | None = None,
 ) -> dict[str, Any]:
     """Patch generated PRISM-FEP ``prod_*.mdp`` files for finite runtime and exact MBAR.
 
@@ -162,11 +227,25 @@ def patch_prism_fep_mdps(
     1. Replaces default ``nsteps = 250000000`` (500 ns/window) with explicit ``prod_ns``.
     2. Sets ``calc-lambda-neighbors = -1`` so ``dhdl.xvg`` records all lambda states for full MBAR.
     3. Optionally zeroes uncompressed ``nstxout``/``nstvout`` (.trr) while retaining ``.xtc``/``dhdl.xvg``.
+    4. Optionally writes an explicit synchronized ``coupled_lambdas`` schedule (e.g. 16-20
+       endpoint-dense windows) across ``em_short_*``, ``npt_short_*``, and ``prod_*`` MDPs.
     """
     root = Path(fep_dir).resolve()
     prod_mdps = sorted(root.rglob("prod_*.mdp"))
     patched_files: list[str] = []
     target_nsteps: int | None = None
+
+    if coupled_lambdas is not None:
+        lam_str = " ".join(f"{float(v):.4f}" for v in coupled_lambdas)
+        for mdp in sorted(root.rglob("*.mdp")):
+            txt = mdp.read_text(encoding="utf-8", errors="replace")
+            if "coul-lambdas" not in txt and "vdw-lambdas" not in txt:
+                continue
+            upd = txt
+            for key in ("coul-lambdas", "vdw-lambdas", "bonded-lambdas", "mass-lambdas"):
+                upd = re.sub(rf"(?im)^(\s*{key}\s*=\s*).*$", rf"\g<1>{lam_str}", upd)
+            if upd != txt:
+                mdp.write_text(upd, encoding="utf-8")
 
     for mdp in prod_mdps:
         text = mdp.read_text(encoding="utf-8", errors="replace")
@@ -210,6 +289,7 @@ def patch_prism_fep_mdps(
         "target_nsteps": target_nsteps,
         "calc_lambda_neighbors": int(calc_lambda_neighbors),
         "zero_trr": bool(zero_trr),
+        "coupled_lambdas_applied": list(coupled_lambdas) if coupled_lambdas is not None else None,
     }
 
 
@@ -327,20 +407,23 @@ def prepare_prism_fep_edge(
     ligand_forcefield: str = "gaff2",
     forcefield: str = "amber14sb",
     water_model: str = "tip3p",
-    lambda_windows: int = 11,
+    lambda_windows: int = 16,
     lambda_strategy: str = "decoupled",
     prod_ns: float | None = 2.0,
     protonation: str = "propka",
     ph: float = 7.4,
+    keep_crystal_water: bool = True,
+    compact_box: bool = True,
+    invariant_dummy_masses: bool = True,
     overwrite: bool = False,
     require_explicit_h: bool = True,
 ) -> dict[str, Any]:
     """Sanitize reference & mutant ligands and build one pinned PRISM RBFE/FEP edge.
 
-    Enforces blank-title repair, explicit-hydrogen checks, PROPKA pH 7.4 config,
-    PRISM v1.2.0 SDF->GRO coordinate-adapter guard, and production MDP patching
-    (finite ``prod_ns``, ``calc-lambda-neighbors = -1`` for exact MBAR, zero ``.trr``).
-    Never launches GPU lambda windows so the host schedules execution freely.
+    Enforces blank-title repair, explicit-hydrogen checks, PROPKA pH 7.4 + crystal water
+    retention + compact 1.2 nm triclinic bound box, PRISM v1.2.0 SDF->GRO coordinate-adapter
+    guard, invariant dummy-atom masses (unlocking GROMACS 2026 ``-update gpu``), and
+    production MDP patching (finite ``prod_ns``, ``calc-lambda-neighbors = -1`` for MBAR).
     """
     from moldarwin.boundary.infra import load as load_infra
 
@@ -363,11 +446,15 @@ def prepare_prism_fep_edge(
     if not ref_rep["is_3d"] or not mut_rep["is_3d"]:
         raise ValueError("both reference and mutant ligand SDFs must carry aligned 3D coordinates for FEP")
 
+    cfg_lines = [
+        f"protonation:\n  method: {protonation}\n  ph: {float(ph):.2f}",
+        f"simulation:\n  pH: {float(ph):.2f}",
+        f"protein_preparation:\n  keep_crystal_water: {'true' if keep_crystal_water else 'false'}",
+    ]
+    if compact_box:
+        cfg_lines.append("box:\n  shape: triclinic\n  distance: 1.2\n  center: true")
     cfg_path = out_root / "prism_protonation_config.yaml"
-    cfg_path.write_text(
-        f"protonation:\n  method: {protonation}\n  ph: {float(ph):.2f}\n",
-        encoding="utf-8",
-    )
+    cfg_path.write_text("\n".join(cfg_lines) + "\n", encoding="utf-8")
 
     prism_infra = load_infra("prism")
     builder_mod = __import__("prism.builder.core", fromlist=["PRISMBuilder"])
@@ -410,6 +497,11 @@ def prepare_prism_fep_edge(
         if not chk["valid"]:
             raise RuntimeError(f"PRISM-FEP produced corrupted GRO at {gro_file}: {chk['errors'][:3]}")
 
+    mass_audits: list[dict[str, Any]] = []
+    if invariant_dummy_masses:
+        for itp in sorted((fep_dir / "common").rglob("hybrid.itp")) if (fep_dir / "common").is_dir() else []:
+            mass_audits.append(enforce_invariant_dummy_masses(itp))
+
     mdp_patch = patch_prism_fep_mdps(fep_dir, prod_ns=prod_ns, calc_lambda_neighbors=-1, zero_trr=True)
 
     return {
@@ -424,6 +516,9 @@ def prepare_prism_fep_edge(
         "fep_dir": str(fep_dir),
         "lambda_windows": int(lambda_windows),
         "lambda_strategy": lambda_strategy,
+        "compact_box": bool(compact_box),
+        "keep_crystal_water": bool(keep_crystal_water),
+        "invariant_dummy_mass_audits": mass_audits,
         "mdp_patch": mdp_patch,
         "gro_validations": gro_checks,
         "coordinate_adapter_audit": coord_adapter_audit,

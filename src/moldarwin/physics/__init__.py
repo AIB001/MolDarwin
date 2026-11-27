@@ -29,6 +29,7 @@ from moldarwin.physics.prism_bridge import (
 from moldarwin.physics.prism_fep import (
     FEP_NETWORK_SCHEMA,
     analyze_fep_network,
+    enforce_invariant_dummy_masses,
     evaluate_prism_fep_edge,
     patch_prism_fep_mdps,
     prepare_prism_fep_edge,
@@ -59,6 +60,7 @@ __all__ = [
     "compare_docking_vs_md",
     "compare_rescorers_for_rsi",
     "discover_prism_generators",
+    "enforce_invariant_dummy_masses",
     "evaluate_md_control_gate",
     "evaluate_prism_fep_edge",
     "evaluate_rescorer_panel",

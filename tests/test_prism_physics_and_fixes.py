@@ -523,3 +523,19 @@ def test_conserved_pocket_waters_md_control_gate_and_fep_mdp_patch(tmp_path):
     sh = Path(p_rep["script_path"]).read_text(encoding="utf-8")
     assert "GMX_GEN_SEED" in sh
     assert "npt_release.mdp" in sh
+
+    # 5. Invariant dummy-atom mass patching for GROMACS 2026 -update gpu
+    from moldarwin.physics import enforce_invariant_dummy_masses
+
+    hyb = tmp_path / "hybrid.itp"
+    hyb.write_text(
+        "[ atoms ]\n"
+        "     1       DUM_ha      1    LIG    H12      1   0.000000   12.01100           ha   0.100000    1.00800 ; dummy->H\n"
+        "     2           ca      1    LIG     C1      2  -0.120000   12.01100           ca  -0.120000   12.01100 ; common\n",
+        encoding="utf-8",
+    )
+    m_rep = enforce_invariant_dummy_masses(hyb)
+    assert m_rep["changed_atoms"] == 1
+    assert m_rep["changes"][0]["new_mass"] == pytest.approx(1.008)
+    assert "1.00800" in hyb.read_text(encoding="utf-8").splitlines()[1]
+    assert (tmp_path / "hybrid.itp.prism_original").is_file()
