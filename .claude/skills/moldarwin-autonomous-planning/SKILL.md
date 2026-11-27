@@ -15,8 +15,8 @@ When given a concise goal rather than a scripted multi-phase prompt, keep overhe
 
 ## 1. Single-Shot Environment & Prior-Skill Grounding (Turn 1)
 - Read `[moldarwin-env]` from `SessionStart` or call `moldarwin_capabilities(detail="summary", skills=[], tools=[], operations=[], include_environment=True)` once. Never waste 5–8 bash turns probing `nvidia-smi`, `which`, `df`, or package imports manually.
-- Respect `busy_gpus` strictly (`DO_NOT_USE`). Restrict parallel shards to `idle_gpus` and set `OMP_NUM_THREADS` to `omp_threads_per_gpu_job` so parallel GPU jobs never thrash CPU cores.
-- Run one `moldarwin_skill_find` query for target/method lessons before writing bespoke scripts.
+- Respect `busy_gpus` strictly (`DO_NOT_USE`). When single-job GPU utilization sits below ~50% on high-VRAM GPUs (common in GROMACS free-energy windows due to CPU perturbed-force sync), micro-benchmark `jobs_per_gpu = 1 vs 2 vs 3` with disjoint `-pinoffset` CPU pinning via `moldarwin.runtime.concurrency.{plan_gpu_packing,select_optimal_concurrency}` before scaling!
+- Run one `moldarwin_skill_find` query for target/method lessons before writing bespoke scripts, and close every multi-stage run through `moldarwin.research.rsi_loop.{summarize_rsi_cycle,evaluate_rsi_promotion}` so compute, oracle, MD, FEP, and active-learning gains compound across campaigns without promoting single-target flukes.
 
 ## 2. Micro-Pilot First, Then Solve Budget-to-Scale
 - Never guess library size or MD length blindly. Spend **≤5% of the time/GPU budget** on a micro-pilot (e.g., control panel docking/rescoring or short MD equilibration) to measure real throughput on this exact hardware.

@@ -233,6 +233,20 @@ def probe_environment(
     n_idle = len(gpu_info["idle_gpus"])
     omp_per_gpu = max(1, min(12, cpu_cores // max(1, n_idle))) if n_idle else max(1, min(8, cpu_cores))
 
+    packing_hint: dict[str, Any] | None = None
+    if n_idle > 0:
+        from moldarwin.runtime.concurrency import plan_gpu_packing
+
+        devices = gpu_info.get("devices") or []
+        vram_mb = float(devices[0]["memory_total_mb"]) if devices else 24576.0
+        plan = plan_gpu_packing(gpu_info["idle_gpus"], cpu_cores, gpu_vram_mb=vram_mb)
+        packing_hint = {
+            "recommended_jobs_per_gpu": plan["jobs_per_gpu"],
+            "max_safe_jobs_per_gpu": plan["max_safe_jobs_per_gpu"],
+            "total_slots": plan["total_concurrent_slots"],
+            "omp_per_slot": plan["omp_threads_per_slot"],
+        }
+
     return {
         "schema": ENV_SCHEMA,
         "work_dir": str(root),
@@ -241,6 +255,7 @@ def probe_environment(
         "disk_free_gb": round(disk.free / (1024.0**3), 1),
         "gpus": gpu_info,
         "omp_threads_per_gpu_job": omp_per_gpu,
+        "packing_hint": packing_hint,
         "engines_cli": sorted(cli_found.keys()),
         "engines_cli_paths": cli_found,
         "engines_py": py_found,
@@ -250,7 +265,7 @@ def probe_environment(
 
 
 def format_environment_card(env: dict[str, Any]) -> str:
-    """Format a compact ~70-110 token environment card for SessionStart or planning."""
+    """Format a compact ~70-120 token environment card for SessionStart or planning."""
     gpus = env.get("gpus") or {}
     idle = gpus.get("idle_gpus", [])
     busy = gpus.get("busy_gpus", [])
@@ -263,11 +278,17 @@ def format_environment_card(env: dict[str, Any]) -> str:
 
     busy_str = f" busy_gpus={busy}(DO_NOT_USE)" if busy else ""
     mem_str = f" ram={env['mem_total_gb']}GB" if env.get("mem_total_gb") is not None else ""
+    pack = env.get("packing_hint")
+    pack_str = (
+        f" pack_k={pack['recommended_jobs_per_gpu']}({pack['total_slots']}slots,omp={pack['omp_per_slot']})"
+        if isinstance(pack, dict) and pack.get("recommended_jobs_per_gpu", 1) > 1
+        else ""
+    )
     lines = [
         (
             f"[moldarwin-env] idle_gpus={idle}{vram_hint}{busy_str} "
             f"cpu={env.get('cpu_cores')} omp_per_gpu={env.get('omp_threads_per_gpu_job')}"
-            f"{mem_str} disk_free={env.get('disk_free_gb')}GB"
+            f"{pack_str}{mem_str} disk_free={env.get('disk_free_gb')}GB"
         ),
         f"engines_cli: {', '.join(env.get('engines_cli') or ['none'])}",
         (
