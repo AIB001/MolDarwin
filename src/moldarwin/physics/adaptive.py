@@ -189,14 +189,17 @@ def render_packed_fep_runner(
     packing_plan: Mapping[str, Any],
     *,
     gmx_bin: str = "gmx",
-    update_mode: str = "gpu",
+    update_mode: str = "cpu",
     out_script: str | Path | None = None,
 ) -> dict[str, Any]:
     """Emit a disjoint-``-pinoffset`` multi-window-per-GPU GROMACS 2026 FEP runner script.
 
     Saturates high-VRAM GPUs (e.g. 2-3 concurrent FEP windows per RTX PRO 6000) using the
     exact slot table from :func:`moldarwin.runtime.concurrency.plan_gpu_packing` so
-    packed windows never contend for CPU cores.
+    packed windows never contend for CPU cores. Defaults to ``update_mode="cpu"`` (with
+    ``-nb gpu -pme gpu -bonded gpu``) because GROMACS 2026 rejects ``-update gpu`` for
+    perturbed masses/constraints and CPU update preserves exact unperturbed PRISM topologies
+    while benchmarking faster on high-core hosts (Evidence: ``measured_here``).
     """
     root = Path(leg_dir).resolve()
     slots = list(packing_plan.get("slots") or [])

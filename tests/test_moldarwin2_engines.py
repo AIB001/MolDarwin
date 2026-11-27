@@ -133,6 +133,16 @@ def test_adaptive_lambda_refinement_window_extensions_and_packed_runner(tmp_path
     assert "-update gpu" in txt
     assert "-pinoffset" in txt
 
+    # Default update_mode="cpu" preserves unperturbed PRISM topologies and avoids perturbed-constraint GPU crashes
+    default_rep = render_packed_fep_runner(tmp_path / "unbound" / "repeat1", pack)
+    assert "-update cpu" in Path(default_rep["script_path"]).read_text(encoding="utf-8")
+
+    # Fault RSI matches GROMACS 2026 perturbed-constraints crash -> CPU update io_repair
+    c_hit = match_known_faults("Free energy perturbation for mass and constraints are not supported.")
+    assert c_hit["match_count"] >= 1
+    assert c_hit["matches"][0]["remediation_id"] == "gmx2026_fep_cpu_update_for_perturbed_fep"
+    assert c_hit["matches"][0]["impact_class"] == "io_repair"
+
 
 def test_fault_indexed_code_rsi_matches_live_bugs_and_promotes_across_targets(tmp_path):
     hit = match_known_faults("ValueError: invalid literal for int() with base 10: 'N' in resolve_coord_source")

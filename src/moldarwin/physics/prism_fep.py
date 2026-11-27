@@ -236,7 +236,24 @@ def patch_prism_fep_mdps(
     target_nsteps: int | None = None
 
     if coupled_lambdas is not None:
-        lam_str = " ".join(f"{float(v):.4f}" for v in coupled_lambdas)
+        lam_str = " ".join(f"{float(v):.5f}" for v in coupled_lambdas)
+        n_win = len(coupled_lambdas)
+        # Ensure per-window em_short/npt_short/prod MDPs exist for every adaptive lambda state
+        for mdps_dir in sorted({p.parent for p in root.rglob("prod_00.mdp")}):
+            for prefix in ("em_short", "npt_short", "prod"):
+                tmpl_path = mdps_dir / f"{prefix}_00.mdp"
+                if not tmpl_path.is_file():
+                    continue
+                tmpl_txt = tmpl_path.read_text(encoding="utf-8", errors="replace")
+                for idx in range(n_win):
+                    target = mdps_dir / f"{prefix}_{idx:02d}.mdp"
+                    if not target.is_file():
+                        cloned = re.sub(
+                            r"(?im)^(\s*init-lambda-state\s*=\s*)[0-9]+",
+                            rf"\g<1>{idx}",
+                            tmpl_txt,
+                        )
+                        target.write_text(cloned, encoding="utf-8")
         for mdp in sorted(root.rglob("*.mdp")):
             txt = mdp.read_text(encoding="utf-8", errors="replace")
             if "coul-lambdas" not in txt and "vdw-lambdas" not in txt:
@@ -246,6 +263,7 @@ def patch_prism_fep_mdps(
                 upd = re.sub(rf"(?im)^(\s*{key}\s*=\s*).*$", rf"\g<1>{lam_str}", upd)
             if upd != txt:
                 mdp.write_text(upd, encoding="utf-8")
+        prod_mdps = sorted(root.rglob("prod_*.mdp"))
 
     for mdp in prod_mdps:
         text = mdp.read_text(encoding="utf-8", errors="replace")
