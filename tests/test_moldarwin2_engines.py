@@ -152,12 +152,182 @@ def test_fault_indexed_code_rsi_matches_live_bugs_and_promotes_across_targets(tm
     m1 = reg.match("Step 100: LINCS WARNING relative constraint deviation > 1000")
     assert m1["matches"][0]["tier"] == "scoped_candidate"
 
-    # Second independent target promotes automatically to cross_target_default!
+    # Second independent target promotes automatically to cross_target_default for io_repair!
     reg.record_outcome("custom_lincs_dt_fix", succeeded=True, target="KEAP1")
     reloaded = FaultRSIRegistry(tmp_path / "fault_rsi.jsonl")
     m2 = reloaded.match("LINCS WARNING relative constraint deviation")
     assert m2["matches"][0]["tier"] == "cross_target_default"
     assert m2["matches"][0]["verified_targets"] == ["KEAP1", "TYK2"]
+    assert m2["matches"][0]["impact_class"] == "io_repair"
+    assert len(m2["matches"][0]["remediation_digest"]) == 64
+
+
+def test_fault_rsi_physics_perturbation_and_input_filter_admission_gates_and_journal(tmp_path):
+    """Completion != admission: physics_perturbation needs Tier-1 equivalence, input_filter needs
+    logged coverage loss, and applied remediations bind into ResearchJournal."""
+    from moldarwin.active import CampaignSpec, CampaignStore, Endpoint
+    from moldarwin.research import ResearchJournal
+
+    reg = FaultRSIRegistry(tmp_path / "fault_rsi_gated.jsonl")
+
+    # 1. physics_perturbation cannot promote on completion alone across 2 targets
+    reg.record_outcome("gmx2026_fep_dummy_mass_gpu_update", succeeded=True, target="TYK2")
+    reg.record_outcome("gmx2026_fep_dummy_mass_gpu_update", succeeded=True, target="CDK2")
+    rec_unverified = reg.get_remediation("gmx2026_fep_dummy_mass_gpu_update")
+    assert rec_unverified["tier"] == "scoped_candidate"
+    assert rec_unverified["promotion_blocked_reason"] == "awaiting_tier1_physical_equivalence_verification"
+
+    # Passing Tier-1 CPU-vs-GPU ddG equivalence unlocks cross_target_default
+    reg.record_outcome(
+        "gmx2026_fep_dummy_mass_gpu_update",
+        succeeded=True,
+        target="TYK2",
+        equivalence_verified=True,
+        equivalence_evidence="|ddG_gpu - ddG_cpu| = 0.08 kcal/mol <= 0.30",
+        generation_stamp="gen-2026-11-26",
+    )
+    rec_verified = reg.get_remediation("gmx2026_fep_dummy_mass_gpu_update")
+    assert rec_verified["tier"] == "cross_target_default"
+    assert rec_verified["equivalence_verified_count"] == 1
+    assert rec_verified["generation_stamp"] == "gen-2026-11-26"
+
+    # A failing Tier-1 equivalence check immediately rejects the perturbation
+    reg.register_remediation(
+        remediation_id="bad_timestep_4fs",
+        pattern=r"slow_sampling",
+        fault_class="fep_speed",
+        impact_class="physics_perturbation",
+        entrypoint="moldarwin.physics.prism_fep:patch_prism_fep_mdps",
+        summary="Aggressive 4 fs timestep without HMR.",
+    )
+    reg.record_outcome("bad_timestep_4fs", succeeded=True, target="TYK2", equivalence_verified=False)
+    assert reg.get_remediation("bad_timestep_4fs")["tier"] == "rejected_physics_regression"
+
+    # 2. input_filter blocks promotion if coverage loss is unlogged
+    reg.register_remediation(
+        remediation_id="drop_boron_filter",
+        pattern=r"boron_unsupported",
+        fault_class="docking_preflight",
+        impact_class="input_filter",
+        entrypoint="moldarwin.physics.preflight:preflight_scorer_elements",
+        summary="Drop boron molecules before docking.",
+    )
+    reg.record_outcome("drop_boron_filter", succeeded=True, target="SND1", coverage_loss_logged=False)
+    reg.record_outcome("drop_boron_filter", succeeded=True, target="KEAP1", coverage_loss_logged=True, excluded_count=3)
+    rec_filt = reg.get_remediation("drop_boron_filter")
+    assert rec_filt["tier"] == "scoped_candidate"
+    assert rec_filt["promotion_blocked_reason"] == "input_filter_coverage_loss_unlogged"
+
+    # 3. Record remediation receipt directly into ResearchJournal for relied_on binding
+    store = CampaignStore(tmp_path / "campaign.sqlite")
+    store.configure(
+        CampaignSpec(
+            objective="rbfe",
+            budget=100.0,
+            cost_unit="gpu_min",
+            representation="fp",
+        ),
+        [
+            Endpoint(
+                id="rbfe",
+                target="TYK2",
+                quantity="anchored_relative_dg",
+                units="kcal/mol",
+                protocol="prism_20win",
+                cost=5.0,
+                requires_handoff=False,
+            )
+        ],
+    )
+    journal = ResearchJournal(store)
+    receipt = reg.record_in_journal(
+        journal,
+        "gmx2026_fep_dummy_mass_gpu_update",
+        target="TYK2",
+        directory=tmp_path / "receipts",
+        generation_stamp="gen-2026-11-26",
+        detail="Verified on TYK2 ejm_46->ejm_45",
+        equivalence_report={"delta_gpu_minus_cpu_kcal": 0.08, "passed": True},
+    )
+    assert receipt["artifact_id"].startswith("artifact-")
+    stored = journal.get(receipt["artifact_id"])
+    assert stored["bindings"]["fault_rsi_remediation_id"] == "gmx2026_fep_dummy_mass_gpu_update"
+    assert stored["bindings"]["fault_rsi_equivalence_verified"] is True
+    assert stored["bindings"]["generation_stamp"] == "gen-2026-11-26"
+
+
+def test_protocol_branch_pruning_protects_overlapping_confidence_intervals():
+    """Branches with score_se > 0 whose UCB overlaps cutoff_lcb must not be prematurely killed."""
+    tourn = prune_protocol_branches(
+        [
+            {"branch_id": "b_leader", "gate_passed": True, "primary_score": 0.85, "score_se": 0.04, "gpus_leased": [0, 1]},
+            # Point estimate is lower (0.80), but UCB = 0.80 + 1.96*0.05 = 0.898 >= leader LCB (0.7716) -> PROTECTED!
+            {"branch_id": "b_uncertain_high_upside", "gate_passed": True, "primary_score": 0.80, "score_se": 0.05, "gpus_leased": [2, 3]},
+            # UCB = 0.65 + 1.96*0.02 = 0.6892 < leader LCB (0.7716) -> STATISTICALLY PRUNED!
+            {"branch_id": "b_clearly_worse", "gate_passed": True, "primary_score": 0.65, "score_se": 0.02, "gpus_leased": [4, 5]},
+        ],
+        max_survivors=1,
+        uncertainty_z=1.96,
+    )
+    assert tourn["uncertain_protected_branches"] == ["b_uncertain_high_upside"]
+    assert [s["branch_id"] for s in tourn["survivors"]] == ["b_leader", "b_uncertain_high_upside"]
+    assert [p["branch_id"] for p in tourn["pruned"]] == ["b_clearly_worse"]
+    assert tourn["pruned"][0]["reason"] == "statistically_dominated_below_lcb"
+    assert tourn["freed_gpus"] == [4, 5]
+
+
+def test_bioisostere_evolution_respects_sar_weights_and_custom_neutral_rules():
+    """Target-learned SAR weights and custom SMIRKS take priority under max_analogs while preserving neutrality."""
+    import pytest
+
+    pytest.importorskip("rdkit")
+    from moldarwin.evolve import generate_bioisostere_analogs
+
+    out = generate_bioisostere_analogs(
+        "Cc1ccc(Cl)cc1",
+        parent_id="lead1",
+        max_analogs=2,
+        sar_mutation_weights={"chloro_to_cyano": 5.0, "custom_cl_to_ome": 10.0},
+        custom_mutations=[
+            {"name": "custom_cl_to_ome", "smirks": "[c:1]Cl>>[c:1]OC", "rationale": "TYK2 hinge HBA"},
+        ],
+    )
+    assert out["sar_weighted"] is True
+    assert out["custom_rule_count"] == 1
+    assert out["analog_count"] == 2
+    assert [a["mutation"] for a in out["analogs"]] == ["custom_cl_to_ome", "chloro_to_cyano"]
+    assert out["analogs"][0]["mutation_source"] == "target_custom"
+    assert all(a["formal_charge"] == 0 for a in out["analogs"])
+
+
+def test_verb_census_probe_counts_live_jsonl_calls(tmp_path):
+    """tools/verb_census.py mechanically counts MCP tool calls and reports thin/pack coverage."""
+    import importlib.util
+    import json
+
+    log = tmp_path / "run_alpha" / "logs" / "codex-events.jsonl"
+    log.parent.mkdir(parents=True)
+    events = [
+        {"item": {"type": "mcp_tool_call", "tool": "moldarwin_research_context"}},
+        {"item": {"type": "mcp_tool_call", "tool": "moldarwin_skill_find"}},
+        {"item": {"type": "mcp_tool_call", "tool": "moldarwin_skill_read"}},
+        {"item": {"type": "mcp_tool_call", "tool": "moldarwin_physics_preflight"}},
+        {"item": {"type": "other", "tool": "ignored"}},
+    ]
+    log.write_text("\n".join(json.dumps(e) for e in events) + "\n", encoding="utf-8")
+
+    probe = Path(__file__).resolve().parents[1] / "tools" / "verb_census.py"
+    spec = importlib.util.spec_from_file_location("verb_census", probe)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    rep = module.census_logs([tmp_path])
+    assert rep["schema"] == "moldarwin-verb-census/1"
+    assert rep["total_calls"] == 4
+    assert rep["distinct_verbs_used"] == 4
+    assert rep["thin_core_call_share"] == 0.75
+    assert rep["thin_plus_prism_call_share"] == 1.0
+    assert "screening" in rep["zero_use_packs"]
 
 
 def test_evolution_selectivity_pareto_protocol_pruning_and_shortcut_check():

@@ -380,6 +380,10 @@ def test_the_three_refusals_are_one_skeleton_with_three_subjects():
     for cls in (grant.SpendAuthorization, gate.GateAuthorization, method.MethodAuthorization):
         assert "covers" in cls.__dict__, f"{cls.__name__} must define its own subject comparison"
         assert "_body" not in cls.__dict__ and "valid" not in cls.__dict__
+    from moldarwin.authority import workflow
+    assert "covers" in workflow.WorkflowAuthorization.__dict__
+    assert "_body" not in workflow.WorkflowAuthorization.__dict__
+    assert "valid" not in workflow.WorkflowAuthorization.__dict__
 
 
 # --------------------------------------------------------------------------------------------
@@ -388,12 +392,7 @@ def test_the_three_refusals_are_one_skeleton_with_three_subjects():
 
 
 def test_the_spends_census_is_taken_from_the_registration_index():
-    """The review's countable: unguarded SPENDS tools over SPENDS tools.
-
-    Counted by the probe rather than by hand, and asserted as a direction plus the two tools this
-    change moved -- not as a literal, because a literal here is the stale-count failure the same
-    probe exists to prevent.
-    """
+    """The review's countable: unguarded SPENDS tools over SPENDS tools is now 0 of 7."""
 
     import importlib.util
     from pathlib import Path
@@ -405,14 +404,82 @@ def test_the_spends_census_is_taken_from_the_registration_index():
 
     report = module.census()
     by_tool = {row["tool"]: row for row in report["detail"]}
-    for name in ("moldarwin_action_submit", "moldarwin_workflow_submit",
-                 "moldarwin_workflow_advance", "moldarwin_method_call"):
+    for name in (
+        "moldarwin_action_submit",
+        "moldarwin_workflow_submit",
+        "moldarwin_workflow_advance",
+        "moldarwin_method_call",
+        "moldarwin_active_submit",
+        "moldarwin_workflow_reconcile",
+    ):
         assert by_tool[name]["spend_token_parameters"] == ["authorization_json"], name
-    assert report["spends_tools_accepting_no_authorization_object"] == 2
-    assert report["spends_tools_accepting_no_authorization_object"] < report["spends_tools"]
-    # Remaining two SPENDS tools without a token parameter are named explicitly.
-    for name in ("moldarwin_active_submit", "moldarwin_workflow_reconcile"):
-        assert by_tool[name]["accepts_an_authorization_object"] is False
+        assert by_tool[name]["accepts_an_authorization_object"] is True, name
+    assert report["spends_tools_accepting_no_authorization_object"] == 0
+    assert report["spends_tools"] >= 7
+
+
+def test_active_submit_and_workflow_reconcile_enforce_workflow_authorization(tmp_path, monkeypatch):
+    """Both remaining SPENDS tools accept signed WorkflowAuthorization tokens and refuse
+    tampered, mismatched, or (under required stage) absent tokens."""
+    from moldarwin.authority.workflow import (
+        NotAuthorizedWorkflow,
+        active_submit_subject,
+        authorize_workflow,
+        require_workflow_authorization,
+        workflow_resume_subject,
+    )
+
+    db = tmp_path / "campaign.sqlite"
+    ws = tmp_path / "ws"
+    subj_active = active_submit_subject(
+        database=db, plan_id="plan-1", max_rounds=2, min_new_admitted=1, max_seconds=1200.0
+    )
+    tok_active = authorize_workflow(subj_active)
+    tok_json = json.dumps(tok_active.as_dict())
+
+    # Valid token verifies
+    res = require_workflow_authorization(tok_json, subj_active)
+    assert res["state"] == "verified"
+
+    # Mutated max_rounds -> WRONG_SUBJECT refusal
+    mutated = active_submit_subject(
+        database=db, plan_id="plan-1", max_rounds=5, min_new_admitted=1, max_seconds=1200.0
+    )
+    with pytest.raises(NotAuthorizedWorkflow):
+        require_workflow_authorization(tok_json, mutated)
+
+    # Tampered signature -> refusal
+    bad_tok = {**tok_active.as_dict(), "signature": "0" * 64}
+    with pytest.raises(NotAuthorizedWorkflow):
+        require_workflow_authorization(json.dumps(bad_tok), subj_active)
+
+    # Workflow resume token bound to exact epoch -> stale epoch refuses
+    subj_resume = workflow_resume_subject(workspace=ws, job_id="job-1", plan_id="plan-1", epoch=2)
+    tok_resume = authorize_workflow(subj_resume)
+    assert require_workflow_authorization(json.dumps(tok_resume.as_dict()), subj_resume)["state"] == "verified"
+    stale_epoch = workflow_resume_subject(workspace=ws, job_id="job-1", plan_id="plan-1", epoch=3)
+    with pytest.raises(NotAuthorizedWorkflow):
+        require_workflow_authorization(json.dumps(tok_resume.as_dict()), stale_epoch)
+
+    # Under required stage, absent token refuses both active.submit and workflow.resume
+    monkeypatch.setenv("MOLDARWIN_WORKFLOW_AUTHORITY", "required")
+    with pytest.raises(NotAuthorizedWorkflow):
+        require_workflow_authorization("", subj_active)
+    with pytest.raises(NotAuthorizedWorkflow):
+        require_workflow_authorization("", subj_resume)
+
+    # Drive the real registered MCP tool boundary: refusal is non-retryable and names the minting route
+    tools = registered()
+    res_active = call(
+        tools["moldarwin_active_submit"],
+        database=str(db),
+        workspace=str(ws),
+        job_id="job-1",
+        plan_id="plan-1",
+    )
+    assert res_active["ok"] is False
+    assert res_active["error"]["retryable"] is False
+    assert "moldarwin_active_execution_plan" in res_active["error"]["hint"]
 
 
 def test_action_prepare_mints_cleanly_under_stage_two_without_deadlocking(tmp_path, monkeypatch):

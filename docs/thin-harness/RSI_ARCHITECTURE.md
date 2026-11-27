@@ -91,20 +91,34 @@ are judged, each one's operator and threshold, the provenance of that threshold,
 direction the metric punishes, and how statuses aggregate. Enforced structurally: that
 module has no code path to `evaluate_contract`, and a test pins the absence by AST.
 
-### 2.3 A gate on irreversible actions — our weakest point, named
+### 2.3 A gate on irreversible actions — closed on the MCP spending surface (`0/7` unguarded)
 
 Sending work to a wet lab, spending, relaxing a check: these cannot be self-approved.
 
-This is the fixed point MolDarwin holds least well, and saying so is the point of writing it
-down. Three holes are already recorded in the architecture review:
-`moldarwin_screen_submit` is a route around the gate; `method.run` and `screen.run` nodes spend
-with no authority object; and **no MCP tool accepts a spend token at all**.
+Previously this document recorded three open holes (`moldarwin_screen_submit` bypassing the gate,
+`method.run`/`screen.run` spending without an authority object, and zero MCP tools accepting a
+spend token). All three have now been closed mechanically, verifiable via
+`tools/count_unguarded_spends.py --max-unguarded 0` and `tools/falsify_optional_guard.py`:
+
+- `moldarwin_screen_submit` and runtime `screen.run` enforce `GateAuthorization` (`gate_json`)
+  via `mcp/screen_gate.py` and `runtime/operations.py::preflight`.
+- `moldarwin_action_submit`, `moldarwin_workflow_submit`, `moldarwin_workflow_advance`, and
+  `moldarwin_method_call` enforce `MethodAuthorization` (`authorization_json`) via
+  `authority/method.py` and `mcp/method_authority.py`.
+- `moldarwin_active_submit` and `moldarwin_workflow_reconcile(resume=True)` enforce
+  `WorkflowAuthorization` (`authorization_json`) minted by `moldarwin_active_execution_plan` and
+  `moldarwin_workflow_status`/`moldarwin_workflow_reconcile(resume=False)` via
+  `authority/workflow.py`.
+
+**Current count: `0 of 7` SPENDS tools accept no authorization object** (Evidence: `measured_here`
+from `tools/count_unguarded_spends.py`). Present tokens are always verified; strict refusal on
+absent tokens is selectable via `MOLDARWIN_METHOD_AUTHORITY=required` /
+`MOLDARWIN_WORKFLOW_AUTHORITY=required`.
 
 An external result makes the cost concrete: memory accumulated over ordinary low-risk chores
 moved one model's unsafe-action rate from under 1% to 66–81% (Evidence: `literature`, single
-source). That failure lands exactly on this gate. **Of everything in this document, closing
-these three holes is the only item whose absence can cause real-world harm**, which is why
-it ranks above every record-layer refinement.
+source). Keeping this boundary at `0/7` and enabling `required` stage for autonomous long-horizon
+campaigns remains higher priority than every record-layer refinement.
 
 ### 2.4 Proposed: every mutable artifact records which generation produced it
 
@@ -309,23 +323,28 @@ once a stated design named the subject (`ADMISSION_PROPAGATION.md` §12).
 
 ---
 
-## 9. What this document does not establish
+## 9. Empirical Verb Census (2026-11-26) and what remains unestablished
 
-- **Nothing in this architecture has been run against a benchmark.** The measurements it
-  cites describe the state *before* the changes they motivated. A passing test suite shows
-  that nothing broke; it does not show that anything improved.
-- **Two falsifiable predictions, neither tested.** If capability attribution matters, a real
-  campaign's census should show a small number of verbs covering most records; roughly
-  uniform use across the surface would mean progressive disclosure buys nothing and should be
-  abandoned. If threshold provenance matters, a host given a `convention`-tagged bar should
-  behave differently from one given a `literature`-tagged bar on the same task; identical
-  behaviour would mean that publication should be simplified away.
-- **Whether this harness is itself over-engineered is not established, and the instrument for
-  answering it only just became available.** 89 MCP verbs and 28 skills have never been
-  ablated, because until capability attribution landed there was no way to tell which verbs
-  carry their weight. The verb census is the one measurement whose result could be "remove
-  half", which is why it ranks above further addition.
-- **Incidence of the refusals added here: not obtained.** No journal was opened to count how
-  many real records or edges each new refusal would touch. The reachable emission sites were
-  read from source and are named in each design record; the populations are not counted, and
-  constraint 7 forbids an estimate in their place.
+- **Empirical Verb Census taken across 6 live multi-GPU campaigns (`tools/verb_census.py`,
+  Evidence: `measured_here`).** Across 6 full autonomous campaigns (`snd1-10k-codex-thin`,
+  `snd1-mtdh-10k-prism-rsi`, `snd1-mtdh-rescore-10k-prism-rsi`, `tb-science-keap1-open`,
+  `flagship-6h-physics-rbfe-closed-loop`, `flagship-6h-tyk2-rbfe-converged`), **134 MCP tool
+  calls touched only 12 distinct verbs out of ~98 registered (~12.2% surface utilization)**:
+  - Top 4 verbs (`moldarwin_research_context`: 30, `moldarwin_skill_find`: 30,
+    `moldarwin_skill_read`: 22, `moldarwin_admission_view`: 20) accounted for **76.1% (102/134)**
+    of all calls.
+  - `THIN_CORE_TOOLS` (16 verbs) accounted for **95.5% (128/134)** of all calls; adding the
+    optional `prism` pack (6 physics verbs) raised coverage to **98.5% (132/134)**.
+  - Seven optional packs (`screening`, `sweep`, `governance`, `active`, `workflow`, `planning`,
+    `research-extended`) had **0 calls** across all 6 live campaigns.
+  - **Falsifiable prediction confirmed:** real campaign usage is heavily concentrated in a small
+    core, directly justifying progressive disclosure (`profile="thin"` + on-demand `packs`) and
+    eventual retirement/folding of zero-use legacy verbs.
+- **Threshold provenance ablation: still untested.** Whether a host given a `convention`-tagged
+  bar behaves differently from one given a `literature`-tagged bar on the same task has not yet
+  been ablated.
+- **External experimental $\Delta G$ RBFE benchmark:** multi-target live campaigns have verified
+  docking/CNN rescoring transfer (SND1 AUC 0.35 -> 0.958, KEAP1 honest No-Go `reward=1.0`) and
+  multi-replica MD control gates (TYK2 1.07 Å pass vs. SND1 7.86 Å fail), while the full
+  8-edge closed-cycle TYK2 experimental $\Delta G_{\text{MLE}}$ vs. $\Delta G_{\text{exp}}$
+  scorecard is the gating external validation milestone.

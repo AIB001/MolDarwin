@@ -23,31 +23,33 @@ The argument below is unaffected and the premise has to be stated as history. Tw
   ``require`` is reached only from Python"* was true of :func:`require` and still is: the
   expensive stage's own token has no tool. What changed is the class, not that one instance.
 
-The count worth watching is stated as what it is: **2 of 7 SPENDS tools accept no authorization
-object at all**, down from 6 of 7 (``moldarwin_active_submit`` enforces ``SpendAuthorization``
-internally for handoff endpoints, and ``moldarwin_workflow_reconcile`` reconciles/resumes an
-already-planned workflow). ``tools/count_unguarded_spends.py`` takes that count from the
-registration index rather than from this paragraph, for the reason the paragraph above gives -- and
-it also states what the count does not establish: a parameter that accepts a token is not evidence
-the tool refuses without one. ``screen.run`` and ``method.run`` nodes are now both ruled on at
-dispatch in ``runtime/operations.preflight``.
+The count worth watching is stated as what it is: **0 of 7 SPENDS tools accept no authorization
+object**, down from 6 of 7 (``moldarwin_active_submit`` now enforces ``WorkflowAuthorization``
+minted by ``moldarwin_active_execution_plan``, and ``moldarwin_workflow_reconcile`` enforces
+``WorkflowAuthorization`` when ``resume=True`` using tokens minted by ``moldarwin_workflow_status``
+or non-resuming ``moldarwin_workflow_reconcile(resume=False)``). ``tools/count_unguarded_spends.py``
+takes that count from the registration index rather than from this paragraph, for the reason the
+paragraph above gives -- and it also states what the count does not establish: a parameter that
+accepts a token is not evidence the tool refuses without one. ``screen.run`` and ``method.run``
+nodes are now both ruled on at dispatch in ``runtime/operations.preflight``.
 
 This package makes the relationship structural: :func:`authorize` runs the preflight and returns
 tokens, the expensive stage requires one per row, and a token is bound to a digest of the exact
 record so that checking one thing and building another is caught as well.
 
-Three instances now, over one base:
+Four instances now, over one base:
 
 :mod:`moldarwin.authority.subject`
-    What the three share -- signing, expiry, serialisation, and the shape of the three refusals.
+    What all four share -- signing, expiry, serialisation, and the shape of the three refusals.
 :mod:`moldarwin.authority.grant`
     A GPU-hour, bound to one handoff row.
 :mod:`moldarwin.authority.gate`
     A threshold applied at scale, bound to one compiled funnel revision -- the regime with no
     expensive stage, where the irreversible act is a miscalibrated gate applied a million times.
 :mod:`moldarwin.authority.method`
-    ``method.run``'s host-authored argv, bound to the declaration that was prepared. The only one
-    of the three whose subject is not scientific.
+    ``method.run``'s host-authored argv, bound to the declaration that was prepared.
+:mod:`moldarwin.authority.workflow`
+    ``active.submit`` and ``workflow.resume``, bound to the exact planned parameters or job epoch.
 """
 
 from moldarwin.authority.gate import (
@@ -57,15 +59,6 @@ from moldarwin.authority.gate import (
     calibration_digest,
     require_gate,
     unauthorized_gate,
-)
-from moldarwin.authority.method import (
-    DEFAULT_METHOD_LIFETIME_HOURS,
-    MethodAuthorization,
-    NotAuthorizedMethod,
-    authorize_method,
-    method_request_subject,
-    require_method,
-    unauthorized_method,
 )
 from moldarwin.authority.grant import (
     DEFAULT_LIFETIME_HOURS,
@@ -77,27 +70,52 @@ from moldarwin.authority.grant import (
     require,
     unauthorized,
 )
+from moldarwin.authority.method import (
+    DEFAULT_METHOD_LIFETIME_HOURS,
+    MethodAuthorization,
+    NotAuthorizedMethod,
+    authorize_method,
+    method_request_subject,
+    require_method,
+    unauthorized_method,
+)
+from moldarwin.authority.workflow import (
+    DEFAULT_WORKFLOW_LIFETIME_HOURS,
+    NotAuthorizedWorkflow,
+    WorkflowAuthorization,
+    active_submit_subject,
+    authorize_workflow,
+    require_workflow_authorization,
+    workflow_resume_subject,
+)
 
 __all__ = [
     "DEFAULT_GATE_LIFETIME_HOURS",
     "DEFAULT_LIFETIME_HOURS",
     "DEFAULT_METHOD_LIFETIME_HOURS",
+    "DEFAULT_WORKFLOW_LIFETIME_HOURS",
     "Authorized",
     "GateAuthorization",
     "MethodAuthorization",
     "NotAuthorized",
     "NotAuthorizedMethod",
+    "NotAuthorizedWorkflow",
     "SpendAuthorization",
+    "WorkflowAuthorization",
+    "active_submit_subject",
     "authorize",
     "authorize_gate",
     "authorize_method",
+    "authorize_workflow",
     "calibration_digest",
     "method_request_subject",
     "record_digest",
     "require",
     "require_gate",
     "require_method",
+    "require_workflow_authorization",
     "unauthorized",
     "unauthorized_gate",
     "unauthorized_method",
+    "workflow_resume_subject",
 ]

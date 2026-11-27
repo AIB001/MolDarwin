@@ -1,14 +1,17 @@
-"""Synthesizable R-group/bioisostere molecular evolution and parallel protocol tournaments.
+"""Synthesizable R-group/bioisostere molecular evolution and uncertainty-aware protocol tournaments.
 
 Implements the dual-track Darwinian loop:
   1. **Molecular evolution** (``generate_bioisostere_analogs``, ``rank_evolution_generation``):
      applies clean, medicinal-chemistry-grounded bioisosteric and R-group transformations
-     (avoiding strained, non-synthesizable unconstrained 3D diffusion outputs) and selects
+     (avoiding strained, non-synthesizable unconstrained 3D diffusion outputs), supports
+     target-adaptive SAR mutation prioritization and custom neutral SMIRKS rules, and selects
      Pareto-optimal winners jointly over primary potency, off-target selectivity
      (``dddG = ddG_target - ddG_offtarget``), and soft liability tiers.
   2. **Protocol tournament** (``prune_protocol_branches``): evaluates competing parallel
      hypothesis branches (e.g., forcefield/hydration/rescorer/sampling subagents) on hard
-     physical gates, kills failing branches early, and reallocates GPU leases to survivors.
+     physical gates, protects branches whose confidence intervals still overlap the cutoff
+     survivor (LCB/UCB protection against premature small-sample pruning), kills failed or
+     statistically dominated branches early, and reallocates GPU leases to survivors.
 """
 
 from __future__ import annotations
@@ -19,6 +22,9 @@ from typing import Any
 
 EVOLUTION_GENERATION_SCHEMA = "moldarwin-evolution-generation/1"
 PROTOCOL_TOURNAMENT_SCHEMA = "moldarwin-protocol-tournament/1"
+
+#: Default z-multiplier for branch confidence-interval overlap protection (~95% CI, Evidence: convention).
+DEFAULT_UNCERTAINTY_Z: float = 1.96
 
 #: Clean neutral medicinal-chemistry bioisostere & R-group mutation SMIRKS (Evidence: literature).
 #: All preserve formal neutrality so analogs remain directly eligible for neutral RBFE networks.
@@ -93,8 +99,17 @@ def generate_bioisostere_analogs(
     max_analogs: int = 24,
     include_ch_scan: bool = False,
     target_class: str = "general",
+    sar_mutation_weights: Mapping[str, float] | None = None,
+    custom_mutations: Sequence[Mapping[str, str]] = (),
 ) -> dict[str, Any]:
-    """Generate deduplicated, neutral, synthesizable R-group/bioisostere analogs of a parent lead."""
+    """Generate deduplicated, neutral, synthesizable R-group/bioisostere analogs of a parent lead.
+
+    Optional target-adaptive inputs:
+      - ``sar_mutation_weights``: mapping of ``mutation_name -> priority_weight`` learned from
+        empirical target MMP/SAR data (higher weights are expanded first under ``max_analogs``).
+      - ``custom_mutations``: additional target-specific neutral SMIRKS rules
+        (``{"name", "smirks", "rationale"}``) evaluated alongside built-ins.
+    """
     from rdkit import Chem
     from rdkit.Chem import AllChem
 
@@ -106,13 +121,32 @@ def generate_bioisostere_analogs(
     parent_can = Chem.MolToSmiles(parent, canonical=True)
     parent_charge = Chem.GetFormalCharge(parent)
 
-    seen: set[str] = {parent_can}
-    analogs: list[dict[str, Any]] = []
-
+    weights = {str(k): float(v) for k, v in (sar_mutation_weights or {}).items()}
+    rule_pool: list[tuple[int, dict[str, str], str]] = []
+    idx = 0
+    for rule in custom_mutations:
+        rule_pool.append((idx, {
+            "name": str(rule["name"]),
+            "smirks": str(rule["smirks"]),
+            "rationale": str(rule.get("rationale") or "target-specific SAR transform"),
+        }, "target_custom"))
+        idx += 1
     for rule in BIOISOSTERE_MUTATIONS:
         if rule["name"] == "aryl_ch_to_fluoro" and not include_ch_scan:
             continue
+        rule_pool.append((idx, dict(rule), "builtin"))
+        idx += 1
+
+    # Prioritize mutations with higher target-validated SAR weights; preserve deterministic tie order.
+    rule_pool.sort(key=lambda item: (-weights.get(item[1]["name"], 0.0), item[0]))
+
+    seen: set[str] = {parent_can}
+    analogs: list[dict[str, Any]] = []
+
+    for _, rule, source in rule_pool:
         rxn = AllChem.ReactionFromSmarts(rule["smirks"])
+        if rxn is None:
+            continue
         products = rxn.RunReactants((parent,))
         for prod_tuple in products:
             if not prod_tuple:
@@ -133,6 +167,8 @@ def generate_bioisostere_analogs(
                 "parent_id": parent_id,
                 "smiles": can,
                 "mutation": rule["name"],
+                "mutation_source": source,
+                "mutation_priority_weight": round(weights.get(rule["name"], 0.0), 4),
                 "rationale": rule["rationale"],
                 "formal_charge": parent_charge,
             })
@@ -155,6 +191,8 @@ def generate_bioisostere_analogs(
         "parent_id": parent_id,
         "parent_smiles": parent_can,
         "parent_formal_charge": parent_charge,
+        "sar_weighted": bool(weights),
+        "custom_rule_count": len(custom_mutations),
         "analog_count": len(analogs),
         "analogs": analogs,
     }
@@ -269,19 +307,31 @@ def prune_protocol_branches(
     branches: Sequence[Mapping[str, Any]],
     *,
     max_survivors: int = 2,
+    uncertainty_z: float = DEFAULT_UNCERTAINTY_Z,
 ) -> dict[str, Any]:
-    """Select surviving parallel protocol branches and reclaim GPU leases from failed/dominated ones.
+    """Select surviving parallel protocol branches with LCB/UCB uncertainty protection.
 
     Each branch record requires:
       - ``branch_id`` (str)
       - ``gate_passed`` (bool)
       - ``primary_score`` (float, higher is better, e.g. AUC or -median_rmsd)
     Optional:
+      - ``score_se`` (float >= 0.0, standard error of ``primary_score``; default 0.0)
+      - ``n_evals`` (int, number of samples/replicas backing ``primary_score``)
       - ``gpu_min_spent`` (float, default 1.0)
       - ``gpus_leased`` (list[int])
       - ``failure_reason`` (str)
+
+    Branches failing hard physical gates are always pruned immediately. Among passing branches,
+    the top ``max_survivors`` always survive; any lower-ranked branch with ``score_se > 0`` whose
+    upper confidence bound ``primary_score + z * score_se`` still meets or exceeds the cutoff
+    survivor's lower confidence bound ``cutoff_lcb`` is retained under
+    ``survival_reason="uncertainty_overlap_protected"`` rather than prematurely killed on noise.
     """
-    survivors: list[dict[str, Any]] = []
+    if uncertainty_z < 0:
+        raise ValueError(f"uncertainty_z must be >= 0, got {uncertainty_z!r}")
+
+    passing: list[dict[str, Any]] = []
     pruned: list[dict[str, Any]] = []
     freed_gpus: list[int] = []
 
@@ -301,29 +351,67 @@ def prune_protocol_branches(
             freed_gpus.extend(leased)
             continue
 
-        survivors.append({
+        score_f = float(score)
+        se_raw = b.get("score_se")
+        se = max(0.0, float(se_raw)) if (se_raw is not None and math.isfinite(float(se_raw))) else 0.0
+        n_evals = int(b["n_evals"]) if b.get("n_evals") is not None else None
+        passing.append({
             "branch_id": bid,
-            "primary_score": round(float(score), 4),
+            "primary_score": round(score_f, 4),
+            "score_se": round(se, 4),
+            "score_lcb": round(score_f - uncertainty_z * se, 4),
+            "score_ucb": round(score_f + uncertainty_z * se, 4),
+            "n_evals": n_evals,
             "gpu_min_spent": round(cost, 2),
             "gpus_leased": leased,
         })
 
-    survivors.sort(key=lambda r: (-r["primary_score"], r["gpu_min_spent"]))
-    kept = survivors[: max(1, int(max_survivors))]
-    for dropped in survivors[len(kept) :]:
-        pruned.append({
-            "branch_id": dropped["branch_id"],
-            "reason": "dominated_by_higher_scoring_branch",
-            "gpus_freed": dropped["gpus_leased"],
-        })
-        freed_gpus.extend(dropped["gpus_leased"])
+    passing.sort(key=lambda r: (-r["primary_score"], r["score_se"], r["gpu_min_spent"]))
+    k = max(1, int(max_survivors))
+    kept: list[dict[str, Any]] = []
+    uncertain_protected: list[str] = []
+
+    for row in passing[:k]:
+        kept.append({**row, "survival_reason": "top_survivor"})
+
+    cutoff_lcb = kept[-1]["score_lcb"] if kept else -math.inf
+
+    for cand in passing[k:]:
+        if cand["score_se"] > 0.0 and cand["score_ucb"] >= cutoff_lcb:
+            kept.append({**cand, "survival_reason": "uncertainty_overlap_protected"})
+            uncertain_protected.append(cand["branch_id"])
+        else:
+            pruned.append({
+                "branch_id": cand["branch_id"],
+                "reason": (
+                    "statistically_dominated_below_lcb"
+                    if cand["score_se"] > 0.0
+                    else "dominated_by_higher_scoring_branch"
+                ),
+                "gpus_freed": cand["gpus_leased"],
+            })
+            freed_gpus.extend(cand["gpus_leased"])
 
     return {
         "schema": PROTOCOL_TOURNAMENT_SCHEMA,
+        "uncertainty_z": float(uncertainty_z),
+        "cutoff_lcb": round(cutoff_lcb, 4) if math.isfinite(cutoff_lcb) else None,
         "total_branches": len(branches),
         "survivor_count": len(kept),
+        "uncertain_protected_branches": uncertain_protected,
         "pruned_count": len(pruned),
         "survivors": kept,
         "pruned": pruned,
         "freed_gpus": sorted(set(freed_gpus)),
     }
+
+
+__all__ = [
+    "BIOISOSTERE_MUTATIONS",
+    "DEFAULT_UNCERTAINTY_Z",
+    "EVOLUTION_GENERATION_SCHEMA",
+    "PROTOCOL_TOURNAMENT_SCHEMA",
+    "generate_bioisostere_analogs",
+    "prune_protocol_branches",
+    "rank_evolution_generation",
+]

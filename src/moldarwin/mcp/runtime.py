@@ -213,10 +213,22 @@ def register(mcp: Any) -> None:
     @mcp.tool()
     @tool(Cost.FREE)
     def moldarwin_workflow_status(workspace: str, job_id: str) -> str:
-        """FREE. Inspect durable node states, resource usage, worker identity and reconciliation needs."""
+        """FREE. Inspect durable node states, resource usage, worker identity and reconciliation needs.
+
+        Also mints a resume_authorization bound to this job's current plan_id and epoch for
+        subsequent moldarwin_workflow_reconcile(resume=true) calls.
+        """
+        from moldarwin.authority.workflow import authorize_workflow, workflow_resume_subject
         from moldarwin.runtime.service import status
 
-        return ok(job=status(absolute_path(workspace, label="workspace"), job_id))
+        ws = absolute_path(workspace, label="workspace")
+        job = status(ws, job_id)
+        token = authorize_workflow(
+            workflow_resume_subject(
+                workspace=ws, job_id=job_id, plan_id=job["plan_id"], epoch=job["epoch"]
+            )
+        )
+        return ok(job=job, resume_authorization=token.as_dict())
 
     @mcp.tool()
     @tool(Cost.FREE)
@@ -275,17 +287,55 @@ def register(mcp: Any) -> None:
     @threaded_tool(Cost.SPENDS)
     def moldarwin_workflow_reconcile(workspace: str, job_id: str, reason: str,
                                    resume: bool = False,
-                                   settlements: dict[str, Any] | None = None) -> str:
+                                   settlements: dict[str, Any] | None = None,
+                                   authorization_json: str = "") -> str:
         """SPENDS when resume=true. Reconcile saved receipts only after the worker and children stop.
 
-        Defaults to inspection/reconciliation without new dispatch. Unknown outcomes keep their
-        reservations; explicit failure settlements need documented costs and an existing evidence
-        file in the step workspace. Never invent a scientific value to resolve an interruption.
+        Defaults to inspection/reconciliation without new dispatch and returns a signed
+        resume_authorization bound to the reconciled job epoch. When resume=true, pass the
+        resume_authorization from moldarwin_workflow_status or a prior non-resuming reconcile as
+        authorization_json. Unknown outcomes keep their reservations; explicit failure settlements
+        need documented costs and an existing evidence file in the step workspace. Never invent a
+        scientific value to resolve an interruption.
         """
-        from moldarwin.runtime.service import reconcile
+        from moldarwin.authority.workflow import (
+            authorize_workflow,
+            require_workflow_authorization,
+            workflow_resume_subject,
+        )
+        from moldarwin.runtime.service import reconcile, status
 
-        return ok(job=reconcile(absolute_path(workspace, label="workspace"), job_id, reason=reason,
-                                resume=resume, settlements=settlements))
+        ws = absolute_path(workspace, label="workspace")
+        if resume:
+            current = status(ws, job_id)
+            auth = require_workflow_authorization(
+                authorization_json,
+                workflow_resume_subject(
+                    workspace=ws,
+                    job_id=job_id,
+                    plan_id=current["plan_id"],
+                    epoch=current["epoch"],
+                ),
+            )
+            return ok(
+                job=reconcile(ws, job_id, reason=reason, resume=True, settlements=settlements),
+                authorization=auth,
+            )
+
+        reconciled = reconcile(ws, job_id, reason=reason, resume=False, settlements=settlements)
+        token = authorize_workflow(
+            workflow_resume_subject(
+                workspace=ws,
+                job_id=job_id,
+                plan_id=reconciled["plan_id"],
+                epoch=reconciled["epoch"],
+            )
+        )
+        return ok(
+            job=reconciled,
+            resume_authorization=token.as_dict(),
+            authorization={"state": "not_required_for_inspect"},
+        )
 
     @mcp.tool()
     @threaded_tool(Cost.CHEAP)
@@ -311,27 +361,63 @@ def register(mcp: Any) -> None:
         """CHEAP. Plan a single active.run workflow using registered executors and the remaining budget.
 
         Does not execute. Explicit max_rounds/min_new_admitted fix the task's limits and success
-        requirement. The active policy selects candidates from the journal at dispatch time.
+        requirement. Also mints a signed authorization object bound to these plan parameters for
+        moldarwin_active_submit. The active policy selects candidates from the journal at dispatch.
         """
+        from moldarwin.authority.workflow import active_submit_subject, authorize_workflow
         from moldarwin.runtime.api import active_execution_plan
 
-        return ok(**active_execution_plan(absolute_path(database, label="database"),
-                  max_rounds=max_rounds, min_new_admitted=min_new_admitted, max_seconds=max_seconds))
+        db = absolute_path(database, label="database")
+        planned = active_execution_plan(
+            db, max_rounds=max_rounds, min_new_admitted=min_new_admitted, max_seconds=max_seconds
+        )
+        token = authorize_workflow(
+            active_submit_subject(
+                database=db,
+                plan_id=planned["plan_id"],
+                max_rounds=max_rounds,
+                min_new_admitted=min_new_admitted,
+                max_seconds=max_seconds,
+            )
+        )
+        return ok(**planned, authorization=token.as_dict())
 
     @mcp.tool()
     @threaded_tool(Cost.SPENDS)
     def moldarwin_active_submit(database: str, workspace: str, job_id: str, plan_id: str,
                               max_rounds: int = 1, min_new_admitted: int = 1,
-                              max_seconds: float = 3600) -> str:
+                              max_seconds: float = 3600, authorization_json: str = "") -> str:
         """SPENDS. Dispatch the reviewed active execution plan through the persistent workflow worker.
 
-        Requires registered executors. Reuses the existing active policy, authorization, QC and
-        budget journal; success requires new admitted observations. Inspect/cancel/reconcile with
-        the workflow tools. Identical submissions reuse the existing job even after completion.
+        Requires registered executors. Pass the authorization returned by
+        moldarwin_active_execution_plan verbatim as authorization_json. Reuses the existing active
+        policy, authorization, QC and budget journal; success requires new admitted observations.
+        Inspect/cancel/reconcile with the workflow tools. Identical submissions reuse the existing
+        job even after completion.
         """
+        from moldarwin.authority.workflow import (
+            active_submit_subject,
+            require_workflow_authorization,
+        )
         from moldarwin.runtime.api import active_submit
 
-        return ok(job=active_submit(absolute_path(database, label="database"),
-                  absolute_path(workspace, label="workspace"), job_id=job_id,
-                  expected_plan_id=plan_id, max_rounds=max_rounds,
-                  min_new_admitted=min_new_admitted, max_seconds=max_seconds))
+        db = absolute_path(database, label="database")
+        ws = absolute_path(workspace, label="workspace")
+        auth = require_workflow_authorization(
+            authorization_json,
+            active_submit_subject(
+                database=db,
+                plan_id=plan_id,
+                max_rounds=max_rounds,
+                min_new_admitted=min_new_admitted,
+                max_seconds=max_seconds,
+            ),
+        )
+        return ok(
+            job=active_submit(
+                db, ws, job_id=job_id, expected_plan_id=plan_id,
+                max_rounds=max_rounds, min_new_admitted=min_new_admitted,
+                max_seconds=max_seconds,
+            ),
+            authorization=auth,
+        )

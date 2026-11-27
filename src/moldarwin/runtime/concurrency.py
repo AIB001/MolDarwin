@@ -38,23 +38,28 @@ def plan_gpu_packing(
     min_omp_per_job: int = 2,
     max_omp_per_job: int = 12,
     single_job_sm_util_pct: float | None = None,
+    reserve_os_cores: int = 0,
 ) -> dict[str, Any]:
     """Build a disjoint CPU-pinned multi-job packing plan across idle GPUs.
 
     If ``jobs_per_gpu`` is omitted, recommends a conservative packing factor bounded by
     VRAM headroom, minimum OpenMP threads per job, and (when provided) observed single-job
-    SM utilization.
+    SM utilization. Set ``reserve_os_cores > 0`` on multi-GPU servers so SSH/kernel/IO
+    threads are never starved by 100% pinned compute slots.
     """
     gpus = [int(g) for g in idle_gpus]
     if not gpus:
         raise ValueError("idle_gpus must be non-empty")
     if cpu_cores < 1 or mem_per_job_mb <= 0 or gpu_vram_mb <= 0:
         raise ValueError("cpu_cores, mem_per_job_mb, and gpu_vram_mb must be positive")
+    if reserve_os_cores < 0 or reserve_os_cores >= cpu_cores:
+        raise ValueError(f"reserve_os_cores must lie in [0, {cpu_cores - 1}], got {reserve_os_cores}")
     if not (0.1 <= max_vram_fraction <= 0.95):
         raise ValueError("max_vram_fraction must lie in [0.1, 0.95]")
 
+    usable_cores = cpu_cores - reserve_os_cores
     vram_cap = max(1, int(math.floor((gpu_vram_mb * max_vram_fraction) / mem_per_job_mb)))
-    cpu_cap = max(1, cpu_cores // (len(gpus) * max(1, min_omp_per_job)))
+    cpu_cap = max(1, usable_cores // (len(gpus) * max(1, min_omp_per_job)))
     max_safe_k = max(1, min(vram_cap, cpu_cap, 4))
 
     if jobs_per_gpu is not None:
@@ -71,16 +76,16 @@ def plan_gpu_packing(
         k = max(1, min(target_k, max_safe_k))
     else:
         # Default candidate: 2 jobs/GPU when VRAM >= 40 GB and CPU cores allow >=4 threads/job.
-        k = 2 if (gpu_vram_mb >= 40000 and cpu_cores >= len(gpus) * 8 and max_safe_k >= 2) else 1
+        k = 2 if (gpu_vram_mb >= 40000 and usable_cores >= len(gpus) * 8 and max_safe_k >= 2) else 1
 
     total_slots = len(gpus) * k
-    ntomp = max(1, min(max_omp_per_job, cpu_cores // total_slots))
+    ntomp = max(1, min(max_omp_per_job, usable_cores // total_slots))
 
     slots: list[dict[str, Any]] = []
     slot_idx = 0
     for gpu_id in gpus:
         for local_rank in range(k):
-            cpu_offset = (slot_idx * ntomp) % cpu_cores
+            cpu_offset = (slot_idx * ntomp) % usable_cores
             slots.append({
                 "slot_id": slot_idx,
                 "gpu_id": gpu_id,
@@ -104,6 +109,7 @@ def plan_gpu_packing(
         "omp_threads_per_slot": ntomp,
         "total_cpus_assigned": total_slots * ntomp,
         "cpu_cores_available": cpu_cores,
+        "cpu_cores_reserved_for_os": reserve_os_cores,
         "estimated_vram_per_gpu_mb": round(k * mem_per_job_mb, 1),
         "vram_limit_per_gpu_mb": round(gpu_vram_mb * max_vram_fraction, 1),
         "slots": slots,

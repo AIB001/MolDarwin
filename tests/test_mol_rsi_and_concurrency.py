@@ -38,6 +38,18 @@ def test_gpu_packing_assigns_disjoint_cpu_cores_and_selects_optimal_k():
     assert len(set(offsets)) == 16
     assert max(offsets) + plan["omp_threads_per_slot"] <= 96
 
+    # Reserving OS cores keeps SSH/kernel headroom unpinned on multi-GPU servers
+    plan_os = plan_gpu_packing(
+        idle_gpus=[0, 1, 2, 3, 4, 5, 6, 7],
+        cpu_cores=96,
+        jobs_per_gpu=2,
+        reserve_os_cores=16,
+    )
+    assert plan_os["cpu_cores_reserved_for_os"] == 16
+    assert plan_os["omp_threads_per_slot"] == 5
+    assert plan_os["total_cpus_assigned"] == 80
+    assert max(s["pinoffset"] for s in plan_os["slots"]) + 5 <= 80
+
     # Micro-benchmark: k=2 gives ~1.72x aggregate ns/day, k=3 has a failed job -> rejected
     tuning = select_optimal_concurrency(
         [

@@ -300,8 +300,21 @@ def _refusal(error: BaseException) -> str | None:
 
     from moldarwin.authority.grant import NotAuthorized
     from moldarwin.authority.method import MINTING_ROUTE, NotAuthorizedMethod
+    from moldarwin.authority.workflow import (
+        MINTING_ROUTE as WORKFLOW_MINTING_ROUTE,
+    )
+    from moldarwin.authority.workflow import (
+        NotAuthorizedWorkflow,
+    )
     from moldarwin.campaign.sweep import SweepError
 
+    if isinstance(error, NotAuthorizedWorkflow):
+        return (
+            "This is a refusal, not a transient failure: active submission or workflow resume "
+            "lacks a matching signed authorization (missing under required stage, expired, "
+            "tampered, or bound to a different plan/epoch). Calling again unchanged will refuse "
+            "again. " + WORKFLOW_MINTING_ROUTE
+        )
     if isinstance(error, NotAuthorizedMethod):
         # Matched before NotAuthorized because it is a subclass of it, and the branch below names
         # the gate route -- calibrate a panel, call moldarwin_authorize_gates. That route cannot fix a
