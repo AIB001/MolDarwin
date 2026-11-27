@@ -19,9 +19,11 @@ wet-lab-calibrated CADD stack directly into external domain-agnostic scientific 
 from __future__ import annotations
 
 import importlib.util
+import os
 import shutil
 import subprocess
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 DOMAIN_PACK_SCHEMA = "moldarwin-domain-pack/1"
@@ -76,7 +78,11 @@ CADD_FIDELITY_LADDER: tuple[dict[str, Any], ...] = (
 def _detect_gmx_mpi_support() -> dict[str, Any]:
     """Check whether an external-MPI GROMACS binary (required for -multidir HREX) is available."""
     gmx_mpi = shutil.which("gmx_mpi")
-    gmx_std = shutil.which("gmx")
+    if gmx_mpi is None and Path("/usr/local/gromacs/bin/gmx_mpi").is_file():
+        gmx_mpi = "/usr/local/gromacs/bin/gmx_mpi"
+    gmx_std = os.environ.get("GMX_BIN") or shutil.which("gmx")
+    if gmx_std is None and Path("/usr/local/gromacs/bin/gmx").is_file():
+        gmx_std = "/usr/local/gromacs/bin/gmx"
     mpi_library: str | None = None
     binary = gmx_mpi or gmx_std
     if binary:
