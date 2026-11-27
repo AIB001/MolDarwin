@@ -352,20 +352,29 @@ def test_write_generated_skill_and_method_boundary_recall(tmp_path):
 
 
 def test_v2_slimming_hides_legacy_skills_tiers_packs_and_exports_cadd_domain_pack():
-    """Direction 2: 33 -> 12 active v2 built-in skills, tiered MCP packs, capabilities data_sources,
-    4-decimal adaptive lambdas, and clean CaddDomainPack kernel boundary."""
-    from moldarwin.domain_pack import DOMAIN_PACK_SCHEMA, get_cadd_domain_pack
-    from moldarwin.mcp.profiles import PACK_TIERS, RECOMMENDED_V2_PACKS, pack_catalog
+    """Three-pillar v2 balance: 15 active built-in skills, balanced MolOrigin/MolCat/PRISM packs,
+    capabilities data_sources + pillars, 4-decimal adaptive lambdas, and CaddDomainPack boundary."""
+    from moldarwin.domain_pack import (
+        CADD_DOMAIN_PACK_ID,
+        DOMAIN_PACK_SCHEMA,
+        get_cadd_domain_pack,
+    )
+    from moldarwin.mcp.profiles import (
+        PACK_TIERS,
+        RECOMMENDED_V2_PACKS,
+        THREE_PILLAR_PACKS,
+        pack_catalog,
+    )
     from moldarwin.physics.adaptive import refine_lambda_schedule_from_overlap
     from moldarwin.skill_index import ACTIVE_V2_BUILTIN_SKILLS
 
-    # 1. Active v2 built-in skills slimmed cleanly to 12; legacy hidden unless include_legacy=True
-    assert len(ACTIVE_V2_BUILTIN_SKILLS) == 12
+    # 1. Active v2 built-in skills balanced across all 3 pillars (15 active); legacy hidden by default
+    assert len(ACTIVE_V2_BUILTIN_SKILLS) == 15
     assert set(skills.WORKFLOWS) >= ACTIVE_V2_BUILTIN_SKILLS
 
     tax_default = find_skills(list_domains=True)
-    assert tax_default["by_source"]["builtin"] == 12
-    assert tax_default["legacy_hidden"] == len(skills.WORKFLOWS) - 12
+    assert tax_default["by_source"]["builtin"] == 15
+    assert tax_default["legacy_hidden"] == len(skills.WORKFLOWS) - 15
 
     tax_all = find_skills(list_domains=True, include_legacy=True)
     assert tax_all["by_source"]["builtin"] == len(skills.WORKFLOWS)
@@ -377,34 +386,49 @@ def test_v2_slimming_hides_legacy_skills_tiers_packs_and_exports_cadd_domain_pac
     sweep_legacy = find_skills(query="screening sweep", source="builtin", include_legacy=True, limit=10)
     assert any(row["slug"] == "sweep" for row in sweep_legacy["skills"])
 
-    # 2. Tiered MCP packs separate active_domain / l3_governance / optional_data from legacy
-    assert RECOMMENDED_V2_PACKS == ("prism",)
-    assert PACK_TIERS["prism"] == "active_domain"
+    # 2. Tiered MCP packs treat MolOrigin (data), MolCat (screening), and PRISM as equal core pillars
+    assert THREE_PILLAR_PACKS == ("data", "screening", "prism")
+    assert RECOMMENDED_V2_PACKS == ("data", "screening", "prism")
+    assert PACK_TIERS["data"] == "core_pillar"
+    assert PACK_TIERS["screening"] == "core_pillar"
+    assert PACK_TIERS["prism"] == "core_pillar"
+    assert PACK_TIERS["active"] == "drug_design_loop"
+    assert PACK_TIERS["workflow"] == "drug_design_loop"
     assert PACK_TIERS["governance"] == "l3_governance"
     assert PACK_TIERS["sweep"] == "legacy"
     active_packs = pack_catalog(include_legacy=False)
-    assert set(active_packs) == {"prism", "governance", "data"}
+    assert set(active_packs) == {"data", "screening", "prism", "active", "workflow", "governance"}
 
-    # 3. Thin server capabilities exposes pack_tiers + optional read-only data_sources
+    # 3. Thin server capabilities exposes pack_tiers + read-only data_sources + three-pillar inventory
     thin_server = build(profile="thin")
     caps = _call_mcp(
         thin_server,
         "moldarwin_capabilities",
-        {"detail": "summary", "skills": [], "operations": [], "include_data_sources": True},
+        {
+            "detail": "summary",
+            "skills": [],
+            "operations": [],
+            "include_data_sources": True,
+            "include_pillars": True,
+        },
     )
     assert caps["ok"] is True
     assert "pack_tiers" in caps
     assert "data_sources" in caps
+    assert "pillars" in caps
+    assert caps["pillars"]["molcat"]["plugin_count"] >= 50
 
-    # 4. CaddDomainPack cleanly declares the 22-tool / 12-skill / 5-tier boundary + MPI/HREX probe
+    # 4. CaddDomainPack cleanly declares the three-pillar boundary + 5-tier DMTA ladder + MPI probe
     pack = get_cadd_domain_pack()
     manifest = pack.manifest()
     assert manifest["schema"] == DOMAIN_PACK_SCHEMA
-    assert manifest["mcp_surface"]["total_v2_tools"] == 22
-    assert manifest["active_skill_count"] == 12
+    assert manifest["pack_id"] == CADD_DOMAIN_PACK_ID == "cadd_drug_design"
+    assert set(manifest["engine_pillars"]) == {"molorigin", "molcat", "prism", "moldarwin_design"}
+    assert manifest["active_skill_count"] == 15
     assert len(manifest["fidelity_ladder"]) == 5
     probe = pack.probe_capabilities()
     assert "gromacs" in probe
+    assert "pillars" in probe
     assert "hrex_multidir_available" in probe["gromacs"]
 
     # 5. Adaptive lambda refinement rounds cleanly to 4 decimal places matching GROMACS .xvg headers

@@ -150,26 +150,42 @@ TOOL_PACKS: dict[str, frozenset[str]] = {
 }
 
 
-#: Empirical Verb-Census tier classification for every optional pack (Evidence: measured_here,
-#: 6 live multi-GPU campaigns / 134 calls via ``tools/verb_census.py``).
-#: - ``active_domain``: default v2 domain pack (with THIN_CORE_TOOLS covers 98.5-100% of live calls).
-#: - ``l3_governance``: wet-lab spend authorization, waiver, and FEP network design (L2 -> L3 gate).
-#: - ``optional_data``: MolOrigin data acquisition and assay import utilities.
-#: - ``legacy``: 0 calls across all 6 live campaigns; retained strictly for backward-compat opt-in.
+#: Domain-principled tier classification for every optional pack (Evidence: convention /
+#: three-pillar CADD architecture).
+#: - ``core_pillar``: the three equal vendored CADD engines — ``data`` (MolOrigin),
+#:   ``screening`` (MolCat 53 plugins), and ``prism`` (PRISM 3D/MD/FEP bridge).
+#: - ``drug_design_loop``: closed-loop DMTA active learning (``active``) and durable
+#:   cross-pillar DAG orchestration (``workflow``).
+#: - ``l3_governance``: wet-lab spend authorization, waiver, council adjudication, and
+#:   FEP perturbation-network design (L2 -> L3 gate).
+#: - ``legacy``: historical brute-force sweep / verbose planning / extended research verbs;
+#:   retained strictly for backward-compat opt-in.
 PACK_TIERS: dict[str, str] = {
-    "prism": "active_domain",
+    "data": "core_pillar",
+    "screening": "core_pillar",
+    "prism": "core_pillar",
+    "active": "drug_design_loop",
+    "workflow": "drug_design_loop",
     "governance": "l3_governance",
-    "data": "optional_data",
-    "screening": "legacy",
     "sweep": "legacy",
-    "active": "legacy",
-    "workflow": "legacy",
     "planning": "legacy",
     "research-extended": "legacy",
 }
 
-#: Recommended default packs for lean MolDarwin v2 autonomous CADD sessions (16 core + 6 prism = 22 tools).
-RECOMMENDED_V2_PACKS: tuple[str, ...] = ("prism",)
+#: Mapping from core-pillar MCP pack name to the vendored CADD engine it governs.
+PACK_ENGINE_PILLARS: dict[str, str] = {
+    "data": "molorigin",
+    "screening": "molcat",
+    "prism": "prism",
+}
+
+#: The three balanced core CADD engine packs (MolOrigin + MolCat + PRISM).
+THREE_PILLAR_PACKS: tuple[str, ...] = ("data", "screening", "prism")
+
+#: Recommended v2 domain packs for balanced end-to-end drug-design sessions.
+#: Callers running a narrow single-engine step may still opt into just one pillar (e.g.
+#: ``packs=("screening",)`` or ``packs=("prism",)``) on top of the 16 ``THIN_CORE_TOOLS``.
+RECOMMENDED_V2_PACKS: tuple[str, ...] = THREE_PILLAR_PACKS
 
 
 def resolve_profile(profile: str | None = None) -> str:
@@ -209,17 +225,20 @@ def pack_summary() -> dict[str, int]:
 
 
 def pack_catalog(*, include_legacy: bool = True) -> dict[str, dict[str, Any]]:
-    """Tiered pack catalog distinguishing active v2 / L3 packs from zero-use legacy packs."""
+    """Tiered pack catalog separating core CADD pillars and DMTA packs from legacy packs."""
     out: dict[str, dict[str, Any]] = {}
     for name, tools in sorted(TOOL_PACKS.items()):
         tier = PACK_TIERS.get(name, "legacy")
         if not include_legacy and tier == "legacy":
             continue
-        out[name] = {
+        entry: dict[str, Any] = {
             "tool_count": len(tools),
             "tier": tier,
             "recommended_default": name in RECOMMENDED_V2_PACKS,
         }
+        if name in PACK_ENGINE_PILLARS:
+            entry["engine_pillar"] = PACK_ENGINE_PILLARS[name]
+        out[name] = entry
     return out
 
 
@@ -248,10 +267,12 @@ class FilteredServer:
 __all__ = [
     "ENV_PACKS",
     "ENV_PROFILE",
+    "PACK_ENGINE_PILLARS",
     "PACK_TIERS",
     "PROFILES",
     "RECOMMENDED_V2_PACKS",
     "THIN_CORE_TOOLS",
+    "THREE_PILLAR_PACKS",
     "TOOL_PACKS",
     "FilteredServer",
     "allowed_tools",

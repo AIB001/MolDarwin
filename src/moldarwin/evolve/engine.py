@@ -22,74 +22,201 @@ from typing import Any
 
 EVOLUTION_GENERATION_SCHEMA = "moldarwin-evolution-generation/1"
 PROTOCOL_TOURNAMENT_SCHEMA = "moldarwin-protocol-tournament/1"
+REACTION_ENUMERATION_SCHEMA = "moldarwin-reaction-analogs/1"
 
 #: Default z-multiplier for branch confidence-interval overlap protection (~95% CI, Evidence: convention).
 DEFAULT_UNCERTAINTY_Z: float = 1.96
 
-#: Clean neutral medicinal-chemistry bioisostere & R-group mutation SMIRKS (Evidence: literature).
-#: All preserve formal neutrality so analogs remain directly eligible for neutral RBFE networks.
+#: Clean neutral medicinal-chemistry bioisostere, soft-spot blocking, and heterocycle-hop SMIRKS
+#: (Evidence: literature). All preserve formal neutrality so analogs remain directly eligible
+#: for neutral RBFE networks.
 BIOISOSTERE_MUTATIONS: tuple[dict[str, str], ...] = (
+    # --- Liability rescue ---
     {
         "name": "nitro_to_cyano",
+        "category": "liability_rescue",
         "smirks": "[c:1][$([NX3](=O)=O),$([NX3+](=O)[O-])]>>[c:1]C#N",
         "rationale": "Replace nitroaromatic liability with polar, metabolically stable nitrile.",
     },
     {
         "name": "nitro_to_cf3",
+        "category": "liability_rescue",
         "smirks": "[c:1][$([NX3](=O)=O),$([NX3+](=O)[O-])]>>[c:1]C(F)(F)F",
         "rationale": "Replace nitroaromatic with electron-withdrawing -CF3 bioisostere.",
     },
     {
         "name": "nitro_to_methylsulfone",
+        "category": "liability_rescue",
         "smirks": "[c:1][$([NX3](=O)=O),$([NX3+](=O)[O-])]>>[c:1]S(=O)(=O)C",
         "rationale": "Replace nitroaromatic with H-bond-accepting sulfone while lowering cLogP.",
     },
     {
         "name": "nitro_to_carboxamide",
+        "category": "liability_rescue",
         "smirks": "[c:1][$([NX3](=O)=O),$([NX3+](=O)[O-])]>>[c:1]C(=O)N",
         "rationale": "Replace nitroaromatic with polar H-bond donor/acceptor carboxamide.",
     },
     {
         "name": "nitro_to_fluoro",
+        "category": "liability_rescue",
         "smirks": "[c:1][$([NX3](=O)=O),$([NX3+](=O)[O-])]>>[c:1]F",
         "rationale": "Compact electron-withdrawing fluoro replacement.",
     },
+    # --- Halogen / steric / polarity probes ---
     {
         "name": "chloro_to_fluoro",
+        "category": "steric_polarity_probe",
         "smirks": "[c:1]Cl>>[c:1]F",
         "rationale": "Trim lipophilicity and steric bulk on chloroaryl ring.",
     },
     {
         "name": "chloro_to_methyl",
+        "category": "steric_polarity_probe",
         "smirks": "[c:1]Cl>>[c:1]C",
         "rationale": "Classic Cl -> Me steric/electronic probe for hydrophobic subpockets.",
     },
     {
         "name": "chloro_to_cyano",
+        "category": "steric_polarity_probe",
         "smirks": "[c:1]Cl>>[c:1]C#N",
         "rationale": "Polar nitrile substitution probing directional H-bond acceptors.",
     },
     {
+        "name": "chloro_to_cf3",
+        "category": "steric_polarity_probe",
+        "smirks": "[c:1]Cl>>[c:1]C(F)(F)F",
+        "rationale": "Expand hydrophobic halogen vector with metabolically robust -CF3.",
+    },
+    {
+        "name": "fluoro_to_chloro",
+        "category": "steric_polarity_probe",
+        "smirks": "[c:1]F>>[c:1]Cl",
+        "rationale": "Probe hydrophobic/halogen-bond subpocket depth from aryl-F.",
+    },
+    {
+        "name": "fluoro_to_cyano",
+        "category": "steric_polarity_probe",
+        "smirks": "[c:1]F>>[c:1]C#N",
+        "rationale": "Convert aryl-F into directional polar nitrile acceptor while lowering cLogP.",
+    },
+    {
+        "name": "fluoro_to_methyl",
+        "category": "steric_polarity_probe",
+        "smirks": "[c:1]F>>[c:1]C",
+        "rationale": "Probe steric complementarity at fluoroaryl vector.",
+    },
+    {
+        "name": "bromo_to_cyclopropyl",
+        "category": "steric_polarity_probe",
+        "smirks": "[c:1]Br>>[c:1]C1CC1",
+        "rationale": "Replace heavy bromo with compact 3D cyclopropyl increasing Fsp3.",
+    },
+    {
+        "name": "bromo_to_cyano",
+        "category": "steric_polarity_probe",
+        "smirks": "[c:1]Br>>[c:1]C#N",
+        "rationale": "Replace bromo with polar nitrile boosting LLE.",
+    },
+    # --- Metabolic soft-spot blocking ---
+    {
         "name": "methyl_to_ethyl",
+        "category": "steric_polarity_probe",
         "smirks": "[c:1][CH3]>>[c:1]CC",
         "rationale": "Small hydrophobic growth probing subpocket depth.",
     },
     {
         "name": "methyl_to_methoxy",
+        "category": "steric_polarity_probe",
         "smirks": "[c:1][CH3]>>[c:1]OC",
         "rationale": "Introduce polar H-bond acceptor oxygen on aryl substituent.",
     },
     {
         "name": "methyl_to_fluoro",
+        "category": "metabolic_blocking",
         "smirks": "[c:1][CH3]>>[c:1]F",
         "rationale": "Block benzylic metabolic oxidation with fluorine.",
     },
     {
+        "name": "methyl_to_cf3",
+        "category": "metabolic_blocking",
+        "smirks": "[c:1][CH3]>>[c:1]C(F)(F)F",
+        "rationale": "Block benzylic CYP oxidation while preserving hydrophobic steric volume.",
+    },
+    {
+        "name": "methyl_to_cyclopropyl",
+        "category": "metabolic_blocking",
+        "smirks": "[c:1][CH3]>>[c:1]C1CC1",
+        "rationale": "Replace benzylic methyl with rigid 3D cyclopropyl to raise Fsp3 and stability.",
+    },
+    {
+        "name": "methoxy_to_ocf3",
+        "category": "metabolic_blocking",
+        "smirks": "[c:1]O[CH3]>>[c:1]OC(F)(F)F",
+        "rationale": "Block CYP O-dealkylation soft-spot via metabolically stable -OCF3.",
+    },
+    {
+        "name": "methoxy_to_fluoro",
+        "category": "metabolic_blocking",
+        "smirks": "[c:1]O[CH3]>>[c:1]F",
+        "rationale": "Remove O-dealkylation soft-spot and reduce MW/TPSA.",
+    },
+    {
+        "name": "methoxy_to_cyano",
+        "category": "metabolic_blocking",
+        "smirks": "[c:1]O[CH3]>>[c:1]C#N",
+        "rationale": "Replace O-methyl soft-spot with polar nitrile acceptor to boost LLE.",
+    },
+    # --- C-H exit-vector scan & heterocycle hop (enabled via include_ch_scan=True) ---
+    {
         "name": "aryl_ch_to_fluoro",
+        "category": "ch_scan",
         "smirks": "[cH1:1]>>[c:1]F",
         "rationale": "Single aromatic fluorine scan for metabolic blocking and dipole tuning.",
     },
+    {
+        "name": "aryl_ch_to_methyl",
+        "category": "ch_scan",
+        "smirks": "[cH1:1]>>[c:1]C",
+        "rationale": "Magic-methyl aromatic scan probing hydrophobic subpockets and conformational lock.",
+    },
+    {
+        "name": "aryl_ch_to_cyano",
+        "category": "ch_scan",
+        "smirks": "[cH1:1]>>[c:1]C#N",
+        "rationale": "Aromatic nitrile scan probing directional H-bond acceptors and water displacement.",
+    },
+    {
+        "name": "aryl_ch_to_pyridyl_n",
+        "category": "ch_scan",
+        "smirks": "[cH1:1]1[c:2][c:3][c:4][c:5][c:6]1>>[n:1]1[c:2][c:3][c:4][c:5][c:6]1",
+        "rationale": "Nitrogen-walk phenyl -> pyridyl heterocycle hop to lower cLogP and improve LLE/solubility.",
+    },
 )
+
+#: Classic high-reliability medicinal-chemistry coupling reactions for building-block enumeration
+#: (Evidence: literature, standard parallel medchem library synthesis reactions).
+MEDCHEM_REACTIONS: dict[str, dict[str, str]] = {
+    "amide_coupling": {
+        "smirks": "[C:1](=[O:2])[OH].[N;H2,H1;!$(NC=O);!$(NS=O):3]>>[C:1](=[O:2])[N:3]",
+        "rationale": "Carboxylic acid + primary/secondary amine amide bond formation (HATU/EDC).",
+    },
+    "suzuki_miyaura": {
+        "smirks": "[c:1][Br,I,Cl].[c:2]B(O)O>>[c:1][c:2]",
+        "rationale": "Aryl halide + aryl boronic acid Pd-catalyzed biaryl coupling.",
+    },
+    "buchwald_hartwig": {
+        "smirks": "[c:1][Br,I].[N;H2,H1;!$(NC=O);!$(NS=O):2]>>[c:1][N:2]",
+        "rationale": "Aryl bromide/iodide + amine Pd-catalyzed C-N cross-coupling.",
+    },
+    "sulfonamidation": {
+        "smirks": "[S:1](=[O:2])(=[O:3])Cl.[N;H2,H1;!$(NC=O);!$(NS=O):4]>>[S:1](=[O:2])(=[O:3])[N:4]",
+        "rationale": "Sulfonyl chloride + amine sulfonamide formation.",
+    },
+    "snar_heteroaryl_amine": {
+        "smirks": "[c:1]([F,Cl])[n:2].[N;H2,H1;!$(NC=O);!$(NS=O):3]>>[c:1]([N:3])[n:2]",
+        "rationale": "2-Halo-azaarene + amine nucleophilic aromatic substitution (SNAr).",
+    },
+}
 
 
 def generate_bioisostere_analogs(
@@ -101,14 +228,18 @@ def generate_bioisostere_analogs(
     target_class: str = "general",
     sar_mutation_weights: Mapping[str, float] | None = None,
     custom_mutations: Sequence[Mapping[str, str]] = (),
+    protected_atom_indices: Sequence[int] = (),
 ) -> dict[str, Any]:
     """Generate deduplicated, neutral, synthesizable R-group/bioisostere analogs of a parent lead.
 
-    Optional target-adaptive inputs:
+    Optional structure- & SAR-adaptive inputs:
       - ``sar_mutation_weights``: mapping of ``mutation_name -> priority_weight`` learned from
         empirical target MMP/SAR data (higher weights are expanded first under ``max_analogs``).
       - ``custom_mutations``: additional target-specific neutral SMIRKS rules
         (``{"name", "smirks", "rationale"}``) evaluated alongside built-ins.
+      - ``protected_atom_indices``: 0-based heavy-atom indices (e.g. ``anchor_atom_indices`` from
+        ``moldarwin.design.pocket.profile_3d_pocket_and_vectors``) that must NOT be altered,
+        preventing mutations from breaking critical 3D H-bond/hinge pharmacophore anchors.
     """
     from rdkit import Chem
     from rdkit.Chem import AllChem
@@ -121,18 +252,23 @@ def generate_bioisostere_analogs(
     parent_can = Chem.MolToSmiles(parent, canonical=True)
     parent_charge = Chem.GetFormalCharge(parent)
 
+    protected_set = sorted({int(i) for i in protected_atom_indices if 0 <= int(i) < parent.GetNumAtoms()})
+    for idx_p in protected_set:
+        parent.GetAtomWithIdx(idx_p).SetProp("_protected", "1")
+
     weights = {str(k): float(v) for k, v in (sar_mutation_weights or {}).items()}
     rule_pool: list[tuple[int, dict[str, str], str]] = []
     idx = 0
     for rule in custom_mutations:
         rule_pool.append((idx, {
             "name": str(rule["name"]),
+            "category": str(rule.get("category") or "target_custom"),
             "smirks": str(rule["smirks"]),
             "rationale": str(rule.get("rationale") or "target-specific SAR transform"),
         }, "target_custom"))
         idx += 1
     for rule in BIOISOSTERE_MUTATIONS:
-        if rule["name"] == "aryl_ch_to_fluoro" and not include_ch_scan:
+        if rule.get("category") == "ch_scan" and not include_ch_scan:
             continue
         rule_pool.append((idx, dict(rule), "builtin"))
         idx += 1
@@ -167,6 +303,7 @@ def generate_bioisostere_analogs(
                 "parent_id": parent_id,
                 "smiles": can,
                 "mutation": rule["name"],
+                "category": rule.get("category", "builtin"),
                 "mutation_source": source,
                 "mutation_priority_weight": round(weights.get(rule["name"], 0.0), 4),
                 "rationale": rule["rationale"],
@@ -191,10 +328,126 @@ def generate_bioisostere_analogs(
         "parent_id": parent_id,
         "parent_smiles": parent_can,
         "parent_formal_charge": parent_charge,
+        "protected_atom_indices": protected_set,
         "sar_weighted": bool(weights),
         "custom_rule_count": len(custom_mutations),
         "analog_count": len(analogs),
         "analogs": analogs,
+    }
+
+
+def enumerate_reaction_analogs(
+    core_smiles: str,
+    building_blocks: Sequence[str | Mapping[str, Any]],
+    *,
+    reaction_name: str,
+    core_id: str = "core",
+    mpo_profile: str = "oral",
+    max_products: int = 48,
+    require_neutral: bool = True,
+    protected_core_atom_indices: Sequence[int] = (),
+) -> dict[str, Any]:
+    """Enumerate wet-lab-synthesizable analogs by coupling a reactive core with building blocks.
+
+    Uses standard medicinal-chemistry coupling templates (``MEDCHEM_REACTIONS``) paired with
+    purchasable reagents (e.g. sourced via ``molorigin-compound-sourcing``) and scores each
+    product with continuous MPO/soft-spot profiling (``moldarwin.design.dmta``).
+    """
+    from rdkit import Chem
+    from rdkit.Chem import AllChem
+
+    from moldarwin.design.dmta import score_drug_design_mpo
+
+    if reaction_name not in MEDCHEM_REACTIONS:
+        raise ValueError(
+            f"unknown reaction {reaction_name!r}; expected one of {sorted(MEDCHEM_REACTIONS)}"
+        )
+    rxn_meta = MEDCHEM_REACTIONS[reaction_name]
+    rxn = AllChem.ReactionFromSmarts(rxn_meta["smirks"])
+    if rxn is None:
+        raise ValueError(f"failed to compile reaction SMIRKS for {reaction_name!r}")
+
+    core_mol = Chem.MolFromSmiles(core_smiles)
+    if core_mol is None:
+        raise ValueError(f"invalid core SMILES: {core_smiles!r}")
+    core_can = Chem.MolToSmiles(core_mol, canonical=True)
+    protected_set = sorted(
+        {int(i) for i in protected_core_atom_indices if 0 <= int(i) < core_mol.GetNumAtoms()}
+    )
+    for idx_p in protected_set:
+        core_mol.GetAtomWithIdx(idx_p).SetProp("_protected", "1")
+
+    seen: set[str] = {core_can}
+    products_out: list[dict[str, Any]] = []
+    skipped_blocks: list[dict[str, str]] = []
+
+    for b_idx, raw_bb in enumerate(building_blocks):
+        if isinstance(raw_bb, str):
+            bb_id, bb_smi = f"bb_{b_idx + 1}", raw_bb
+        else:
+            bb_id = str(raw_bb.get("id") or f"bb_{b_idx + 1}")
+            bb_smi = str(raw_bb.get("smiles") or "")
+        bb_mol = Chem.MolFromSmiles(bb_smi)
+        if bb_mol is None:
+            skipped_blocks.append({"building_block_id": bb_id, "reason": "invalid_smiles"})
+            continue
+        bb_can = Chem.MolToSmiles(bb_mol, canonical=True)
+
+        # Try both reactant orderings so core can act as either partner (e.g. acid or amine)
+        raw_prods = list(rxn.RunReactants((core_mol, bb_mol))) + list(rxn.RunReactants((bb_mol, core_mol)))
+        if not raw_prods:
+            skipped_blocks.append({"building_block_id": bb_id, "reason": "no_reactive_match"})
+            continue
+
+        for p_tuple in raw_prods:
+            if not p_tuple:
+                continue
+            pmol = p_tuple[0]
+            try:
+                Chem.SanitizeMol(pmol)
+            except Exception:  # noqa: BLE001
+                continue
+            if require_neutral and Chem.GetFormalCharge(pmol) != 0:
+                continue
+            can = Chem.MolToSmiles(pmol, canonical=True)
+            if can in seen:
+                continue
+            seen.add(can)
+            mpo = score_drug_design_mpo(can, profile=mpo_profile)
+            products_out.append({
+                "analog_id": f"{core_id}_{reaction_name}_{bb_id}_{len(products_out) + 1}",
+                "smiles": can,
+                "reaction": reaction_name,
+                "reaction_rationale": rxn_meta["rationale"],
+                "core_id": core_id,
+                "building_block_id": bb_id,
+                "building_block_smiles": bb_can,
+                "mpo_score": mpo["mpo_score"],
+                "mw": mpo["descriptors"]["mw"],
+                "clogp": mpo["descriptors"]["clogp"],
+                "tpsa": mpo["descriptors"]["tpsa"],
+                "fsp3": mpo["descriptors"]["fsp3"],
+                "esol_log_s": mpo["descriptors"]["esol_log_s"],
+                "herg_risk": mpo["herg_risk"],
+                "hard_red_flags": mpo["hard_red_flags"],
+                "soft_spot_count": len(mpo["metabolic_soft_spots"]),
+            })
+            if len(products_out) >= max_products:
+                break
+        if len(products_out) >= max_products:
+            break
+
+    products_out.sort(key=lambda r: (-r["mpo_score"], r["soft_spot_count"], r["mw"]))
+    return {
+        "schema": REACTION_ENUMERATION_SCHEMA,
+        "core_id": core_id,
+        "core_smiles": core_can,
+        "reaction": reaction_name,
+        "mpo_profile": mpo_profile,
+        "protected_core_atom_indices": protected_set,
+        "product_count": len(products_out),
+        "skipped_building_blocks": skipped_blocks,
+        "products": products_out,
     }
 
 
@@ -410,7 +663,10 @@ __all__ = [
     "BIOISOSTERE_MUTATIONS",
     "DEFAULT_UNCERTAINTY_Z",
     "EVOLUTION_GENERATION_SCHEMA",
+    "MEDCHEM_REACTIONS",
     "PROTOCOL_TOURNAMENT_SCHEMA",
+    "REACTION_ENUMERATION_SCHEMA",
+    "enumerate_reaction_analogs",
     "generate_bioisostere_analogs",
     "prune_protocol_branches",
     "rank_evolution_generation",

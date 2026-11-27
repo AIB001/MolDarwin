@@ -48,21 +48,25 @@ _TEXT_KEYS = frozenset({
 })
 _MATURITIES = frozenset({"draft", "validated", "retired"})
 
-#: 12 orthogonal, high-signal active v2 built-in skills (Evidence: measured_here,
-#: 6-campaign Verb Census pruning 21 overlapping/sweep-era historical skills out of
-#: default Tier-1 discovery while keeping every bundle readable via moldarwin_skill_read
-#: or discoverable with include_legacy=True).
+#: 15 orthogonal, three-pillar active v2 built-in skills (Evidence: convention /
+#: balanced MolOrigin + MolCat + PRISM + Drug-Design DMTA coverage, hiding overlapping
+#: sweep-era historical skills from default Tier-1 discovery while keeping every bundle
+#: readable via moldarwin_skill_read or discoverable with include_legacy=True).
 ACTIVE_V2_BUILTIN_SKILLS: frozenset[str] = frozenset({
     # Core autonomy, epistemology, decisions, and target controls (4)
     "autonomous-planning",
     "research",
     "research-decision",
     "target-parameters",
-    # Physics simulation and RSI method/skill creation (3)
-    "prism-physics",
+    # Cross-pillar drug-design reasoning + RSI method/skill creation (3)
+    "drug-design",
     "method-optimization",
     "rsi-skill-creator",
-    # Chemical discovery, selectivity, and synthesizable sourcing (5)
+    # MolCat screening gate calibration & PRISM 3D generation + physics (3)
+    "gate-calibration",
+    "generation-planning",
+    "prism-physics",
+    # MolOrigin chemical discovery, selectivity, and synthesizable sourcing (5)
     "molorigin-structure-templates",
     "molorigin-assay-literature",
     "molorigin-selectivity-evidence",

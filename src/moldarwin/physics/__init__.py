@@ -1,10 +1,17 @@
-"""Thin, composable physics preflight and PRISM <-> MolDarwin RSI primitives.
+"""Physics verification boundary and explicitly bounded PRISM runtime compatibility shims.
 
-Deliberately avoids rigid monolithic workflows: hardens only low-level physical/ABI
-invariants (blank SDF titles, scorer element compatibility, GROMACS 2026 EM/posre
-compatibility, TPR v138 trajectory fallback) and structured physical readouts so
-host agents stay free to adapt protocols while PRISM MD/FEP reality feeds MolDarwin's
-RSI loop. Never edits ``asset/`` (Hard Constraint 6).
+Architectural boundary (see ``docs/thin-harness/THREE_PILLAR_BOUNDARY.md``):
+  1. **MolDarwin scientific verification boundary** (``moldarwin_scientific_boundary``):
+     ``preflight``, ``rescoring``, and ``prism_gen`` enforce Any-Origin 3D geometry/element
+     invariants, tie-aware rescorer calibration, and pose qualification across engines.
+  2. **PRISM runtime compatibility shims** (``prism_runtime_compat_shim``):
+     ``prism_bridge``, ``prism_fep``, ``adaptive``, and ``enhanced_sampling`` bridge pinned
+     ``asset/prism`` (commit ``f0492d9``, frozen under Hard Constraint 6) to GROMACS 2026 and
+     provide sampling/network diagnostics. These modules are frozen to bugfixes only and
+     scheduled for upstream migration into ``AIB001/PRISM`` — they are NOT MolDarwin's core
+     drug-design identity.
+
+Never edits ``asset/`` (Hard Constraint 6).
 """
 
 from moldarwin.physics.adaptive import (
@@ -69,6 +76,57 @@ from moldarwin.physics.rescoring import (
     evaluate_rescorer_panel,
 )
 
+#: Explicit architectural classification of every module in ``moldarwin.physics``.
+#: Prevents GROMACS/PRISM simulation internals from silently growing inside MolDarwin.
+PHYSICS_MODULE_BOUNDARIES: dict[str, dict[str, str]] = {
+    "preflight": {
+        "layer": "moldarwin_scientific_boundary",
+        "owner": "moldarwin",
+        "freeze_policy": "active_boundary",
+        "summary": "Any-Origin 3D geometry/clash/element preflight, conserved bridge waters, soft medchem flags.",
+    },
+    "rescoring": {
+        "layer": "moldarwin_scientific_boundary",
+        "owner": "moldarwin",
+        "freeze_policy": "active_boundary",
+        "summary": "Tie-aware ROC-AUC/EF calibration, paired RSI rescorer comparison, property-shortcut check.",
+    },
+    "prism_gen": {
+        "layer": "moldarwin_scientific_boundary",
+        "owner": "moldarwin",
+        "freeze_policy": "active_boundary",
+        "summary": "Honest PRISM 6-model SBDD adapter discovery and Any-Origin 3D pose qualification.",
+    },
+    "prism_bridge": {
+        "layer": "prism_runtime_compat_shim",
+        "owner": "upstream_prism_candidate",
+        "upstream_target": "AIB001/PRISM:prism/builder + prism/analysis",
+        "freeze_policy": "bugfix_only_until_upstreamed_to_prism",
+        "summary": "GROMACS 2026 EM/posre/PROPKA/TPR-v138/PBC-unwrap shim around frozen asset/prism.",
+    },
+    "prism_fep": {
+        "layer": "prism_runtime_compat_shim",
+        "owner": "upstream_prism_candidate",
+        "upstream_target": "AIB001/PRISM:prism/fep",
+        "freeze_policy": "bugfix_only_until_upstreamed_to_prism",
+        "summary": "PRISM v1.2.0 SDF->GRO guard, MBAR MDP patching, 4-decimal lambda rounding, cycle-closure audit.",
+    },
+    "adaptive": {
+        "layer": "prism_runtime_compat_shim",
+        "owner": "upstream_prism_candidate",
+        "upstream_target": "AIB001/PRISM:prism/fep + prism/sim",
+        "freeze_policy": "bugfix_only_until_upstreamed_to_prism",
+        "summary": "Overlap-driven adaptive lambda refinement, selective window extension, -update cpu packed runner.",
+    },
+    "enhanced_sampling": {
+        "layer": "prism_runtime_compat_shim",
+        "owner": "upstream_prism_candidate",
+        "upstream_target": "AIB001/PRISM:prism/fep + prism/sim",
+        "freeze_policy": "bugfix_only_until_upstreamed_to_prism",
+        "summary": "Geodesic thermodynamic-length lambda schedule, Metropolized-Gibbs EE MDP builder, Huber FEP graph.",
+    },
+}
+
 __all__ = [
     "ADAPTIVE_LAMBDA_SCHEMA",
     "COMPLEX_ORIGINS",
@@ -78,6 +136,7 @@ __all__ = [
     "GEODESIC_SCHEDULE_SCHEMA",
     "MD_READOUT_SCHEMA",
     "PACKED_FEP_RUNNER_SCHEMA",
+    "PHYSICS_MODULE_BOUNDARIES",
     "RESCORE_COMPARE_SCHEMA",
     "RESCORE_EVAL_SCHEMA",
     "ROBUST_NETWORK_SCHEMA",

@@ -70,7 +70,8 @@ def register(mcp: Any) -> None:
                             tools: list[str] | None = None,
                             operations: list[str] | None = None,
                             include_environment: bool = False,
-                            include_data_sources: bool = False) -> str:
+                            include_data_sources: bool = False,
+                            include_pillars: bool = False) -> str:
         """FREE. Discover all or selected capabilities; known tools need no discovery call.
 
         Defaults retain the full catalog. detail='summary' omits file manifests.
@@ -79,6 +80,8 @@ def register(mcp: Any) -> None:
         Set include_environment=True for a compact live compute/GPU/engine/charter snapshot
         without exploratory shell turns. Set include_data_sources=True for read-only
         MolOrigin data-source availability without enabling the optional data pack.
+        Set include_pillars=True for a read-only inventory of all three CADD engine pillars
+        (MolOrigin, MolCat 53 plugins, PRISM) plus MolDarwin's cross-pillar design brain.
         Summary includes entrypoints and complete selected-bundle version digests;
         detail='full' expands their member inventory. This is not a method whitelist.
         tools lists only this server's callable registrations. operations describes the
@@ -115,10 +118,13 @@ def register(mcp: Any) -> None:
             extra["environment_card"] = format_environment_card(env)
         if include_data_sources:
             try:
-                from moldarwin.boundary.molorigin import sources as molorigin_sources
-                extra["data_sources"] = molorigin_sources()
+                from moldarwin.boundary.quarry import describe as molorigin_describe
+                extra["data_sources"] = molorigin_describe(None)
             except Exception as exc:  # noqa: BLE001
                 extra["data_sources"] = {"available": False, "error": f"{type(exc).__name__}: {exc}"}
+        if include_pillars:
+            from moldarwin.domain_pack import get_cadd_domain_pack
+            extra["pillars"] = get_cadd_domain_pack().probe_pillars()
         return ok(**report, **extra, tools=tool_report, operations=operation_report,
                   runtime={"python": sys.executable, "module": str(Path(__file__).resolve()),
                            "durable_workers": "Linux /proc and POSIX locks required"})
@@ -134,8 +140,8 @@ def register(mcp: Any) -> None:
 
         Reads only YAML frontmatter headers (never full bodies or references), so context
         stays O(1) even with hundreds of fine-grained target/method skills. Defaults to the
-        12 active v2 built-in skills plus all live generated skills (set include_legacy=True
-        to include archived/overlapping historical built-in skills). Set list_domains=True
+        15 active three-pillar v2 built-in skills plus all live generated skills (set
+        include_legacy=True to include archived/overlapping historical built-in skills). Set list_domains=True
         for a compact domain/tag taxonomy overview, or pass query/domain/tags to get top-K
         cards carrying applicable_when, invalid_when, and ready arguments for
         moldarwin_skill_read. Live directories from extra_dirs or MOLDARWIN_SKILL_DIRS are
