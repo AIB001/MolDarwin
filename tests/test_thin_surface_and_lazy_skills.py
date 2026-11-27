@@ -349,3 +349,64 @@ def test_write_generated_skill_and_method_boundary_recall(tmp_path):
     assert row["applicable_when"] == "Target has both active and inactive screening controls."
     assert row["invalid_when"] == ["no_inactive_controls", "unmapped_panel_ids"]
     assert row["comparison_ref"] == cmp_ref
+
+
+def test_v2_slimming_hides_legacy_skills_tiers_packs_and_exports_cadd_domain_pack():
+    """Direction 2: 33 -> 12 active v2 built-in skills, tiered MCP packs, capabilities data_sources,
+    4-decimal adaptive lambdas, and clean CaddDomainPack kernel boundary."""
+    from moldarwin.domain_pack import DOMAIN_PACK_SCHEMA, get_cadd_domain_pack
+    from moldarwin.mcp.profiles import PACK_TIERS, RECOMMENDED_V2_PACKS, pack_catalog
+    from moldarwin.physics.adaptive import refine_lambda_schedule_from_overlap
+    from moldarwin.skill_index import ACTIVE_V2_BUILTIN_SKILLS
+
+    # 1. Active v2 built-in skills slimmed cleanly to 12; legacy hidden unless include_legacy=True
+    assert len(ACTIVE_V2_BUILTIN_SKILLS) == 12
+    assert set(skills.WORKFLOWS) >= ACTIVE_V2_BUILTIN_SKILLS
+
+    tax_default = find_skills(list_domains=True)
+    assert tax_default["by_source"]["builtin"] == 12
+    assert tax_default["legacy_hidden"] == len(skills.WORKFLOWS) - 12
+
+    tax_all = find_skills(list_domains=True, include_legacy=True)
+    assert tax_all["by_source"]["builtin"] == len(skills.WORKFLOWS)
+    assert tax_all["legacy_hidden"] == 0
+
+    # Legacy sweep skill is hidden from default search, visible when include_legacy=True
+    sweep_default = find_skills(query="screening sweep", source="builtin", limit=10)
+    assert all(row["slug"] != "sweep" for row in sweep_default["skills"])
+    sweep_legacy = find_skills(query="screening sweep", source="builtin", include_legacy=True, limit=10)
+    assert any(row["slug"] == "sweep" for row in sweep_legacy["skills"])
+
+    # 2. Tiered MCP packs separate active_domain / l3_governance / optional_data from legacy
+    assert RECOMMENDED_V2_PACKS == ("prism",)
+    assert PACK_TIERS["prism"] == "active_domain"
+    assert PACK_TIERS["governance"] == "l3_governance"
+    assert PACK_TIERS["sweep"] == "legacy"
+    active_packs = pack_catalog(include_legacy=False)
+    assert set(active_packs) == {"prism", "governance", "data"}
+
+    # 3. Thin server capabilities exposes pack_tiers + optional read-only data_sources
+    thin_server = build(profile="thin")
+    caps = _call_mcp(
+        thin_server,
+        "moldarwin_capabilities",
+        {"detail": "summary", "skills": [], "operations": [], "include_data_sources": True},
+    )
+    assert caps["ok"] is True
+    assert "pack_tiers" in caps
+    assert "data_sources" in caps
+
+    # 4. CaddDomainPack cleanly declares the 22-tool / 12-skill / 5-tier boundary + MPI/HREX probe
+    pack = get_cadd_domain_pack()
+    manifest = pack.manifest()
+    assert manifest["schema"] == DOMAIN_PACK_SCHEMA
+    assert manifest["mcp_surface"]["total_v2_tools"] == 22
+    assert manifest["active_skill_count"] == 12
+    assert len(manifest["fidelity_ladder"]) == 5
+    probe = pack.probe_capabilities()
+    assert "gromacs" in probe
+    assert "hrex_multidir_available" in probe["gromacs"]
+
+    # 5. Adaptive lambda refinement rounds cleanly to 4 decimal places matching GROMACS .xvg headers
+    ref = refine_lambda_schedule_from_overlap([0.0, 0.1375, 0.2, 1.0], [0.2, 0.002, 0.2], min_overlap=0.05)
+    assert all(round(x, 4) == x for x in ref["refined_lambdas"])

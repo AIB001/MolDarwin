@@ -48,6 +48,28 @@ _TEXT_KEYS = frozenset({
 })
 _MATURITIES = frozenset({"draft", "validated", "retired"})
 
+#: 12 orthogonal, high-signal active v2 built-in skills (Evidence: measured_here,
+#: 6-campaign Verb Census pruning 21 overlapping/sweep-era historical skills out of
+#: default Tier-1 discovery while keeping every bundle readable via moldarwin_skill_read
+#: or discoverable with include_legacy=True).
+ACTIVE_V2_BUILTIN_SKILLS: frozenset[str] = frozenset({
+    # Core autonomy, epistemology, decisions, and target controls (4)
+    "autonomous-planning",
+    "research",
+    "research-decision",
+    "target-parameters",
+    # Physics simulation and RSI method/skill creation (3)
+    "prism-physics",
+    "method-optimization",
+    "rsi-skill-creator",
+    # Chemical discovery, selectivity, and synthesizable sourcing (5)
+    "molorigin-structure-templates",
+    "molorigin-assay-literature",
+    "molorigin-selectivity-evidence",
+    "molorigin-analogue-search",
+    "molorigin-compound-sourcing",
+})
+
 # Deterministic lexical weights (Evidence: convention — search ranking aid only).
 _W_EXACT_NAME = 100
 _W_EXACT_TAG = 40
@@ -228,6 +250,7 @@ def _scan_all_headers(extra_roots: list[Path]) -> tuple[list[dict[str, Any]], li
                 **header,
                 "slug": slug,
                 "source": "builtin",
+                "surface_tier": "active_v2" if slug in ACTIVE_V2_BUILTIN_SKILLS else "legacy",
                 "domain": domain,
                 "domain_basis": domain_basis,
                 "_root": root,
@@ -268,6 +291,7 @@ def _scan_all_headers(extra_roots: list[Path]) -> tuple[list[dict[str, Any]], li
             entries.append({
                 **header,
                 "source": "generated",
+                "surface_tier": "generated",
                 "domain": domain,
                 "domain_basis": domain_basis,
                 "_root": child,
@@ -358,6 +382,7 @@ def _render_card(entry: dict[str, Any], *, score: int, matched_on: list[str]) ->
         "slug": entry["slug"],
         "name": entry["name"],
         "source": entry["source"],
+        "surface_tier": entry.get("surface_tier", "active_v2"),
         "domain": entry["domain"],
         "domain_basis": entry["domain_basis"],
         "tags": entry["tags"],
@@ -387,13 +412,17 @@ def find_skills(
     source: str | None = None,
     extra_dirs: list[str] | tuple[str, ...] | None = None,
     include_retired: bool = False,
+    include_legacy: bool = False,
     list_domains: bool = False,
     limit: int = 5,
 ) -> dict[str, Any]:
-    """Tier-1 lazy skill discovery over built-in and live generated skill directories.
+    """Tier-1 lazy skill discovery over active v2 built-in and live generated skill directories.
 
-    Reads only frontmatter headers (never full bodies or references). When ``list_domains``
-    is true, returns a compact domain/tag taxonomy histogram without returning skill cards.
+    Reads only frontmatter headers (never full bodies or references). Hides overlapping
+    legacy built-in skills by default (``include_legacy=False``) based on the 6-campaign
+    Verb Census; set ``include_legacy=True`` to search all historical bundles. When
+    ``list_domains`` is true, returns a compact domain/tag taxonomy histogram without
+    returning skill cards.
     """
     if not isinstance(query, str):
         raise ValueError("query must be text")
@@ -411,8 +440,13 @@ def find_skills(
     extra_roots = _configured_extra_dirs(extra_dirs)
     entries, skipped = _scan_all_headers(extra_roots)
 
-    # Filter retired unless explicitly requested.
-    active_entries = [e for e in entries if include_retired or e["maturity"] != "retired"]
+    # Filter retired and (by default) legacy overlapping built-in skills.
+    non_retired = [e for e in entries if include_retired or e["maturity"] != "retired"]
+    retired_hidden = len(entries) - len(non_retired)
+    active_entries = [
+        e for e in non_retired if include_legacy or e.get("surface_tier") != "legacy"
+    ]
+    legacy_hidden = len(non_retired) - len(active_entries)
 
     if list_domains:
         by_domain: dict[str, int] = {}
@@ -431,7 +465,8 @@ def find_skills(
             "schema": "moldarwin-skill-index/1",
             "mode": "taxonomy",
             "total_skills": len(active_entries),
-            "retired_hidden": len(entries) - len(active_entries),
+            "retired_hidden": retired_hidden,
+            "legacy_hidden": legacy_hidden,
             "by_domain": dict(sorted(by_domain.items())),
             "by_source": by_source,
             "top_tags": top_tags,
@@ -475,11 +510,14 @@ def find_skills(
             "tags": sorted(requested_tags),
             "source": source,
             "include_retired": include_retired,
+            "include_legacy": include_legacy,
         },
         "skills": cards,
         "coverage": {
             "scanned_skills": len(entries),
             "active_skills": len(active_entries),
+            "retired_hidden": retired_hidden,
+            "legacy_hidden": legacy_hidden,
             "matched_skills": len(candidates),
             "returned_skills": len(cards),
             "truncated": len(candidates) > len(cards),
@@ -586,6 +624,7 @@ def write_generated_skill(
 
 
 __all__ = [
+    "ACTIVE_V2_BUILTIN_SKILLS",
     "ENV_SKILL_DIRS",
     "find_skills",
     "parse_skill_header",

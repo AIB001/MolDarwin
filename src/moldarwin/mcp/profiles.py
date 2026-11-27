@@ -150,6 +150,28 @@ TOOL_PACKS: dict[str, frozenset[str]] = {
 }
 
 
+#: Empirical Verb-Census tier classification for every optional pack (Evidence: measured_here,
+#: 6 live multi-GPU campaigns / 134 calls via ``tools/verb_census.py``).
+#: - ``active_domain``: default v2 domain pack (with THIN_CORE_TOOLS covers 98.5-100% of live calls).
+#: - ``l3_governance``: wet-lab spend authorization, waiver, and FEP network design (L2 -> L3 gate).
+#: - ``optional_data``: MolOrigin data acquisition and assay import utilities.
+#: - ``legacy``: 0 calls across all 6 live campaigns; retained strictly for backward-compat opt-in.
+PACK_TIERS: dict[str, str] = {
+    "prism": "active_domain",
+    "governance": "l3_governance",
+    "data": "optional_data",
+    "screening": "legacy",
+    "sweep": "legacy",
+    "active": "legacy",
+    "workflow": "legacy",
+    "planning": "legacy",
+    "research-extended": "legacy",
+}
+
+#: Recommended default packs for lean MolDarwin v2 autonomous CADD sessions (16 core + 6 prism = 22 tools).
+RECOMMENDED_V2_PACKS: tuple[str, ...] = ("prism",)
+
+
 def resolve_profile(profile: str | None = None) -> str:
     value = (os.environ.get(ENV_PROFILE, "full") if profile is None else profile).strip().lower()
     if value not in PROFILES:
@@ -186,6 +208,21 @@ def pack_summary() -> dict[str, int]:
     return {name: len(tools) for name, tools in sorted(TOOL_PACKS.items())}
 
 
+def pack_catalog(*, include_legacy: bool = True) -> dict[str, dict[str, Any]]:
+    """Tiered pack catalog distinguishing active v2 / L3 packs from zero-use legacy packs."""
+    out: dict[str, dict[str, Any]] = {}
+    for name, tools in sorted(TOOL_PACKS.items()):
+        tier = PACK_TIERS.get(name, "legacy")
+        if not include_legacy and tier == "legacy":
+            continue
+        out[name] = {
+            "tool_count": len(tools),
+            "tier": tier,
+            "recommended_default": name in RECOMMENDED_V2_PACKS,
+        }
+    return out
+
+
 class FilteredServer:
     """Minimal proxy that forwards only allowlisted ``@mcp.tool()`` registrations."""
 
@@ -211,11 +248,14 @@ class FilteredServer:
 __all__ = [
     "ENV_PACKS",
     "ENV_PROFILE",
+    "PACK_TIERS",
     "PROFILES",
+    "RECOMMENDED_V2_PACKS",
     "THIN_CORE_TOOLS",
     "TOOL_PACKS",
     "FilteredServer",
     "allowed_tools",
+    "pack_catalog",
     "pack_summary",
     "resolve_packs",
     "resolve_profile",

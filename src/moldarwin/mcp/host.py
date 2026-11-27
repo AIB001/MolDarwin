@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import sys
 import inspect
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -39,7 +39,9 @@ def register(mcp: Any) -> None:
         native provenance is verified separately against the host trace.
         """
         import json
+
         from mcp.types import CallToolResult, TextContent
+
         from moldarwin.mcp._common import StdoutToStderr
         from moldarwin.research_hooks import handle_bound_event
         try:
@@ -67,17 +69,20 @@ def register(mcp: Any) -> None:
     def moldarwin_capabilities(detail: str = "full", skills: list[str] | None = None,
                             tools: list[str] | None = None,
                             operations: list[str] | None = None,
-                            include_environment: bool = False) -> str:
+                            include_environment: bool = False,
+                            include_data_sources: bool = False) -> str:
         """FREE. Discover all or selected capabilities; known tools need no discovery call.
 
         Defaults retain the full catalog. detail='summary' omits file manifests.
         Each selector is exact names: null means all, [] means none. For example,
         skills=['campaign'], tools=[], operations=[] reads just that skill bundle.
         Set include_environment=True for a compact live compute/GPU/engine/charter snapshot
-        without exploratory shell turns. Summary includes entrypoints and complete
-        selected-bundle version digests; detail='full' expands their member inventory.
-        This is not a method whitelist. tools lists only this server's callable registrations.
-        operations describes the general runtime API, not additional callable tools on this instance.
+        without exploratory shell turns. Set include_data_sources=True for read-only
+        MolOrigin data-source availability without enabling the optional data pack.
+        Summary includes entrypoints and complete selected-bundle version digests;
+        detail='full' expands their member inventory. This is not a method whitelist.
+        tools lists only this server's callable registrations. operations describes the
+        general runtime API, not additional callable tools on this instance.
         """
         from moldarwin.skills import _selection, catalog
 
@@ -100,13 +105,20 @@ def register(mcp: Any) -> None:
                                                "tools": list(tool_report), "operations": list(operation_report)})
         extra: dict[str, Any] = {}
         if detail == "summary":
-            from moldarwin.mcp.profiles import pack_summary
+            from moldarwin.mcp.profiles import pack_catalog, pack_summary
             extra["available_packs"] = pack_summary()
+            extra["pack_tiers"] = pack_catalog(include_legacy=True)
         if include_environment:
             from moldarwin.runtime.environment import format_environment_card, probe_environment
             env = probe_environment()
             extra["environment"] = env
             extra["environment_card"] = format_environment_card(env)
+        if include_data_sources:
+            try:
+                from moldarwin.boundary.molorigin import sources as molorigin_sources
+                extra["data_sources"] = molorigin_sources()
+            except Exception as exc:  # noqa: BLE001
+                extra["data_sources"] = {"available": False, "error": f"{type(exc).__name__}: {exc}"}
         return ok(**report, **extra, tools=tool_report, operations=operation_report,
                   runtime={"python": sys.executable, "module": str(Path(__file__).resolve()),
                            "durable_workers": "Linux /proc and POSIX locks required"})
@@ -116,14 +128,16 @@ def register(mcp: Any) -> None:
     def moldarwin_skill_find(query: str = "", domain: str | None = None,
                              tags: list[str] | None = None, source: str | None = None,
                              extra_dirs: list[str] | None = None,
-                             include_retired: bool = False, list_domains: bool = False,
-                             limit: int = 5) -> str:
-        """FREE. Lazy Tier-1 discovery over built-in and live generated skill directories.
+                             include_retired: bool = False, include_legacy: bool = False,
+                             list_domains: bool = False, limit: int = 5) -> str:
+        """FREE. Lazy Tier-1 discovery over active v2 built-in and live generated skill directories.
 
         Reads only YAML frontmatter headers (never full bodies or references), so context
-        stays O(1) even with hundreds of fine-grained target/method skills. Set
-        list_domains=True for a compact domain/tag taxonomy overview, or pass query/domain/tags
-        to get top-K cards carrying applicable_when, invalid_when, and ready arguments for
+        stays O(1) even with hundreds of fine-grained target/method skills. Defaults to the
+        12 active v2 built-in skills plus all live generated skills (set include_legacy=True
+        to include archived/overlapping historical built-in skills). Set list_domains=True
+        for a compact domain/tag taxonomy overview, or pass query/domain/tags to get top-K
+        cards carrying applicable_when, invalid_when, and ready arguments for
         moldarwin_skill_read. Live directories from extra_dirs or MOLDARWIN_SKILL_DIRS are
         indexed immediately without restarting the server. Never activates or runs a skill.
         """
@@ -138,7 +152,7 @@ def register(mcp: Any) -> None:
         return ok(**find_skills(
             query=query, domain=domain, tags=tags, source=source,
             extra_dirs=resolved_dirs, include_retired=include_retired,
-            list_domains=list_domains, limit=limit,
+            include_legacy=include_legacy, list_domains=list_domains, limit=limit,
         ))
 
     @mcp.tool()

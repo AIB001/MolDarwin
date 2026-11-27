@@ -236,7 +236,7 @@ def patch_prism_fep_mdps(
     target_nsteps: int | None = None
 
     if coupled_lambdas is not None:
-        lam_str = " ".join(f"{float(v):.5f}" for v in coupled_lambdas)
+        lam_str = " ".join(f"{float(v):.4f}" for v in coupled_lambdas)
         n_win = len(coupled_lambdas)
         # Ensure per-window em_short/npt_short/prod MDPs exist for every adaptive lambda state
         for mdps_dir in sorted({p.parent for p in root.rglob("prod_00.mdp")}):

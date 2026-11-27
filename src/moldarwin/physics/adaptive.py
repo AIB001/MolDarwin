@@ -67,7 +67,7 @@ def refine_lambda_schedule_from_overlap(
             "added_windows": 0,
             "worst_adjacent_overlap": round(min(ovs), 6),
             "target_min_overlap": min_overlap,
-            "refined_lambdas": [round(x, 5) for x in lams],
+            "refined_lambdas": [round(x, 4) for x in lams],
             "insertions_by_interval": {},
         }
 
@@ -98,14 +98,21 @@ def refine_lambda_schedule_from_overlap(
     insertions_report: dict[str, list[float]] = {}
     for idx in range(len(lams) - 1):
         lo, hi = lams[idx], lams[idx + 1]
-        refined.append(round(lo, 5))
+        lo_r, hi_r = round(lo, 4), round(hi, 4)
+        refined.append(lo_r)
         n_ins = alloc.get(idx, 0)
         if n_ins > 0:
             step = (hi - lo) / (n_ins + 1)
-            pts = [round(lo + step * k, 5) for k in range(1, n_ins + 1)]
+            # Round to 4 decimals matching GROMACS .xvg column headers; keep strictly interior & unique.
+            pts = sorted({
+                round(lo + step * k, 4)
+                for k in range(1, n_ins + 1)
+                if lo_r < round(lo + step * k, 4) < hi_r
+            })
             refined.extend(pts)
-            insertions_report[f"{idx}->{idx + 1} (ov={ovs[idx]:.5f})"] = pts
-    refined.append(round(lams[-1], 5))
+            if pts:
+                insertions_report[f"{idx}->{idx + 1} (ov={ovs[idx]:.5f})"] = pts
+    refined.append(round(lams[-1], 4))
 
     return {
         "schema": ADAPTIVE_LAMBDA_SCHEMA,
