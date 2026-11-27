@@ -31,3 +31,12 @@ When given a concise goal rather than a scripted multi-phase prompt, keep overhe
 - Diagnose failure before spending more compute: separate **pose sampling** (`best_mode_rmsd_A <= 2.0 Å`) from **score ranking** (`top1_rmsd_A`, `ROC-AUC`, `EF5%`) via `moldarwin_rescore_evaluate`.
 - **Sampling OK, ranking failed** (common on shallow PPI grooves): benchmark orthogonal engines already present in `engines_cli` (e.g., Gnina 3D-CNN, Vinardo/AD4, 3D pharmacophore/shape, MM-GBSA) on identical multi-mode poses using `<15%` of budget.
 - **All cheap oracles fail calibration**: do **not** lower the gate to fake a pass. Halt scaled screening honestly and pivot remaining budget to explicit-solvent MD/MM-GBSA control rescue, receptor-ensemble diagnosis, or an explicit No-Go report with exact denominators.
+
+## 4. Purposeful Subagent Delegation & Self-Healing Evolution
+- **Keep the Coordinator lean (50–70% lower token churn):** When your host supports subagents, partition resources cleanly via `moldarwin.runtime.subagents.partition_resources_for_subagents(env, ...)` and `build_subagent_brief(...)` so every subagent receives a disjoint GPU slice, disjoint `-pinoffset` CPU cores, and an isolated `work/subagents/<name>/` directory, returning only a `<=3 KB` JSON handoff (`validate_subagent_handoff`).
+- **Four high-ROI subagent roles:**
+  1. `intake-scout` (CPU-only, fast/cheap model): fetch RCSB/ChEMBL/PubChem structures & assays, verify SHA-256, return compact manifest.
+  2. `gpu-branch` (2–4 parallel competing branches on disjoint GPU slices): run competing protocol hypotheses (e.g. hydration/forcefield/rescorer/selectivity targets) simultaneously, then kill losing branches early via `moldarwin.evolve.prune_protocol_branches` and reclaim freed GPUs.
+  3. `physics-debugger` (disposable context): first match tracebacks against `moldarwin.research.fault_rsi.match_known_faults(...)`; isolate multi-step crash debugging away from the main thread.
+  4. `verifier-writer` (fresh unbiased context): recompute final metrics directly from raw disk outputs and generate plots/reports.
+- **Self-healing RBFE & synthesizable evolution:** Never stop passively on coarse FEP overlap — auto-insert windows with `moldarwin.physics.refine_lambda_schedule_from_overlap`, pack `k=2–3` windows/GPU via `render_packed_fep_runner`, extend only unconverged windows via `plan_selective_window_extensions`, and evolve neutral synthesizable analogs with `moldarwin.evolve.{generate_bioisostere_analogs,rank_evolution_generation}`.

@@ -7,6 +7,14 @@ host agents stay free to adapt protocols while PRISM MD/FEP reality feeds MolDar
 RSI loop. Never edits ``asset/`` (Hard Constraint 6).
 """
 
+from moldarwin.physics.adaptive import (
+    ADAPTIVE_LAMBDA_SCHEMA,
+    PACKED_FEP_RUNNER_SCHEMA,
+    WINDOW_EXTENSION_SCHEMA,
+    plan_selective_window_extensions,
+    refine_lambda_schedule_from_overlap,
+    render_packed_fep_runner,
+)
 from moldarwin.physics.preflight import (
     COMPLEX_ORIGINS,
     SCORER_SUPPORTED_ELEMENTS,
@@ -43,20 +51,25 @@ from moldarwin.physics.prism_gen import (
 from moldarwin.physics.rescoring import (
     RESCORE_COMPARE_SCHEMA,
     RESCORE_EVAL_SCHEMA,
+    check_property_shortcut_and_mmp,
     compare_rescorers_for_rsi,
     evaluate_rescorer_panel,
 )
 
 __all__ = [
+    "ADAPTIVE_LAMBDA_SCHEMA",
     "COMPLEX_ORIGINS",
     "FEP_NETWORK_SCHEMA",
     "MD_READOUT_SCHEMA",
+    "PACKED_FEP_RUNNER_SCHEMA",
     "RESCORE_COMPARE_SCHEMA",
     "RESCORE_EVAL_SCHEMA",
     "SCORER_SUPPORTED_ELEMENTS",
+    "WINDOW_EXTENSION_SCHEMA",
     "analyze_fep_network",
     "analyze_md_trajectory",
     "annotate_medchem_liabilities",
+    "check_property_shortcut_and_mmp",
     "compare_docking_vs_md",
     "compare_rescorers_for_rsi",
     "discover_prism_generators",
@@ -66,6 +79,7 @@ __all__ = [
     "evaluate_rescorer_panel",
     "patch_gromacs2026_artifacts",
     "patch_prism_fep_mdps",
+    "plan_selective_window_extensions",
     "preflight_scorer_elements",
     "prepare_prism_fep_edge",
     "prepare_prism_md_system",
@@ -73,6 +87,8 @@ __all__ = [
     "qualify_generated_poses",
     "record_fep_readout",
     "record_md_readout",
+    "refine_lambda_schedule_from_overlap",
+    "render_packed_fep_runner",
     "sanitize_ligand_sdf",
     "select_conserved_pocket_waters",
     "validate_complex_handoff",

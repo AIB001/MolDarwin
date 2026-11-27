@@ -21,6 +21,10 @@ opportunity/patch chain, or routine review phase is required.
   plan, inspect idle GPUs/engines once via `moldarwin_capabilities(detail="summary", skills=[], tools=[], operations=[], include_environment=True)`
   (or `SessionStart` `[moldarwin-env]`), size runs from a `<=5%` micro-pilot + control gate,
   never use `busy_gpus`, and load `moldarwin-autonomous-planning` on demand.
+- **Delegate noisy or parallel work to bounded subagents:** When the host supports subagents,
+  offload raw structure/assay intake, competing GPU protocol branches, crash debugging, and
+  independent delivery verification into isolated subagents with disjoint GPU/CPU/workdir leases
+  (`moldarwin.runtime.subagents`) returning `<=3 KB` JSON handoffs, keeping the main thread lean.
 
 ## Epistemic & Execution Boundaries
 - Keep `completion`, `verification`, and `admission` distinct. `diagnostic` runs and

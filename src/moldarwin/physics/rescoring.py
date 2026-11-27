@@ -10,7 +10,7 @@ from pose *ranking* and evaluates candidate rescorers (Gnina CNN, Vinardo, AD4, 
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 RESCORE_EVAL_SCHEMA = "moldarwin-rescore-calibration/1"
@@ -242,4 +242,92 @@ def compare_rescorers_for_rsi(
             "Validates control rescue on this target panel only; promote as a reusable "
             "default only after paired independent validation across targets."
         ),
+    }
+
+
+def check_property_shortcut_and_mmp(
+    records: Sequence[Mapping[str, Any]],
+    *,
+    higher_better: bool = False,
+    tanimoto_cutoff: float = 0.60,
+    shortcut_auc_margin: float = 0.05,
+) -> dict[str, Any]:
+    """Fast (<1s), non-bureaucratic sanity check for property-shortcut leakage and MMP SAR.
+
+    Each record requires ``id``, ``is_positive`` (bool), ``score`` (float), and optional
+    ``smiles`` (or precomputed ``mw``, ``clogp``, ``tpsa``, ``formal_charge``). Flags when
+    a single trivial physicochemical descriptor matches or beats the scorer's ROC-AUC, or
+    when chemically similar strong-vs-weak pairs (Tanimoto >= 0.60) fail >50% concordance.
+    """
+    scored = [
+        r for r in records if r.get("score") is not None and math.isfinite(float(r["score"]))
+    ]
+    labels = [bool(r["is_positive"]) for r in scored]
+    n_pos = sum(labels)
+    n_neg = len(labels) - n_pos
+
+    def _auc(vals: list[float], *, high: bool) -> float | None:
+        if n_pos == 0 or n_neg == 0 or len(vals) != len(labels):
+            return None
+        ranks = _midranks(vals, higher_better=high)
+        sum_pos = sum(rk for rk, p in zip(ranks, labels, strict=True) if p)
+        u_pos = n_pos * n_neg - (sum_pos - n_pos * (n_pos + 1) / 2.0)
+        return round(u_pos / (n_pos * n_neg), 4)
+
+    scorer_auc = _auc([float(r["score"]) for r in scored], high=higher_better)
+    prop_aucs: dict[str, float] = {}
+    for prop in ("mw", "clogp", "tpsa", "formal_charge"):
+        if all(r.get(prop) is not None and math.isfinite(float(r[prop])) for r in scored) and scored:
+            vals = [float(r[prop]) for r in scored]
+            a_hi = _auc(vals, high=True)
+            a_lo = _auc(vals, high=False)
+            if a_hi is not None and a_lo is not None:
+                prop_aucs[prop] = max(a_hi, a_lo)
+
+    max_prop_auc = max(prop_aucs.values()) if prop_aucs else None
+    shortcut_flag = bool(
+        scorer_auc is not None
+        and max_prop_auc is not None
+        and max_prop_auc >= (scorer_auc - shortcut_auc_margin)
+    )
+
+    # Lightweight MMP / matched-similarity concordance when RDKit + SMILES are present.
+    mmp_pairs = 0
+    mmp_correct = 0
+    if all(r.get("smiles") for r in scored) and n_pos > 0 and n_neg > 0:
+        try:
+            from rdkit import Chem, DataStructs
+            from rdkit.Chem import AllChem
+
+            fps = []
+            for r in scored:
+                m = Chem.MolFromSmiles(str(r["smiles"]))
+                fps.append(AllChem.GetMorganFingerprintAsBitVect(m, 2, nBits=2048) if m else None)
+            for i, ri in enumerate(scored):
+                if not bool(ri["is_positive"]) or fps[i] is None:
+                    continue
+                si = float(ri["score"])
+                for j, rj in enumerate(scored):
+                    if bool(rj["is_positive"]) or fps[j] is None:
+                        continue
+                    sim = float(DataStructs.TanimotoSimilarity(fps[i], fps[j]))
+                    if sim >= tanimoto_cutoff:
+                        mmp_pairs += 1
+                        sj = float(rj["score"])
+                        if (si > sj) if higher_better else (si < sj):
+                            mmp_correct += 1
+        except Exception:
+            pass
+
+    mmp_rate = round(mmp_correct / mmp_pairs, 4) if mmp_pairs > 0 else None
+    return {
+        "schema": "moldarwin-rescore-sanity/1",
+        "scorer_roc_auc": scorer_auc,
+        "property_shortcut_aucs": prop_aucs,
+        "max_property_auc": max_prop_auc,
+        "property_shortcut_flag": shortcut_flag,
+        "mmp_pairs_found": mmp_pairs,
+        "mmp_concordant": mmp_correct,
+        "mmp_concordance_rate": mmp_rate,
+        "mmp_concordance_flag": bool(mmp_rate is not None and mmp_pairs >= 5 and mmp_rate < 0.60),
     }
