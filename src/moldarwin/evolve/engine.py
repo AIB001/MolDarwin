@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 from typing import Any
 
 EVOLUTION_GENERATION_SCHEMA = "moldarwin-evolution-generation/1"
@@ -338,7 +339,7 @@ def generate_bioisostere_analogs(
 
 def enumerate_reaction_analogs(
     core_smiles: str,
-    building_blocks: Sequence[str | Mapping[str, Any]],
+    building_blocks: Sequence[str | Mapping[str, Any]] = (),
     *,
     reaction_name: str,
     core_id: str = "core",
@@ -346,17 +347,30 @@ def enumerate_reaction_analogs(
     max_products: int = 48,
     require_neutral: bool = True,
     protected_core_atom_indices: Sequence[int] = (),
+    catalog_db: str | Path | None = None,
+    catalog_limit: int = 32,
+    catalog_max_mw: float = 300.0,
+    catalog_max_clogp: float = 3.5,
 ) -> dict[str, Any]:
     """Enumerate wet-lab-synthesizable analogs by coupling a reactive core with building blocks.
 
     Uses standard medicinal-chemistry coupling templates (``MEDCHEM_REACTIONS``) paired with
-    purchasable reagents (e.g. sourced via ``molorigin-compound-sourcing``) and scores each
-    product with continuous MPO/soft-spot profiling (``moldarwin.design.dmta``).
+    purchasable reagents (either caller-supplied or automatically pulled from a local indexed
+    SQLite supplier catalog via ``catalog_db``) and scores each product with continuous
+    MPO/soft-spot profiling (``moldarwin.design.dmta``). When ``catalog_db`` is provided,
+    both core and partner are checked for exact canonical matches so every product carries
+    explicit ``catalog_verified_partners`` (0, 1, or 2) provenance at generation time.
     """
     from rdkit import Chem
     from rdkit.Chem import AllChem
 
     from moldarwin.design.dmta import score_drug_design_mpo
+    from moldarwin.evolve.catalog import (
+        infer_complementary_buckets,
+        lookup_exact_smiles,
+        query_building_blocks,
+        read_catalog_metadata,
+    )
 
     if reaction_name not in MEDCHEM_REACTIONS:
         raise ValueError(
@@ -377,11 +391,43 @@ def enumerate_reaction_analogs(
     for idx_p in protected_set:
         core_mol.GetAtomWithIdx(idx_p).SetProp("_protected", "1")
 
+    catalog_path = Path(catalog_db).resolve() if catalog_db is not None else None
+    catalog_sources: dict[str, str] | None = None
+    core_supplier_ids: list[str] = []
+    queried_buckets: list[str] = []
+
+    effective_blocks: list[str | Mapping[str, Any]] = list(building_blocks)
+    if catalog_path is not None:
+        cat_meta = read_catalog_metadata(catalog_path)
+        catalog_sources = dict(cat_meta.get("sources") or {})
+        core_lookup = lookup_exact_smiles(catalog_path, [core_can])
+        core_supplier_ids = list(core_lookup.get(core_can, []))
+        if not effective_blocks:
+            queried_buckets = infer_complementary_buckets(core_can, reaction_name)
+            for bucket in queried_buckets:
+                effective_blocks.extend(
+                    query_building_blocks(
+                        catalog_path,
+                        bucket,
+                        max_mw=catalog_max_mw,
+                        max_clogp=catalog_max_clogp,
+                        limit=catalog_limit,
+                    )
+                )
+
+    partner_lookup: dict[str, list[str]] = {}
+    if catalog_path is not None and effective_blocks:
+        raw_bb_smiles = [
+            bb if isinstance(bb, str) else str(bb.get("smiles") or "")
+            for bb in effective_blocks
+        ]
+        partner_lookup = lookup_exact_smiles(catalog_path, [s for s in raw_bb_smiles if s])
+
     seen: set[str] = {core_can}
     products_out: list[dict[str, Any]] = []
     skipped_blocks: list[dict[str, str]] = []
 
-    for b_idx, raw_bb in enumerate(building_blocks):
+    for b_idx, raw_bb in enumerate(effective_blocks):
         if isinstance(raw_bb, str):
             bb_id, bb_smi = f"bb_{b_idx + 1}", raw_bb
         else:
@@ -392,6 +438,15 @@ def enumerate_reaction_analogs(
             skipped_blocks.append({"building_block_id": bb_id, "reason": "invalid_smiles"})
             continue
         bb_can = Chem.MolToSmiles(bb_mol, canonical=True)
+        partner_sids = list(partner_lookup.get(bb_can, [])) if catalog_path is not None else []
+        if catalog_path is not None:
+            core_ver = bool(core_supplier_ids)
+            partner_ver = bool(partner_sids)
+            n_verified: int | None = int(core_ver) + int(partner_ver)
+        else:
+            core_ver = False
+            partner_ver = False
+            n_verified = None
 
         # Try both reactant orderings so core can act as either partner (e.g. acid or amine)
         raw_prods = list(rxn.RunReactants((core_mol, bb_mol))) + list(rxn.RunReactants((bb_mol, core_mol)))
@@ -414,7 +469,7 @@ def enumerate_reaction_analogs(
                 continue
             seen.add(can)
             mpo = score_drug_design_mpo(can, profile=mpo_profile)
-            products_out.append({
+            row: dict[str, Any] = {
                 "analog_id": f"{core_id}_{reaction_name}_{bb_id}_{len(products_out) + 1}",
                 "smiles": can,
                 "reaction": reaction_name,
@@ -431,14 +486,28 @@ def enumerate_reaction_analogs(
                 "herg_risk": mpo["herg_risk"],
                 "hard_red_flags": mpo["hard_red_flags"],
                 "soft_spot_count": len(mpo["metabolic_soft_spots"]),
-            })
+            }
+            if catalog_path is not None:
+                row["core_catalog_verified"] = core_ver
+                row["core_supplier_ids"] = core_supplier_ids
+                row["partner_catalog_verified"] = partner_ver
+                row["partner_supplier_ids"] = partner_sids
+                row["catalog_verified_partners"] = n_verified
+            products_out.append(row)
             if len(products_out) >= max_products:
                 break
         if len(products_out) >= max_products:
             break
 
-    products_out.sort(key=lambda r: (-r["mpo_score"], r["soft_spot_count"], r["mw"]))
-    return {
+    products_out.sort(
+        key=lambda r: (
+            -(int(r.get("catalog_verified_partners") or 0)),
+            -r["mpo_score"],
+            r["soft_spot_count"],
+            r["mw"],
+        )
+    )
+    out: dict[str, Any] = {
         "schema": REACTION_ENUMERATION_SCHEMA,
         "core_id": core_id,
         "core_smiles": core_can,
@@ -449,6 +518,13 @@ def enumerate_reaction_analogs(
         "skipped_building_blocks": skipped_blocks,
         "products": products_out,
     }
+    if catalog_path is not None:
+        out["catalog_db"] = str(catalog_path)
+        out["catalog_sources"] = catalog_sources
+        out["catalog_queried_buckets"] = queried_buckets
+        out["core_catalog_verified"] = bool(core_supplier_ids)
+        out["core_supplier_ids"] = core_supplier_ids
+    return out
 
 
 def _pareto_nondominated(rows: list[dict[str, Any]], keys: list[str]) -> set[str]:

@@ -34,10 +34,22 @@ from moldarwin.judgment.proposal import (
     digest,
     refuse_if_not_an_advisors_decision,
 )
+from moldarwin.judgment.sidecar import (
+    SIDECAR_CHECKPOINTS,
+    SIDECAR_RESOLUTION_SCHEMA,
+    SIDECAR_REVIEW_SCHEMA,
+    build_sidecar_critic_prompt,
+    record_advisory_resolution,
+    run_deterministic_sidecar_audit,
+    run_sidecar_review,
+)
 from moldarwin.judgment.waiver import Waiver, WaiverError, WaiverSet
 
 __all__ = [
     "AUTONOMY",
+    "SIDECAR_CHECKPOINTS",
+    "SIDECAR_RESOLUTION_SCHEMA",
+    "SIDECAR_REVIEW_SCHEMA",
     "Act",
     "Advisor",
     "AdvisorError",
@@ -49,10 +61,14 @@ __all__ = [
     "NotAnAdvisorsDecision",
     "Proposal",
     "Scripted",
+    "Transport",
     "Waiver",
     "WaiverError",
     "WaiverSet",
-    "Transport",
+    "build_sidecar_critic_prompt",
     "digest",
+    "record_advisory_resolution",
     "refuse_if_not_an_advisors_decision",
+    "run_deterministic_sidecar_audit",
+    "run_sidecar_review",
 ]

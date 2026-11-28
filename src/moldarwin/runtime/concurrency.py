@@ -39,28 +39,43 @@ def plan_gpu_packing(
     max_omp_per_job: int = 12,
     single_job_sm_util_pct: float | None = None,
     reserve_os_cores: int = 0,
+    max_jobs_per_gpu: int = 8,
+    forbidden_gpus: Sequence[int] = (),
+    cpu_offset_base: int = 0,
 ) -> dict[str, Any]:
-    """Build a disjoint CPU-pinned multi-job packing plan across idle GPUs.
+    """Build a disjoint CPU-pinned multi-job packing plan across allowed GPUs.
 
-    If ``jobs_per_gpu`` is omitted, recommends a conservative packing factor bounded by
-    VRAM headroom, minimum OpenMP threads per job, and (when provided) observed single-job
-    SM utilization. Set ``reserve_os_cores > 0`` on multi-GPU servers so SSH/kernel/IO
-    threads are never starved by 100% pinned compute slots.
+    If ``jobs_per_gpu`` is omitted, recommends a packing factor bounded by VRAM headroom,
+    minimum OpenMP threads per job, ``max_jobs_per_gpu`` (default 8 so 96 GB GPUs can
+    pack 6+ small FEP windows cleanly), and (when provided) observed single-job SM
+    utilization. Refuses immediately if any GPU in ``idle_gpus`` is in ``forbidden_gpus``.
+    Set ``reserve_os_cores > 0`` on multi-GPU servers so SSH/kernel/IO threads are never
+    starved by 100% pinned compute slots.
     """
     gpus = [int(g) for g in idle_gpus]
+    forbidden = {int(g) for g in forbidden_gpus}
     if not gpus:
         raise ValueError("idle_gpus must be non-empty")
+    overlap_forbidden = sorted(set(gpus) & forbidden)
+    if overlap_forbidden:
+        raise ValueError(
+            f"refusing to plan compute on forbidden GPU(s): {overlap_forbidden}"
+        )
     if cpu_cores < 1 or mem_per_job_mb <= 0 or gpu_vram_mb <= 0:
         raise ValueError("cpu_cores, mem_per_job_mb, and gpu_vram_mb must be positive")
     if reserve_os_cores < 0 or reserve_os_cores >= cpu_cores:
         raise ValueError(f"reserve_os_cores must lie in [0, {cpu_cores - 1}], got {reserve_os_cores}")
     if not (0.1 <= max_vram_fraction <= 0.95):
         raise ValueError("max_vram_fraction must lie in [0.1, 0.95]")
+    if max_jobs_per_gpu < 1:
+        raise ValueError("max_jobs_per_gpu must be >= 1")
+    if cpu_offset_base < 0:
+        raise ValueError("cpu_offset_base must be >= 0")
 
     usable_cores = cpu_cores - reserve_os_cores
     vram_cap = max(1, int(math.floor((gpu_vram_mb * max_vram_fraction) / mem_per_job_mb)))
     cpu_cap = max(1, usable_cores // (len(gpus) * max(1, min_omp_per_job)))
-    max_safe_k = max(1, min(vram_cap, cpu_cap, 4))
+    max_safe_k = max(1, min(vram_cap, cpu_cap, int(max_jobs_per_gpu)))
 
     if jobs_per_gpu is not None:
         if jobs_per_gpu < 1:
@@ -85,7 +100,7 @@ def plan_gpu_packing(
     slot_idx = 0
     for gpu_id in gpus:
         for local_rank in range(k):
-            cpu_offset = (slot_idx * ntomp) % usable_cores
+            cpu_offset = int(cpu_offset_base) + ((slot_idx * ntomp) % usable_cores)
             slots.append({
                 "slot_id": slot_idx,
                 "gpu_id": gpu_id,
@@ -103,6 +118,7 @@ def plan_gpu_packing(
         "schema": CONCURRENCY_PLAN_SCHEMA,
         "gpu_count": len(gpus),
         "idle_gpus": gpus,
+        "forbidden_gpus": sorted(forbidden),
         "jobs_per_gpu": k,
         "max_safe_jobs_per_gpu": max_safe_k,
         "total_concurrent_slots": total_slots,
@@ -110,6 +126,7 @@ def plan_gpu_packing(
         "total_cpus_assigned": total_slots * ntomp,
         "cpu_cores_available": cpu_cores,
         "cpu_cores_reserved_for_os": reserve_os_cores,
+        "cpu_offset_base": int(cpu_offset_base),
         "estimated_vram_per_gpu_mb": round(k * mem_per_job_mb, 1),
         "vram_limit_per_gpu_mb": round(gpu_vram_mb * max_vram_fraction, 1),
         "slots": slots,

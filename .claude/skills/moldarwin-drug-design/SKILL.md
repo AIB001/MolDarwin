@@ -28,12 +28,14 @@ MolDarwin empowers drug design by coordinating **three equal vendored engines** 
 - Call `deconfound_sar_signal(records)` to project out MW, cLogP, TPSA, and heavy-atom count (Frisch–Waugh–Lovell partial correlation) so you never chase greasy lipophilicity shortcuts.
 - Call `fit_bayesian_free_wilson(records)` to perform ring-preserving MCS R-group decomposition, exact single-site MMP extraction ($\Delta\Delta G$, $\Delta\text{LLE}$), heteroscedastic Bayesian Ridge Free–Wilson + pairwise epistasis (Activity Cliffs), exact hat-matrix LOO CV, and **untested R-group Cartesian recombination** with valid SMILES, predicted $\Delta G \pm \sigma$, $P(\text{improve})$, and expected LLE.
 
-## 3. Generate Protected, Synthesizable Candidates (`moldarwin.evolve` + `PRISM` + `MolCat`)
-- Pass `protected_atom_indices` from pocket profiling into `generate_bioisostere_analogs` (bioisostere/liability rescue, metabolic soft-spot blocking, steric/polar probes, heterocycle hops) or run `enumerate_reaction_analogs` (amide coupling, Suzuki, Buchwald-Hartwig, sulfonamidation, $S_N\text{Ar}$) using purchasable reagents from `molorigin-compound-sourcing`.
+## 3. Generate Protected, Catalog-Verified Synthesizable Candidates (`moldarwin.evolve` + `PRISM` + `MolCat`)
+- Index local supplier catalogs (`.smi` / `.smi.gz`) once with `build_building_block_index` and call `enumerate_reaction_analogs(..., catalog_db=...)` so generated reaction products carry exact `catalog_verified_partners` (`0/2`, `1/2`, or `2/2`) and supplier IDs from birth—never burning MD/FEP GPU-hours exclusively on unverified 0/2 virtual partners.
+- Pass `protected_atom_indices` from pocket profiling into `generate_bioisostere_analogs` (bioisostere/liability rescue, metabolic soft-spot blocking, steric/polar probes, heterocycle hops) or run `enumerate_reaction_analogs` (amide coupling, Suzuki, Buchwald-Hartwig, sulfonamidation, $S_N\text{Ar}$).
 - For 3D de novo / local fragment design, invoke PRISM's 6 SBDD models (`prism.generation`) and qualify every pose with `qualify_generated_poses`.
-- Qualify candidates with MolCat's 53-plugin screening, ADMET, Lilly medchem, and AiZynthFinder retrosynthesis pipelines before spending GPU-hours on RBFE.
+- Qualify candidates with MolCat's 59-plugin screening, ADMET, medchem rules, PoseBusters, and retrosynthesis pipelines before spending GPU-hours on RBFE (reporting unavailable plugins honestly as `unavailable`).
 
-## 4. Multi-Parameter DMTA Selection (`moldarwin.design.dmta`)
+## 4. Multi-Parameter DMTA Selection & 4-Checkpoint Sidecar Audit (`moldarwin.design.dmta` + `moldarwin.judgment.sidecar`)
 - Profile every candidate with `score_drug_design_mpo` (LE, LLE/LipE, LELP, Fsp³, QED, ESOL solubility, hERG risk, CYP soft-spots, continuous Oral/CNS/PPI MPO) and attach any executed MolCat plugin evidence (reporting unexecuted plugins honestly as `not_run`).
 - Rank with `rank_candidates_ehvi` (uncertainty-aware multi-objective Expected Hypervolume Improvement over Potency × Selectivity $\Delta\Delta\Delta G$ × MPO × Synthesizability).
 - Select the next synthesis/FEP batch with `select_a_optimal_dmta_batch` (Sherman–Morrison Graph-Laplacian A-optimal information gain + EHVI utility + congeneric component/singleton awareness) and emit a complete `build_design_dossier` report.
+- Run the read-only Sidecar Auditor (`moldarwin_sidecar_audit` / `run_sidecar_review`) at `CP1_TARGET_DATA`, `CP2_PRE_PHYSICS`, `CP3_RUNTIME_TELEMETRY`, and `CP4_PRE_DELIVERY` (optionally with an independent clean-context `CodexCli` / `ClaudeCli` critic), recording every advisory resolution via `record_advisory_resolution`.

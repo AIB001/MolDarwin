@@ -316,8 +316,12 @@ class CaddDomainPack:
                 "journal": "moldarwin.research:ResearchJournal",
                 "fault_rsi": "moldarwin.research.fault_rsi:FaultRSIRegistry",
                 "authority_package": "moldarwin.authority",
+                "sidecar_auditor": "moldarwin.judgment.sidecar:run_sidecar_review",
+                "compute_lease": "moldarwin.runtime.lease:ComputeLease",
                 "subagent_leases": "moldarwin.runtime.subagents:partition_resources_for_subagents",
                 "gpu_packing": "moldarwin.runtime.concurrency:plan_gpu_packing",
+                "catalog_indexer": "moldarwin.evolve.catalog:build_building_block_index",
+                "rbfe_mapping_guard": "moldarwin.physics.preflight:verify_bond_consistent_atom_mapping",
             },
             "engine_pillars": CADD_ENGINE_PILLARS,
             "mcp_surface": {

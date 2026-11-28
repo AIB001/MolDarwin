@@ -887,5 +887,47 @@ def register(mcp: Any) -> None:
             ),
         )
 
+    @mcp.tool()
+    @tool(Cost.FREE)
+    def moldarwin_sidecar_audit(
+        checkpoint: str,
+        payload_json: str,
+        critic_transport: str = "none",
+    ) -> str:
+        """FREE. Run the read-only stage-gate Sidecar Auditor at CP1-CP4.
+
+        Checks hard scientific, chemical, mapping, catalog, and compute-lease invariants
+        at ``CP1_TARGET_DATA``, ``CP2_PRE_PHYSICS``, ``CP3_RUNTIME_TELEMETRY``, or
+        ``CP4_PRE_DELIVERY``. Optionally invokes an independent clean-context read-only
+        LLM critic (``codex-cli`` or ``claude-cli``) that cannot downgrade deterministic
+        blocking findings.
+
+        Args:
+            checkpoint: One of CP1_TARGET_DATA, CP2_PRE_PHYSICS, CP3_RUNTIME_TELEMETRY,
+                or CP4_PRE_DELIVERY.
+            payload_json: JSON object holding the checkpoint artifacts and metrics to audit.
+            critic_transport: ``none`` (default, deterministic zero-token audit only),
+                ``codex-cli``, or ``claude-cli``.
+        """
+        from moldarwin.judgment.advisor import ClaudeCli, CodexCli
+        from moldarwin.judgment.sidecar import run_sidecar_review
+
+        payload = json.loads(payload_json)
+        if not isinstance(payload, dict):
+            raise ValueError("payload_json must decode to a JSON object")
+        mode = critic_transport.strip().lower()
+        if mode in {"", "none"}:
+            transport = None
+        elif mode == "codex-cli":
+            transport = CodexCli()
+        elif mode == "claude-cli":
+            transport = ClaudeCli()
+        else:
+            raise ValueError(
+                f"unknown critic_transport {critic_transport!r}; expected 'none', 'codex-cli', or 'claude-cli'"
+            )
+        review = run_sidecar_review(checkpoint, payload, transport=transport)
+        return ok(**review)
+
 
 __all__ = ["register"]

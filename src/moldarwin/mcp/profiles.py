@@ -90,6 +90,7 @@ TOOL_PACKS: dict[str, frozenset[str]] = {
         "moldarwin_council_reliability",
         "moldarwin_council_adjudicate",
         "moldarwin_recommend_waiver",
+        "moldarwin_sidecar_audit",
     }),
     "active": frozenset({
         "moldarwin_active_create",

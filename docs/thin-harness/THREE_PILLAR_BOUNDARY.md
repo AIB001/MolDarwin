@@ -1,6 +1,6 @@
 # Three-Pillar CADD Architecture & PRISM Boundary Contract
 
-Date: 2026-11-27. Status: **Normative architectural boundary for MolDarwin v2.1 (`cadd_drug_design`).**
+Date: 2026-11-28. Status: **Normative architectural boundary for MolDarwin v2.2 (`cadd_drug_design`).**
 
 ## 1. First-Principles Division of Labor
 
@@ -9,9 +9,9 @@ MolDarwin is an **epistemic CADD harness and cross-pillar drug-design reasoning 
 | Layer | Owns | Must NOT Drift Into |
 | --- | --- | --- |
 | **MolOrigin** (`asset/molorigin`, MCP `data` pack) | Target evidence, literature assays, PDB templates, selectivity dossiers, analogue search, purchasable sourcing | Admission verdicts or mutable unsealed HTTP fetches |
-| **MolCat** (`asset/molcat`, MCP `screening` pack, 53 plugins) | Standardization, docking (`UniDock`/`Gnina`/`KarmaDock`/`Redock`), Boltz2, OpenADMET/ADMET-AI, Lilly/medchem rules & alerts, AiZynthFinder retrosynthesis, SA/SCScore, pose strain, specificity panels, diversity, MD handoff | Re-implementing ad-hoc SMARTS/ADMET clones outside MolCat when MolCat plugins exist |
+| **MolCat** (`asset/molcat`, MCP `screening` pack, 59 plugins) | Standardization, docking (`UniDock`/`Gnina`/`KarmaDock`/`Redock`), Boltz2, OpenADMET/ADMET-AI, Lilly/medchem rules & alerts, AiZynthFinder retrosynthesis, SA/SCScore, pose strain, specificity panels, diversity, MD handoff | Re-implementing ad-hoc SMARTS/ADMET clones outside MolCat when MolCat plugins exist |
 | **PRISM** (`asset/prism`, MCP `prism` pack) | 3D SBDD generation (`prism/generation`, 6 models), grounded local editing & LLM graph planning (upstream `AIB001/PRISM@84b5dfa` `prism/design/`), explicit-solvent MD/FEP/MM-PBSA/PMF/REST2, trajectory analysis (`prism/analysis`) | Becoming the sole active domain pack or absorbing MolDarwin's epistemic kernel |
-| **MolDarwin Core + Design Brain** (`src/moldarwin/`) | (a) Domain-agnostic Epistemic & RSI Kernel (`ResearchJournal`, `authority` `0/7` unguarded SPENDS, `FaultRSIRegistry` Tier-1 admission, thin 16-tool MCP, 3-tier lazy skills); (b) Cross-pillar Drug-Design Intelligence (`moldarwin.design.{pocket,sar,dmta}` + `moldarwin.evolve`) connecting all three engines into one closed DMTA loop | Accumulating engine-specific GROMACS/MDP/CPU hacks inside MolDarwin core |
+| **MolDarwin Core + Design Brain** (`src/moldarwin/`) | (a) Domain-agnostic Epistemic & RSI Kernel (`ResearchJournal`, `authority` `0/7` unguarded SPENDS, `FaultRSIRegistry` Tier-1 admission, `ComputeLease` single-dispatcher GPU/CPU enforcement + 429 backoff, 4-checkpoint read-only `Sidecar` auditor, thin 16-tool MCP, 3-tier lazy skills); (b) Cross-pillar Drug-Design Intelligence (`moldarwin.design.{pocket,sar,dmta}` + catalog-constrained `moldarwin.evolve`) connecting all three engines into one closed DMTA loop | Accumulating engine-specific GROMACS/MDP/CPU hacks inside MolDarwin core |
 
 ## 2. Explicit Containment of `src/moldarwin/physics/`
 
@@ -19,7 +19,7 @@ Because `asset/prism` is frozen at commit `f0492d9` (`2026-09-12`) under Hard Co
 
 ### A. MolDarwin Scientific Verification Boundary (`active_boundary`)
 Belong permanently in MolDarwin because they verify invariants **across** engines (LLM, co-fold, MolCat, PRISM):
-- `moldarwin.physics.preflight` — Any-Origin 3D clash/geometry/element preflight, conserved crystal bridge waters, soft non-destructive medchem triage.
+- `moldarwin.physics.preflight` — Any-Origin 3D clash/geometry/element preflight, conserved crystal bridge waters, soft non-destructive medchem triage, bond-consistent RBFE atom-mapping verification (`verify_bond_consistent_atom_mapping`), and shallow-PPI control-gate protocol escalation (`plan_shallow_ppi_physics_protocol`).
 - `moldarwin.physics.rescoring` — Tie-aware ROC-AUC/EF calibration, paired RSI rescorer comparison, property-shortcut check.
 - `moldarwin.physics.prism_gen` — Honest PRISM SBDD adapter discovery and Any-Origin pose qualification.
 

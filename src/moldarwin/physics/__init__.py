@@ -37,12 +37,16 @@ from moldarwin.physics.enhanced_sampling import (
 )
 from moldarwin.physics.preflight import (
     COMPLEX_ORIGINS,
+    RBFE_MAPPING_AUDIT_SCHEMA,
     SCORER_SUPPORTED_ELEMENTS,
+    SHALLOW_PPI_PROTOCOL_SCHEMA,
     annotate_medchem_liabilities,
+    plan_shallow_ppi_physics_protocol,
     preflight_scorer_elements,
     sanitize_ligand_sdf,
     select_conserved_pocket_waters,
     validate_complex_handoff,
+    verify_bond_consistent_atom_mapping,
 )
 from moldarwin.physics.prism_bridge import (
     MD_READOUT_SCHEMA,
@@ -137,10 +141,12 @@ __all__ = [
     "MD_READOUT_SCHEMA",
     "PACKED_FEP_RUNNER_SCHEMA",
     "PHYSICS_MODULE_BOUNDARIES",
+    "RBFE_MAPPING_AUDIT_SCHEMA",
     "RESCORE_COMPARE_SCHEMA",
     "RESCORE_EVAL_SCHEMA",
     "ROBUST_NETWORK_SCHEMA",
     "SCORER_SUPPORTED_ELEMENTS",
+    "SHALLOW_PPI_PROTOCOL_SCHEMA",
     "WINDOW_EXTENSION_SCHEMA",
     "analyze_expanded_ensemble_convergence",
     "analyze_fep_network",
@@ -162,6 +168,7 @@ __all__ = [
     "patch_prism_fep_mdps",
     "plan_sampling_escalation",
     "plan_selective_window_extensions",
+    "plan_shallow_ppi_physics_protocol",
     "preflight_scorer_elements",
     "prepare_prism_fep_edge",
     "prepare_prism_md_system",
@@ -176,4 +183,5 @@ __all__ = [
     "solve_robust_fep_network",
     "validate_complex_handoff",
     "validate_gro_integrity",
+    "verify_bond_consistent_atom_mapping",
 ]
